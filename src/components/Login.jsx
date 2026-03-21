@@ -1,120 +1,132 @@
 import React, { useState } from 'react';
 import { auth, db } from '../firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  sendEmailVerification, 
+import {
+  browserSessionPersistence,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  setPersistence,
+  signInWithEmailAndPassword,
   signOut,
-  setPersistence,           
-  browserSessionPersistence 
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { enforceRoleSecurity } from '../utils';
 
-const Login = ({ type, onLogin }) => {
+function getSurfaceLabel(type) {
+  return type === 'crc' ? 'CRC' : 'patient';
+}
+
+function getAuthErrorMessage({ error, type, isReg }) {
+  const surfaceLabel = getSurfaceLabel(type);
+  const code = error?.code;
+  const rawMessage = String(error?.message || '').replace('Firebase: ', '');
+
+  if (code === 'auth/invalid-email') {
+    return `Please enter a valid ${surfaceLabel.toLowerCase()} email address.`;
+  }
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+    return `${surfaceLabel} login failed. Check your ${surfaceLabel.toLowerCase()} email and password and try again.`;
+  }
+  if (code === 'auth/email-already-in-use') {
+    return `${surfaceLabel} account already exists. Please log in instead.`;
+  }
+  if (code === 'auth/too-many-requests') {
+    return `${surfaceLabel} sign-in is temporarily locked. Please wait a moment and try again.`;
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'Network error. Please confirm your connection and try again.';
+  }
+  if (!isReg && rawMessage === 'Only @hospital.com allowed') {
+    return 'CRC sign-in requires an @hospital.com email address.';
+  }
+  if (!isReg && rawMessage === 'Staff use CRC portal') {
+    return 'CRC staff must use the CRC website. Patient login does not accept @hospital.com email addresses.';
+  }
+  if (isReg && rawMessage === 'Name, Gender, and Date of Birth are required.') {
+    return 'Complete the required patient registration details before continuing.';
+  }
+  return rawMessage;
+}
+
+export default function Login({ type, onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  // Names
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  
-  // Gender & DOB
   const [gender, setGender] = useState('');
   const [dob, setDob] = useState('');
-  
   const [isReg, setIsReg] = useState(false);
   const [error, setError] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
 
-  const handleAuth = async (e) => {
-    e.preventDefault(); 
+  const handleAuth = async (event) => {
+    event.preventDefault();
     setError('');
-    
+
     try {
-      // Role Validation
-      if (type==='crc' && !email.endsWith('@hospital.com')) throw new Error("Only @hospital.com allowed");
-      if (type==='patient' && email.endsWith('@hospital.com')) throw new Error("Staff use CRC portal");
-      
+      if (type === 'crc' && !email.endsWith('@hospital.com')) throw new Error('Only @hospital.com allowed');
+      if (type === 'patient' && email.endsWith('@hospital.com')) throw new Error('Staff use CRC portal');
+
       await setPersistence(auth, browserSessionPersistence);
 
       if (isReg) {
-        // --- 1. SIGN UP LOGIC (New Patients) ---
         if (type === 'patient' && (!firstName || !lastName || !gender || !dob)) {
-          throw new Error("Name, Gender, and Date of Birth are required.");
+          throw new Error('Name, Gender, and Date of Birth are required.');
         }
 
-        const res = await createUserWithEmailAndPassword(auth, email, password);
-        const user = res.user;
+        const response = await createUserWithEmailAndPassword(auth, email, password);
+        const user = response.user;
 
-        // Save User Info
-        await setDoc(doc(db, "users", user.uid), {
-          firstName: firstName,
-          lastName: lastName,
-          nickname: `${firstName} ${lastName}`,
-          gender: gender,
-          dob: dob,
-          role: type,
-          email: user.email
-        }, { merge: true });
+        await setDoc(
+          doc(db, 'users', user.uid),
+          {
+            firstName,
+            lastName,
+            nickname: `${firstName} ${lastName}`,
+            gender,
+            dob,
+            role: type,
+            email: user.email,
+          },
+          { merge: true }
+        );
 
-        // SEND VERIFICATION EMAIL (Only for real users)
-        // Skip for testing emails
         const isTestAccount = email.toLowerCase().includes('test') || email.toLowerCase().includes('demo');
-        
         if (!isTestAccount) {
           await sendEmailVerification(user);
-          await signOut(auth); // Force logout to enforce verification
+          await signOut(auth);
           setVerificationSent(true);
         } else {
-          // If test account, allow immediate login
           await enforceRoleSecurity(user, type);
           onLogin(user);
         }
-
       } else {
-        // --- 2. LOGIN LOGIC ---
-        const res = await signInWithEmailAndPassword(auth, email, password);
-        const user = res.user;
-
-        // --- VERIFICATION RULES ---
+        const response = await signInWithEmailAndPassword(auth, email, password);
+        const user = response.user;
         const isTestAccount = user.email.toLowerCase().includes('test') || user.email.toLowerCase().includes('demo');
-        const isCRC = type === 'crc'; 
-        
-        // Rule: Enforce verification ONLY if:
-        // 1. Not a CRC
-        // 2. Not a Test Account
-        // 3. Not verified yet
-        if (!isCRC && !isTestAccount && !user.emailVerified) {
-          
-          // Optional: Grandfathering check (if you still want it)
-          const ENFORCEMENT_START_DATE = new Date('2026-01-12T00:00:00').getTime(); 
-          const userCreationTime = new Date(user.metadata.creationTime).getTime();
+        const isCRC = type === 'crc';
 
-          if (userCreationTime > ENFORCEMENT_START_DATE) {
-             await signOut(auth);
-             throw new Error("Email not verified. Please check your inbox.");
+        if (!isCRC && !isTestAccount && !user.emailVerified) {
+          const enforcementStartDate = new Date('2026-01-12T00:00:00').getTime();
+          const userCreationTime = new Date(user.metadata.creationTime).getTime();
+          if (userCreationTime > enforcementStartDate) {
+            await signOut(auth);
+            throw new Error('Email not verified. Please check your inbox.');
           }
         }
 
         await enforceRoleSecurity(user, type);
         onLogin(user);
       }
+    } catch (authError) {
+      setError(getAuthErrorMessage({ error: authError, type, isReg }));
 
-    } catch (e) { 
-      let msg = e.message.replace('Firebase: ', '');
-      if(e.code === 'auth/invalid-email') msg = "Please enter a valid email address.";
-      setError(msg);
-
-      // Clean up session if login failed due to verification logic
       if (!isReg && auth.currentUser && !auth.currentUser.emailVerified) {
-         const isTest = email.toLowerCase().includes('test');
-         if(type !== 'crc' && !isTest) {
-            // Re-check cutoff before kicking out (to match logic above)
-            const created = new Date(auth.currentUser.metadata.creationTime).getTime();
-            const cutoff = new Date('2026-01-12T00:00:00').getTime();
-            if(created > cutoff) signOut(auth);
-         }
+        const isTest = email.toLowerCase().includes('test');
+        if (type !== 'crc' && !isTest) {
+          const created = new Date(auth.currentUser.metadata.creationTime).getTime();
+          const cutoff = new Date('2026-01-12T00:00:00').getTime();
+          if (created > cutoff) signOut(auth);
+        }
       }
     }
   };
@@ -122,17 +134,19 @@ const Login = ({ type, onLogin }) => {
   if (verificationSent) {
     return (
       <div className="login-card">
-        <h2 className="mt-0 text-green">✓ Check Your Email</h2>
-        <p>We have sent a verification link to <strong>{email}</strong>.</p>
-        <p style={{fontSize:'13px', color:'#555'}}>
-          Please click the link in the email to verify your account, then log in.
-        </p>
-        <button 
-          onClick={() => { setVerificationSent(false); setIsReg(false); }} 
+        <div className="dashboard-kicker">Verification</div>
+        <h2 className="mt-0">Check your email</h2>
+        <p>We sent a verification link to <strong>{email}</strong>.</p>
+        <p className="section-note">Open the email, complete verification, then return here to sign in.</p>
+        <button
+          onClick={() => {
+            setVerificationSent(false);
+            setIsReg(false);
+          }}
           className="btn btn-primary"
-          style={{width: '100%', marginTop: '15px'}}
+          style={{ width: '100%', marginTop: '16px' }}
         >
-          Back to Login
+          Back to login
         </button>
       </div>
     );
@@ -140,57 +154,57 @@ const Login = ({ type, onLogin }) => {
 
   return (
     <div className="login-card">
-      <h2 className="mt-0">{type==='crc' ? 'CRC Portal' : (isReg?'Patient Sign Up':'Patient Login')}</h2>
-      
-      <form onSubmit={handleAuth} style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-        
-        {/* FIELDS FOR NEW PATIENTS */}
-        {isReg && type === 'patient' && (
+      <div className="dashboard-kicker">{type === 'crc' ? 'CRC sign-in' : 'Patient access'}</div>
+      <h2 className="mt-0" style={{ marginBottom: '10px' }}>{type === 'crc' ? 'CRC Portal' : isReg ? 'Patient Sign Up' : 'Patient Login'}</h2>
+      <p className="section-note" style={{ marginBottom: '18px' }}>
+        {type === 'crc'
+          ? 'Use your hospital email to enter the CRC workspace.'
+          : 'Use the patient app account for questionnaires, side effects, appointments, and vitals.'}
+      </p>
+
+      <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {isReg && type === 'patient' ? (
           <>
-            <div style={{display:'flex', gap:'10px'}}>
-              <input type="text" placeholder="First Name" value={firstName} onChange={e=>setFirstName(e.target.value)} required />
-              <input type="text" placeholder="Last Name" value={lastName} onChange={e=>setLastName(e.target.value)} required />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <input type="text" placeholder="First name" value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
+              <input type="text" placeholder="Last name" value={lastName} onChange={(event) => setLastName(event.target.value)} required />
             </div>
-            
-            <div style={{display:'flex', gap:'10px'}}>
-              <select value={gender} onChange={e=>setGender(e.target.value)} required style={{flex:1}}>
-                <option value="">Select Gender</option>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <select value={gender} onChange={(event) => setGender(event.target.value)} required>
+                <option value="">Select gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
-              <input 
-                type="date" 
-                value={dob} 
-                onChange={e=>setDob(e.target.value)} 
-                required 
-                style={{flex:1}} 
-                title="Date of Birth"
-              />
+              <input type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />
             </div>
           </>
-        )}
+        ) : null}
 
-        <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
-        
-        <button className={`btn ${type==='crc'?'btn-primary':'btn-success'}`}>
-          {isReg ? 'Sign Up & Verify' : 'Login'}
+        <input type="email" placeholder={type === 'crc' ? 'name@hospital.com' : 'patient@example.com'} value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <input type="password" placeholder="Enter password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+
+        <button className={`btn ${type === 'crc' ? 'btn-primary' : 'btn-success'}`}>
+          {isReg ? 'Create account' : 'Continue'}
         </button>
       </form>
-      
-      {error && (
-        <div style={{marginTop:'10px', padding:'10px', background:'#ffebee', borderRadius:'5px', border:'1px solid red'}}>
-          <p className="text-red" style={{margin:0, fontSize:'14px'}}>{error}</p>
+
+      {error ? (
+        <div style={{ marginTop: '14px', padding: '12px 14px', background: 'var(--danger-soft)', border: '1px solid #f0c3c3', borderRadius: '14px' }}>
+          <p className="text-red" style={{ margin: 0, fontSize: '14px' }}>{error}</p>
         </div>
-      )}
-      
-      {type==='patient' && (
-        <p onClick={()=> { setIsReg(!isReg); setError(''); }} style={{color:'blue', cursor:'pointer', textDecoration:'underline', marginTop:'15px'}}>
-          {isReg ? 'Already verify? Login instead' : 'New here? Sign Up'}
+      ) : null}
+
+      {type === 'patient' ? (
+        <p
+          onClick={() => {
+            setIsReg(!isReg);
+            setError('');
+          }}
+          style={{ color: 'var(--brand)', cursor: 'pointer', textDecoration: 'underline', marginTop: '16px', fontWeight: '700' }}
+        >
+          {isReg ? 'Already registered? Log in instead' : 'New here? Create a patient account'}
         </p>
-      )}
+      ) : null}
     </div>
   );
-};
-
-export default Login;
+}

@@ -10,8 +10,9 @@ import CRCHome from './pages/CRCHome';
 function UnsupportedWebAccess({ user, onLogout }) {
   return (
     <div className="login-wrapper">
-      <div className="login-card" style={{ maxWidth: '520px', textAlign: 'left' }}>
-        <h2 className="mt-0">CRC Website Only</h2>
+      <div className="login-card" style={{ maxWidth: '560px' }}>
+        <div className="dashboard-kicker">Access boundary</div>
+        <h2 className="mt-0" style={{ marginBottom: '12px' }}>CRC Website Only</h2>
         <p>
           Signed in as <strong>{user.email}</strong>.
         </p>
@@ -19,17 +20,7 @@ function UnsupportedWebAccess({ user, onLogout }) {
           TrialLight v1 keeps the website reserved for CRC workflows. Patient access is handled in the
           mobile app so study actions stay role-specific.
         </p>
-        <div
-          style={{
-            marginTop: '16px',
-            padding: '12px',
-            borderRadius: '8px',
-            background: '#fff4e5',
-            border: '1px solid #ffd59e',
-            color: '#7a4b00',
-            fontSize: '14px',
-          }}
-        >
+        <div className="info-banner" style={{ marginTop: '16px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}>
           If this is a patient account, sign out here and continue in the patient mobile app instead.
         </div>
         <button className="btn btn-primary" style={{ width: '100%', marginTop: '18px' }} onClick={onLogout}>
@@ -73,7 +64,7 @@ export default function App() {
     backgroundAttachment: 'fixed',
     minHeight: '100vh',
     width: '100vw',
-    backgroundColor: '#21313a',
+    backgroundColor: '#eaf1f7',
   };
 
   const isCrcUser = Boolean(user?.email?.endsWith('@hospital.com'));
@@ -104,29 +95,18 @@ export default function App() {
               <Navigate to="/home" replace />
             ) : (
               <div className="login-wrapper">
-                <h1
-                  style={{
-                    color: 'white',
-                    textShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                    textAlign: 'center',
-                    marginBottom: '20px',
-                  }}
-                >
-                  {APP_NAME} CRC Portal
-                </h1>
-                <div
-                  className="login-card"
-                  style={{
-                    marginBottom: '16px',
-                    padding: '14px 16px',
-                    maxWidth: '460px',
-                    background: 'rgba(255,255,255,0.95)',
-                    textAlign: 'left',
-                  }}
-                >
-                  <strong>V1 boundary</strong>
-                  <div style={{ marginTop: '8px', fontSize: '14px', color: '#555' }}>
-                    The website is reserved for CRC workflows. Patient access belongs in the mobile app.
+                <div className="login-card" style={{ maxWidth: '560px', marginBottom: '18px' }}>
+                  <div className="dashboard-kicker">CRC operations workspace</div>
+                  <h1 className="dashboard-title" style={{ marginBottom: '10px' }}>
+                    {APP_NAME} CRC Portal
+                  </h1>
+                  <p className="dashboard-subtitle">
+                    Safety review, ePRO visibility, patient coordination, appointments, and dropout monitoring in one
+                    clinical operations workspace.
+                  </p>
+                  <div className="info-banner" style={{ marginTop: '18px' }}>
+                    <strong>V1 boundary:</strong> The website is reserved for CRC workflows. Patient access belongs in
+                    the patient mobile app.
                   </div>
                 </div>
                 <Login type="crc" onLogin={() => {}} />

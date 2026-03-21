@@ -108,7 +108,8 @@ export async function registerBrowserPushSubscription(userId) {
     throw new Error('Notification permission was not granted.');
   }
 
-  const registration = await navigator.serviceWorker.register('/notification-sw.js');
+  await navigator.serviceWorker.register('/notification-sw.js');
+  const registration = await navigator.serviceWorker.ready;
   let subscription = await registration.pushManager.getSubscription();
 
   if (!subscription) {

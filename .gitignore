@@ -63,11 +63,13 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+.venv312/
 venv/
 env/
 
 # Dropout prediction artifacts
 Patient-Dropout-Prediction/env/
+Patient-Dropout-Prediction/.venv312/
 Patient-Dropout-Prediction/cache/
 Patient-Dropout-Prediction/checkpoints/
 Patient-Dropout-Prediction/runs/
