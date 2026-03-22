@@ -190,6 +190,13 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
                 <div key={report.report_path} style={styles.linkedRow}>
                   <strong>{report.symptom_title}</strong>
                   <span>{report.severity}</span>
+                  <span>
+                    {typeof report.protocol_covered === 'boolean'
+                      ? report.protocol_covered
+                        ? 'Protocol listed'
+                        : 'Protocol not listed'
+                      : 'Protocol coverage unknown'}
+                  </span>
                   <span>{new Date(report.submitted_at).toLocaleString()}</span>
                 </div>
               ))

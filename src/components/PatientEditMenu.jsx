@@ -8,6 +8,10 @@ export default function PatientEditMenu({
   setEmail,
   primaryCrcId,
   setPrimaryCrcId,
+  primaryCrcPhone,
+  setPrimaryCrcPhone,
+  studyEmergencyPhone,
+  setStudyEmergencyPhone,
   crcUsers,
   vitalsConfig,
   setVitalsConfig,
@@ -38,6 +42,19 @@ export default function PatientEditMenu({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
         <input value={hospitalId} onChange={(event) => setHospitalId(event.target.value)} placeholder="Hospital ID" />
         <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Patient email" />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <input
+          value={primaryCrcPhone}
+          onChange={(event) => setPrimaryCrcPhone(event.target.value)}
+          placeholder="Primary CRC phone"
+        />
+        <input
+          value={studyEmergencyPhone}
+          onChange={(event) => setStudyEmergencyPhone(event.target.value)}
+          placeholder="Study emergency phone"
+        />
       </div>
 
       <div>

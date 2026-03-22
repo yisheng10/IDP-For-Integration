@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
-import { APP_NAME } from '../config';
 import { db } from '../firebase';
 import { getSignedUrl } from '../services/storageService';
 import ProfileModal from './ProfileModal';
@@ -12,14 +10,19 @@ export default function TopNavbar({
   onLogout,
   alerts = [],
   onAlertClick,
-  onHomeClick,
+  title,
+  description,
+  searchValue = '',
+  searchPlaceholder = 'Search workspace',
+  onSearchChange,
+  searchDisabled = false,
+  contextItems = [],
 }) {
   const [displayName, setDisplayName] = useState(user.email);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showResourceMenu, setShowResourceMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const navigate = useNavigate();
 
   const pdfResources = [{ id: 'ctcae', title: 'CTCAE Guidelines (PDF)', filePath: 'CTCAE.pdf' }];
 
@@ -74,32 +77,39 @@ export default function TopNavbar({
     }
   };
 
-  const handleHomePress = () => {
-    closeAllMenus();
-    navigate('/home');
-    onHomeClick?.();
-  };
-
-  const handleHistoryPress = () => {
-    closeAllMenus();
-    navigate('/history');
-  };
-
   return (
     <>
       <header className="topnav">
-        <button type="button" className="topnav__brandButton" onClick={handleHomePress}>
-          <span className="topnav__brandEyebrow">{defaultRole} workspace</span>
-          <span className="topnav__brandName">{APP_NAME}</span>
-        </button>
+        <div className="topnav__headline">
+          <div className="topnav__headlineCopy">
+            <span className="topnav__eyebrow">{defaultRole} workspace</span>
+            <h1 className="topnav__title">{title}</h1>
+            <p className="topnav__description">{description}</p>
+          </div>
+
+          {contextItems.length ? (
+            <div className="topnav__contextRow">
+              {contextItems.map((entry) => (
+                <span key={entry} className="topnav__contextPill">
+                  {entry}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="topnav__searchWrap">
+          <input
+            className="topnav__searchInput"
+            type="search"
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            disabled={searchDisabled}
+            onChange={(event) => onSearchChange?.(event.target.value)}
+          />
+        </div>
 
         <div className="topnav__right">
-          {defaultRole === 'CRC' ? (
-            <button type="button" className="topnav__actionButton topnav__actionButton--ghost" onClick={handleHistoryPress}>
-              Open history
-            </button>
-          ) : null}
-
           <div className="topnav__menuAnchor">
             <button
               type="button"

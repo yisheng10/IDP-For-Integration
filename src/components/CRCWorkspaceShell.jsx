@@ -3,27 +3,39 @@ import { useNavigate } from 'react-router-dom';
 import { APP_NAME } from '../config';
 import TopNavbar from './TopNavbar';
 
-const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', path: '/home' },
-  { id: 'history', label: 'History', path: '/history' },
-];
-
 export default function CRCWorkspaceShell({
   user,
   onLogout,
-  activePage,
+  navSections = [],
+  activeNavId,
   alerts = [],
   onAlertClick,
   onHomeClick,
-  headerEyebrow,
-  title,
-  description,
-  stats = [],
+  headerTitle,
+  headerDescription,
+  headerSearchValue,
+  headerSearchPlaceholder,
+  onHeaderSearchChange,
+  headerSearchDisabled = false,
+  headerContext = [],
   sidebarContent,
-  utilityContent,
+  sidebarFooter,
   children,
 }) {
   const navigate = useNavigate();
+
+  const handleNavClick = (item) => {
+    if (!item) return;
+
+    if (typeof item.onClick === 'function') {
+      item.onClick();
+      return;
+    }
+
+    if (item.path) {
+      navigate(item.path);
+    }
+  };
 
   return (
     <div className="crc-shell">
@@ -43,28 +55,39 @@ export default function CRCWorkspaceShell({
           </span>
         </button>
 
-        <nav className="crc-sidebar__nav" aria-label="CRC navigation">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`crc-sidebar__navButton ${
-                activePage === item.id ? 'crc-sidebar__navButton--active' : ''
-              }`}
-              onClick={() => {
-                navigate(item.path);
-                if (item.id === 'dashboard') onHomeClick?.();
-              }}
-            >
-              {item.label}
-            </button>
+        <div className="crc-sidebar__navGroups" aria-label="CRC navigation">
+          {navSections.map((group) => (
+            <div key={group.title} className="crc-sidebar__navGroup">
+              <div className="crc-sidebar__navLabel">{group.title}</div>
+              <div className="crc-sidebar__nav">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`crc-sidebar__navButton ${
+                      activeNavId === item.id ? 'crc-sidebar__navButton--active' : ''
+                    }`}
+                    onClick={() => handleNavClick(item)}
+                  >
+                    <span className="crc-sidebar__navIcon">{item.shortLabel || item.label.slice(0, 1)}</span>
+                    <span className="crc-sidebar__navText">
+                      <span className="crc-sidebar__navTitle">{item.label}</span>
+                      {item.description ? (
+                        <span className="crc-sidebar__navDescription">{item.description}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
-        </nav>
+        </div>
 
-        <div className="crc-sidebar__body">{sidebarContent}</div>
+        {sidebarContent ? <div className="crc-sidebar__body">{sidebarContent}</div> : null}
 
         <div className="crc-sidebar__footer">
-          Structured study-linked records, CRC-only risk visibility, and browser alerts stay inside this workspace.
+          {sidebarFooter ||
+            'Structured study-linked records, CRC-only risk visibility, and browser alerts stay inside this workspace.'}
         </div>
       </aside>
 
@@ -75,32 +98,16 @@ export default function CRCWorkspaceShell({
           onLogout={onLogout}
           alerts={alerts}
           onAlertClick={onAlertClick}
-          onHomeClick={onHomeClick}
+          title={headerTitle}
+          description={headerDescription}
+          searchValue={headerSearchValue}
+          searchPlaceholder={headerSearchPlaceholder}
+          onSearchChange={onHeaderSearchChange}
+          searchDisabled={headerSearchDisabled}
+          contextItems={headerContext}
         />
 
-        <section className="crc-hero card">
-          <div className="crc-hero__copy">
-            <div className="dashboard-kicker">{headerEyebrow}</div>
-            <h1 className="dashboard-title">{title}</h1>
-            <p className="dashboard-subtitle">{description}</p>
-          </div>
-
-          {stats.length ? (
-            <div className="crc-hero__stats">
-              {stats.map((entry) => (
-                <div key={entry.label} className="stat-card">
-                  <strong>{entry.value}</strong>
-                  <span>{entry.label}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
-        <div className={`crc-page ${utilityContent ? 'crc-page--with-utility' : ''}`}>
-          <main className="crc-page__main">{children}</main>
-          {utilityContent ? <aside className="crc-page__utility">{utilityContent}</aside> : null}
-        </div>
+        <main className="crc-shell__content">{children}</main>
       </div>
     </div>
   );

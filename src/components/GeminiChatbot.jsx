@@ -21,7 +21,7 @@ import { extractTextFromPdf } from '../utils';
 import { getSignedUrl } from '../services/storageService';
 import { supabase } from '../supabaseClient';
 
-const CRC_AI_NAME = 'AI Copilot';
+const CRC_AI_NAME = 'Side Effect Guidance';
 const PATIENT_AI_NAME = 'AI Assistant';
 const OLLAMA_TIMEOUT_MS = 25000;
 
@@ -123,6 +123,9 @@ export default function GeminiChatbot({
   onEmergencyTrigger,
   allPatients = [],
   protocolUrl,
+  presentation = 'floating',
+  titleOverride,
+  panelDescription,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -135,7 +138,9 @@ export default function GeminiChatbot({
   const messagesEndRef = useRef(null);
   const systemPromptRef = useRef('');
 
-  const currentAiName = role === 'crc' ? CRC_AI_NAME : PATIENT_AI_NAME;
+  const isDocked = presentation === 'docked';
+  const chatVisible = isDocked || isOpen;
+  const currentAiName = titleOverride || (role === 'crc' ? CRC_AI_NAME : PATIENT_AI_NAME);
   const historyCollectionRef = userId ? collection(db, 'users', userId, 'ai_chat_history') : null;
 
   useEffect(() => {
@@ -160,20 +165,20 @@ export default function GeminiChatbot({
   }, [patientData, role]);
 
   useEffect(() => {
-    const readyToStart = isOpen && userId && isHistoryLoaded;
+    const readyToStart = chatVisible && userId && isHistoryLoaded;
     if (readyToStart && !chatSessionRef.current) {
       startHybridChat();
     }
-  }, [isHistoryLoaded, isOpen, protocolUrl, userId]);
+  }, [chatVisible, isHistoryLoaded, protocolUrl, userId]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!chatVisible) return;
     const timer = window.setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
 
     return () => window.clearTimeout(timer);
-  }, [isLoading, isOpen, messages]);
+  }, [chatVisible, isLoading, messages]);
 
   const saveMessage = async (messageRole, text) => {
     if (!historyCollectionRef || !text) return;
@@ -477,7 +482,7 @@ export default function GeminiChatbot({
       setMessages([]);
       chatSessionRef.current = null;
       await startHybridChat();
-    } catch (error) {
+    } catch {
       alert('Failed to clear chat history.');
     } finally {
       setIsLoading(false);
@@ -619,7 +624,7 @@ export default function GeminiChatbot({
     }
   };
 
-  if (!isOpen) {
+  if (!chatVisible) {
     return (
       <button onClick={() => setIsOpen(true)} style={styles.fab}>
         <span style={styles.fabText}>{currentAiName}</span>
@@ -627,87 +632,143 @@ export default function GeminiChatbot({
     );
   }
 
+  const headerBlock = (
+    <div className={isDocked ? 'guidance-panel__header' : ''} style={isDocked ? undefined : styles.header}>
+      <div
+        className={isDocked ? 'guidance-panel__headerCopy' : ''}
+        style={isDocked ? undefined : { display: 'flex', flexDirection: 'column', gap: '4px' }}
+      >
+        <span className={isDocked ? 'guidance-panel__title' : ''} style={isDocked ? undefined : styles.title}>
+          {currentAiName}
+        </span>
+        {panelDescription ? <span className="guidance-panel__description">{panelDescription}</span> : null}
+        {role === 'crc' ? (
+          <span className={isDocked ? 'guidance-panel__context' : ''} style={isDocked ? undefined : styles.secondaryLine}>
+            Active context: <strong>{activeContextPatient?.nickname || 'Global CRC mode'}</strong>
+          </span>
+        ) : null}
+        <span className={isDocked ? 'guidance-panel__runtime' : ''} style={isDocked ? undefined : styles.runtimeInfo}>
+          Local model: <strong>{OLLAMA_MODEL}</strong> @ {OLLAMA_BASE_URL}
+        </span>
+      </div>
+
+      <div className={isDocked ? 'guidance-panel__actions' : ''} style={isDocked ? undefined : { display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button onClick={handleRefresh} style={styles.iconButton} title="Refresh AI data">
+          Refresh
+        </button>
+        <button onClick={handleClearHistory} style={styles.iconButton} title="Clear chat history">
+          Clear
+        </button>
+        {!isDocked ? (
+          <button onClick={() => setIsOpen(false)} style={styles.iconButton}>
+            Close
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const messagesBlock = (
+    <div className={isDocked ? 'guidance-panel__chatArea' : ''} style={isDocked ? undefined : styles.chatArea}>
+      {messages.map((message, index) => (
+        <div
+          key={message.id || index}
+          className={isDocked ? `guidance-panel__messageRow guidance-panel__messageRow--${message.role}` : ''}
+          style={
+            isDocked
+              ? undefined
+              : {
+                  ...styles.messageRow,
+                  justifyContent:
+                    message.role === 'user'
+                      ? 'flex-end'
+                      : message.role === 'system'
+                        ? 'center'
+                        : 'flex-start',
+                }
+          }
+        >
+          {message.role === 'system' ? (
+            <small className={isDocked ? 'guidance-panel__systemMessage' : ''} style={isDocked ? undefined : styles.systemMessage}>
+              <ReactMarkdown>{message.text}</ReactMarkdown>
+            </small>
+          ) : (
+            <div
+              className={
+                isDocked
+                  ? `guidance-panel__bubble ${message.role === 'user' ? 'guidance-panel__bubble--user' : 'guidance-panel__bubble--model'}`
+                  : ''
+              }
+              style={
+                isDocked
+                  ? undefined
+                  : {
+                      ...styles.bubble,
+                      backgroundColor: message.role === 'user' ? '#0f609b' : '#f8fbff',
+                      color: message.role === 'user' ? 'white' : '#243b53',
+                      border: message.role === 'user' ? 'none' : '1px solid #dbe5f0',
+                    }
+              }
+            >
+              {message.role === 'model' ? <ReactMarkdown>{message.text}</ReactMarkdown> : message.text}
+            </div>
+          )}
+        </div>
+      ))}
+      {isLoading ? (
+        <div className={isDocked ? 'guidance-panel__loading' : ''} style={isDocked ? undefined : styles.loadingState}>
+          Thinking...
+        </div>
+      ) : null}
+      <div ref={messagesEndRef} />
+    </div>
+  );
+
+  const inputBlock = (
+    <form
+      onSubmit={handleSend}
+      className={isDocked ? 'guidance-panel__inputArea' : ''}
+      style={isDocked ? undefined : styles.inputArea}
+    >
+      <input
+        type="text"
+        className={isDocked ? 'guidance-panel__input' : ''}
+        style={isDocked ? undefined : styles.input}
+        value={input}
+        onChange={(entry) => setInput(entry.target.value)}
+        placeholder={
+          role === 'crc'
+            ? 'Describe a side effect, protocol rule, vitals concern, or follow-up action...'
+            : 'Type a message...'
+        }
+      />
+      <button
+        type="submit"
+        className={isDocked ? 'guidance-panel__sendButton' : ''}
+        style={isDocked ? undefined : styles.sendButton}
+        disabled={isLoading}
+      >
+        Send
+      </button>
+    </form>
+  );
+
+  if (isDocked) {
+    return (
+      <section className="card workspace-card intelligence-card intelligence-card--guidance">
+        {headerBlock}
+        {messagesBlock}
+        {inputBlock}
+      </section>
+    );
+  }
+
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.window}>
-        <div style={styles.header}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={styles.title}>{currentAiName}</span>
-            {role === 'crc' ? (
-              <span style={styles.secondaryLine}>
-                Active context: <strong>{activeContextPatient?.nickname || 'Global Mode'}</strong>
-              </span>
-            ) : null}
-            <span style={styles.runtimeInfo}>
-              Local model: <strong>{OLLAMA_MODEL}</strong> @ {OLLAMA_BASE_URL}
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button onClick={handleRefresh} style={styles.iconButton} title="Refresh AI data">
-              Refresh
-            </button>
-            <button onClick={handleClearHistory} style={styles.iconButton} title="Clear chat history">
-              Clear
-            </button>
-            <button onClick={() => setIsOpen(false)} style={styles.iconButton}>
-              Close
-            </button>
-          </div>
-        </div>
-
-        <div style={styles.chatArea}>
-          {messages.map((message, index) => (
-            <div
-              key={message.id || index}
-              style={{
-                ...styles.messageRow,
-                justifyContent:
-                  message.role === 'user'
-                    ? 'flex-end'
-                    : message.role === 'system'
-                      ? 'center'
-                      : 'flex-start',
-              }}
-            >
-              {message.role === 'system' ? (
-                <small style={styles.systemMessage}>
-                  <ReactMarkdown>{message.text}</ReactMarkdown>
-                </small>
-              ) : (
-                <div
-                  style={{
-                    ...styles.bubble,
-                    backgroundColor: message.role === 'user' ? '#0f609b' : '#f8fbff',
-                    color: message.role === 'user' ? 'white' : '#243b53',
-                    border: message.role === 'user' ? 'none' : '1px solid #dbe5f0',
-                  }}
-                >
-                  {message.role === 'model' ? <ReactMarkdown>{message.text}</ReactMarkdown> : message.text}
-                </div>
-              )}
-            </div>
-          ))}
-          {isLoading ? <div style={styles.loadingState}>Thinking...</div> : null}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form onSubmit={handleSend} style={styles.inputArea}>
-          <input
-            type="text"
-            style={styles.input}
-            value={input}
-            onChange={(entry) => setInput(entry.target.value)}
-            placeholder={
-              role === 'crc'
-                ? 'Ask about vitals, schedules, protocol rules, or CTCAE guidance...'
-                : 'Type a message...'
-            }
-          />
-          <button type="submit" style={styles.sendButton} disabled={isLoading}>
-            Send
-          </button>
-        </form>
+        {headerBlock}
+        {messagesBlock}
+        {inputBlock}
       </div>
     </div>
   );

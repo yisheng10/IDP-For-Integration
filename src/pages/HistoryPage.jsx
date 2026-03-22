@@ -199,72 +199,86 @@ export default function HistoryPage({ user, onLogout }) {
     </div>
   );
 
+  const navSections = [
+    {
+      title: 'Primary',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', shortLabel: 'DB', description: 'Overview', path: '/home' },
+        { id: 'patients', label: 'Patients', shortLabel: 'PT', description: 'Roster', path: '/home#patients' },
+        { id: 'safety-inbox', label: 'Safety Inbox', shortLabel: 'SI', description: 'Incidents', path: '/home#safety-inbox' },
+        { id: 'side-effect-guidance', label: 'Side Effect Guidance', shortLabel: 'SG', description: 'Guidance', path: '/home#side-effect-guidance' },
+        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', shortLabel: 'DP', description: 'CRC only', path: '/home#patient-dropout-prediction' },
+      ],
+    },
+    {
+      title: 'Secondary',
+      items: [
+        { id: 'history', label: 'History', shortLabel: 'HI', description: 'Threads', path: '/history' },
+        { id: 'resources', label: 'Resources', shortLabel: 'RS', description: 'CTCAE', path: '/home#resources' },
+      ],
+    },
+  ];
+
   return (
     <CRCWorkspaceShell
       user={user}
       onLogout={onLogout}
-      activePage="history"
+      navSections={navSections}
+      activeNavId="history"
       alerts={activeAlerts}
       onAlertClick={(alert) => setSelectedAlert(alert)}
-      headerEyebrow="History"
-      title="Global alert history"
-      description="Search historical alert threads, filter by date and status, and reopen the full documentation trail without leaving the CRC portal."
-      stats={[
-        { label: 'Filtered rows', value: filteredAlerts.length },
-        { label: 'Active alerts', value: activeAlerts.length },
-        { label: 'Pages', value: totalPages },
-      ]}
+      headerTitle="Global alert history"
+      headerDescription="Search historical alert threads, filter by date and status, and reopen the full documentation trail without leaving the CRC portal."
+      headerSearchValue={searchText}
+      headerSearchPlaceholder="Search patient name, subject ID, or incident reason"
+      onHeaderSearchChange={(value) => {
+        setSearchText(value);
+        setCurrentPage(1);
+      }}
       sidebarContent={sidebarContent}
-      utilityContent={utilityContent}
     >
-      <div className="card workspace-card">
-        <div className="section-header">
-          <div>
-            <h2 className="mt-0">Filter history</h2>
-            <div className="section-note">Use quick filters to narrow the audit trail before opening a thread.</div>
+      <div className="workspace-two-column">
+        {utilityContent}
+        <div className="card workspace-card">
+          <div className="section-header">
+            <div>
+              <h2 className="mt-0">Filter history</h2>
+              <div className="section-note">Use quick filters to narrow the audit trail before opening a thread.</div>
+            </div>
           </div>
-        </div>
 
-        <div className="history-filter-grid">
-          <input
-            type="text"
-            placeholder="Search patient name, subject, or reason"
-            value={searchText}
-            onChange={(event) => {
-              setSearchText(event.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(event) => {
-              setFilterDate(event.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <select
-            value={filterStatus}
-            onChange={(event) => {
-              setFilterStatus(event.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="all">All statuses</option>
-            <option value="unread">Active only</option>
-            <option value="read">Resolved only</option>
-          </select>
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              setSearchText('');
-              setFilterDate('');
-              setFilterStatus('all');
-              setCurrentPage(1);
-            }}
-          >
-            Clear
-          </button>
+          <div className="history-filter-grid">
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(event) => {
+                setFilterDate(event.target.value);
+                setCurrentPage(1);
+              }}
+            />
+            <select
+              value={filterStatus}
+              onChange={(event) => {
+                setFilterStatus(event.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="all">All statuses</option>
+              <option value="unread">Active only</option>
+              <option value="read">Resolved only</option>
+            </select>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setSearchText('');
+                setFilterDate('');
+                setFilterStatus('all');
+                setCurrentPage(1);
+              }}
+            >
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 

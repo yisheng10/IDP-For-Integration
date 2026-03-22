@@ -55,17 +55,17 @@ export default function DropoutRiskPanel({ selectedPatient, eproEntries = [] }) 
 
   const content = (() => {
     if (!selectedPatient) {
-      return <div className="section-note">Select a patient to inspect the dropout adapter state.</div>;
+      return <div className="section-note">Select a patient to inspect the CRC-only dropout prediction.</div>;
     }
 
     if (adapterState.status === 'loading') {
-      return <div className="section-note">Querying the dropout contract adapter...</div>;
+      return <div className="section-note">Querying the dropout prediction contract...</div>;
     }
 
     if (adapterState.status === 'unavailable') {
       return (
         <div className="dropout-card dropout-card--warning">
-          <div className="dropout-card__title">Adapter unavailable</div>
+          <div className="dropout-card__title">Prediction unavailable</div>
           <div className="section-note">
             The CRC-only contract is wired, but no live risk payload is currently reachable for this subject.
           </div>
@@ -77,9 +77,9 @@ export default function DropoutRiskPanel({ selectedPatient, eproEntries = [] }) 
     if (adapterState.status === 'ready' && adapterState.data) {
       const data = adapterState.data;
       return (
-        <div style={{ display: 'grid', gap: '10px' }}>
+        <div className="dropout-stack">
           <div className="dropout-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="dropout-card__header">
               <strong>{selectedPatient.nickname}</strong>
               <span className="dropout-card__bucket">{renderRiskBucket(data.risk_bucket)}</span>
             </div>
@@ -104,19 +104,24 @@ export default function DropoutRiskPanel({ selectedPatient, eproEntries = [] }) 
 
     return (
       <div className="dropout-card dropout-card--warning">
-        <div className="dropout-card__title">Pending adapter state</div>
+        <div className="dropout-card__title">Pending contract state</div>
         <div className="section-note">
-          The CRC panel is ready to consume the dropout contract once a live payload is available.
+          The CRC panel is ready to consume the dropout prediction contract once a live payload is available.
         </div>
       </div>
     );
   })();
 
   return (
-    <div className="card workspace-card utility-card utility-card--warning">
-      <h3 className="mt-0" style={{ marginBottom: '6px' }}>Dropout Risk Adapter</h3>
-      <div className="section-note" style={{ marginBottom: '16px' }}>
-        CRC-only placeholder and contract adapter. This module must never be exposed in patient surfaces.
+    <div className="card workspace-card intelligence-card intelligence-card--dropout">
+      <div className="section-header">
+        <div>
+          <h3 className="mt-0">Patient Dropout Prediction</h3>
+          <div className="section-note">
+            CRC-only predictive view. This module must never be exposed in patient surfaces.
+          </div>
+        </div>
+        <span className="metric-pill">CRC only</span>
       </div>
       {content}
     </div>

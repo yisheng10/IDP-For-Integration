@@ -22,6 +22,7 @@ const SafetyInboxPanel = ({
   pushState,
   onEnablePush,
   onOpenIncident,
+  searchQuery = '',
 }) => {
   const [severityFilter, setSeverityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -39,12 +40,29 @@ const SafetyInboxPanel = ({
       const matchesProtocol = protocolFilter
         ? protocolName.toLowerCase().includes(protocolFilter.toLowerCase())
         : true;
+      const patientNames = (incident.linked_patients || [])
+        .map((entry) => `${entry.patient_name || ''} ${entry.subject_id || ''}`)
+        .join(' ')
+        .toLowerCase();
+      const searchText = searchQuery.trim().toLowerCase();
+      const matchesSearch = searchText
+        ? [
+            incident.event_title,
+            incident.event_key,
+            incident.severity,
+            protocolName,
+            patientNames,
+          ]
+            .join(' ')
+            .toLowerCase()
+            .includes(searchText)
+        : true;
       const state = getIncidentDueState(incident);
       const matchesDue = dueFilter === 'all' ? true : state === dueFilter;
 
-      return matchesPatient && matchesSeverity && matchesStatus && matchesProtocol && matchesDue;
+      return matchesPatient && matchesSeverity && matchesStatus && matchesProtocol && matchesSearch && matchesDue;
     });
-  }, [dueFilter, incidents, protocolFilter, selectedPatient, severityFilter, statusFilter]);
+  }, [dueFilter, incidents, protocolFilter, searchQuery, selectedPatient, severityFilter, statusFilter]);
 
   const openCount = incidents.filter((incident) => incident.status !== 'resolved').length;
   const groupedCount = incidents.filter((incident) => incident.compare_ready).length;
@@ -69,6 +87,8 @@ const SafetyInboxPanel = ({
           </div>
         </div>
       </div>
+
+      {searchQuery ? <div className="inbox-selectedPatient">Header search: {searchQuery}</div> : null}
 
       <div className="inbox-pushBox">
         <div>

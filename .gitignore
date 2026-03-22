@@ -40,6 +40,7 @@ Thumbs.db
 
 # Root workspace artifacts
 repomix-output.xml
+qa/
 
 # Node.js dependencies
 node_modules/

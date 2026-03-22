@@ -140,6 +140,10 @@ function buildReportLink(patientId, reportId, reportData) {
     submitted_at: reportData.submitted_at || new Date().toISOString(),
     symptom_title: reportData.symptom_title,
     severity: reportData.severity,
+    protocol_covered:
+      typeof reportData.protocol_covered === 'boolean' ? reportData.protocol_covered : null,
+    source_system: reportData.source_system || null,
+    audit_trail: reportData.audit_trail || null,
   };
 }
 
