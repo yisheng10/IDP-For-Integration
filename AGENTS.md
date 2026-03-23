@@ -71,3 +71,27 @@ The patient app must never expose:
 - Keep changes focused on active source trees.
 - Do not merge the separate dropout repository into the web or app runtime.
 - When uncertain, prefer adapter layers and mirrored records over large refactors.
+
+# 2. 永久原则（必须遵守）
+
+## 2.1 先分析，后执行
+
+任何 copy / move / rename / delete / extract / merge / overwrite 行为之前，必须先输出一份“拟执行操作清单”，等用户明确同意后再执行。
+
+## 2.2 禁止执行任何删除命令
+
+* 不得执行任何删除命令，包括但不限于：永久删除、命令行回收站删除、清空回收站。
+* 若需清理文件或文件夹，只能将对象移动到 `D:\99_回收站`，并保留原文件夹层级。
+* 移入 `99_回收站` 后，默认不得再对该对象执行重命名、压缩、拆分、合并或二次整理；仅允许保留原层级暂存。
+* 只有用户在图形界面中手动删除，才视为进入系统回收站的受控删除。
+* 不得把“原文件消失”表述为“已移入回收站”，除非同时验证到回收站中新条目。
+* 若清理方案涉及移动到 `99_回收站`，也必须单独列出并再次确认。
+
+## 2.3 不得静默覆盖
+
+若目标位置已存在同名文件/文件夹：
+
+* 禁止直接覆盖。
+* 先比较：文件名、大小、修改时间、可能的哈希值、内容是否重复。
+* 输出差异说明和处理建议。
+* 等用户决定“保留两份 / 覆盖 / 跳过 / 合并”。

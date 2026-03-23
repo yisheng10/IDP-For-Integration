@@ -1,52 +1,209 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
-  onSnapshot,
-  orderBy,
   query,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import {
-  coerceNotificationPolicy,
-  getDefaultNotificationPolicy,
-} from '../services/incidentService';
+import { coerceNotificationPolicy, getDefaultNotificationPolicy } from '../services/incidentService';
 import { supabase } from '../supabaseClient';
+import {
+  buildFallbackMonitoredVitals,
+  coerceVitalTemplates,
+  findBuiltinVitalTemplate,
+  getBuiltinVitalLibrary,
+  subscribeToTrialTemplates,
+} from '../services/trialTemplateService';
 
 const POLICY_FIELDS = ['mild', 'moderate', 'serious'];
+const DUE_UNITS = ['hour', 'day', 'week', 'month'];
 
-const ProtocolManager = ({ selectedPatient }) => {
+function hoursFromUnit(value, unit) {
+  const safeValue = Math.max(1, Number(value) || 1);
+  switch (unit) {
+    case 'day':
+      return safeValue * 24;
+    case 'week':
+      return safeValue * 24 * 7;
+    case 'month':
+      return safeValue * 24 * 30;
+    case 'hour':
+    default:
+      return safeValue;
+  }
+}
+
+function backfillDueValue(entry = {}) {
+  const dueUnit = entry.due_unit || 'hour';
+  const dueHours = Number(entry.due_in_hours) || 1;
+
+  if (entry.due_value) {
+    return {
+      ...entry,
+      due_value: String(entry.due_value),
+      due_unit: dueUnit,
+      due_in_hours: hoursFromUnit(entry.due_value, dueUnit),
+    };
+  }
+
+  if (dueUnit === 'day' && dueHours % 24 === 0) {
+    return { ...entry, due_value: String(dueHours / 24), due_unit: 'day', due_in_hours: dueHours };
+  }
+
+  if (dueUnit === 'week' && dueHours % (24 * 7) === 0) {
+    return { ...entry, due_value: String(dueHours / (24 * 7)), due_unit: 'week', due_in_hours: dueHours };
+  }
+
+  if (dueUnit === 'month' && dueHours % (24 * 30) === 0) {
+    return { ...entry, due_value: String(dueHours / (24 * 30)), due_unit: 'month', due_in_hours: dueHours };
+  }
+
+  return {
+    ...entry,
+    due_value: String(dueHours),
+    due_unit: 'hour',
+    due_in_hours: dueHours,
+  };
+}
+
+function normalizePolicyForDraft(policy = {}) {
+  const normalized = coerceNotificationPolicy(policy);
+  const nextPolicy = {};
+  POLICY_FIELDS.forEach((severity) => {
+    nextPolicy[severity] = backfillDueValue(normalized[severity]);
+  });
+  return nextPolicy;
+}
+
+function normalizePolicyForSave(policy = {}) {
+  const nextPolicy = {};
+  POLICY_FIELDS.forEach((severity) => {
+    const entry = policy[severity] || {};
+    const dueValue = String(entry.due_value || '1').replace(/[^0-9]/g, '') || '1';
+    const dueUnit = DUE_UNITS.includes(entry.due_unit) ? entry.due_unit : 'hour';
+    nextPolicy[severity] = {
+      ...entry,
+      due_value: dueValue,
+      due_unit: dueUnit,
+      due_in_hours: hoursFromUnit(dueValue, dueUnit),
+      action_code: String(entry.action_code || ''),
+      instruction: String(entry.instruction || ''),
+      notification_tier: String(entry.notification_tier || ''),
+    };
+  });
+  return coerceNotificationPolicy(nextPolicy);
+}
+
+function buildDraft(protocol) {
+  return {
+    notification_policy: normalizePolicyForDraft(protocol.notification_policy || getDefaultNotificationPolicy()),
+    vital_templates: coerceVitalTemplates(protocol.vital_templates, protocol.monitoredVitals),
+    dropout_trial_id: protocol.dropout_trial_id || '',
+  };
+}
+
+function TemplateField({ label, children }) {
+  return (
+    <div className="protocol-library__field">
+      <label className="protocol-library__fieldLabel">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function renderThresholdFields(template, protocolId, templateIndex, onChange) {
+  const thresholds = template.thresholds || {};
+
+  if (template.input_type === 'blood_pressure') {
+    const bpFields = [
+      ['Systolic moderate low', 'systolic_moderate_low'],
+      ['Systolic serious low', 'systolic_serious_low'],
+      ['Systolic moderate high', 'systolic_moderate_high'],
+      ['Systolic serious high', 'systolic_serious_high'],
+      ['Diastolic moderate low', 'diastolic_moderate_low'],
+      ['Diastolic serious low', 'diastolic_serious_low'],
+      ['Diastolic moderate high', 'diastolic_moderate_high'],
+      ['Diastolic serious high', 'diastolic_serious_high'],
+    ];
+
+    return (
+      <div className="protocol-library__thresholdGrid protocol-library__thresholdGrid--bp">
+        {bpFields.map(([label, key]) => (
+          <TemplateField key={key} label={label}>
+            <input
+              value={thresholds[key] ?? ''}
+              onChange={(event) => onChange(protocolId, templateIndex, key, event.target.value)}
+              placeholder="Optional"
+            />
+          </TemplateField>
+        ))}
+      </div>
+    );
+  }
+
+  const numericFields = [
+    ['Moderate low', 'moderate_low'],
+    ['Serious low', 'serious_low'],
+    ['Moderate high', 'moderate_high'],
+    ['Serious high', 'serious_high'],
+  ];
+
+  return (
+    <div className="protocol-library__thresholdGrid">
+      {numericFields.map(([label, key]) => (
+        <TemplateField key={key} label={label}>
+          <input
+            value={thresholds[key] ?? ''}
+            onChange={(event) => onChange(protocolId, templateIndex, key, event.target.value)}
+            placeholder="Optional"
+          />
+        </TemplateField>
+      ))}
+    </div>
+  );
+}
+
+const ProtocolManager = ({ selectedPatient, patients = [] }) => {
   const [file, setFile] = useState(null);
   const [protocols, setProtocols] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [policyDrafts, setPolicyDrafts] = useState({});
+  const [drafts, setDrafts] = useState({});
+  const [builtinSelections, setBuiltinSelections] = useState({});
+
+  const builtinVitals = useMemo(() => getBuiltinVitalLibrary(), []);
 
   useEffect(() => {
-    const protocolsQuery = query(collection(db, 'protocols'), orderBy('uploadedAt', 'desc'));
-
-    const unsubscribe = onSnapshot(protocolsQuery, (snapshot) => {
-      const docs = snapshot.docs.map((entry) => ({
-        id: entry.id,
-        ...entry.data(),
-      }));
-      setProtocols(docs);
+    const unsubscribe = subscribeToTrialTemplates((rows) => {
+      setProtocols(rows);
     });
-
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     const nextDrafts = {};
     protocols.forEach((protocol) => {
-      nextDrafts[protocol.id] = coerceNotificationPolicy(protocol.notification_policy);
+      nextDrafts[protocol.id] = buildDraft(protocol);
     });
-    setPolicyDrafts(nextDrafts);
+    setDrafts(nextDrafts);
   }, [protocols]);
+
+  const usageCounts = useMemo(() => {
+    const counts = {};
+    protocols.forEach((protocol) => {
+      counts[protocol.id] = patients.filter((patient) => patient.protocolId === protocol.id).length;
+    });
+    return counts;
+  }, [patients, protocols]);
+
+  const assignedProtocolCount = useMemo(
+    () => patients.filter((patient) => patient.protocolId || patient.protocolName).length,
+    [patients]
+  );
 
   const handleUpload = async () => {
     if (!file) return;
@@ -56,24 +213,23 @@ const ProtocolManager = ({ selectedPatient }) => {
       const fileName = file.name;
       const storagePath = fileName;
 
-      const { error: uploadError } = await supabase.storage
-        .from('protocol')
-        .upload(storagePath, file, { upsert: true });
-
+      const { error: uploadError } = await supabase.storage.from('protocol').upload(storagePath, file, { upsert: true });
       if (uploadError) throw uploadError;
 
       await addDoc(collection(db, 'protocols'), {
         name: fileName,
         storagePath,
         uploadedAt: new Date().toISOString(),
-        notification_policy: getDefaultNotificationPolicy(),
+        notification_policy: normalizePolicyForSave(getDefaultNotificationPolicy()),
+        vital_templates: coerceVitalTemplates([], ['temperature', 'spo2', 'bp']),
+        dropout_trial_id: '',
       });
 
       setFile(null);
-      alert('Success: Added to Global Library');
+      window.alert('Success: Added to Trial Library');
     } catch (error) {
       console.error(error);
-      alert('Upload failed: ' + error.message);
+      window.alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
@@ -85,7 +241,7 @@ const ProtocolManager = ({ selectedPatient }) => {
     }
 
     try {
-      const usersQuery = query(collection(db, 'users'), where('protocolName', '==', protocol.name));
+      const usersQuery = query(collection(db, 'users'), where('protocolId', '==', protocol.id));
       const usersSnapshot = await getDocs(usersQuery);
 
       await Promise.all(
@@ -95,33 +251,31 @@ const ProtocolManager = ({ selectedPatient }) => {
             protocolId: null,
             protocolUrl: null,
             protocolStatus: null,
+            protocolAssignedAt: null,
+            monitoredVitals: [],
           })
         )
       );
 
       await deleteDoc(doc(db, 'protocols', protocol.id));
 
-      const { error: storageError } = await supabase.storage
-        .from('protocol')
-        .remove([protocol.storagePath]);
-
+      const { error: storageError } = await supabase.storage.from('protocol').remove([protocol.storagePath]);
       if (storageError) {
         console.error('Supabase Storage Error:', storageError);
-        alert('Removed from list, but failed to delete the PDF from storage.');
+        window.alert('Removed from list, but failed to delete the PDF from storage.');
       }
     } catch (error) {
-      alert('Delete failed: ' + error.message);
+      window.alert(`Delete failed: ${error.message}`);
     }
   };
 
   const handleActivate = async (protocol) => {
     if (!selectedPatient) {
-      alert('Please select a patient first.');
+      window.alert('Please select a patient first.');
       return;
     }
 
-    const isCurrentlyActive = selectedPatient.protocolName === protocol.name;
-
+    const isCurrentlyActive = selectedPatient.protocolId === protocol.id;
     try {
       if (isCurrentlyActive) {
         await updateDoc(doc(db, 'users', selectedPatient.id), {
@@ -130,256 +284,459 @@ const ProtocolManager = ({ selectedPatient }) => {
           protocolUrl: null,
           protocolStatus: null,
           protocolAssignedAt: null,
+          monitoredVitals: [],
         });
       } else {
+        const draft = drafts[protocol.id] || buildDraft(protocol);
+        const normalizedTemplates = coerceVitalTemplates(draft.vital_templates, protocol.monitoredVitals);
         await updateDoc(doc(db, 'users', selectedPatient.id), {
           protocolName: protocol.name,
           protocolId: protocol.id,
           protocolUrl: protocol.storagePath,
           protocolStatus: 'active',
           protocolAssignedAt: new Date().toISOString(),
+          monitoredVitals: buildFallbackMonitoredVitals(normalizedTemplates),
         });
       }
     } catch (error) {
-      alert('Error updating protocol: ' + error.message);
+      window.alert(`Error updating protocol: ${error.message}`);
     }
   };
 
   const handlePreview = async (protocol) => {
     if (!protocol.storagePath) {
-      alert('Error: Protocol path missing.');
+      window.alert('Error: Protocol path missing.');
       return;
     }
 
     const newTab = window.open('', '_blank');
     if (!newTab) {
-      alert('Please allow popups for this site to view the PDF.');
+      window.alert('Please allow popups for this site to view the PDF.');
       return;
     }
 
-    newTab.document.write(`
-      <html>
-        <head><title>Opening PDF...</title></head>
-        <body style="font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; background:#f0f2f5;">
-          <div style="text-align:center;">
-            <h3>Loading document...</h3>
-          </div>
-        </body>
-      </html>
-    `);
+    newTab.document.write('Loading document...');
 
     try {
       const { data, error } = await supabase.storage.from('protocol').createSignedUrl(protocol.storagePath, 60);
-
       if (error) throw error;
-
       if (data?.signedUrl) {
         newTab.location.href = data.signedUrl;
       } else {
         newTab.close();
-        alert('Unable to generate link.');
+        window.alert('Unable to generate link.');
       }
     } catch (error) {
       console.error('Preview Error:', error);
       newTab.close();
-      alert('Could not open file: ' + error.message);
+      window.alert(`Could not open file: ${error.message}`);
     }
   };
 
-  const handlePolicyFieldChange = (protocolId, severity, field, value) => {
-    setPolicyDrafts((prev) => {
-      const basePolicy = coerceNotificationPolicy(prev[protocolId]);
+  const updateDraft = (protocolId, updater) => {
+    setDrafts((current) => {
+      const baseDraft = current[protocolId] || buildDraft(protocols.find((entry) => entry.id === protocolId) || {});
       return {
-        ...prev,
-        [protocolId]: {
-          ...basePolicy,
-          [severity]: {
-            ...basePolicy[severity],
-            [field]: field === 'due_in_hours' ? value.replace(/[^0-9]/g, '') : value,
-          },
-        },
+        ...current,
+        [protocolId]: updater(baseDraft),
       };
     });
   };
 
-  const handleSavePolicy = async (protocolId) => {
+  const handlePolicyFieldChange = (protocolId, severity, field, value) => {
+    updateDraft(protocolId, (baseDraft) => ({
+      ...baseDraft,
+      notification_policy: {
+        ...baseDraft.notification_policy,
+        [severity]: {
+          ...baseDraft.notification_policy[severity],
+          [field]: field === 'due_value' ? value.replace(/[^0-9]/g, '') : value,
+        },
+      },
+    }));
+  };
+
+  const handleVitalFieldChange = (protocolId, templateIndex, field, value) => {
+    updateDraft(protocolId, (baseDraft) => {
+      const nextTemplates = [...baseDraft.vital_templates];
+      nextTemplates[templateIndex] = {
+        ...nextTemplates[templateIndex],
+        [field]: value,
+      };
+      return {
+        ...baseDraft,
+        vital_templates: nextTemplates,
+      };
+    });
+  };
+
+  const handleThresholdChange = (protocolId, templateIndex, field, value) => {
+    updateDraft(protocolId, (baseDraft) => {
+      const nextTemplates = [...baseDraft.vital_templates];
+        const nextTemplate = { ...nextTemplates[templateIndex] };
+        nextTemplate.thresholds = {
+          ...(nextTemplate.thresholds || {}),
+          [field]: value.replace(/[^0-9.-]/g, ''),
+        };
+      nextTemplates[templateIndex] = nextTemplate;
+      return {
+        ...baseDraft,
+        vital_templates: nextTemplates,
+      };
+    });
+  };
+
+  const handleRemoveVital = (protocolId, templateIndex) => {
+    updateDraft(protocolId, (baseDraft) => ({
+      ...baseDraft,
+      vital_templates: baseDraft.vital_templates.filter((_, index) => index !== templateIndex),
+    }));
+  };
+
+  const handleAddBuiltinVital = (protocolId) => {
+    const builtinKey = builtinSelections[protocolId];
+    if (!builtinKey) return;
+    const template = findBuiltinVitalTemplate(builtinKey);
+    if (!template) return;
+
+    updateDraft(protocolId, (baseDraft) => {
+      const alreadyExists = baseDraft.vital_templates.some((entry) => entry.key === template.key);
+      if (alreadyExists) return baseDraft;
+      return {
+        ...baseDraft,
+        vital_templates: [...baseDraft.vital_templates, template],
+      };
+    });
+
+    setBuiltinSelections((current) => ({
+      ...current,
+      [protocolId]: '',
+    }));
+  };
+
+  const handleAddCustomVital = (protocolId) => {
+    const label = window.prompt('Custom vital label');
+    if (!label) return;
+    const unit = window.prompt('Unit (optional)', '') || '';
+
+    updateDraft(protocolId, (baseDraft) => ({
+      ...baseDraft,
+      vital_templates: [
+        ...baseDraft.vital_templates,
+        {
+          key: label,
+          label,
+          unit,
+          input_type: 'numeric',
+          storage_key: label,
+          thresholds: {},
+        },
+      ],
+    }));
+  };
+
+  const handleSaveProtocol = async (protocolId) => {
     try {
+      const draft = drafts[protocolId];
+      const normalizedTemplates = coerceVitalTemplates(draft.vital_templates);
+      const notificationPolicy = normalizePolicyForSave(draft.notification_policy);
+
       await updateDoc(doc(db, 'protocols', protocolId), {
-        notification_policy: coerceNotificationPolicy(policyDrafts[protocolId]),
+        notification_policy: notificationPolicy,
+        vital_templates: normalizedTemplates,
+        monitoredVitals: buildFallbackMonitoredVitals(normalizedTemplates),
+        dropout_trial_id: String(draft.dropout_trial_id || '').trim(),
         updatedAt: new Date().toISOString(),
       });
-      alert('Notification policy saved.');
+
+      const assignedUsersQuery = query(collection(db, 'users'), where('protocolId', '==', protocolId));
+      const assignedUsersSnapshot = await getDocs(assignedUsersQuery);
+
+      await Promise.all(
+        assignedUsersSnapshot.docs.map((userDoc) =>
+          updateDoc(userDoc.ref, {
+            monitoredVitals: buildFallbackMonitoredVitals(normalizedTemplates),
+          })
+        )
+      );
+
+      window.alert('Trial template saved.');
     } catch (error) {
-      alert('Failed to save protocol notification policy: ' + error.message);
+      window.alert(`Failed to save trial template: ${error.message}`);
     }
   };
 
   return (
-    <div className="card" style={{ borderTop: '4px solid #28a745' }}>
-      <h3 className="mt-0">Protocol Library</h3>
+    <div className="protocol-library">
+      <div className="card workspace-card">
+        <div className="section-header">
+          <div>
+            <h3>Protocol Library</h3>
+            <div className="section-note">
+              Protocol PDFs act as trial templates. Each template owns its vital sign template, threshold rules, and mild,
+              moderate, and serious follow-up policy.
+            </div>
+          </div>
+          <div className="protocol-library__toolbar">
+            <input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files[0] || null)} />
+            <button onClick={handleUpload} disabled={!file || uploading} className="btn btn-primary btn-small">
+              {uploading ? 'Uploading...' : 'Upload PDF'}
+            </button>
+          </div>
+        </div>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-        <input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files[0])} />
-        <button onClick={handleUpload} disabled={!file || uploading} className="btn btn-primary btn-small">
-          {uploading ? 'Uploading...' : 'Upload PDF'}
-        </button>
+        <div className="protocol-library__summaryGrid">
+          <div className="workspace-summary-item">
+            <span>Total protocols</span>
+            <strong>{protocols.length}</strong>
+          </div>
+          <div className="workspace-summary-item">
+            <span>Patients on protocol</span>
+            <strong>{assignedProtocolCount}</strong>
+          </div>
+          <div className="workspace-summary-item">
+            <span>Selected patient</span>
+            <strong>{selectedPatient?.nickname || 'None selected'}</strong>
+          </div>
+          <div className="workspace-summary-item">
+            <span>Current trial</span>
+            <strong>{selectedPatient?.protocolName || 'Not assigned'}</strong>
+          </div>
+        </div>
       </div>
 
-      <div
-        style={{
-          background: '#e9ecef',
-          padding: '10px',
-          borderRadius: '5px',
-          marginBottom: '10px',
-          fontSize: '13px',
-        }}
-      >
-        {selectedPatient ? (
-          <>
-            <strong>Managing Protocol For:</strong> {selectedPatient.nickname}
-            <br />
-            <span style={{ color: selectedPatient.protocolName ? '#28a745' : '#666' }}>
-              Active Context: {selectedPatient.protocolName || 'None'}
-            </span>
-          </>
-        ) : (
-          <em style={{ color: '#d32f2f' }}>Select a patient from the list to assign a protocol.</em>
-        )}
-      </div>
+      {protocols.length ? (
+        <div className="protocol-library__stack">
+          {protocols.map((protocol) => {
+            const draft = drafts[protocol.id] || buildDraft(protocol);
+            const isActive = selectedPatient?.protocolId === protocol.id;
+            const usageCount = usageCounts[protocol.id] || 0;
 
-      <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
-        {protocols.map((protocol) => {
-          const isActive = selectedPatient?.protocolName === protocol.name;
-          const draftPolicy = coerceNotificationPolicy(policyDrafts[protocol.id]);
+            return (
+              <section
+                key={protocol.id}
+                className={`card workspace-card protocol-library__card ${isActive ? 'protocol-library__card--active' : ''}`}
+              >
+                <div className="protocol-library__cardHeader">
+                  <div>
+                    <div className="protocol-library__templateMeta">
+                      <span className="dashboard-kicker">Trial template</span>
+                      <span className="metric-pill">{usageCount} patient{usageCount === 1 ? '' : 's'} assigned</span>
+                      {isActive ? <span className="metric-pill metric-pill--selected">Selected patient active</span> : null}
+                    </div>
+                    <h3 className="mt-0">{protocol.name}</h3>
+                    <div className="section-note">
+                      Uploaded {protocol.uploadedAt ? new Date(protocol.uploadedAt).toLocaleString() : 'Unknown time'}
+                    </div>
+                  </div>
 
-          return (
-            <div
-              key={protocol.id}
-              style={{
-                padding: '10px',
-                borderBottom: '1px solid #eee',
-                background: isActive ? '#e8f5e9' : 'transparent',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <button
-                    onClick={() => handlePreview(protocol)}
-                    style={{
-                      color: '#007bff',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      textDecoration: 'underline',
-                      textAlign: 'left',
-                      padding: 0,
-                    }}
-                    title="Click to view PDF"
-                  >
-                    {protocol.name}
-                  </button>
-
-                  <div
-                    style={{
-                      marginTop: '10px',
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                      gap: '8px',
-                    }}
-                  >
-                    {POLICY_FIELDS.map((severity) => (
-                      <div
-                        key={severity}
-                        style={{
-                          border: '1px solid #d9e2ec',
-                          borderRadius: '8px',
-                          padding: '8px',
-                          background: '#fafcff',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight: 'bold',
-                            marginBottom: '6px',
-                            textTransform: 'capitalize',
-                            color: severity === 'serious' ? '#b42318' : '#334e68',
-                          }}
-                        >
-                          {severity}
-                        </div>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#52606d', marginBottom: '4px' }}>
-                          Due (hours)
-                        </label>
-                        <input
-                          value={draftPolicy[severity].due_in_hours}
-                          onChange={(event) =>
-                            handlePolicyFieldChange(protocol.id, severity, 'due_in_hours', event.target.value)
-                          }
-                          style={{ width: '100%', marginBottom: '6px' }}
-                        />
-                        <label style={{ display: 'block', fontSize: '11px', color: '#52606d', marginBottom: '4px' }}>
-                          Instruction
-                        </label>
-                        <input
-                          value={draftPolicy[severity].instruction}
-                          onChange={(event) =>
-                            handlePolicyFieldChange(protocol.id, severity, 'instruction', event.target.value)
-                          }
-                          style={{ width: '100%', marginBottom: '6px' }}
-                        />
-                        <label style={{ display: 'block', fontSize: '11px', color: '#52606d', marginBottom: '4px' }}>
-                          Action Code
-                        </label>
-                        <input
-                          value={draftPolicy[severity].action_code}
-                          onChange={(event) =>
-                            handlePolicyFieldChange(protocol.id, severity, 'action_code', event.target.value)
-                          }
-                          style={{ width: '100%' }}
-                        />
-                      </div>
-                    ))}
+                  <div className="protocol-library__cardActions">
+                    <button onClick={() => handlePreview(protocol)} className="btn btn-secondary btn-small">
+                      Preview PDF
+                    </button>
+                    <button onClick={() => handleSaveProtocol(protocol.id)} className="btn btn-primary btn-small">
+                      Save template
+                    </button>
+                    <button
+                      onClick={() => handleActivate(protocol)}
+                      disabled={!selectedPatient}
+                      className={`btn btn-small ${isActive ? 'btn-success' : 'btn-secondary'}`}
+                    >
+                      {isActive ? 'Assigned to selected patient' : 'Assign to selected patient'}
+                    </button>
+                    <button onClick={() => handleDelete(protocol)} className="btn btn-danger btn-small">
+                      Delete
+                    </button>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
-                  <button
-                    onClick={() => handleSavePolicy(protocol.id)}
-                    className="btn btn-primary btn-small"
-                    style={{ fontSize: '10px', minWidth: '82px' }}
-                    title="Save protocol notification rules"
-                  >
-                    Save Rules
-                  </button>
-                  <button
-                    onClick={() => handleActivate(protocol)}
-                    disabled={!selectedPatient}
-                    className={`btn btn-small ${isActive ? 'btn-success' : 'btn-secondary'}`}
-                    style={{ fontSize: '10px', minWidth: '82px' }}
-                    title={isActive ? 'Click to unassign' : 'Click to assign'}
-                  >
-                    {isActive ? 'Active' : 'Assign'}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(protocol)}
-                    style={{ background: 'none', border: '1px solid #f1c0c0', borderRadius: '6px', cursor: 'pointer', padding: '6px' }}
-                    title="Delete protocol globally"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                <div className="protocol-library__layout">
+                  <div className="protocol-library__main">
+                    <div className="info-banner protocol-library__metaCard">
+                      <TemplateField label="Optional dropout dataset trial ID">
+                        <input
+                          value={draft.dropout_trial_id}
+                          onChange={(event) =>
+                            updateDraft(protocol.id, (baseDraft) => ({
+                              ...baseDraft,
+                              dropout_trial_id: event.target.value,
+                            }))
+                          }
+                          placeholder="Optional testing dataset trial ID"
+                        />
+                      </TemplateField>
+                    </div>
 
-        {protocols.length === 0 && (
-          <p style={{ fontSize: '12px', color: '#999', textAlign: 'center' }}>
-            No protocols found. Upload one to get started.
-          </p>
-        )}
-      </div>
+                    <div className="info-banner protocol-library__metaCard">
+                      <div className="section-header section-header--tight">
+                        <div>
+                          <strong>Vital templates</strong>
+                          <div className="section-note section-note--spaced">
+                            Trial-linked monitored vitals and threshold rules. Labels stay outside the inputs so CRC values always remain readable.
+                          </div>
+                        </div>
+                        <div className="protocol-library__inlineActions">
+                          <select
+                            value={builtinSelections[protocol.id] || ''}
+                            onChange={(event) =>
+                              setBuiltinSelections((current) => ({
+                                ...current,
+                                [protocol.id]: event.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">Choose built-in vital</option>
+                            {builtinVitals.map((vital) => (
+                              <option key={vital.key} value={vital.key}>
+                                {vital.label}
+                              </option>
+                            ))}
+                          </select>
+                          <button onClick={() => handleAddBuiltinVital(protocol.id)} className="btn btn-secondary btn-small">
+                            Add built-in
+                          </button>
+                          <button onClick={() => handleAddCustomVital(protocol.id)} className="btn btn-secondary btn-small">
+                            Add custom
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="protocol-library__templateStack">
+                        {draft.vital_templates.length ? (
+                          draft.vital_templates.map((template, templateIndex) => (
+                            <div
+                              key={`${protocol.id}-${template.key}-${templateIndex}`}
+                              className="protocol-library__templateCard"
+                            >
+                              <div className="protocol-library__templateTop">
+                                <TemplateField label="Label">
+                                  <input
+                                    value={template.label}
+                                    onChange={(event) =>
+                                      handleVitalFieldChange(protocol.id, templateIndex, 'label', event.target.value)
+                                    }
+                                    placeholder="e.g. SpO2"
+                                  />
+                                </TemplateField>
+
+                                <TemplateField label="Unit">
+                                  <input
+                                    value={template.unit}
+                                    onChange={(event) =>
+                                      handleVitalFieldChange(protocol.id, templateIndex, 'unit', event.target.value)
+                                    }
+                                    placeholder="e.g. %"
+                                  />
+                                </TemplateField>
+
+                                <TemplateField label="Input type">
+                                  <select
+                                    value={template.input_type}
+                                    onChange={(event) =>
+                                      handleVitalFieldChange(protocol.id, templateIndex, 'input_type', event.target.value)
+                                    }
+                                  >
+                                    <option value="numeric">Numeric</option>
+                                    <option value="blood_pressure">Blood pressure</option>
+                                  </select>
+                                </TemplateField>
+
+                                <div className="protocol-library__field protocol-library__field--action">
+                                  <label className="protocol-library__fieldLabel">Template action</label>
+                                  <button
+                                    onClick={() => handleRemoveVital(protocol.id, templateIndex)}
+                                    className="btn btn-danger btn-small"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+
+                              {renderThresholdFields(template, protocol.id, templateIndex, handleThresholdChange)}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="empty-panel">No vital templates yet. Add a built-in vital or create a custom one.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="protocol-library__policyColumn">
+                    <div className="info-banner protocol-library__metaCard">
+                      <div className="section-header section-header--tight">
+                        <div>
+                          <strong>Notification policy</strong>
+                          <div className="section-note section-note--spaced">
+                            Define how CRC follow-up timing behaves for mild, moderate, and serious side effects.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="protocol-library__policyGrid">
+                        {POLICY_FIELDS.map((severity) => (
+                          <div key={severity} className={`protocol-library__policyCard protocol-library__policyCard--${severity}`}>
+                            <div className="protocol-library__policyTitle">{severity}</div>
+
+                            <TemplateField label="Due value">
+                              <input
+                                value={draft.notification_policy[severity].due_value}
+                                onChange={(event) =>
+                                  handlePolicyFieldChange(protocol.id, severity, 'due_value', event.target.value)
+                                }
+                                placeholder="1"
+                              />
+                            </TemplateField>
+
+                            <TemplateField label="Due unit">
+                              <select
+                                value={draft.notification_policy[severity].due_unit}
+                                onChange={(event) =>
+                                  handlePolicyFieldChange(protocol.id, severity, 'due_unit', event.target.value)
+                                }
+                              >
+                                {DUE_UNITS.map((unit) => (
+                                  <option key={unit} value={unit}>
+                                    {unit}
+                                  </option>
+                                ))}
+                              </select>
+                            </TemplateField>
+
+                            <TemplateField label="Instruction">
+                              <input
+                                value={draft.notification_policy[severity].instruction}
+                                onChange={(event) =>
+                                  handlePolicyFieldChange(protocol.id, severity, 'instruction', event.target.value)
+                                }
+                                placeholder="Instruction"
+                              />
+                            </TemplateField>
+
+                            <TemplateField label="Action code">
+                              <input
+                                value={draft.notification_policy[severity].action_code}
+                                onChange={(event) =>
+                                  handlePolicyFieldChange(protocol.id, severity, 'action_code', event.target.value)
+                                }
+                                placeholder="Action code"
+                              />
+                            </TemplateField>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="card workspace-card">
+          <div className="empty-panel">No protocols found yet. Upload the first clinical trial PDF to get started.</div>
+        </div>
+      )}
     </div>
   );
 };

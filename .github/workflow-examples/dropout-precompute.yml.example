@@ -1,0 +1,38 @@
+name: TrialLight Dropout Precompute
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+
+jobs:
+  publish-dropout-snapshots:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dropout dependencies
+        run: pip install -r "Patient-Dropout-Prediction/requirements.txt"
+
+      - name: Publish dropout snapshots
+        run: |
+          echo "Template only."
+          echo "Replace this step with the future publisher script command."
+          exit 1
+
+      - name: Notes
+        run: |
+          echo "This template is intentionally non-runnable."
+          echo "Activate it only after the Firestore mirror publisher script is implemented."
+

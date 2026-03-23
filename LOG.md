@@ -57,6 +57,26 @@
 - Added self-check/startup guidance for the dropout backend.
 - Preserved separate repository/runtime ownership for the model service.
 
+### Shareable Teammate Testing Deployment
+- Converted Firebase Hosting planning from a single site to a two-link model:
+  - CRC website on `triallight`
+  - patient web on `triallight-patient`
+- Added deploy-oriented build scripts for CRC web and patient web static export.
+- Prepared the patient app for static web export as a shareable browser link.
+- Hardened ePRO and dropout services for public deployment:
+  - env-driven `PORT`
+  - deploy-friendly host binding
+  - origin allowlist based CORS
+- Added deployment assets and docs for Firebase multi-site hosting and Render-based backend publishing.
+
+### No-Render Final Architecture Preparation
+- Added a no-Render preparation guide centered on Firebase + Supabase.
+- Added a Supabase migration baseline for:
+  - `epro_subject_state`
+  - `dropout_predictions`
+- Added a GitHub Actions template for future daily dropout precompute publishing.
+- Marked the Render deployment guide as a legacy transition reference rather than the preferred final path.
+
 ## Current Blockers
 - Firebase cloud functions are not fully deployable to production on the current project plan because the Firebase project still needs Blaze features for function deployment.
 - As a result:

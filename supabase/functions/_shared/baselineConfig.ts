@@ -1,0 +1,87 @@
+export const baselineConfig = [
+  {
+    question_id: 'ePRO_001',
+    question_text: 'Have you experienced any skin issues today?',
+    question_type: 'boolean',
+    tier: 'BASE',
+    conditional_logic: null,
+  },
+  {
+    question_id:
+      'ePRO_002',
+    question_text:
+      'On a scale of 0 to 10, where 0 is no pain and 10 is the worst pain imaginable, how would you rate the pain associated with your skin issues today?',
+    question_type: 'numeric_scale',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_001', operator: 'equals', value: true },
+  },
+  {
+    question_id: 'ePRO_003',
+    question_text:
+      'On a scale of 0 to 10, where 0 is not bothersome at all and 10 is extremely bothersome, how much have your skin issues interfered with your daily activities today?',
+    question_type: 'numeric_scale',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_001', operator: 'equals', value: true },
+  },
+  {
+    question_id: 'ePRO_004',
+    question_text: 'Please describe any new or worsening skin issues you have experienced today.',
+    question_type: 'text',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_001', operator: 'equals', value: true },
+  },
+  {
+    question_id: 'ePRO_005',
+    question_text: 'Have you experienced any joint pain or stiffness today?',
+    question_type: 'boolean',
+    tier: 'BASE',
+    conditional_logic: null,
+  },
+  {
+    question_id: 'ePRO_006',
+    question_text:
+      'On a scale of 0 to 10, where 0 is no pain and 10 is the worst pain imaginable, how would you rate your joint pain today?',
+    question_type: 'numeric_scale',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_005', operator: 'equals', value: true },
+  },
+  {
+    question_id: 'ePRO_007',
+    question_text:
+      'On a scale of 0 to 10, where 0 is not stiff at all and 10 is extremely stiff, how would you rate your joint stiffness today?',
+    question_type: 'numeric_scale',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_005', operator: 'equals', value: true },
+  },
+  {
+    question_id: 'ePRO_008',
+    question_text:
+      'On a scale of 0 to 10, where 0 is not bothersome at all and 10 is extremely bothersome, how much has your joint pain or stiffness interfered with your daily activities today?',
+    question_type: 'numeric_scale',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_005', operator: 'equals', value: true },
+  },
+  {
+    question_id: 'ePRO_009',
+    question_text: 'Please describe any new or worsening joint pain or stiffness you have experienced today.',
+    question_type: 'text',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_005', operator: 'equals', value: true },
+  },
+  {
+    question_id: 'ePRO_010',
+    question_text:
+      'Have you experienced any other new or worsening symptoms today that are not related to your skin or joints?',
+    question_type: 'boolean',
+    tier: 'BASE',
+    conditional_logic: null,
+  },
+  {
+    question_id: 'ePRO_011',
+    question_text: 'Please describe any other new or worsening symptoms you have experienced today.',
+    question_type: 'text',
+    tier: 'CONDITIONAL',
+    conditional_logic: { question_id: 'ePRO_010', operator: 'equals', value: true },
+  },
+];
+

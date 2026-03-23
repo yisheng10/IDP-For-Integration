@@ -1,0 +1,8 @@
+project_id = "fygkqituefwldmglijvy"
+
+[functions.epro-daily-survey]
+verify_jwt = false
+
+[functions.epro-submit]
+verify_jwt = false
+

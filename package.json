@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:crc": "vite build",
+    "build:patient-web": "npm --prefix \"MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2\" run export:web",
+    "build:shareable": "npm run build:crc && npm run build:patient-web",
     "build": "vite build",
+    "deploy:hosting": "firebase deploy --only hosting:crc,hosting:patient",
     "lint": "eslint .",
     "preview": "vite preview"
   },

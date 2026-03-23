@@ -37,27 +37,16 @@ import {
   registerBrowserPushSubscription,
   showForegroundIncidentNotification,
 } from '../services/browserPushService';
+import { fetchDropoutTestingSubjects } from '../services/dropoutService';
 import { getIncidentDueState, subscribeToIncidentRecords } from '../services/incidentService';
 import { getSignedUrl } from '../services/storageService';
+import {
+  buildFallbackMonitoredVitals,
+  describeInheritedVitals,
+  subscribeToTrialTemplates,
+} from '../services/trialTemplateService';
 
 const AI_SUGGESTION_TITLE = 'AI Scheduler';
-
-const VITAL_OPTIONS = [
-  { key: 'temperature', label: 'Body Temp' },
-  { key: 'bp', label: 'Blood Pressure' },
-  { key: 'heartRate', label: 'Heart Rate' },
-  { key: 'respRate', label: 'Resp. Rate' },
-  { key: 'spo2', label: 'SpO2' },
-  { key: 'weight', label: 'Weight' },
-  { key: 'height', label: 'Height' },
-  { key: 'glucoseFasting', label: 'Glucose (Fasting)' },
-  { key: 'glucosePost', label: 'Glucose (Post)' },
-  { key: 'pef', label: 'PEF (Asthma)' },
-  { key: 'fev1', label: 'FEV1' },
-  { key: 'inr', label: 'INR (Clotting)' },
-  { key: 'ketones', label: 'Ketones' },
-  { key: 'waist', label: 'Waist Circ.' },
-];
 
 const HOME_SECTIONS = {
   dashboard: {
@@ -83,6 +72,12 @@ const HOME_SECTIONS = {
     path: '/home?section=clinical-intelligence&focus=guidance',
     title: 'Clinical intelligence workspace',
     description: 'Use Side Effect Guidance and Patient Dropout Prediction together as the two core TrialLight intelligence modules.',
+  },
+  'protocol-library': {
+    label: 'Protocol Library',
+    path: '/home?section=protocol-library',
+    title: 'Protocol library',
+    description: 'Upload protocol PDFs, edit trial templates, and manage vitals with notification settings from one workspace.',
   },
   'study-coordination': {
     label: 'Study Coordination',
@@ -126,7 +121,10 @@ export default function CRCHome({ user, onLogout }) {
   const [tempPrimaryCrcId, setTempPrimaryCrcId] = useState('');
   const [tempPrimaryCrcPhone, setTempPrimaryCrcPhone] = useState('');
   const [tempStudyEmergencyPhone, setTempStudyEmergencyPhone] = useState('');
-  const [tempVitalsConfig, setTempVitalsConfig] = useState({});
+  const [tempProtocolId, setTempProtocolId] = useState('');
+  const [tempDropoutSubjectId, setTempDropoutSubjectId] = useState('');
+  const [protocolTemplates, setProtocolTemplates] = useState([]);
+  const [dropoutTestingSubjects, setDropoutTestingSubjects] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [isAlertWidgetOpen, setIsAlertWidgetOpen] = useState(false);
@@ -160,6 +158,13 @@ export default function CRCHome({ user, onLogout }) {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = subscribeToTrialTemplates((rows) => {
+      setProtocolTemplates(rows);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     setPushState(getBrowserPushState());
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       registerBrowserPushSubscription(user.uid)
@@ -173,6 +178,51 @@ export default function CRCHome({ user, onLogout }) {
     const updated = patients.find((patient) => patient.id === selectedPatientId);
     if (updated) setSelPatient(updated);
   }, [patients, selectedPatientId]);
+
+  const selectedProtocolTemplate = useMemo(() => {
+    if (!selPatient) return null;
+    return (
+      protocolTemplates.find((template) => template.id === selPatient.protocolId) ||
+      protocolTemplates.find((template) => template.name === selPatient.protocolName) ||
+      null
+    );
+  }, [protocolTemplates, selPatient]);
+
+  const editingProtocolTemplate = useMemo(() => {
+    if (!tempProtocolId) return null;
+    return protocolTemplates.find((template) => template.id === tempProtocolId) || null;
+  }, [protocolTemplates, tempProtocolId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTestingSubjects() {
+      if (!selPatient) {
+        setDropoutTestingSubjects([]);
+        return;
+      }
+
+      try {
+        const payload = await fetchDropoutTestingSubjects({
+          trialId: editingProtocolTemplate?.dropout_trial_id || null,
+          limit: 120,
+        });
+        if (!cancelled) {
+          setDropoutTestingSubjects(payload.subjects || []);
+        }
+      } catch (error) {
+        console.error('Failed to load dropout testing subjects:', error);
+        if (!cancelled) {
+          setDropoutTestingSubjects([]);
+        }
+      }
+    }
+
+    loadTestingSubjects();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingProtocolTemplate, selPatient, selectedProtocolTemplate]);
 
   useEffect(() => {
     const unsubscribeActive = subscribeToUnresolvedAlerts((entries) => {
@@ -294,7 +344,8 @@ export default function CRCHome({ user, onLogout }) {
       setTempPrimaryCrcId('');
       setTempPrimaryCrcPhone('');
       setTempStudyEmergencyPhone('');
-      setTempVitalsConfig({});
+      setTempProtocolId('');
+      setTempDropoutSubjectId('');
       setSuggestedDate('');
       setSuggestedReason('');
       setSuccessMsg('');
@@ -308,18 +359,18 @@ export default function CRCHome({ user, onLogout }) {
     setTempPrimaryCrcId(patient.primary_crc_id || patient.primaryCrcId || user.uid);
     setTempPrimaryCrcPhone(patient.primary_crc_phone || patient.primaryCrcPhone || '');
     setTempStudyEmergencyPhone(patient.study_emergency_phone || patient.studyEmergencyPhone || '');
+    setTempProtocolId(patient.protocolId || '');
+    setTempDropoutSubjectId(patient.dropout_subject_id || patient.dropoutSubjectId || '');
     setSuggestedDate('');
     setSuggestedReason('');
     setSuccessMsg('');
-
-    const savedConfig = patient.monitoredVitals || ['temperature', 'spo2', 'bp'];
-    const config = {};
-    VITAL_OPTIONS.forEach((option) => {
-      config[option.key] = savedConfig.includes(option.key);
-    });
-    setTempVitalsConfig(config);
     purgeOldAppointments(patient.id);
   };
+
+  useEffect(() => {
+    if (!selPatient) return;
+    setTempProtocolId(selPatient.protocolId || '');
+  }, [selPatient?.id, selPatient?.protocolId]);
 
   const handleNavAlertClick = (alert) => {
     const target = patients.find((patient) => patient.id === alert.uid);
@@ -413,18 +464,27 @@ export default function CRCHome({ user, onLogout }) {
     setIsSaving(true);
     setSuccessMsg('');
     try {
-      const vitalsArray = Object.keys(tempVitalsConfig).filter((key) => tempVitalsConfig[key]);
       const assignedCrc = crcUsers.find((entry) => entry.id === tempPrimaryCrcId);
+      const assignedProtocol = protocolTemplates.find((entry) => entry.id === tempProtocolId) || null;
+      const inheritedMonitoredVitals = assignedProtocol
+        ? buildFallbackMonitoredVitals(assignedProtocol.vital_templates || [])
+        : [];
       await updateDoc(doc(db, 'users', selPatient.id), {
         hospitalPatientId: tempPatientID,
         email: tempEmail,
-        monitoredVitals: vitalsArray,
         primary_crc_id: tempPrimaryCrcId || null,
         primary_crc_name: assignedCrc?.nickname || assignedCrc?.email || null,
         primary_crc_phone: tempPrimaryCrcPhone || null,
         study_emergency_phone: tempStudyEmergencyPhone || null,
+        protocolId: assignedProtocol?.id || null,
+        protocolName: assignedProtocol?.name || null,
+        protocolUrl: assignedProtocol?.storagePath || null,
+        protocolStatus: assignedProtocol ? 'active' : null,
+        protocolAssignedAt: assignedProtocol ? new Date().toISOString() : null,
+        monitoredVitals: inheritedMonitoredVitals,
+        dropout_subject_id: tempDropoutSubjectId || null,
       });
-      setSuccessMsg('Saved patient info and monitoring configuration.');
+      setSuccessMsg('Saved patient ownership, trial assignment, emergency contact, and dropout testing mapping.');
       window.setTimeout(() => setSuccessMsg(''), 3000);
     } catch (error) {
       window.alert(error.message);
@@ -511,6 +571,9 @@ export default function CRCHome({ user, onLogout }) {
     } else if (legacyHash === 'patient-dropout-prediction') {
       nextParams.set('section', 'clinical-intelligence');
       nextParams.set('focus', 'dropout');
+    } else if (legacyHash === 'protocol-library') {
+      nextParams.set('section', 'protocol-library');
+      nextParams.delete('focus');
     } else if (legacyHash === 'study-coordination') {
       nextParams.set('section', 'study-coordination');
       nextParams.delete('focus');
@@ -541,6 +604,8 @@ export default function CRCHome({ user, onLogout }) {
       ? activeClinicalFocus === 'dropout'
         ? 'patient-dropout-prediction'
         : 'side-effect-guidance'
+      : activeHomeSection === 'study-coordination'
+        ? 'patients'
       : activeHomeSection;
 
   const openIncidentCount = useMemo(
@@ -631,9 +696,10 @@ export default function CRCHome({ user, onLogout }) {
       items: [
         { id: 'dashboard', label: 'Dashboard', description: 'Overview', icon: 'dashboard', path: HOME_SECTIONS.dashboard.path },
         { id: 'patients', label: 'Patients', description: 'Roster', icon: 'patients', path: HOME_SECTIONS.patients.path },
+        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Core intelligence', icon: 'guidance', badge: 'Core', emphasis: 'guidance', path: '/home?section=clinical-intelligence&focus=guidance' },
+        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', description: 'CRC only', icon: 'dropout', badge: 'Core', emphasis: 'dropout', path: '/home?section=clinical-intelligence&focus=dropout' },
+        { id: 'protocol-library', label: 'Protocol Library', description: 'Templates', icon: 'protocol', path: HOME_SECTIONS['protocol-library'].path },
         { id: 'safety-inbox', label: 'Safety Inbox', description: 'Incidents', icon: 'safety', path: HOME_SECTIONS['safety-inbox'].path },
-        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Gemini', icon: 'guidance', path: '/home?section=clinical-intelligence&focus=guidance' },
-        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', description: 'CRC only', icon: 'dropout', path: '/home?section=clinical-intelligence&focus=dropout' },
       ],
     },
     {
@@ -798,6 +864,9 @@ export default function CRCHome({ user, onLogout }) {
                       <button className="btn btn-primary" onClick={() => openWorkspaceSection('clinical-intelligence', 'guidance')}>
                         Open Side Effect Guidance
                       </button>
+                      <button className="btn btn-secondary" onClick={() => openWorkspaceSection('protocol-library')}>
+                        Open Protocol Library
+                      </button>
                     </div>
                   </>
                 ) : (
@@ -888,6 +957,9 @@ export default function CRCHome({ user, onLogout }) {
                       <button className="btn btn-primary" onClick={() => openWorkspaceSection('clinical-intelligence', 'guidance')}>
                         Open Guidance Workspace
                       </button>
+                      <button className="btn btn-secondary" onClick={() => openWorkspaceSection('protocol-library')}>
+                        Open Protocol Library
+                      </button>
                     </div>
                   </>
                 ) : (
@@ -963,6 +1035,22 @@ export default function CRCHome({ user, onLogout }) {
           </>
           ) : null}
 
+          {activeHomeSection === 'protocol-library' ? (
+          <section id="protocol-library" className="dashboard-section">
+            <div className="dashboard-section__header">
+              <div>
+                <div className="dashboard-kicker">Trial templates</div>
+                <h2 className="dashboard-section__title">Protocol Library</h2>
+                <p className="section-note">
+                  Upload protocol PDFs, review current usage, and keep vital templates with mild, moderate, and serious notification settings together.
+                </p>
+              </div>
+            </div>
+
+            <ProtocolManager selectedPatient={selPatient} patients={patients} />
+          </section>
+          ) : null}
+
           {activeHomeSection === 'study-coordination' ? (
           <section id="study-coordination" className="dashboard-section">
             <div className="dashboard-section__header">
@@ -990,17 +1078,57 @@ export default function CRCHome({ user, onLogout }) {
                     setPrimaryCrcPhone={setTempPrimaryCrcPhone}
                     studyEmergencyPhone={tempStudyEmergencyPhone}
                     setStudyEmergencyPhone={setTempStudyEmergencyPhone}
+                    assignedProtocolId={tempProtocolId}
+                    setAssignedProtocolId={setTempProtocolId}
+                    protocolOptions={protocolTemplates}
+                    assignedProtocol={editingProtocolTemplate}
+                    dropoutSubjectId={tempDropoutSubjectId}
+                    setDropoutSubjectId={setTempDropoutSubjectId}
                     crcUsers={crcUsers}
-                    vitalsConfig={tempVitalsConfig}
-                    setVitalsConfig={setTempVitalsConfig}
-                    vitalOptions={VITAL_OPTIONS}
+                    inheritedVitals={describeInheritedVitals(editingProtocolTemplate?.vital_templates)}
+                    dropoutOptions={dropoutTestingSubjects}
                     onSave={handleSaveInfo}
                     onDelete={handleDeletePatient}
                     isSaving={isSaving}
                     successMsg={successMsg}
                   />
 
-                  <ProtocolManager selectedPatient={selPatient} />
+                  <div className="card workspace-card">
+                    <div className="section-header">
+                      <div>
+                        <h3>Assigned trial summary</h3>
+                        <div className="section-note">
+                          Protocol editing now lives in Protocol Library. This panel keeps the selected patient&apos;s trial context visible.
+                        </div>
+                      </div>
+                      <button className="btn btn-secondary btn-small" onClick={() => openWorkspaceSection('protocol-library')}>
+                        Open Protocol Library
+                      </button>
+                    </div>
+
+                    <div className="workspace-summary-grid workspace-summary-grid--compact">
+                      <div className="workspace-summary-item">
+                        <span>Assigned trial</span>
+                        <strong>{editingProtocolTemplate?.name || 'Not assigned'}</strong>
+                      </div>
+                      <div className="workspace-summary-item">
+                        <span>Inherited vitals</span>
+                        <strong>{describeInheritedVitals(editingProtocolTemplate?.vital_templates).length || 0}</strong>
+                      </div>
+                    </div>
+
+                    <div className="patient-config__pillWrap">
+                      {describeInheritedVitals(editingProtocolTemplate?.vital_templates).length ? (
+                        describeInheritedVitals(editingProtocolTemplate?.vital_templates).map((label) => (
+                          <span key={label} className="metric-pill">
+                            {label}
+                          </span>
+                        ))
+                      ) : (
+                        <div className="section-note">Assign a trial template to preview inherited monitored vitals here.</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="workspace-two-column">
@@ -1100,10 +1228,7 @@ export default function CRCHome({ user, onLogout }) {
               </div>
             )}
 
-            <div className="workspace-two-column">
-              <ProtocolManager selectedPatient={selPatient} />
-              <EproStatusPanel entries={eproEntries} selectedPatient={selPatient} patients={patients} />
-            </div>
+            <EproStatusPanel entries={eproEntries} selectedPatient={selPatient} patients={patients} />
           </section>
           ) : null}
 

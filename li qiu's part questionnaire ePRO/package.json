@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "start": "node server_integrated.js",
+    "dev": "node server_integrated.js"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.90.1",

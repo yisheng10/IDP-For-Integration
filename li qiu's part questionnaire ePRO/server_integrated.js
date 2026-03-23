@@ -6,8 +6,47 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:8081',
+  'https://triallight.web.app',
+  'https://triallight-patient.web.app',
+];
+
+function parseAllowedOrigins(rawValue) {
+  if (!rawValue || !String(rawValue).trim()) {
+    return DEFAULT_ALLOWED_ORIGINS;
+  }
+
+  return String(rawValue)
+    .split(',')
+    .map((entry) => entry.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+}
+
+const allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGINS);
+
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(normalizedOrigin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+  })
+);
 app.use(express.json());
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -344,9 +383,10 @@ app.post('/api/submit-survey', async (req, res) => {
   }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`TrialLight ePRO service running on http://localhost:${PORT}`);
+const PORT = Number(process.env.PORT || 3000);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`TrialLight ePRO service running on http://0.0.0.0:${PORT}`);
+  console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
   console.log('Available endpoints:');
   console.log('  GET  /healthz');
   console.log('  GET  /api/epro/daily-survey?subject_id=...');

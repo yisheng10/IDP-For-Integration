@@ -1,8 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchDropoutRiskSnapshot } from '../services/dropoutService';
+import { subscribeToDropoutPredictionSnapshot } from '../services/dropoutService';
 
-function deriveSubjectId(patient) {
-  return patient?.subject_id || patient?.subjectId || patient?.trialSubjectId || patient?.id;
+function deriveMappedSubject(patient) {
+  const mappedSubjectId = patient?.dropout_subject_id || patient?.dropoutSubjectId || '';
+  if (mappedSubjectId) {
+    return {
+      subjectId: mappedSubjectId,
+      source: 'testing_mapping',
+    };
+  }
+
+  const canonicalSubjectId =
+    patient?.subject_id || patient?.subjectId || patient?.trialSubjectId || patient?.id || '';
+  if (/^NCT.+_P\d+$/i.test(canonicalSubjectId)) {
+    return {
+      subjectId: canonicalSubjectId,
+      source: 'canonical_subject',
+    };
+  }
+
+  return {
+    subjectId: '',
+    source: 'missing_mapping',
+  };
 }
 
 function renderRiskBucket(bucket) {
@@ -10,72 +30,109 @@ function renderRiskBucket(bucket) {
   return String(bucket).toUpperCase();
 }
 
-export default function DropoutRiskPanel({ selectedPatient, eproEntries = [] }) {
-  const [adapterState, setAdapterState] = useState({ status: 'idle', data: null, error: '' });
+function renderErrorCard(title, description, reason) {
+  return (
+    <div className="dropout-card dropout-card--warning">
+      <div className="dropout-card__title">{title}</div>
+      <div className="section-note">{description}</div>
+      {reason ? <div className="section-note">Reason: {reason}</div> : null}
+    </div>
+  );
+}
 
-  const selectedSubjectId = deriveSubjectId(selectedPatient);
-  const currentDay = useMemo(() => Math.max(1, eproEntries.length || 1), [eproEntries]);
+function computeStaleness(snapshot) {
+  if (!snapshot?.published_at) {
+    return 'pending';
+  }
+  const ageMs = Date.now() - new Date(snapshot.published_at).getTime();
+  if (ageMs > 36 * 60 * 60 * 1000) {
+    return 'stale';
+  }
+  return snapshot.staleness_status || 'fresh';
+}
+
+export default function DropoutRiskPanel({ selectedPatient }) {
+  const [subscriptionState, setSubscriptionState] = useState({
+    patientId: '',
+    data: null,
+    error: '',
+    code: '',
+  });
+
+  const resolution = useMemo(() => deriveMappedSubject(selectedPatient), [selectedPatient]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadRisk() {
-      if (!selectedSubjectId) {
-        setAdapterState({ status: 'idle', data: null, error: '' });
-        return;
-      }
-
-      setAdapterState({ status: 'loading', data: null, error: '' });
-
-      try {
-        const payload = await fetchDropoutRiskSnapshot({
-          subjectId: selectedSubjectId,
-          currentDay,
-        });
-
-        if (!cancelled) {
-          setAdapterState({ status: 'ready', data: payload, error: '' });
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setAdapterState({
-            status: 'unavailable',
-            data: null,
-            error: error.name === 'AbortError' ? 'Adapter timed out.' : error.message,
-          });
-        }
-      }
+    if (!selectedPatient?.id || !resolution.subjectId) {
+      return () => {};
     }
 
-    loadRisk();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedSubjectId, currentDay]);
+    return subscribeToDropoutPredictionSnapshot(
+      selectedPatient.id,
+      (snapshot) => {
+        if (!snapshot) {
+          setSubscriptionState({
+            patientId: selectedPatient.id,
+            data: null,
+            error: '',
+            code: 'snapshot_missing',
+          });
+          return;
+        }
+
+        setSubscriptionState({
+          patientId: selectedPatient.id,
+          data: snapshot,
+          error: '',
+          code: computeStaleness(snapshot),
+        });
+      },
+      (error) => {
+        setSubscriptionState({
+          patientId: selectedPatient.id,
+          data: null,
+          error: error.message,
+          code: 'mirror_error',
+        });
+      }
+    );
+  }, [resolution.subjectId, selectedPatient?.id]);
 
   const content = (() => {
     if (!selectedPatient) {
       return <div className="section-note">Select a patient to inspect the CRC-only dropout prediction.</div>;
     }
 
-    if (adapterState.status === 'loading') {
-      return <div className="section-note">Querying the dropout prediction contract...</div>;
-    }
-
-    if (adapterState.status === 'unavailable') {
-      return (
-        <div className="dropout-card dropout-card--warning">
-          <div className="dropout-card__title">Prediction unavailable</div>
-          <div className="section-note">
-            The CRC-only contract is wired, but no live risk payload is currently reachable for this subject.
-          </div>
-          <div className="section-note">Reason: {adapterState.error || 'Unknown adapter error.'}</div>
-        </div>
+    if (!resolution.subjectId) {
+      return renderErrorCard(
+        'No mapped dropout subject',
+        'Select a dropout testing subject in Patient configuration before scoring this patient.',
+        'No mapped dropout subject. Assign a testing subject in Patient configuration.'
       );
     }
 
-    if (adapterState.status === 'ready' && adapterState.data) {
-      const data = adapterState.data;
+    if (subscriptionState.patientId !== selectedPatient.id) {
+      return <div className="section-note">Loading the latest published dropout snapshot...</div>;
+    }
+
+    if (subscriptionState.error) {
+      return renderErrorCard(
+        'Snapshot unavailable',
+        'The CRC-only dropout mirror could not be loaded from Firestore.',
+        subscriptionState.error
+      );
+    }
+
+    if (!subscriptionState.data) {
+      return renderErrorCard(
+        'Prediction pending',
+        'No published dropout snapshot exists yet for this patient. Run the scheduled precompute or workflow dispatch first.',
+        ''
+      );
+    }
+
+    if (subscriptionState.data) {
+      const data = subscriptionState.data;
+      const staleness = computeStaleness(data);
       return (
         <div className="dropout-stack">
           <div className="dropout-card">
@@ -83,13 +140,32 @@ export default function DropoutRiskPanel({ selectedPatient, eproEntries = [] }) 
               <strong>{selectedPatient.nickname}</strong>
               <span className="dropout-card__bucket">{renderRiskBucket(data.risk_bucket)}</span>
             </div>
-            <div className="dropout-card__metric">Subject ID: {data.subject_id || selectedSubjectId}</div>
+            <div className="dropout-card__metric">Testing subject: {data.dropout_subject_id || data.subject_id || resolution.subjectId}</div>
             <div className="dropout-card__metric">
               Dropout probability:{' '}
               {typeof data.dropout_probability === 'number' ? data.dropout_probability.toFixed(3) : 'N/A'}
             </div>
             <div className="dropout-card__metric">Recommended action: {data.recommended_action || 'N/A'}</div>
-            <div className="dropout-card__metric">Routed stage: {data.routed_stage || 'N/A'}</div>
+            <div className="dropout-card__metric">Risk bucket: {data.risk_bucket || 'N/A'}</div>
+            <div className="dropout-card__metric">Last published: {data.published_at ? new Date(data.published_at).toLocaleString() : 'N/A'}</div>
+          </div>
+
+          <div className="dropout-card dropout-card--soft">
+            <strong>Mapping source</strong>
+            <div className="section-note">
+              {resolution.source === 'testing_mapping'
+                ? 'Using the explicit dropout testing subject selected for this patient.'
+                : 'Using the canonical subject ID because it already matches the dropout dataset format.'}
+            </div>
+          </div>
+
+          <div className={`dropout-card ${staleness === 'stale' ? 'dropout-card--warning' : 'dropout-card--soft'}`}>
+            <strong>Snapshot freshness</strong>
+            <div className="section-note">
+              {staleness === 'stale'
+                ? 'This published snapshot is stale. Re-run the scheduled precompute workflow to refresh it.'
+                : 'This panel is reading the current published CRC-only snapshot from Firestore.'}
+            </div>
           </div>
 
           {Array.isArray(data.data_quality_flags) && data.data_quality_flags.length > 0 ? (
@@ -118,7 +194,7 @@ export default function DropoutRiskPanel({ selectedPatient, eproEntries = [] }) 
         <div>
           <h3 className="mt-0">Patient Dropout Prediction</h3>
           <div className="section-note">
-            CRC-only predictive view. This module must never be exposed in patient surfaces.
+            CRC-only predictive view sourced from the latest published Firestore snapshot. This module must never be exposed in patient surfaces.
           </div>
         </div>
         <span className="metric-pill">CRC only</span>

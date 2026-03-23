@@ -2,19 +2,38 @@
   "functions": {
     "source": "functions"
   },
-  "hosting": {
-    "public": "dist",
-    "site": "triallight",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "crc",
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "predeploy": [
+        "npm run build:crc"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "target": "patient",
+      "public": "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/web-build",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "predeploy": [
+        "npm run build:patient-web"
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    }
+  ]
 }

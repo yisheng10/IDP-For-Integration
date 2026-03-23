@@ -15,7 +15,11 @@ import {
 } from 'firebase/firestore';
 import ReactMarkdown from 'react-markdown';
 import { db } from '../firebase';
-import { GEMINI_API_KEY, OLLAMA_BASE_URL, OLLAMA_MODEL } from '../config';
+import {
+  GEMINI_API_KEY,
+  SIDE_EFFECT_GUIDANCE_MODEL,
+  SIDE_EFFECT_GUIDANCE_PROVIDER,
+} from '../config';
 import { SAFETY_INSTRUCTIONS } from '../safetyInstructions';
 import { extractTextFromPdf } from '../utils';
 import { requestSideEffectGuidance } from '../services/sideEffectGuidanceService';
@@ -24,91 +28,13 @@ import { supabase } from '../supabaseClient';
 
 const CRC_AI_NAME = 'Side Effect Guidance';
 const PATIENT_AI_NAME = 'AI Assistant';
-const OLLAMA_TIMEOUT_MS = 25000;
 
-class OllamaRequestError extends Error {
-  constructor(kind, message) {
-    super(message);
-    this.name = 'OllamaRequestError';
-    this.kind = kind;
-  }
-}
-
-async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-  } finally {
-    window.clearTimeout(timeoutId);
-  }
-}
-
-async function readJsonSafely(response) {
-  const rawText = await response.text();
-  if (!rawText) return {};
-
-  try {
-    return JSON.parse(rawText);
-  } catch {
-    return { rawText };
-  }
-}
-
-async function UNUSED_ensureOllamaReady() {
-  let response;
-  try {
-    response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/tags`, { method: 'GET' }, 4000);
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new OllamaRequestError('timeout', `Ollama health check timed out at ${OLLAMA_BASE_URL}.`);
-    }
-
-    throw new OllamaRequestError(
-      'unreachable',
-      `Ollama is not reachable at ${OLLAMA_BASE_URL}. Start Ollama and retry.`
-    );
-  }
-
-  if (!response.ok) {
-    throw new OllamaRequestError(
-      'bad_status',
-      `Ollama health check returned HTTP ${response.status}.`
-    );
-  }
-
-  const payload = await readJsonSafely(response);
-  const availableModels = Array.isArray(payload.models)
-    ? payload.models.map((entry) => entry?.name || entry?.model).filter(Boolean)
-    : [];
-
-  const hasConfiguredModel = availableModels.some((name) => {
-    const normalized = String(name);
-    return (
-      normalized === OLLAMA_MODEL ||
-      normalized.startsWith(`${OLLAMA_MODEL}:`) ||
-      OLLAMA_MODEL.startsWith(`${normalized}:`)
-    );
-  });
-
-  if (!hasConfiguredModel) {
-    throw new OllamaRequestError(
-      'missing_model',
-      `Ollama is running, but model "${OLLAMA_MODEL}" is not installed. Run "ollama pull ${OLLAMA_MODEL}" and retry.`
-    );
-  }
-}
-
-function buildOllamaUserMessage(error) {
+function buildProviderUserMessage(error) {
   if (error?.message) {
     return error.message;
   }
 
-  return '⚠️ AI Error. Side Effect Guidance is unavailable right now.';
+  return 'AI Error. Side Effect Guidance is unavailable right now.';
 }
 
 export default function GeminiChatbot({
@@ -131,8 +57,8 @@ export default function GeminiChatbot({
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [activeContextPatient, setActiveContextPatient] = useState(null);
   const [runtimeMeta, setRuntimeMeta] = useState({
-    provider: role === 'crc' ? 'gemini' : 'local',
-    model: role === 'crc' ? 'gemini-2.5-flash' : OLLAMA_MODEL,
+    provider: role === 'crc' ? SIDE_EFFECT_GUIDANCE_PROVIDER : 'gemini',
+    model: SIDE_EFFECT_GUIDANCE_MODEL,
   });
 
   const chatSessionRef = useRef(null);
@@ -166,14 +92,13 @@ export default function GeminiChatbot({
   }, [patientData, role]);
 
   useEffect(() => {
-    const readyToStart = chatVisible && userId && isHistoryLoaded;
-    if (readyToStart && !chatSessionRef.current) {
+    if (chatVisible && userId && isHistoryLoaded && !chatSessionRef.current) {
       startHybridChat();
     }
   }, [chatVisible, isHistoryLoaded, protocolUrl, userId]);
 
   useEffect(() => {
-    if (!chatVisible) return;
+    if (!chatVisible) return undefined;
     const timer = window.setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
@@ -197,7 +122,7 @@ export default function GeminiChatbot({
 
   const searchCTCAE = async (queryText) => {
     try {
-      if (!queryText || queryText.length < 3) return '';
+      if (!queryText || queryText.length < 3 || !GEMINI_API_KEY) return '';
 
       const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
       const embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
@@ -226,7 +151,8 @@ export default function GeminiChatbot({
           return `[Page ${pageNumber}]: ${entry.content}`;
         })
         .join('\n\n---\n\n');
-    } catch {
+    } catch (error) {
+      console.error('CTCAE search failed:', error);
       return '';
     }
   };
@@ -317,7 +243,7 @@ export default function GeminiChatbot({
             }
           });
         } catch {
-          // Ignore individual patient fetch errors and continue with the rest.
+          // Ignore individual patient fetch failures.
         }
       })
     );
@@ -330,10 +256,7 @@ export default function GeminiChatbot({
 
     return `=== MASTER APPOINTMENT SCHEDULE ===\n${scheduleRows
       .slice(0, 15)
-      .map(
-        (row) =>
-          `- ${new Date(row.datetime).toLocaleString()}: ${row.patient} (${row.status})`
-      )
+      .map((row) => `- ${new Date(row.datetime).toLocaleString()}: ${row.patient} (${row.status})`)
       .join('\n')}`;
   };
 
@@ -345,7 +268,10 @@ export default function GeminiChatbot({
 
     const formatVitalLog = (entry) => {
       const date = new Date(entry.timestamp).toLocaleDateString();
-      const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const time = new Date(entry.timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
       return `[${date} ${time}] Temp:${entry.temperature || '-'} BP:${entry.bpSys || '-'}/${entry.bpDia || '-'} SpO2:${entry.spo2 || '-'}%`;
     };
 
@@ -432,10 +358,8 @@ export default function GeminiChatbot({
       const targetId = role === 'crc' ? patientData?.id : userId;
 
       if (targetId && (role === 'patient' || patientData)) {
-        const { vitalsSummary, appointmentSummary, protocolText, protocolStatus } = await fetchFullPatientContext(
-          targetId,
-          patientData
-        );
+        const { vitalsSummary, appointmentSummary, protocolText, protocolStatus } =
+          await fetchFullPatientContext(targetId, patientData);
         const focusedPatientName = role === 'crc' ? patientData?.nickname : userNickname;
 
         systemInstruction += `\n\n=== CURRENT FOCUS: ${focusedPatientName || 'Patient'} ===\nVITALS:\n${vitalsSummary}\n\nAPPOINTMENTS:\n${appointmentSummary}\n\nPROTOCOL STATUS: ${protocolStatus}`;
@@ -452,7 +376,7 @@ export default function GeminiChatbot({
       if (messages.length === 0) {
         const intro =
           role === 'crc'
-            ? `**${currentAiName} ready.**\nRunning through the secure Gemini guidance service. I can help with vitals, appointments, protocols, and CTCAE guidance.`
+            ? `**${currentAiName} ready.**\nRunning through ${SIDE_EFFECT_GUIDANCE_PROVIDER} with ${SIDE_EFFECT_GUIDANCE_MODEL}. I can help with vitals, appointments, protocols, and CTCAE guidance.`
             : `Hello **${userNickname || 'there'}**. I am ${currentAiName}.`;
         await saveMessage('model', intro);
       }
@@ -483,7 +407,8 @@ export default function GeminiChatbot({
       setMessages([]);
       chatSessionRef.current = null;
       await startHybridChat();
-    } catch {
+    } catch (error) {
+      console.error('Failed to clear chat history:', error);
       alert('Failed to clear chat history.');
     } finally {
       setIsLoading(false);
@@ -513,7 +438,6 @@ export default function GeminiChatbot({
     if (!chatSessionRef.current) {
       await startHybridChat();
     }
-
     if (!chatSessionRef.current) return;
 
     const userText = input;
@@ -543,10 +467,8 @@ export default function GeminiChatbot({
           targetPatient || activeContextPatient || (role === 'patient' ? { id: userId } : null);
 
         if (finalTarget) {
-          const { vitalsSummary, appointmentSummary, protocolText, protocolStatus } = await fetchFullPatientContext(
-            finalTarget.id,
-            finalTarget
-          );
+          const { vitalsSummary, appointmentSummary, protocolText, protocolStatus } =
+            await fetchFullPatientContext(finalTarget.id, finalTarget);
           const patientName = finalTarget.nickname || 'The patient';
 
           systemInjection += `\n[DATA INJECTION FOR: ${patientName}]\nVITALS:\n${vitalsSummary}\n\nAPPOINTMENTS:\n${appointmentSummary}\n\nPROTOCOL STATUS: ${protocolStatus}`;
@@ -563,7 +485,7 @@ export default function GeminiChatbot({
       }
 
       if (role !== 'crc') {
-        throw new Error('⚠️ AI Error. Web-based Side Effect Guidance is restricted to the CRC workspace.');
+        throw new Error('AI Error. Web-based Side Effect Guidance is restricted to the CRC workspace.');
       }
 
       const conversation = messages
@@ -574,15 +496,15 @@ export default function GeminiChatbot({
         }));
 
       const { text, provider, model } = await requestSideEffectGuidance({
-        provider: role === 'crc' ? 'gemini' : 'local',
+        provider: SIDE_EFFECT_GUIDANCE_PROVIDER,
         systemPrompt: systemPromptRef.current,
         messages: conversation,
         userMessage: systemInjection ? `${systemInjection}\nUser Query: ${userText}` : userText,
       });
 
       setRuntimeMeta({
-        provider: provider || 'gemini',
-        model: model || 'gemini-2.5-flash',
+        provider: provider || SIDE_EFFECT_GUIDANCE_PROVIDER,
+        model: model || SIDE_EFFECT_GUIDANCE_MODEL,
       });
 
       const emergencyMatch = text.match(/\*\*\*EMERGENCY: (.*?)\*\*\*/);
@@ -593,7 +515,7 @@ export default function GeminiChatbot({
       await saveMessage('model', text);
     } catch (error) {
       console.error('AI chat request failed:', error);
-      await saveMessage('model', buildOllamaUserMessage(error));
+      await saveMessage('model', buildProviderUserMessage(error));
       chatSessionRef.current = null;
     } finally {
       setIsLoading(false);
@@ -624,12 +546,15 @@ export default function GeminiChatbot({
           </span>
         ) : null}
         <span className={isDocked ? 'guidance-panel__runtime' : ''} style={isDocked ? undefined : styles.runtimeInfo}>
-          Runtime: <strong>{String(runtimeMeta.provider || 'gemini').toUpperCase()}</strong> using{' '}
-          <strong>{runtimeMeta.model || 'gemini-2.5-flash'}</strong>
+          Runtime: <strong>{String(runtimeMeta.provider || SIDE_EFFECT_GUIDANCE_PROVIDER).toUpperCase()}</strong> using{' '}
+          <strong>{runtimeMeta.model || SIDE_EFFECT_GUIDANCE_MODEL}</strong>
         </span>
       </div>
 
-      <div className={isDocked ? 'guidance-panel__actions' : ''} style={isDocked ? undefined : { display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div
+        className={isDocked ? 'guidance-panel__actions' : ''}
+        style={isDocked ? undefined : { display: 'flex', alignItems: 'center', gap: '10px' }}
+      >
         <button onClick={handleRefresh} style={styles.iconButton} title="Refresh AI data">
           Refresh
         </button>
@@ -712,7 +637,7 @@ export default function GeminiChatbot({
         className={isDocked ? 'guidance-panel__input' : ''}
         style={isDocked ? undefined : styles.input}
         value={input}
-        onChange={(entry) => setInput(entry.target.value)}
+        onChange={(event) => setInput(event.target.value)}
         placeholder={
           role === 'crc'
             ? 'Describe a side effect, protocol rule, vitals concern, or follow-up action...'

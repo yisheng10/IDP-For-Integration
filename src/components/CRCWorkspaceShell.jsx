@@ -9,13 +9,45 @@ function IconWrapper({ children }) {
   return <span className="crc-sidebar__navIconSvg">{children}</span>;
 }
 
+function CollapseIcon({ collapsed }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {collapsed ? (
+        <path
+          d="m9 6 6 6-6 6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path
+          d="m15 6-6 6 6 6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
+}
+
 function NavIcon({ icon }) {
   switch (icon) {
     case 'dashboard':
       return (
         <IconWrapper>
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path
+              d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
           </svg>
         </IconWrapper>
       );
@@ -23,7 +55,14 @@ function NavIcon({ icon }) {
       return (
         <IconWrapper>
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
             <circle cx="9.5" cy="8" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
             <path d="M17 11a3 3 0 1 0 0-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
@@ -33,8 +72,21 @@ function NavIcon({ icon }) {
       return (
         <IconWrapper>
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3l8 4v5c0 5-3.5 7.7-8 9-4.5-1.3-8-4-8-9V7l8-4Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-            <path d="M9.5 12.5 11 14l3.5-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M12 3l8 4v5c0 5-3.5 7.7-8 9-4.5-1.3-8-4-8-9V7l8-4Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M9.5 12.5 11 14l3.5-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </IconWrapper>
       );
@@ -42,7 +94,13 @@ function NavIcon({ icon }) {
       return (
         <IconWrapper>
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3a7 7 0 0 0-4 12.8V19a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3.2A7 7 0 0 0 12 3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path
+              d="M12 3a7 7 0 0 0-4 12.8V19a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3.2A7 7 0 0 0 12 3Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
             <path d="M9.5 11.5h5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </IconWrapper>
@@ -52,7 +110,30 @@ function NavIcon({ icon }) {
         <IconWrapper>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 18h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="m6 15 3-4 3 2 5-7 1 1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="m6 15 3-4 3 2 5-7 1 1"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </IconWrapper>
+      );
+    case 'protocol':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M7 3h8l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+            <path d="M15 3v5h5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M9 12h6M9 16h6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </IconWrapper>
       );
@@ -60,8 +141,22 @@ function NavIcon({ icon }) {
       return (
         <IconWrapper>
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 12a8 8 0 1 0 2.3-5.6L4 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M12 8v4l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M4 12a8 8 0 1 0 2.3-5.6L4 8"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M12 8v4l2.5 1.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </IconWrapper>
       );
@@ -69,8 +164,20 @@ function NavIcon({ icon }) {
       return (
         <IconWrapper>
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21.5V5.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-            <path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path
+              d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21.5V5.5Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M5 19.5A2.5 2.5 0 0 1 7.5 17H19"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
           </svg>
         </IconWrapper>
       );
@@ -142,7 +249,7 @@ export default function CRCWorkspaceShell({
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          {isCollapsed ? '→' : '←'}
+          <CollapseIcon collapsed={isCollapsed} />
         </button>
 
         <div className="crc-sidebar__scroll">
@@ -157,7 +264,7 @@ export default function CRCWorkspaceShell({
                       type="button"
                       className={`crc-sidebar__navButton ${
                         activeNavId === item.id ? 'crc-sidebar__navButton--active' : ''
-                      }`}
+                      } ${item.emphasis ? `crc-sidebar__navButton--${item.emphasis}` : ''}`}
                       onClick={() => handleNavClick(item)}
                       title={item.label}
                     >
@@ -165,7 +272,10 @@ export default function CRCWorkspaceShell({
                         <NavIcon icon={item.icon} />
                       </span>
                       <span className="crc-sidebar__navText">
-                        <span className="crc-sidebar__navTitle">{item.label}</span>
+                        <span className="crc-sidebar__navTitleRow">
+                          <span className="crc-sidebar__navTitle">{item.label}</span>
+                          {item.badge ? <span className="crc-sidebar__navBadge">{item.badge}</span> : null}
+                        </span>
                         {item.description ? (
                           <span className="crc-sidebar__navDescription">{item.description}</span>
                         ) : null}

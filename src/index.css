@@ -2156,3 +2156,313 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+.crc-sidebar {
+  position: sticky;
+  overflow: visible;
+}
+
+.crc-sidebar__collapseToggle {
+  position: absolute;
+  top: 22px;
+  right: -16px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+  z-index: 4;
+}
+
+.crc-sidebar__collapseToggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.crc-sidebar__navTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.crc-sidebar__navBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(15, 96, 155, 0.1);
+  color: var(--brand-strong);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.crc-sidebar__navButton--guidance,
+.crc-sidebar__navButton--dropout {
+  background: linear-gradient(180deg, rgba(233, 243, 255, 0.92) 0%, rgba(243, 248, 255, 0.96) 100%);
+  border-color: #d4e1f1;
+}
+
+.crc-sidebar__navButton--guidance .crc-sidebar__navIcon,
+.crc-sidebar__navButton--dropout .crc-sidebar__navIcon {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(186, 206, 228, 0.8);
+}
+
+.crc-sidebar__navButton--guidance .crc-sidebar__navBadge,
+.crc-sidebar__navButton--dropout .crc-sidebar__navBadge {
+  background: linear-gradient(135deg, rgba(15, 96, 155, 0.14) 0%, rgba(15, 96, 155, 0.08) 100%);
+}
+
+.crc-sidebar__navButton--active.crc-sidebar__navButton--guidance,
+.crc-sidebar__navButton--active.crc-sidebar__navButton--dropout {
+  background: linear-gradient(135deg, #dcecff 0%, #eff6ff 100%);
+  border-color: #bdd5ee;
+  box-shadow: inset 0 0 0 1px rgba(186, 210, 236, 0.9);
+}
+
+.crc-sidebar__navButton--active .crc-sidebar__navTitle,
+.crc-sidebar__navButton--active .crc-sidebar__navDescription {
+  color: var(--brand-strong);
+}
+
+.topnav {
+  padding: 14px 24px;
+}
+
+.topnav__title {
+  margin: 3px 0 4px;
+}
+
+.patient-config__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.patient-config__field {
+  display: grid;
+  gap: 8px;
+}
+
+.patient-config__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: #486581;
+  letter-spacing: 0.02em;
+}
+
+.patient-config__pillWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.protocol-library {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.protocol-library__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.protocol-library__summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.protocol-library__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.protocol-library__card {
+  gap: 20px;
+}
+
+.protocol-library__card--active {
+  border-color: #bed5ea;
+  box-shadow: 0 18px 38px rgba(15, 96, 155, 0.08);
+}
+
+.protocol-library__cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.protocol-library__templateMeta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.protocol-library__cardActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.protocol-library__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.protocol-library__main,
+.protocol-library__policyColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.protocol-library__metaCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.protocol-library__inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.protocol-library__templateStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.protocol-library__templateCard {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #dbe6f1;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.protocol-library__templateTop {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(110px, 0.9fr) minmax(150px, 0.95fr) minmax(132px, 0.8fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.protocol-library__field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.protocol-library__field--action {
+  align-self: stretch;
+}
+
+.protocol-library__fieldLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: #486581;
+  letter-spacing: 0.02em;
+}
+
+.protocol-library__thresholdGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.protocol-library__thresholdGrid--bp {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.protocol-library__policyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.protocol-library__policyCard {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #dbe6f1;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.protocol-library__policyCard--mild {
+  background: linear-gradient(180deg, rgba(252, 254, 255, 0.96) 0%, rgba(247, 251, 255, 0.96) 100%);
+}
+
+.protocol-library__policyCard--moderate {
+  background: linear-gradient(180deg, rgba(255, 251, 241, 0.96) 0%, rgba(255, 247, 231, 0.96) 100%);
+}
+
+.protocol-library__policyCard--serious {
+  background: linear-gradient(180deg, rgba(255, 245, 245, 0.96) 0%, rgba(255, 239, 239, 0.96) 100%);
+}
+
+.protocol-library__policyTitle {
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: capitalize;
+  color: var(--text-primary);
+}
+
+.protocol-library__policyCard--serious .protocol-library__policyTitle {
+  color: var(--danger);
+}
+
+@media (max-width: 1180px) {
+  .protocol-library__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .protocol-library__policyGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .crc-sidebar__collapseToggle {
+    position: static;
+    width: 40px;
+    height: 40px;
+    margin-left: auto;
+  }
+
+  .patient-config__grid,
+  .protocol-library__summaryGrid,
+  .protocol-library__templateTop,
+  .protocol-library__thresholdGrid,
+  .protocol-library__thresholdGrid--bp,
+  .protocol-library__policyGrid {
+    grid-template-columns: 1fr;
+  }
+}
