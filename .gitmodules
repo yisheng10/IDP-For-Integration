@@ -1,0 +1,3 @@
+[submodule "Patient-Dropout-Prediction"]
+	path = Patient-Dropout-Prediction
+	url = https://github.com/yisheng10/Patient-Dropout-Prediction.git
