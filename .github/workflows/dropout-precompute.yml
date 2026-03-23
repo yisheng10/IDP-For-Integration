@@ -17,8 +17,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Validate required secrets
         shell: bash
@@ -44,6 +42,12 @@ jobs:
             echo "Required GitHub Actions secrets are missing."
             exit 1
           fi
+
+      - name: Clone dropout repository
+        shell: bash
+        run: |
+          rm -rf "Patient-Dropout-Prediction"
+          git clone --depth 1 https://github.com/yisheng10/Patient-Dropout-Prediction.git "Patient-Dropout-Prediction"
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
