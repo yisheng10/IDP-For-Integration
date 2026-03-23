@@ -7,7 +7,6 @@ on:
 
 jobs:
   publish-dropout-snapshots:
-    if: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.FIREBASE_SERVICE_ACCOUNT_JSON != '' }}
     runs-on: ubuntu-latest
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -18,6 +17,31 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          missing=0
+
+          if [ -z "${SUPABASE_URL}" ]; then
+            echo "Missing secret: SUPABASE_URL"
+            missing=1
+          fi
+
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "Missing secret: SUPABASE_SERVICE_ROLE_KEY"
+            missing=1
+          fi
+
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT_JSON}" ]; then
+            echo "Missing secret: FIREBASE_SERVICE_ACCOUNT_JSON"
+            missing=1
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            echo "Required GitHub Actions secrets are missing."
+            exit 1
+          fi
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
