@@ -62,51 +62,39 @@ const VITAL_OPTIONS = [
 const HOME_SECTIONS = {
   dashboard: {
     label: 'Dashboard',
-    path: '/home',
+    path: '/home?section=dashboard',
     title: 'Clinical operations dashboard',
     description: 'A cleaner CRC workspace for patient monitoring, safety triage, and study coordination.',
-    searchPlaceholder: 'Search becomes active in Patients and Safety Inbox.',
-    searchMode: null,
   },
   patients: {
     label: 'Patients',
-    path: '/home#patients',
+    path: '/home?section=patients',
     title: 'Patient roster',
     description: 'Review the roster, choose a patient, and keep the active study context ready for the rest of the workflow.',
-    searchPlaceholder: 'Search patient name, subject ID, hospital ID, or CRC',
-    searchMode: 'patients',
   },
   'safety-inbox': {
     label: 'Safety Inbox',
-    path: '/home#safety-inbox',
+    path: '/home?section=safety-inbox',
     title: 'Safety Inbox',
     description: 'Filter open incidents, grouped compare cases, and due-state follow-up without leaving the CRC dashboard.',
-    searchPlaceholder: 'Search incident title, patient, severity, or protocol',
-    searchMode: 'incidents',
   },
-  'side-effect-guidance': {
-    label: 'Side Effect Guidance',
-    path: '/home#side-effect-guidance',
-    title: 'Side Effect Guidance',
-    description: 'Use TrialLight guidance as a core CRC workspace for symptom review, protocol-backed guidance, and follow-up planning.',
-    searchPlaceholder: 'Search becomes active in Patients and Safety Inbox.',
-    searchMode: null,
+  'clinical-intelligence': {
+    label: 'Clinical Intelligence',
+    path: '/home?section=clinical-intelligence&focus=guidance',
+    title: 'Clinical intelligence workspace',
+    description: 'Use Side Effect Guidance and Patient Dropout Prediction together as the two core TrialLight intelligence modules.',
   },
-  'patient-dropout-prediction': {
-    label: 'Patient Dropout Prediction',
-    path: '/home#patient-dropout-prediction',
-    title: 'Patient Dropout Prediction',
-    description: 'Keep CRC-only dropout prediction visible right below side effect guidance as the second core intelligence module.',
-    searchPlaceholder: 'Search becomes active in Patients and Safety Inbox.',
-    searchMode: null,
+  'study-coordination': {
+    label: 'Study Coordination',
+    path: '/home?section=study-coordination',
+    title: 'Study coordination',
+    description: 'Manage patient configuration, protocol alignment, appointments, recent vitals, and ePRO visibility.',
   },
   resources: {
     label: 'Resources',
-    path: '/home#resources',
+    path: '/home?section=resources',
     title: 'Clinical resources',
     description: 'Keep CTCAE and protocol-adjacent references accessible from the same CRC workspace.',
-    searchPlaceholder: 'Search becomes active in Patients and Safety Inbox.',
-    searchMode: null,
   },
 };
 
@@ -141,8 +129,7 @@ export default function CRCHome({ user, onLogout }) {
   const [tempVitalsConfig, setTempVitalsConfig] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
-  const [patientSearchQuery, setPatientSearchQuery] = useState('');
-  const [incidentSearchQuery, setIncidentSearchQuery] = useState('');
+  const [isAlertWidgetOpen, setIsAlertWidgetOpen] = useState(false);
 
   const prevAlertCountRef = useRef(0);
   const isFirstLoadRef = useRef(true);
@@ -343,6 +330,12 @@ export default function CRCHome({ user, onLogout }) {
       window.alert('Patient loading...');
       setChatAlert(alert);
     }
+    setIsAlertWidgetOpen(true);
+  };
+
+  const handleOpenAlertWorkspace = () => {
+    setChatAlert(null);
+    setIsAlertWidgetOpen(true);
   };
 
   const handleEnablePush = async () => {
@@ -357,12 +350,16 @@ export default function CRCHome({ user, onLogout }) {
 
   const handleOpenIncident = (incident) => {
     setActiveIncident(incident);
-    setSearchParams({ incident: incident.id }, { replace: true });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('incident', incident.id);
+    setSearchParams(nextParams, { replace: true });
   };
 
   const handleCloseIncident = () => {
     setActiveIncident(null);
-    setSearchParams({}, { replace: true });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('incident');
+    setSearchParams(nextParams, { replace: true });
   };
 
   const handleOpenIncidentChat = ({ alertPath, uid, patientName, reason, status }) => {
@@ -377,6 +374,7 @@ export default function CRCHome({ user, onLogout }) {
       reason,
       status,
     });
+    setIsAlertWidgetOpen(true);
     handleCloseIncident();
   };
 
@@ -502,21 +500,48 @@ export default function CRCHome({ user, onLogout }) {
     [eproEntries, selPatient]
   );
 
-  const activeHomeSection = useMemo(() => {
-    const sectionId = location.hash.replace('#', '');
-    return HOME_SECTIONS[sectionId] ? sectionId : 'dashboard';
-  }, [location.hash]);
-
   useEffect(() => {
-    const sectionId = location.hash.replace('#', '');
-    if (!sectionId) return;
+    const legacyHash = location.hash.replace('#', '');
+    if (!legacyHash) return;
 
-    const timer = window.setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    const nextParams = new URLSearchParams(searchParams);
+    if (legacyHash === 'side-effect-guidance') {
+      nextParams.set('section', 'clinical-intelligence');
+      nextParams.set('focus', 'guidance');
+    } else if (legacyHash === 'patient-dropout-prediction') {
+      nextParams.set('section', 'clinical-intelligence');
+      nextParams.set('focus', 'dropout');
+    } else if (legacyHash === 'study-coordination') {
+      nextParams.set('section', 'study-coordination');
+      nextParams.delete('focus');
+    } else if (HOME_SECTIONS[legacyHash]) {
+      nextParams.set('section', legacyHash);
+      nextParams.delete('focus');
+    } else {
+      return;
+    }
 
-    return () => window.clearTimeout(timer);
-  }, [location.hash]);
+    if (
+      nextParams.get('section') === searchParams.get('section') &&
+      nextParams.get('focus') === searchParams.get('focus')
+    ) {
+      return;
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [location.hash, searchParams, setSearchParams]);
+
+  const activeHomeSection = useMemo(() => {
+    const sectionId = searchParams.get('section') || 'dashboard';
+    return HOME_SECTIONS[sectionId] ? sectionId : 'dashboard';
+  }, [searchParams]);
+  const activeClinicalFocus = searchParams.get('focus') === 'dropout' ? 'dropout' : 'guidance';
+  const activeNavId =
+    activeHomeSection === 'clinical-intelligence'
+      ? activeClinicalFocus === 'dropout'
+        ? 'patient-dropout-prediction'
+        : 'side-effect-guidance'
+      : activeHomeSection;
 
   const openIncidentCount = useMemo(
     () => incidents.filter((incident) => incident.status !== 'resolved').length,
@@ -537,20 +562,44 @@ export default function CRCHome({ user, onLogout }) {
     [patients, user.uid]
   );
 
-  const currentHeaderSection = HOME_SECTIONS[activeHomeSection];
-  const searchMode = currentHeaderSection?.searchMode || null;
-  const headerSearchValue =
-    searchMode === 'patients' ? patientSearchQuery : searchMode === 'incidents' ? incidentSearchQuery : '';
-  const headerSearchPlaceholder =
-    currentHeaderSection?.searchPlaceholder || 'Search the active workspace section';
+  const currentHeaderSection =
+    activeHomeSection === 'clinical-intelligence'
+      ? activeClinicalFocus === 'dropout'
+        ? {
+            title: 'Patient Dropout Prediction',
+            description:
+              'Review the CRC-only dropout signal right below Side Effect Guidance without leaving the clinical intelligence workspace.',
+          }
+        : {
+            title: 'Side Effect Guidance',
+            description:
+              'Use Gemini-backed symptom guidance, protocol context, and CTCAE support as a primary CRC workspace.',
+          }
+      : HOME_SECTIONS[activeHomeSection];
 
-  const handleHeaderSearchChange = (value) => {
-    if (searchMode === 'patients') {
-      setPatientSearchQuery(value);
-    } else if (searchMode === 'incidents') {
-      setIncidentSearchQuery(value);
+  const openWorkspaceSection = (section, focus) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('section', section);
+    if (focus) {
+      nextParams.set('focus', focus);
+    } else {
+      nextParams.delete('focus');
     }
+    setSearchParams(nextParams);
   };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (activeHomeSection === 'clinical-intelligence' && activeClinicalFocus === 'dropout') {
+        document.getElementById('patient-dropout-prediction')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 40);
+
+    return () => window.clearTimeout(timer);
+  }, [activeClinicalFocus, activeHomeSection]);
 
   const handleOpenClinicalResource = async (filePath, bucket = 'pdfs') => {
     const newTab = window.open('', '_blank');
@@ -580,97 +629,29 @@ export default function CRCHome({ user, onLogout }) {
     {
       title: 'Primary',
       items: [
-        { id: 'dashboard', label: 'Dashboard', shortLabel: 'DB', description: 'Overview', path: HOME_SECTIONS.dashboard.path },
-        { id: 'patients', label: 'Patients', shortLabel: 'PT', description: 'Roster', path: HOME_SECTIONS.patients.path },
-        { id: 'safety-inbox', label: 'Safety Inbox', shortLabel: 'SI', description: 'Incidents', path: HOME_SECTIONS['safety-inbox'].path },
-        { id: 'side-effect-guidance', label: 'Side Effect Guidance', shortLabel: 'SG', description: 'Guidance', path: HOME_SECTIONS['side-effect-guidance'].path },
-        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', shortLabel: 'DP', description: 'CRC only', path: HOME_SECTIONS['patient-dropout-prediction'].path },
+        { id: 'dashboard', label: 'Dashboard', description: 'Overview', icon: 'dashboard', path: HOME_SECTIONS.dashboard.path },
+        { id: 'patients', label: 'Patients', description: 'Roster', icon: 'patients', path: HOME_SECTIONS.patients.path },
+        { id: 'safety-inbox', label: 'Safety Inbox', description: 'Incidents', icon: 'safety', path: HOME_SECTIONS['safety-inbox'].path },
+        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Gemini', icon: 'guidance', path: '/home?section=clinical-intelligence&focus=guidance' },
+        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', description: 'CRC only', icon: 'dropout', path: '/home?section=clinical-intelligence&focus=dropout' },
       ],
     },
     {
       title: 'Secondary',
       items: [
-        { id: 'history', label: 'History', shortLabel: 'HI', description: 'Threads', path: '/history' },
-        { id: 'resources', label: 'Resources', shortLabel: 'RS', description: 'CTCAE', path: HOME_SECTIONS.resources.path },
+        { id: 'history', label: 'History', description: 'Threads', icon: 'history', path: '/history' },
+        { id: 'resources', label: 'Resources', description: 'CTCAE', icon: 'resources', path: HOME_SECTIONS.resources.path },
       ],
     },
   ];
 
-  const sidebarContent = (
-    <>
-      <div className="card sidebar-summary">
-        <div className="sidebar-summary__label">CRC workload snapshot</div>
-        <div className="sidebar-summary__grid">
-          <div className="sidebar-summary__item">
-            <span>Assigned patients</span>
-            <strong>{assignedPatientCount}</strong>
-          </div>
-          <div className="sidebar-summary__item">
-            <span>Open incidents</span>
-            <strong>{openIncidentCount}</strong>
-          </div>
-          <div className="sidebar-summary__item">
-            <span>Overdue</span>
-            <strong>{overdueIncidentCount}</strong>
-          </div>
-          <div className="sidebar-summary__item">
-            <span>Unread emergencies</span>
-            <strong>{seriousActiveAlertCount}</strong>
-          </div>
-        </div>
-      </div>
-
-      <div className="card workspace-card sidebar-spotlight">
-        <div className="section-header">
-          <div>
-            <h3>Selected patient</h3>
-            <div className="section-note">Keep the current patient context visible while switching between sections.</div>
-          </div>
-        </div>
-
-        {selPatient ? (
-          <div className="sidebar-patient-context">
-            <div className="sidebar-patient-context__row">
-              <span>Patient</span>
-              <strong>{selPatient.nickname}</strong>
-            </div>
-            <div className="sidebar-patient-context__row">
-              <span>Subject ID</span>
-              <strong>{selPatient.subject_id || selPatient.subjectId || selPatient.id}</strong>
-            </div>
-            <div className="sidebar-patient-context__row">
-              <span>Protocol</span>
-              <strong>{selPatient.protocolName || 'Not assigned'}</strong>
-            </div>
-            <div className="sidebar-patient-context__row">
-              <span>Primary CRC</span>
-              <strong>{selPatient.primary_crc_name || 'Unassigned'}</strong>
-            </div>
-          </div>
-        ) : (
-          <div className="empty-panel">Choose a patient in the Patients section to pin their study context here.</div>
-        )}
-      </div>
-
-      <div className="card workspace-card sidebar-spotlight">
-        <div className="section-header">
-          <div>
-            <h3>Browser alerts</h3>
-            <div className="section-note">{pushState?.label || 'Browser notification status unavailable.'}</div>
-          </div>
-        </div>
-        <button className="btn btn-primary" onClick={handleEnablePush} disabled={!pushState?.canEnable}>
-          {pushState?.buttonLabel || 'Enable Alerts'}
-        </button>
-      </div>
-    </>
-  );
-
-  const headerContext = [
-    `Signed in as ${crcName || user.email}`,
-    selPatient ? `Active patient ${selPatient.nickname}` : 'Global CRC mode',
-    `${selectedPatientIncidentCount} linked incidents`,
-  ];
+  const headerAlertButtonLabel = chatAlert
+    ? 'Chat'
+    : enrichedAlerts.length > 0
+      ? `Alerts (${enrichedAlerts.length})`
+      : selPatient
+        ? 'Message'
+        : 'Inbox';
 
   return (
     <>
@@ -699,7 +680,13 @@ export default function CRCHome({ user, onLogout }) {
         existingAlert={chatAlert}
         activeEmergencies={enrichedAlerts}
         allAlerts={selPatient ? pAlerts : enrichedGlobalAlerts}
-        onClose={() => setChatAlert(null)}
+        onClose={() => {
+          setChatAlert(null);
+          setIsAlertWidgetOpen(false);
+        }}
+        controlledOpen={isAlertWidgetOpen}
+        hideTrigger
+        onOpenChange={setIsAlertWidgetOpen}
         recipientId={selPatient?.id}
         recipientName={selPatient?.nickname}
       />
@@ -718,20 +705,17 @@ export default function CRCHome({ user, onLogout }) {
         user={user}
         onLogout={onLogout}
         navSections={navigationSections}
-        activeNavId={activeHomeSection}
+        activeNavId={activeNavId}
         alerts={enrichedAlerts}
-        onAlertClick={handleNavAlertClick}
+        onAlertsClick={handleOpenAlertWorkspace}
+        alertButtonLabel={headerAlertButtonLabel}
+        alertButtonUrgent={enrichedAlerts.length > 0}
         onHomeClick={() => selectP(null)}
         headerTitle={currentHeaderSection.title}
         headerDescription={currentHeaderSection.description}
-        headerSearchValue={headerSearchValue}
-        headerSearchPlaceholder={headerSearchPlaceholder}
-        onHeaderSearchChange={handleHeaderSearchChange}
-        headerSearchDisabled={!searchMode}
-        headerContext={headerContext}
-        sidebarContent={sidebarContent}
       >
         <div className="dashboard-surface">
+          {activeHomeSection === 'dashboard' ? (
           <section id="dashboard" className="dashboard-section">
             <div className="dashboard-section__header">
               <div>
@@ -788,24 +772,34 @@ export default function CRCHome({ user, onLogout }) {
                 </div>
 
                 {selPatient ? (
-                  <div className="workspace-summary-grid">
-                    <div className="workspace-summary-item">
-                      <span>Hospital ID</span>
-                      <strong>{selPatient.hospitalPatientId || 'Not set'}</strong>
+                  <>
+                    <div className="workspace-summary-grid">
+                      <div className="workspace-summary-item">
+                        <span>Hospital ID</span>
+                        <strong>{selPatient.hospitalPatientId || 'Not set'}</strong>
+                      </div>
+                      <div className="workspace-summary-item">
+                        <span>Email</span>
+                        <strong>{selPatient.email || 'Not set'}</strong>
+                      </div>
+                      <div className="workspace-summary-item">
+                        <span>Appointments</span>
+                        <strong>{pAppts.length}</strong>
+                      </div>
+                      <div className="workspace-summary-item">
+                        <span>Recent vitals</span>
+                        <strong>{pVitals.length}</strong>
+                      </div>
                     </div>
-                    <div className="workspace-summary-item">
-                      <span>Email</span>
-                      <strong>{selPatient.email || 'Not set'}</strong>
+                    <div className="workspace-actionStrip">
+                      <button className="btn btn-secondary" onClick={() => openWorkspaceSection('study-coordination')}>
+                        Open Study Coordination
+                      </button>
+                      <button className="btn btn-primary" onClick={() => openWorkspaceSection('clinical-intelligence', 'guidance')}>
+                        Open Side Effect Guidance
+                      </button>
                     </div>
-                    <div className="workspace-summary-item">
-                      <span>Appointments</span>
-                      <strong>{pAppts.length}</strong>
-                    </div>
-                    <div className="workspace-summary-item">
-                      <span>Recent vitals</span>
-                      <strong>{pVitals.length}</strong>
-                    </div>
-                  </div>
+                  </>
                 ) : (
                   <div className="empty-panel">The dashboard stays global until you choose a patient from the roster.</div>
                 )}
@@ -839,7 +833,9 @@ export default function CRCHome({ user, onLogout }) {
               </div>
             </div>
           </section>
+          ) : null}
 
+          {activeHomeSection === 'patients' ? (
           <section id="patients" className="dashboard-section">
             <div className="dashboard-section__header">
               <div>
@@ -856,9 +852,6 @@ export default function CRCHome({ user, onLogout }) {
                 patients={patients}
                 selectedPatientId={selectedPatientId}
                 onSelect={selectP}
-                searchQuery={patientSearchQuery}
-                onSearchQueryChange={setPatientSearchQuery}
-                showSearchInput={false}
               />
 
               <div className="card workspace-card">
@@ -869,31 +862,43 @@ export default function CRCHome({ user, onLogout }) {
                   </div>
                 </div>
                 {selPatient ? (
-                  <div className="sidebar-patient-context">
-                    <div className="sidebar-patient-context__row">
-                      <span>Patient</span>
-                      <strong>{selPatient.nickname}</strong>
+                  <>
+                    <div className="sidebar-patient-context">
+                      <div className="sidebar-patient-context__row">
+                        <span>Patient</span>
+                        <strong>{selPatient.nickname}</strong>
+                      </div>
+                      <div className="sidebar-patient-context__row">
+                        <span>Subject ID</span>
+                        <strong>{selPatient.subject_id || selPatient.subjectId || selPatient.id}</strong>
+                      </div>
+                      <div className="sidebar-patient-context__row">
+                        <span>Primary CRC</span>
+                        <strong>{selPatient.primary_crc_name || 'Unassigned'}</strong>
+                      </div>
+                      <div className="sidebar-patient-context__row">
+                        <span>Study emergency</span>
+                        <strong>{selPatient.study_emergency_phone || 'Not set'}</strong>
+                      </div>
                     </div>
-                    <div className="sidebar-patient-context__row">
-                      <span>Subject ID</span>
-                      <strong>{selPatient.subject_id || selPatient.subjectId || selPatient.id}</strong>
+                    <div className="workspace-actionStrip">
+                      <button className="btn btn-secondary" onClick={() => openWorkspaceSection('study-coordination')}>
+                        Open Study Coordination
+                      </button>
+                      <button className="btn btn-primary" onClick={() => openWorkspaceSection('clinical-intelligence', 'guidance')}>
+                        Open Guidance Workspace
+                      </button>
                     </div>
-                    <div className="sidebar-patient-context__row">
-                      <span>Primary CRC</span>
-                      <strong>{selPatient.primary_crc_name || 'Unassigned'}</strong>
-                    </div>
-                    <div className="sidebar-patient-context__row">
-                      <span>Study emergency</span>
-                      <strong>{selPatient.study_emergency_phone || 'Not set'}</strong>
-                    </div>
-                  </div>
+                  </>
                 ) : (
                   <div className="empty-panel">Select a patient from the roster to load the handoff summary here.</div>
                 )}
               </div>
             </div>
           </section>
+          ) : null}
 
+          {activeHomeSection === 'safety-inbox' ? (
           <section id="safety-inbox" className="dashboard-section">
             <div className="dashboard-section__header">
               <div>
@@ -911,10 +916,12 @@ export default function CRCHome({ user, onLogout }) {
               pushState={pushState}
               onEnablePush={handleEnablePush}
               onOpenIncident={handleOpenIncident}
-              searchQuery={incidentSearchQuery}
             />
           </section>
+          ) : null}
 
+          {activeHomeSection === 'clinical-intelligence' ? (
+          <>
           <section id="side-effect-guidance" className="dashboard-section">
             <div className="dashboard-section__header">
               <div>
@@ -953,7 +960,10 @@ export default function CRCHome({ user, onLogout }) {
 
             <DropoutRiskPanel selectedPatient={selPatient} eproEntries={selectedPatientEproEntries} />
           </section>
+          </>
+          ) : null}
 
+          {activeHomeSection === 'study-coordination' ? (
           <section id="study-coordination" className="dashboard-section">
             <div className="dashboard-section__header">
               <div>
@@ -1095,7 +1105,9 @@ export default function CRCHome({ user, onLogout }) {
               <EproStatusPanel entries={eproEntries} selectedPatient={selPatient} patients={patients} />
             </div>
           </section>
+          ) : null}
 
+          {activeHomeSection === 'resources' ? (
           <section id="resources" className="dashboard-section">
             <div className="dashboard-section__header">
               <div>
@@ -1141,6 +1153,7 @@ export default function CRCHome({ user, onLogout }) {
               </div>
             </div>
           </section>
+          ) : null}
         </div>
       </CRCWorkspaceShell>
     </>

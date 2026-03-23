@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -23,3 +24,16 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
+export const functions = getFunctions(app, 'us-central1');
+
+const shouldUseFunctionsEmulator =
+  typeof window !== 'undefined' &&
+  (
+    import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === 'true' ||
+    (import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname))
+  );
+
+if (shouldUseFunctionsEmulator && !window.__triallightFunctionsEmulatorConnected) {
+  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+  window.__triallightFunctionsEmulatorConnected = true;
+}

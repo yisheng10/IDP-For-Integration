@@ -1,7 +1,83 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APP_NAME } from '../config';
 import TopNavbar from './TopNavbar';
+
+const SIDEBAR_STORAGE_KEY = 'triallight_crc_sidebar_collapsed';
+
+function IconWrapper({ children }) {
+  return <span className="crc-sidebar__navIconSvg">{children}</span>;
+}
+
+function NavIcon({ icon }) {
+  switch (icon) {
+    case 'dashboard':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          </svg>
+        </IconWrapper>
+      );
+    case 'patients':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="9.5" cy="8" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M17 11a3 3 0 1 0 0-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </IconWrapper>
+      );
+    case 'safety':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3l8 4v5c0 5-3.5 7.7-8 9-4.5-1.3-8-4-8-9V7l8-4Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M9.5 12.5 11 14l3.5-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </IconWrapper>
+      );
+    case 'guidance':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3a7 7 0 0 0-4 12.8V19a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3.2A7 7 0 0 0 12 3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M9.5 11.5h5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </IconWrapper>
+      );
+    case 'dropout':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 18h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="m6 15 3-4 3 2 5-7 1 1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </IconWrapper>
+      );
+    case 'history':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 12a8 8 0 1 0 2.3-5.6L4 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12 8v4l2.5 1.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </IconWrapper>
+      );
+    case 'resources':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21.5V5.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </IconWrapper>
+      );
+    default:
+      return null;
+  }
+}
 
 export default function CRCWorkspaceShell({
   user,
@@ -9,20 +85,24 @@ export default function CRCWorkspaceShell({
   navSections = [],
   activeNavId,
   alerts = [],
-  onAlertClick,
+  onAlertsClick,
+  alertButtonLabel,
+  alertButtonUrgent = false,
   onHomeClick,
   headerTitle,
   headerDescription,
-  headerSearchValue,
-  headerSearchPlaceholder,
-  onHeaderSearchChange,
-  headerSearchDisabled = false,
-  headerContext = [],
-  sidebarContent,
-  sidebarFooter,
   children,
 }) {
   const navigate = useNavigate();
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
+  }, [isCollapsed]);
 
   const handleNavClick = (item) => {
     if (!item) return;
@@ -38,8 +118,8 @@ export default function CRCWorkspaceShell({
   };
 
   return (
-    <div className="crc-shell">
-      <aside className="crc-sidebar">
+    <div className={`crc-shell ${isCollapsed ? 'crc-shell--sidebarCollapsed' : ''}`}>
+      <aside className={`crc-sidebar ${isCollapsed ? 'crc-sidebar--collapsed' : ''}`}>
         <button
           type="button"
           className="crc-sidebar__brand"
@@ -49,45 +129,53 @@ export default function CRCWorkspaceShell({
           }}
         >
           <span className="crc-sidebar__brandMark">TL</span>
-          <span>
+          <span className="crc-sidebar__brandText">
             <span className="crc-sidebar__brandEyebrow">CRC workspace</span>
             <span className="crc-sidebar__brandName">{APP_NAME}</span>
           </span>
         </button>
 
-        <div className="crc-sidebar__navGroups" aria-label="CRC navigation">
-          {navSections.map((group) => (
-            <div key={group.title} className="crc-sidebar__navGroup">
-              <div className="crc-sidebar__navLabel">{group.title}</div>
-              <div className="crc-sidebar__nav">
-                {group.items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`crc-sidebar__navButton ${
-                      activeNavId === item.id ? 'crc-sidebar__navButton--active' : ''
-                    }`}
-                    onClick={() => handleNavClick(item)}
-                  >
-                    <span className="crc-sidebar__navIcon">{item.shortLabel || item.label.slice(0, 1)}</span>
-                    <span className="crc-sidebar__navText">
-                      <span className="crc-sidebar__navTitle">{item.label}</span>
-                      {item.description ? (
-                        <span className="crc-sidebar__navDescription">{item.description}</span>
-                      ) : null}
-                    </span>
-                  </button>
-                ))}
+        <button
+          type="button"
+          className="crc-sidebar__collapseToggle"
+          onClick={() => setIsCollapsed((current) => !current)}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? '→' : '←'}
+        </button>
+
+        <div className="crc-sidebar__scroll">
+          <div className="crc-sidebar__navGroups" aria-label="CRC navigation">
+            {navSections.map((group) => (
+              <div key={group.title} className="crc-sidebar__navGroup">
+                <div className="crc-sidebar__navLabel">{group.title}</div>
+                <div className="crc-sidebar__nav">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`crc-sidebar__navButton ${
+                        activeNavId === item.id ? 'crc-sidebar__navButton--active' : ''
+                      }`}
+                      onClick={() => handleNavClick(item)}
+                      title={item.label}
+                    >
+                      <span className="crc-sidebar__navIcon">
+                        <NavIcon icon={item.icon} />
+                      </span>
+                      <span className="crc-sidebar__navText">
+                        <span className="crc-sidebar__navTitle">{item.label}</span>
+                        {item.description ? (
+                          <span className="crc-sidebar__navDescription">{item.description}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {sidebarContent ? <div className="crc-sidebar__body">{sidebarContent}</div> : null}
-
-        <div className="crc-sidebar__footer">
-          {sidebarFooter ||
-            'Structured study-linked records, CRC-only risk visibility, and browser alerts stay inside this workspace.'}
+            ))}
+          </div>
         </div>
       </aside>
 
@@ -97,14 +185,11 @@ export default function CRCWorkspaceShell({
           defaultRole="CRC"
           onLogout={onLogout}
           alerts={alerts}
-          onAlertClick={onAlertClick}
+          onAlertsClick={onAlertsClick}
+          alertButtonLabel={alertButtonLabel}
+          alertButtonUrgent={alertButtonUrgent}
           title={headerTitle}
           description={headerDescription}
-          searchValue={headerSearchValue}
-          searchPlaceholder={headerSearchPlaceholder}
-          onSearchChange={onHeaderSearchChange}
-          searchDisabled={headerSearchDisabled}
-          contextItems={headerContext}
         />
 
         <main className="crc-shell__content">{children}</main>

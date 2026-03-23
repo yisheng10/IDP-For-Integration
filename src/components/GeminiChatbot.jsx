@@ -18,6 +18,7 @@ import { db } from '../firebase';
 import { GEMINI_API_KEY, OLLAMA_BASE_URL, OLLAMA_MODEL } from '../config';
 import { SAFETY_INSTRUCTIONS } from '../safetyInstructions';
 import { extractTextFromPdf } from '../utils';
+import { requestSideEffectGuidance } from '../services/sideEffectGuidanceService';
 import { getSignedUrl } from '../services/storageService';
 import { supabase } from '../supabaseClient';
 
@@ -58,7 +59,7 @@ async function readJsonSafely(response) {
   }
 }
 
-async function ensureOllamaReady() {
+async function UNUSED_ensureOllamaReady() {
   let response;
   try {
     response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/tags`, { method: 'GET' }, 4000);
@@ -103,15 +104,11 @@ async function ensureOllamaReady() {
 }
 
 function buildOllamaUserMessage(error) {
-  if (error instanceof OllamaRequestError) {
-    return `⚠️ AI Error. ${error.message}`;
+  if (error?.message) {
+    return error.message;
   }
 
-  if (error?.name === 'AbortError') {
-    return '⚠️ AI Error. Ollama request timed out. Retry after the local model finishes loading.';
-  }
-
-  return '⚠️ AI Error. Local AI response was unavailable. Check Ollama and retry.';
+  return '⚠️ AI Error. Side Effect Guidance is unavailable right now.';
 }
 
 export default function GeminiChatbot({
@@ -133,6 +130,10 @@ export default function GeminiChatbot({
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [activeContextPatient, setActiveContextPatient] = useState(null);
+  const [runtimeMeta, setRuntimeMeta] = useState({
+    provider: role === 'crc' ? 'gemini' : 'local',
+    model: role === 'crc' ? 'gemini-2.5-flash' : OLLAMA_MODEL,
+  });
 
   const chatSessionRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -451,8 +452,8 @@ export default function GeminiChatbot({
       if (messages.length === 0) {
         const intro =
           role === 'crc'
-            ? `**${currentAiName} ready.**\nRunning locally through Ollama using \`${OLLAMA_MODEL}\`. I can help with vitals, appointments, protocols, and CTCAE guidance.`
-            : `Hello **${userNickname || 'there'}**. I am ${currentAiName}, running locally through Ollama using \`${OLLAMA_MODEL}\`.`;
+            ? `**${currentAiName} ready.**\nRunning through the secure Gemini guidance service. I can help with vitals, appointments, protocols, and CTCAE guidance.`
+            : `Hello **${userNickname || 'there'}**. I am ${currentAiName}.`;
         await saveMessage('model', intro);
       }
     } catch (error) {
@@ -556,58 +557,33 @@ export default function GeminiChatbot({
         }
       }
 
-      const ragContext = await searchCTCAE(userText);
+      const ragContext = role === 'crc' ? '' : await searchCTCAE(userText);
       if (ragContext) {
         systemInjection += `\n\n[CTCAE KNOWLEDGE BASE]\n${ragContext}\n(Cite pages like [Page 4] when relevant)\n`;
       }
 
-      const ollamaHistory = messages.map((message) => ({
-        role: message.role === 'model' ? 'assistant' : message.role,
-        content: message.text,
-      }));
-
-      ollamaHistory.unshift({ role: 'system', content: systemPromptRef.current });
-      ollamaHistory.push({
-        role: 'user',
-        content: systemInjection ? `${systemInjection}\nUser Query: ${userText}` : userText,
-      });
-
-      await ensureOllamaReady();
-
-      const response = await fetchWithTimeout(`${OLLAMA_BASE_URL}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          messages: ollamaHistory,
-          stream: false,
-        }),
-      });
-
-      const payload = await readJsonSafely(response);
-      if (!response.ok) {
-        const detail = payload?.error || payload?.rawText || `HTTP ${response.status}`;
-
-        if (response.status === 404 && /not found/i.test(String(detail))) {
-          throw new OllamaRequestError(
-            'missing_model',
-            `Ollama could not find model "${OLLAMA_MODEL}". Run "ollama pull ${OLLAMA_MODEL}" and retry.`
-          );
-        }
-
-        throw new OllamaRequestError(
-          'bad_status',
-          `Ollama chat request failed with HTTP ${response.status}. ${detail}`
-        );
+      if (role !== 'crc') {
+        throw new Error('⚠️ AI Error. Web-based Side Effect Guidance is restricted to the CRC workspace.');
       }
 
-      const text = payload?.message?.content?.trim();
-      if (!text) {
-        throw new OllamaRequestError(
-          'empty_response',
-          'Ollama returned an empty response. Retry the request or inspect the local model logs.'
-        );
-      }
+      const conversation = messages
+        .filter((message) => message.role === 'user' || message.role === 'model')
+        .map((message) => ({
+          role: message.role === 'model' ? 'assistant' : 'user',
+          content: message.text,
+        }));
+
+      const { text, provider, model } = await requestSideEffectGuidance({
+        provider: role === 'crc' ? 'gemini' : 'local',
+        systemPrompt: systemPromptRef.current,
+        messages: conversation,
+        userMessage: systemInjection ? `${systemInjection}\nUser Query: ${userText}` : userText,
+      });
+
+      setRuntimeMeta({
+        provider: provider || 'gemini',
+        model: model || 'gemini-2.5-flash',
+      });
 
       const emergencyMatch = text.match(/\*\*\*EMERGENCY: (.*?)\*\*\*/);
       if (emergencyMatch && onEmergencyTrigger) {
@@ -648,7 +624,8 @@ export default function GeminiChatbot({
           </span>
         ) : null}
         <span className={isDocked ? 'guidance-panel__runtime' : ''} style={isDocked ? undefined : styles.runtimeInfo}>
-          Local model: <strong>{OLLAMA_MODEL}</strong> @ {OLLAMA_BASE_URL}
+          Runtime: <strong>{String(runtimeMeta.provider || 'gemini').toUpperCase()}</strong> using{' '}
+          <strong>{runtimeMeta.model || 'gemini-2.5-flash'}</strong>
         </span>
       </div>
 

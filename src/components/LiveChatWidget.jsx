@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { sendAlert, sendChatMessage, startDirectMessage, subscribeToChat, resolveAlert } from '../services/alertService';
 import { useCall } from '../context/CallContext';
@@ -13,10 +13,13 @@ const LiveChatWidget = ({
   allAlerts = [], 
   onClose, 
   isOpenInitially = false, 
+  controlledOpen,
+  hideTrigger = false,
+  onOpenChange,
   recipientId, 
   recipientName 
 }) => {
-  const [isOpen, setIsOpen] = useState(isOpenInitially);
+  const [internalIsOpen, setInternalIsOpen] = useState(isOpenInitially);
   const [activeAlertRef, setActiveAlertRef] = useState(null);
   const [activeAlertData, setActiveAlertData] = useState(null); // Stores alert context
   const [viewMode, setViewMode] = useState('list'); 
@@ -34,10 +37,19 @@ const LiveChatWidget = ({
   const { startCall } = useCall(); 
   const messagesEndRef = useRef(null);
   const hasAutoCreatedRef = useRef(false);
+  const isControlled = typeof controlledOpen === 'boolean';
+  const isOpen = isControlled ? controlledOpen : internalIsOpen;
+
+  const setOpenState = useCallback((nextOpen) => {
+    if (!isControlled) {
+      setInternalIsOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  }, [isControlled, onOpenChange]);
 
   useEffect(() => {
-    if (isOpenInitially) setIsOpen(true);
-  }, [isOpenInitially]);
+    if (isOpenInitially && !isControlled) setInternalIsOpen(true);
+  }, [isControlled, isOpenInitially]);
 
   // 1. Handle "Trigger Reason"
   useEffect(() => {
@@ -51,14 +63,14 @@ const LiveChatWidget = ({
           setActiveAlertRef(docRef);
           setActiveAlertData(null); 
           setViewMode('chat');
-          setIsOpen(true);
+          setOpenState(true);
         } catch (e) { console.error("Auto-alert failed:", e); } 
         finally { setIsSending(false); }
       }
     };
     if (triggerReason) handleAutoAlert();
     else hasAutoCreatedRef.current = false;
-  }, [triggerReason, role, user.uid, userName]);
+  }, [setOpenState, triggerReason, role, user.uid, userName]);
 
   // 2. Handle "Existing Alert" (Clicking from Dashboard)
   useEffect(() => {
@@ -66,9 +78,9 @@ const LiveChatWidget = ({
       setActiveAlertRef(existingAlert.ref);
       setActiveAlertData(existingAlert); 
       setViewMode('chat');
-      setIsOpen(true);
+      setOpenState(true);
     }
-  }, [existingAlert]);
+  }, [existingAlert, setOpenState]);
 
   // 3. Determine Default View
   useEffect(() => {
@@ -211,10 +223,11 @@ const LiveChatWidget = ({
   const callTargetName = activeAlertData?.patientName || activeAlertData?.senderName || recipientName || 'Patient';
 
   if (!isOpen) {
+    if (hideTrigger) return null;
     if (role === 'patient') {
       const hasEmergencies = activeEmergencies.length > 0;
       return (
-        <button style={{...styles.fab, backgroundColor: hasEmergencies ? '#d32f2f' : '#28a745'}} onClick={() => setIsOpen(true)}>
+        <button style={{...styles.fab, backgroundColor: hasEmergencies ? '#d32f2f' : '#28a745'}} onClick={() => setOpenState(true)}>
           <span style={styles.fabText}>{hasEmergencies ? `🚨 Active (${activeEmergencies.length})` : '💬 Chat'}</span>
         </button>
       );
@@ -226,7 +239,7 @@ const LiveChatWidget = ({
       else if (activeEmergencies.length > 0) { label = `🚨 Alerts (${activeEmergencies.length})`; color = '#d32f2f'; }
       else if (recipientId) label = '✉️ Msg';
       return (
-        <button style={{...styles.fab, backgroundColor: color}} onClick={() => setIsOpen(true)}>
+        <button style={{...styles.fab, backgroundColor: color}} onClick={() => setOpenState(true)}>
           <span style={styles.fabText}>{label}</span>
         </button>
       );
@@ -235,8 +248,8 @@ const LiveChatWidget = ({
   }
 
   return (
-    <div style={styles.modalContainer}>
-      <div style={styles.chatWindow}>
+    <div style={styles.modalContainer} onClick={() => { setOpenState(false); if(onClose) onClose(); }}>
+      <div style={styles.chatWindow} onClick={(event) => event.stopPropagation()}>
         
         <div style={{...styles.header, backgroundColor: isResolved ? '#666' : (role==='crc'?'#007bff':'#d32f2f')}}>
           <div>
@@ -260,7 +273,7 @@ const LiveChatWidget = ({
 
             {viewMode === 'chat' && <button onClick={() => { setActiveAlertRef(null); setActiveAlertData(null); setViewMode('list'); }} style={styles.iconBtn}>‹ Back</button>}
             
-            <button onClick={() => { setIsOpen(false); if(onClose) onClose(); }} style={styles.iconBtn}>✕</button>
+            <button onClick={() => { setOpenState(false); if(onClose) onClose(); }} style={styles.iconBtn}>✕</button>
           </div>
         </div>
 

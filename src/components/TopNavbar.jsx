@@ -1,28 +1,44 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getSignedUrl } from '../services/storageService';
 import ProfileModal from './ProfileModal';
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3a4 4 0 0 0-4 4v1.1c0 .9-.3 1.8-.9 2.5l-1.2 1.5A2 2 0 0 0 7.5 15h9a2 2 0 0 0 1.6-3.2l-1.2-1.5a4 4 0 0 1-.9-2.5V7a4 4 0 0 0-4-4Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 18a2 2 0 0 0 4 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21.5V5.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export default function TopNavbar({
   user,
   defaultRole,
   onLogout,
   alerts = [],
-  onAlertClick,
+  onAlertsClick,
+  alertButtonLabel,
+  alertButtonUrgent = false,
   title,
   description,
-  searchValue = '',
-  searchPlaceholder = 'Search workspace',
-  onSearchChange,
-  searchDisabled = false,
-  contextItems = [],
 }) {
   const [displayName, setDisplayName] = useState(user.email);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showResourceMenu, setShowResourceMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const resourcesRef = useRef(null);
+  const profileRef = useRef(null);
 
   const pdfResources = [{ id: 'ctcae', title: 'CTCAE Guidelines (PDF)', filePath: 'CTCAE.pdf' }];
 
@@ -50,8 +66,32 @@ export default function TopNavbar({
   const closeAllMenus = () => {
     setShowProfileMenu(false);
     setShowResourceMenu(false);
-    setShowNotifications(false);
   };
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (resourcesRef.current && !resourcesRef.current.contains(event.target)) {
+        setShowResourceMenu(false);
+      }
+
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeAllMenus();
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const handleOpenPdf = async (resource) => {
     const newTab = window.open('', '_blank');
@@ -77,6 +117,9 @@ export default function TopNavbar({
     }
   };
 
+  const alertCount = alerts.filter((alert) => alert.status === 'unread').length;
+  const resolvedAlertLabel = alertButtonLabel || (alertCount ? `Alerts (${alertCount})` : 'Alerts');
+
   return (
     <>
       <header className="topnav">
@@ -86,31 +129,24 @@ export default function TopNavbar({
             <h1 className="topnav__title">{title}</h1>
             <p className="topnav__description">{description}</p>
           </div>
-
-          {contextItems.length ? (
-            <div className="topnav__contextRow">
-              {contextItems.map((entry) => (
-                <span key={entry} className="topnav__contextPill">
-                  {entry}
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="topnav__searchWrap">
-          <input
-            className="topnav__searchInput"
-            type="search"
-            placeholder={searchPlaceholder}
-            value={searchValue}
-            disabled={searchDisabled}
-            onChange={(event) => onSearchChange?.(event.target.value)}
-          />
         </div>
 
         <div className="topnav__right">
-          <div className="topnav__menuAnchor">
+          <button
+            type="button"
+            className={`topnav__alertLauncher ${alertButtonUrgent ? 'topnav__alertLauncher--urgent' : ''}`}
+            onClick={() => {
+              closeAllMenus();
+              onAlertsClick?.();
+            }}
+          >
+            <span className="topnav__actionIcon">
+              <BellIcon />
+            </span>
+            <span>{resolvedAlertLabel}</span>
+          </button>
+
+          <div className="topnav__menuAnchor" ref={resourcesRef}>
             <button
               type="button"
               className="topnav__actionButton"
@@ -118,7 +154,11 @@ export default function TopNavbar({
                 closeAllMenus();
                 setShowResourceMenu((current) => !current);
               }}
+              aria-expanded={showResourceMenu}
             >
+              <span className="topnav__actionIcon">
+                <BookIcon />
+              </span>
               Resources
             </button>
             {showResourceMenu ? (
@@ -138,44 +178,7 @@ export default function TopNavbar({
             ) : null}
           </div>
 
-          <div className="topnav__menuAnchor">
-            <button
-              type="button"
-              className="topnav__actionButton"
-              onClick={() => {
-                closeAllMenus();
-                setShowNotifications((current) => !current);
-              }}
-            >
-              Alerts
-              {alerts.length ? <span className="topnav__badge">{alerts.length}</span> : null}
-            </button>
-            {showNotifications ? (
-              <div className="topnav__dropdown topnav__dropdown--wide">
-                <div className="topnav__dropdownHeader">Active Alerts ({alerts.length})</div>
-                {alerts.length === 0 ? (
-                  <div className="topnav__dropdownEmpty">No active alerts.</div>
-                ) : (
-                  alerts.map((alert) => (
-                    <button
-                      key={alert.id}
-                      type="button"
-                      className="topnav__dropdownItem"
-                      onClick={() => {
-                        onAlertClick?.(alert);
-                        setShowNotifications(false);
-                      }}
-                    >
-                      <div className="topnav__alertTitle">{alert.reason}</div>
-                      <div className="topnav__alertMeta">{alert.patientName || 'System alert'}</div>
-                    </button>
-                  ))
-                )}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="topnav__menuAnchor">
+          <div className="topnav__menuAnchor" ref={profileRef}>
             <button
               type="button"
               className="topnav__profileButton"
@@ -183,6 +186,7 @@ export default function TopNavbar({
                 closeAllMenus();
                 setShowProfileMenu((current) => !current);
               }}
+              aria-expanded={showProfileMenu}
             >
               <span className="topnav__avatar">{displayInitials}</span>
               <span className="topnav__profileText">

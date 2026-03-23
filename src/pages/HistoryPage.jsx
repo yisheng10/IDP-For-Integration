@@ -13,6 +13,7 @@ export default function HistoryPage({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedAlert, setSelectedAlert] = useState(null);
+  const [isAlertWidgetOpen, setIsAlertWidgetOpen] = useState(false);
 
   useEffect(() => {
     const alertsQuery = query(collectionGroup(db, 'alerts'), orderBy('timestamp', 'desc'));
@@ -98,58 +99,6 @@ export default function HistoryPage({ user, onLogout }) {
   const activeAlerts = useMemo(() => allAlerts.filter((alert) => alert.status === 'unread'), [allAlerts]);
   const resolvedCount = allAlerts.length - activeAlerts.length;
 
-  const sidebarContent = (
-    <>
-      <div className="card sidebar-summary">
-        <div className="sidebar-summary__label">History overview</div>
-        <div className="sidebar-summary__grid">
-          <div className="sidebar-summary__item">
-            <span>Total records</span>
-            <strong>{allAlerts.length}</strong>
-          </div>
-          <div className="sidebar-summary__item">
-            <span>Active alerts</span>
-            <strong>{activeAlerts.length}</strong>
-          </div>
-          <div className="sidebar-summary__item">
-            <span>Resolved</span>
-            <strong>{resolvedCount}</strong>
-          </div>
-          <div className="sidebar-summary__item">
-            <span>Visible rows</span>
-            <strong>{filteredAlerts.length}</strong>
-          </div>
-        </div>
-      </div>
-
-      <div className="card workspace-card">
-        <div className="section-header">
-          <div>
-            <h3>Review guidance</h3>
-            <div className="section-note">
-              Use filters first, then open only the thread you need to document or review.
-            </div>
-          </div>
-        </div>
-
-        <div className="sidebar-patient-context">
-          <div className="sidebar-patient-context__row">
-            <span>Status filter</span>
-            <strong>{filterStatus === 'all' ? 'All statuses' : filterStatus}</strong>
-          </div>
-          <div className="sidebar-patient-context__row">
-            <span>Rows per page</span>
-            <strong>{itemsPerPage}</strong>
-          </div>
-          <div className="sidebar-patient-context__row">
-            <span>Sort</span>
-            <strong>{sortConfig.key} / {sortConfig.direction}</strong>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-
   const utilityContent = (
     <div className="utility-stack">
       <div className="card workspace-card">
@@ -186,7 +135,13 @@ export default function HistoryPage({ user, onLogout }) {
                   <div className="utility-alert__title">{alert.patientName || alert.senderName || 'Unknown'}</div>
                   <div className="utility-alert__body">{alert.reason}</div>
                 </div>
-                <button className="btn btn-primary btn-small" onClick={() => setSelectedAlert(alert)}>
+                <button
+                  className="btn btn-primary btn-small"
+                  onClick={() => {
+                    setSelectedAlert(alert);
+                    setIsAlertWidgetOpen(true);
+                  }}
+                >
                   Open
                 </button>
               </div>
@@ -203,21 +158,22 @@ export default function HistoryPage({ user, onLogout }) {
     {
       title: 'Primary',
       items: [
-        { id: 'dashboard', label: 'Dashboard', shortLabel: 'DB', description: 'Overview', path: '/home' },
-        { id: 'patients', label: 'Patients', shortLabel: 'PT', description: 'Roster', path: '/home#patients' },
-        { id: 'safety-inbox', label: 'Safety Inbox', shortLabel: 'SI', description: 'Incidents', path: '/home#safety-inbox' },
-        { id: 'side-effect-guidance', label: 'Side Effect Guidance', shortLabel: 'SG', description: 'Guidance', path: '/home#side-effect-guidance' },
-        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', shortLabel: 'DP', description: 'CRC only', path: '/home#patient-dropout-prediction' },
+        { id: 'dashboard', label: 'Dashboard', description: 'Overview', icon: 'dashboard', path: '/home?section=dashboard' },
+        { id: 'patients', label: 'Patients', description: 'Roster', icon: 'patients', path: '/home?section=patients' },
+        { id: 'safety-inbox', label: 'Safety Inbox', description: 'Incidents', icon: 'safety', path: '/home?section=safety-inbox' },
+        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Gemini', icon: 'guidance', path: '/home?section=clinical-intelligence&focus=guidance' },
+        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', description: 'CRC only', icon: 'dropout', path: '/home?section=clinical-intelligence&focus=dropout' },
       ],
     },
     {
       title: 'Secondary',
       items: [
-        { id: 'history', label: 'History', shortLabel: 'HI', description: 'Threads', path: '/history' },
-        { id: 'resources', label: 'Resources', shortLabel: 'RS', description: 'CTCAE', path: '/home#resources' },
+        { id: 'history', label: 'History', description: 'Threads', icon: 'history', path: '/history' },
+        { id: 'resources', label: 'Resources', description: 'CTCAE', icon: 'resources', path: '/home?section=resources' },
       ],
     },
   ];
+  const headerAlertButtonLabel = activeAlerts.length ? `Alerts (${activeAlerts.length})` : 'Inbox';
 
   return (
     <CRCWorkspaceShell
@@ -226,16 +182,14 @@ export default function HistoryPage({ user, onLogout }) {
       navSections={navSections}
       activeNavId="history"
       alerts={activeAlerts}
-      onAlertClick={(alert) => setSelectedAlert(alert)}
+      onAlertsClick={() => {
+        setSelectedAlert(null);
+        setIsAlertWidgetOpen(true);
+      }}
+      alertButtonLabel={headerAlertButtonLabel}
+      alertButtonUrgent={activeAlerts.length > 0}
       headerTitle="Global alert history"
       headerDescription="Search historical alert threads, filter by date and status, and reopen the full documentation trail without leaving the CRC portal."
-      headerSearchValue={searchText}
-      headerSearchPlaceholder="Search patient name, subject ID, or incident reason"
-      onHeaderSearchChange={(value) => {
-        setSearchText(value);
-        setCurrentPage(1);
-      }}
-      sidebarContent={sidebarContent}
     >
       <div className="workspace-two-column">
         {utilityContent}
@@ -248,6 +202,15 @@ export default function HistoryPage({ user, onLogout }) {
           </div>
 
           <div className="history-filter-grid">
+            <input
+              type="search"
+              placeholder="Search patient name, subject ID, or incident reason"
+              value={searchText}
+              onChange={(event) => {
+                setSearchText(event.target.value);
+                setCurrentPage(1);
+              }}
+            />
             <input
               type="date"
               value={filterDate}
@@ -315,7 +278,13 @@ export default function HistoryPage({ user, onLogout }) {
                     <td>{alert.reason}</td>
                     <td>{alert.lastSender === 'crc' ? 'Staff' : 'Patient'}</td>
                     <td>
-                      <button className="btn btn-primary btn-small" onClick={() => setSelectedAlert(alert)}>
+                      <button
+                        className="btn btn-primary btn-small"
+                        onClick={() => {
+                          setSelectedAlert(alert);
+                          setIsAlertWidgetOpen(true);
+                        }}
+                      >
                         View thread
                       </button>
                     </td>
@@ -354,19 +323,23 @@ export default function HistoryPage({ user, onLogout }) {
         </div>
       </div>
 
-      {selectedAlert ? (
-        <LiveChatWidget
-          user={user}
-          role="crc"
-          userName="CRC Admin"
-          existingAlert={selectedAlert}
-          recipientId={selectedAlert.uid}
-          recipientName={selectedAlert.patientName}
-          onClose={() => setSelectedAlert(null)}
-          allAlerts={allAlerts}
-          activeEmergencies={[]}
-        />
-      ) : null}
+      <LiveChatWidget
+        user={user}
+        role="crc"
+        userName="CRC Admin"
+        existingAlert={selectedAlert}
+        recipientId={selectedAlert?.uid}
+        recipientName={selectedAlert?.patientName}
+        onClose={() => {
+          setSelectedAlert(null);
+          setIsAlertWidgetOpen(false);
+        }}
+        allAlerts={allAlerts}
+        activeEmergencies={activeAlerts}
+        controlledOpen={isAlertWidgetOpen}
+        hideTrigger
+        onOpenChange={setIsAlertWidgetOpen}
+      />
     </CRCWorkspaceShell>
   );
 }
