@@ -12,6 +12,7 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      DROPOUT_REPO_PAT: ${{ secrets.DROPOUT_REPO_PAT }}
       DROPOUT_DATA_PATH: Patient-Dropout-Prediction/deploy_assets/data/triallight_dropout_testing.csv
       DROPOUT_CHECKPOINTS_DIR: Patient-Dropout-Prediction/deploy_assets/checkpoints
     steps:
@@ -38,16 +39,23 @@ jobs:
             missing=1
           fi
 
+          if [ -z "${DROPOUT_REPO_PAT}" ]; then
+            echo "Missing secret: DROPOUT_REPO_PAT"
+            missing=1
+          fi
+
           if [ "$missing" -ne 0 ]; then
             echo "Required GitHub Actions secrets are missing."
             exit 1
           fi
 
-      - name: Clone dropout repository
-        shell: bash
-        run: |
-          rm -rf "Patient-Dropout-Prediction"
-          git clone --depth 1 https://github.com/yisheng10/Patient-Dropout-Prediction.git "Patient-Dropout-Prediction"
+      - name: Checkout dropout repository
+        uses: actions/checkout@v4
+        with:
+          repository: yisheng10/Patient-Dropout-Prediction
+          token: ${{ secrets.DROPOUT_REPO_PAT }}
+          path: Patient-Dropout-Prediction
+          fetch-depth: 1
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
