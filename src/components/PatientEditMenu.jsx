@@ -2,8 +2,6 @@ import React from 'react';
 
 export default function PatientEditMenu({
   patient,
-  hospitalId,
-  setHospitalId,
   email,
   setEmail,
   primaryCrcId,
@@ -17,14 +15,17 @@ export default function PatientEditMenu({
   protocolOptions = [],
   assignedProtocol,
   inheritedVitals = [],
-  dropoutSubjectId,
-  setDropoutSubjectId,
+  subjectId,
+  setSubjectId,
   crcUsers,
   dropoutOptions = [],
   onSave,
   onDelete,
   isSaving,
   successMsg,
+  primaryCrcPhoneError = '',
+  studyEmergencyPhoneError = '',
+  disableSave = false,
 }) {
   if (!patient) return null;
 
@@ -35,7 +36,7 @@ export default function PatientEditMenu({
           <h3>Patient configuration</h3>
           <div className="section-note">
             Trial assignment controls inherited monitored vitals. Patient-level configuration stays limited to identifiers,
-            CRC ownership, emergency contact details, and testing-only dropout mapping.
+            CRC ownership, emergency contact details, and the canonical subject ID used by the CRC-only dropout runtime.
           </div>
         </div>
         <button onClick={onDelete} className="btn btn-danger btn-small">
@@ -44,10 +45,6 @@ export default function PatientEditMenu({
       </div>
 
       <div className="patient-config__grid">
-        <div className="patient-config__field">
-          <label className="patient-config__label">Hospital ID</label>
-          <input value={hospitalId} onChange={(event) => setHospitalId(event.target.value)} placeholder="Hospital ID" />
-        </div>
         <div className="patient-config__field">
           <label className="patient-config__label">Patient email</label>
           <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Patient email" />
@@ -61,7 +58,11 @@ export default function PatientEditMenu({
             value={primaryCrcPhone}
             onChange={(event) => setPrimaryCrcPhone(event.target.value)}
             placeholder="Primary CRC phone"
+            inputMode="tel"
+            autoComplete="tel"
+            aria-invalid={Boolean(primaryCrcPhoneError)}
           />
+          {primaryCrcPhoneError ? <div className="field-error">{primaryCrcPhoneError}</div> : null}
         </div>
         <div className="patient-config__field">
           <label className="patient-config__label">Study emergency phone</label>
@@ -69,7 +70,11 @@ export default function PatientEditMenu({
             value={studyEmergencyPhone}
             onChange={(event) => setStudyEmergencyPhone(event.target.value)}
             placeholder="Study emergency phone"
+            inputMode="tel"
+            autoComplete="tel"
+            aria-invalid={Boolean(studyEmergencyPhoneError)}
           />
+          {studyEmergencyPhoneError ? <div className="field-error">{studyEmergencyPhoneError}</div> : null}
         </div>
       </div>
 
@@ -129,9 +134,9 @@ export default function PatientEditMenu({
       </div>
 
       <div className="patient-config__field">
-        <label className="patient-config__label">Dropout testing subject</label>
-        <select value={dropoutSubjectId || ''} onChange={(event) => setDropoutSubjectId(event.target.value)}>
-          <option value="">No mapped dropout subject</option>
+        <label className="patient-config__label">Subject ID</label>
+        <select value={subjectId || ''} onChange={(event) => setSubjectId(event.target.value)}>
+          <option value="">No mapped subject ID</option>
           {(dropoutOptions || []).map((option) => (
             <option key={option.subject_id} value={option.subject_id}>
               {option.subject_id}
@@ -140,12 +145,12 @@ export default function PatientEditMenu({
           ))}
         </select>
         <div className="section-note section-note--spaced">
-          Use this testing-only mapping so the CRC-only dropout panel can score a real dataset subject during v1 teammate testing.
+          Choose the canonical subject ID that this real CRC patient should map to during TrialLight v1 dropout prediction runs and demos.
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <button onClick={onSave} className="btn btn-success" disabled={isSaving}>
+        <button onClick={onSave} className="btn btn-success" disabled={isSaving || disableSave}>
           {isSaving ? 'Saving...' : 'Save changes'}
         </button>
         {successMsg ? <span className="text-green">{successMsg}</span> : null}

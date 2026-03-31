@@ -1,4 +1,4 @@
-import { doc, onSnapshot } from 'firebase/firestore';
+import { collectionGroup, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { DROPOUT_RUNTIME } from '../config';
 import { supabase } from '../supabaseClient';
@@ -44,14 +44,14 @@ function classifyDropoutError(errorOrPayload) {
   if (message.includes('No rows found for subject_id=')) {
     return {
       code: 'subject_not_found',
-      message: 'Mapped subject not found in the dropout testing dataset.',
+      message: 'Mapped subject ID not found in the frozen dropout dataset.',
     };
   }
 
   if (message.includes('subject_id is required')) {
     return {
       code: 'subject_missing',
-      message: 'No mapped dropout subject. Assign a testing subject in Patient configuration.',
+      message: 'No mapped subject ID. Assign a subject ID in Patient configuration.',
     };
   }
 
@@ -83,17 +83,20 @@ export async function fetchDropoutTestingSubjects({ trialId = null, limit = 80 }
 
     const { data, error } = await request;
     if (error) {
-      const wrapped = new Error(error.message || 'Unable to load dropout testing subjects.');
+      const wrapped = new Error(error.message || 'Unable to load subject ID options.');
       wrapped.code = 'testing_subjects_unavailable';
       throw wrapped;
     }
 
+    const rows = (data || []).map((row) => ({
+      trial_id: row.trial_id,
+      subject_id: row.subject_id,
+      max_day_index: row.max_day_index,
+    }));
+    const canonicalRows = rows.filter((row) => /^TL-S\d{5}$/i.test(String(row.subject_id || '').trim()));
+
     return {
-      subjects: (data || []).map((row) => ({
-        trial_id: row.trial_id,
-        subject_id: row.subject_id,
-        max_day_index: row.max_day_index,
-      })),
+      subjects: (canonicalRows.length ? canonicalRows : rows).slice(0, limit),
     };
   }
 
@@ -125,7 +128,7 @@ export async function fetchDropoutTestingSubjects({ trialId = null, limit = 80 }
 
 export async function fetchDropoutRiskSnapshot({ subjectId, currentDay = 1, historyRecords = null }) {
   if (!subjectId) {
-    const wrapped = new Error('No mapped dropout subject. Assign a testing subject in Patient configuration.');
+    const wrapped = new Error('No mapped subject ID. Assign a subject ID in Patient configuration.');
     wrapped.code = 'subject_missing';
     throw wrapped;
   }
@@ -194,6 +197,26 @@ export function subscribeToDropoutPredictionSnapshot(userId, onUpdate, onError) 
   return onSnapshot(
     doc(db, 'users', userId, 'dropout_predictions', 'current'),
     (snapshot) => onUpdate(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null),
+    onError
+  );
+}
+
+export function subscribeToAllDropoutPredictionSnapshots(onUpdate, onError) {
+  return onSnapshot(
+    collectionGroup(db, 'dropout_predictions'),
+    (snapshot) => {
+      const rows = snapshot.docs
+        .filter((entry) => entry.id === 'current')
+        .map((entry) => {
+          const userDoc = entry.ref.parent.parent;
+          return {
+            id: entry.id,
+            userId: userDoc?.id || '',
+            ...entry.data(),
+          };
+        });
+      onUpdate(rows);
+    },
     onError
   );
 }

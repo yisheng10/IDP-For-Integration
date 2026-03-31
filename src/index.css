@@ -139,6 +139,13 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(15, 96, 155, 0.12);
 }
 
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: rgba(180, 35, 24, 0.78);
+  box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.12);
+}
+
 .login-wrapper {
   display: flex;
   flex-direction: column;
@@ -1770,6 +1777,151 @@ td {
   gap: 12px;
 }
 
+.dropout-dashboard__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dropout-dashboard__metric {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #dbe6f1;
+  background: #fbfdff;
+}
+
+.dropout-dashboard__metric span {
+  display: block;
+  color: #6b7c93;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dropout-dashboard__metric strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.dropout-dashboard__metric--warning {
+  background: #fff7ef;
+  border-color: #efd9ba;
+}
+
+.dropout-dashboard__metric--brand {
+  background: #eef6ff;
+  border-color: #c7dbf0;
+}
+
+.dropout-dashboard__layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.2fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.dropout-dashboard__listCard,
+.dropout-dashboard__detailCard {
+  border-radius: 18px;
+  border: 1px solid #e2ebf5;
+  background: #fbfdff;
+  padding: 18px;
+}
+
+.dropout-dashboard__search {
+  margin-bottom: 14px;
+}
+
+.dropout-dashboard__list {
+  max-height: 720px;
+  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.dropout-dashboard__row {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #e2ebf5;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dropout-dashboard__row:hover {
+  transform: translateY(-1px);
+  border-color: #bfd2e7;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+}
+
+.dropout-dashboard__row--selected {
+  background: #eef6ff;
+  border-color: #9ec6ea;
+}
+
+.dropout-dashboard__rowTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.dropout-dashboard__patientName {
+  font-weight: 800;
+  color: #14324a;
+}
+
+.dropout-dashboard__rowMeta {
+  margin-top: 4px;
+  color: #718096;
+  font-size: 12px;
+}
+
+.dropout-dashboard__rowStats {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  color: #52606d;
+  font-size: 13px;
+}
+
+.dropout-dashboard__detailActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dropout-dashboard__detailSummary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dropout-dashboard__detailSection {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e2ebf5;
+  background: #ffffff;
+  display: grid;
+  gap: 10px;
+}
+
+.dropout-dashboard__detailList {
+  margin: 0;
+  padding-left: 18px;
+  color: #52606d;
+  line-height: 1.6;
+}
+
 .dropout-card__header {
   display: flex;
   justify-content: space-between;
@@ -2251,6 +2403,13 @@ td {
   gap: 8px;
 }
 
+.field-error {
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .patient-config__label {
   display: block;
   font-size: 12px;
@@ -2390,6 +2549,33 @@ td {
   letter-spacing: 0.02em;
 }
 
+.protocol-library__lockedValue {
+  min-height: 50px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #dbe6f1;
+  background: #f6faff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.protocol-library__lockedValue strong {
+  color: var(--text-primary);
+}
+
+.protocol-library__lockedValue span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.protocol-library__textarea {
+  min-height: 96px;
+  resize: vertical;
+  overflow: hidden;
+  line-height: 1.6;
+}
+
 .protocol-library__thresholdGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2462,7 +2648,10 @@ td {
   .protocol-library__templateTop,
   .protocol-library__thresholdGrid,
   .protocol-library__thresholdGrid--bp,
-  .protocol-library__policyGrid {
+  .protocol-library__policyGrid,
+  .dropout-dashboard__metrics,
+  .dropout-dashboard__layout,
+  .dropout-dashboard__detailSummary {
     grid-template-columns: 1fr;
   }
 }

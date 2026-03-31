@@ -167,15 +167,25 @@ export function findBuiltinVitalTemplate(key) {
   return match ? deepClone(match) : null;
 }
 
-export function coerceVitalTemplate(template = {}, fallbackKey = '') {
-  const base =
+export function isBuiltinVitalTemplate(template = {}, fallbackKey = '') {
+  return Boolean(
     findBuiltinVitalTemplate(
       template.key || template.storage_key || template.systolic_key || template.label || fallbackKey
-    ) || {
+    )
+  );
+}
+
+export function coerceVitalTemplate(template = {}, fallbackKey = '') {
+  const builtinTemplate = findBuiltinVitalTemplate(
+    template.key || template.storage_key || template.systolic_key || template.label || fallbackKey
+  );
+  const isBuiltin = Boolean(builtinTemplate);
+  const base =
+    builtinTemplate || {
       key: slugify(template.key || template.label || fallbackKey || 'custom-vital'),
       label: template.label || 'Custom Vital',
       unit: template.unit || '',
-      input_type: template.input_type === 'blood_pressure' ? 'blood_pressure' : 'numeric',
+      input_type: 'numeric',
       storage_key: slugify(template.storage_key || template.key || template.label || fallbackKey || 'custom-vital'),
       thresholds: {},
     };
@@ -186,10 +196,10 @@ export function coerceVitalTemplate(template = {}, fallbackKey = '') {
     key: slugify(template.key || base.key || template.label || fallbackKey || 'custom-vital'),
     label: String(template.label || base.label || 'Custom Vital'),
     unit: String(template.unit || base.unit || ''),
-    input_type: template.input_type === 'blood_pressure' ? 'blood_pressure' : base.input_type || 'numeric',
-    storage_key: String(template.storage_key || base.storage_key || base.key || 'custom-vital'),
-    systolic_key: String(template.systolic_key || base.systolic_key || 'bpSys'),
-    diastolic_key: String(template.diastolic_key || base.diastolic_key || 'bpDia'),
+    input_type: isBuiltin ? base.input_type || 'numeric' : 'numeric',
+    storage_key: String(isBuiltin ? base.storage_key || base.key || 'custom-vital' : template.storage_key || base.storage_key || base.key || 'custom-vital'),
+    systolic_key: String(isBuiltin ? base.systolic_key || 'bpSys' : template.systolic_key || base.systolic_key || 'bpSys'),
+    diastolic_key: String(isBuiltin ? base.diastolic_key || 'bpDia' : template.diastolic_key || base.diastolic_key || 'bpDia'),
     thresholds: {},
   };
 

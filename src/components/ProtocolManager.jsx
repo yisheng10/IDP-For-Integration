@@ -17,6 +17,7 @@ import {
   coerceVitalTemplates,
   findBuiltinVitalTemplate,
   getBuiltinVitalLibrary,
+  isBuiltinVitalTemplate,
   subscribeToTrialTemplates,
 } from '../services/trialTemplateService';
 
@@ -116,6 +117,12 @@ function TemplateField({ label, children }) {
   );
 }
 
+function handleTextareaAutoGrow(event) {
+  const target = event.currentTarget;
+  target.style.height = 'auto';
+  target.style.height = `${target.scrollHeight}px`;
+}
+
 function renderThresholdFields(template, protocolId, templateIndex, onChange) {
   const thresholds = template.thresholds || {};
 
@@ -174,6 +181,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
   const [uploading, setUploading] = useState(false);
   const [drafts, setDrafts] = useState({});
   const [builtinSelections, setBuiltinSelections] = useState({});
+  const [expandedProtocolId, setExpandedProtocolId] = useState(null);
 
   const builtinVitals = useMemo(() => getBuiltinVitalLibrary(), []);
 
@@ -191,6 +199,15 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
     });
     setDrafts(nextDrafts);
   }, [protocols]);
+
+  useEffect(() => {
+    const selectedProtocolId =
+      selectedPatient?.protocolId && protocols.some((protocol) => protocol.id === selectedPatient.protocolId)
+        ? selectedPatient.protocolId
+        : null;
+
+    setExpandedProtocolId(selectedProtocolId || null);
+  }, [protocols, selectedPatient?.protocolId]);
 
   const usageCounts = useMemo(() => {
     const counts = {};
@@ -466,6 +483,10 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
     }
   };
 
+  const toggleProtocolExpansion = (protocolId) => {
+    setExpandedProtocolId((current) => (current === protocolId ? null : protocolId));
+  };
+
   return (
     <div className="protocol-library">
       <div className="card workspace-card">
@@ -511,6 +532,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
             const draft = drafts[protocol.id] || buildDraft(protocol);
             const isActive = selectedPatient?.protocolId === protocol.id;
             const usageCount = usageCounts[protocol.id] || 0;
+            const isExpanded = expandedProtocolId === protocol.id;
 
             return (
               <section
@@ -531,6 +553,13 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                   </div>
 
                   <div className="protocol-library__cardActions">
+                    <button
+                      type="button"
+                      onClick={() => toggleProtocolExpansion(protocol.id)}
+                      className="btn btn-secondary btn-small"
+                    >
+                      {isExpanded ? 'Collapse' : 'Expand'}
+                    </button>
                     <button onClick={() => handlePreview(protocol)} className="btn btn-secondary btn-small">
                       Preview PDF
                     </button>
@@ -550,184 +579,199 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                   </div>
                 </div>
 
-                <div className="protocol-library__layout">
-                  <div className="protocol-library__main">
-                    <div className="info-banner protocol-library__metaCard">
-                      <TemplateField label="Optional dropout dataset trial ID">
-                        <input
-                          value={draft.dropout_trial_id}
-                          onChange={(event) =>
-                            updateDraft(protocol.id, (baseDraft) => ({
-                              ...baseDraft,
-                              dropout_trial_id: event.target.value,
-                            }))
-                          }
-                          placeholder="Optional testing dataset trial ID"
-                        />
-                      </TemplateField>
-                    </div>
-
-                    <div className="info-banner protocol-library__metaCard">
-                      <div className="section-header section-header--tight">
-                        <div>
-                          <strong>Vital templates</strong>
-                          <div className="section-note section-note--spaced">
-                            Trial-linked monitored vitals and threshold rules. Labels stay outside the inputs so CRC values always remain readable.
-                          </div>
-                        </div>
-                        <div className="protocol-library__inlineActions">
-                          <select
-                            value={builtinSelections[protocol.id] || ''}
+                {isExpanded ? (
+                  <div className="protocol-library__layout">
+                    <div className="protocol-library__main">
+                      <div className="info-banner protocol-library__metaCard">
+                        <TemplateField label="Optional dropout dataset trial ID">
+                          <input
+                            value={draft.dropout_trial_id}
                             onChange={(event) =>
-                              setBuiltinSelections((current) => ({
-                                ...current,
-                                [protocol.id]: event.target.value,
+                              updateDraft(protocol.id, (baseDraft) => ({
+                                ...baseDraft,
+                                dropout_trial_id: event.target.value,
                               }))
                             }
-                          >
-                            <option value="">Choose built-in vital</option>
-                            {builtinVitals.map((vital) => (
-                              <option key={vital.key} value={vital.key}>
-                                {vital.label}
-                              </option>
-                            ))}
-                          </select>
-                          <button onClick={() => handleAddBuiltinVital(protocol.id)} className="btn btn-secondary btn-small">
-                            Add built-in
-                          </button>
-                          <button onClick={() => handleAddCustomVital(protocol.id)} className="btn btn-secondary btn-small">
-                            Add custom
-                          </button>
-                        </div>
+                            placeholder="Optional testing dataset trial ID"
+                          />
+                        </TemplateField>
                       </div>
 
-                      <div className="protocol-library__templateStack">
-                        {draft.vital_templates.length ? (
-                          draft.vital_templates.map((template, templateIndex) => (
-                            <div
-                              key={`${protocol.id}-${template.key}-${templateIndex}`}
-                              className="protocol-library__templateCard"
-                            >
-                              <div className="protocol-library__templateTop">
-                                <TemplateField label="Label">
-                                  <input
-                                    value={template.label}
-                                    onChange={(event) =>
-                                      handleVitalFieldChange(protocol.id, templateIndex, 'label', event.target.value)
-                                    }
-                                    placeholder="e.g. SpO2"
-                                  />
-                                </TemplateField>
-
-                                <TemplateField label="Unit">
-                                  <input
-                                    value={template.unit}
-                                    onChange={(event) =>
-                                      handleVitalFieldChange(protocol.id, templateIndex, 'unit', event.target.value)
-                                    }
-                                    placeholder="e.g. %"
-                                  />
-                                </TemplateField>
-
-                                <TemplateField label="Input type">
-                                  <select
-                                    value={template.input_type}
-                                    onChange={(event) =>
-                                      handleVitalFieldChange(protocol.id, templateIndex, 'input_type', event.target.value)
-                                    }
-                                  >
-                                    <option value="numeric">Numeric</option>
-                                    <option value="blood_pressure">Blood pressure</option>
-                                  </select>
-                                </TemplateField>
-
-                                <div className="protocol-library__field protocol-library__field--action">
-                                  <label className="protocol-library__fieldLabel">Template action</label>
-                                  <button
-                                    onClick={() => handleRemoveVital(protocol.id, templateIndex)}
-                                    className="btn btn-danger btn-small"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-
-                              {renderThresholdFields(template, protocol.id, templateIndex, handleThresholdChange)}
+                      <div className="info-banner protocol-library__metaCard">
+                        <div className="section-header section-header--tight">
+                          <div>
+                            <strong>Vital templates</strong>
+                            <div className="section-note section-note--spaced">
+                              Trial-linked monitored vitals and threshold rules. Built-in vitals keep their correct input type automatically.
                             </div>
-                          ))
-                        ) : (
-                          <div className="empty-panel">No vital templates yet. Add a built-in vital or create a custom one.</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="protocol-library__policyColumn">
-                    <div className="info-banner protocol-library__metaCard">
-                      <div className="section-header section-header--tight">
-                        <div>
-                          <strong>Notification policy</strong>
-                          <div className="section-note section-note--spaced">
-                            Define how CRC follow-up timing behaves for mild, moderate, and serious side effects.
+                          </div>
+                          <div className="protocol-library__inlineActions">
+                            <select
+                              value={builtinSelections[protocol.id] || ''}
+                              onChange={(event) =>
+                                setBuiltinSelections((current) => ({
+                                  ...current,
+                                  [protocol.id]: event.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">Choose built-in vital</option>
+                              {builtinVitals.map((vital) => (
+                                <option key={vital.key} value={vital.key}>
+                                  {vital.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button onClick={() => handleAddBuiltinVital(protocol.id)} className="btn btn-secondary btn-small">
+                              Add built-in
+                            </button>
+                            <button onClick={() => handleAddCustomVital(protocol.id)} className="btn btn-secondary btn-small">
+                              Add custom
+                            </button>
                           </div>
                         </div>
+
+                        <div className="protocol-library__templateStack">
+                          {draft.vital_templates.length ? (
+                            draft.vital_templates.map((template, templateIndex) => {
+                              const builtinTemplate = isBuiltinVitalTemplate(template, template.key) ? findBuiltinVitalTemplate(template.key || template.storage_key || template.label) : null;
+                              const lockedInputType = builtinTemplate?.input_type || 'numeric';
+                              return (
+                                <div
+                                  key={`${protocol.id}-${template.key}-${templateIndex}`}
+                                  className="protocol-library__templateCard"
+                                >
+                                  <div className="protocol-library__templateTop">
+                                    <TemplateField label="Label">
+                                      <input
+                                        value={template.label}
+                                        onChange={(event) =>
+                                          handleVitalFieldChange(protocol.id, templateIndex, 'label', event.target.value)
+                                        }
+                                        placeholder="e.g. SpO2"
+                                      />
+                                    </TemplateField>
+
+                                    <TemplateField label="Unit">
+                                      <input
+                                        value={template.unit}
+                                        onChange={(event) =>
+                                          handleVitalFieldChange(protocol.id, templateIndex, 'unit', event.target.value)
+                                        }
+                                        placeholder="e.g. %"
+                                      />
+                                    </TemplateField>
+
+                                    <TemplateField label="Input type">
+                                      <div className="protocol-library__lockedValue">
+                                        <strong>{lockedInputType === 'blood_pressure' ? 'Blood pressure' : 'Numeric'}</strong>
+                                        <span>{builtinTemplate ? 'Built-in vital' : 'Custom vital'}</span>
+                                      </div>
+                                    </TemplateField>
+
+                                    <div className="protocol-library__field protocol-library__field--action">
+                                      <label className="protocol-library__fieldLabel">Template action</label>
+                                      <button
+                                        onClick={() => handleRemoveVital(protocol.id, templateIndex)}
+                                        className="btn btn-danger btn-small"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {renderThresholdFields(
+                                    {
+                                      ...template,
+                                      input_type: lockedInputType,
+                                    },
+                                    protocol.id,
+                                    templateIndex,
+                                    handleThresholdChange
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="empty-panel">No vital templates yet. Add a built-in vital or create a custom one.</div>
+                          )}
+                        </div>
                       </div>
+                    </div>
 
-                      <div className="protocol-library__policyGrid">
-                        {POLICY_FIELDS.map((severity) => (
-                          <div key={severity} className={`protocol-library__policyCard protocol-library__policyCard--${severity}`}>
-                            <div className="protocol-library__policyTitle">{severity}</div>
-
-                            <TemplateField label="Due value">
-                              <input
-                                value={draft.notification_policy[severity].due_value}
-                                onChange={(event) =>
-                                  handlePolicyFieldChange(protocol.id, severity, 'due_value', event.target.value)
-                                }
-                                placeholder="1"
-                              />
-                            </TemplateField>
-
-                            <TemplateField label="Due unit">
-                              <select
-                                value={draft.notification_policy[severity].due_unit}
-                                onChange={(event) =>
-                                  handlePolicyFieldChange(protocol.id, severity, 'due_unit', event.target.value)
-                                }
-                              >
-                                {DUE_UNITS.map((unit) => (
-                                  <option key={unit} value={unit}>
-                                    {unit}
-                                  </option>
-                                ))}
-                              </select>
-                            </TemplateField>
-
-                            <TemplateField label="Instruction">
-                              <input
-                                value={draft.notification_policy[severity].instruction}
-                                onChange={(event) =>
-                                  handlePolicyFieldChange(protocol.id, severity, 'instruction', event.target.value)
-                                }
-                                placeholder="Instruction"
-                              />
-                            </TemplateField>
-
-                            <TemplateField label="Action code">
-                              <input
-                                value={draft.notification_policy[severity].action_code}
-                                onChange={(event) =>
-                                  handlePolicyFieldChange(protocol.id, severity, 'action_code', event.target.value)
-                                }
-                                placeholder="Action code"
-                              />
-                            </TemplateField>
+                    <div className="protocol-library__policyColumn">
+                      <div className="info-banner protocol-library__metaCard">
+                        <div className="section-header section-header--tight">
+                          <div>
+                            <strong>Notification policy</strong>
+                            <div className="section-note section-note--spaced">
+                              Define how CRC follow-up timing behaves for mild, moderate, and serious side effects.
+                            </div>
                           </div>
-                        ))}
+                        </div>
+
+                        <div className="protocol-library__policyGrid">
+                          {POLICY_FIELDS.map((severity) => (
+                            <div key={severity} className={`protocol-library__policyCard protocol-library__policyCard--${severity}`}>
+                              <div className="protocol-library__policyTitle">{severity}</div>
+
+                              <TemplateField label="Due value">
+                                <input
+                                  value={draft.notification_policy[severity].due_value}
+                                  onChange={(event) =>
+                                    handlePolicyFieldChange(protocol.id, severity, 'due_value', event.target.value)
+                                  }
+                                  placeholder="1"
+                                />
+                              </TemplateField>
+
+                              <TemplateField label="Due unit">
+                                <select
+                                  value={draft.notification_policy[severity].due_unit}
+                                  onChange={(event) =>
+                                    handlePolicyFieldChange(protocol.id, severity, 'due_unit', event.target.value)
+                                  }
+                                >
+                                  {DUE_UNITS.map((unit) => (
+                                    <option key={unit} value={unit}>
+                                      {unit}
+                                    </option>
+                                  ))}
+                                </select>
+                              </TemplateField>
+
+                              <TemplateField label="Instruction">
+                                <textarea
+                                  rows={3}
+                                  value={draft.notification_policy[severity].instruction}
+                                  onChange={(event) =>
+                                    handlePolicyFieldChange(protocol.id, severity, 'instruction', event.target.value)
+                                  }
+                                  onInput={handleTextareaAutoGrow}
+                                  className="protocol-library__textarea"
+                                  placeholder="Instruction"
+                                />
+                              </TemplateField>
+
+                              <TemplateField label="Action code">
+                                <textarea
+                                  rows={3}
+                                  value={draft.notification_policy[severity].action_code}
+                                  onChange={(event) =>
+                                    handlePolicyFieldChange(protocol.id, severity, 'action_code', event.target.value)
+                                  }
+                                  onInput={handleTextareaAutoGrow}
+                                  className="protocol-library__textarea"
+                                  placeholder="Action code"
+                                />
+                              </TemplateField>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : null}
               </section>
             );
           })}

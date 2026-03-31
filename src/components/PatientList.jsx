@@ -17,15 +17,9 @@ export default function PatientList({
 
     return patients.filter((patient) => {
       const name = (patient.nickname || '').toLowerCase();
-      const hospitalId = (patient.hospitalPatientId || '').toLowerCase();
       const subjectId = (patient.subject_id || patient.subjectId || '').toLowerCase();
       const primaryCrc = (patient.primary_crc_name || '').toLowerCase();
-      return (
-        name.includes(queryText) ||
-        hospitalId.includes(queryText) ||
-        subjectId.includes(queryText) ||
-        primaryCrc.includes(queryText)
-      );
+      return name.includes(queryText) || subjectId.includes(queryText) || primaryCrc.includes(queryText);
     });
   }, [effectiveQuery, patients]);
 
@@ -43,7 +37,7 @@ export default function PatientList({
         <div>
           <h3>Patient roster</h3>
           <div className="section-note">
-            Search by patient name, hospital ID, subject ID, or assigned CRC.
+            Search by patient name, subject ID, or assigned CRC.
           </div>
         </div>
         <div className="metric-pill">{filteredPatients.length} visible</div>
@@ -52,7 +46,7 @@ export default function PatientList({
       {showSearchInput ? (
         <input
           type="text"
-          placeholder="Search name, hospital ID, or subject ID"
+          placeholder="Search name, subject ID, or assigned CRC"
           value={effectiveQuery}
           onChange={(event) => handleSearchChange(event.target.value)}
         />
@@ -82,8 +76,7 @@ export default function PatientList({
                 </div>
 
                 <div className="patient-roster__meta">
-                  <div>Hospital ID: {patient.hospitalPatientId || 'Not set'}</div>
-                  <div>Subject ID: {patient.subject_id || patient.subjectId || patient.id}</div>
+                  <div>Subject ID: {patient.subject_id || patient.subjectId || 'Not set'}</div>
                   <div>Primary CRC: {patient.primary_crc_name || 'Unassigned'}</div>
                 </div>
               </button>

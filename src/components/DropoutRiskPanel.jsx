@@ -1,190 +1,374 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { subscribeToDropoutPredictionSnapshot } from '../services/dropoutService';
-
-function deriveMappedSubject(patient) {
-  const mappedSubjectId = patient?.dropout_subject_id || patient?.dropoutSubjectId || '';
-  if (mappedSubjectId) {
-    return {
-      subjectId: mappedSubjectId,
-      source: 'testing_mapping',
-    };
-  }
-
-  const canonicalSubjectId =
-    patient?.subject_id || patient?.subjectId || patient?.trialSubjectId || patient?.id || '';
-  if (/^NCT.+_P\d+$/i.test(canonicalSubjectId)) {
-    return {
-      subjectId: canonicalSubjectId,
-      source: 'canonical_subject',
-    };
-  }
-
-  return {
-    subjectId: '',
-    source: 'missing_mapping',
-  };
-}
+import { subscribeToAllDropoutPredictionSnapshots } from '../services/dropoutService';
 
 function renderRiskBucket(bucket) {
-  if (!bucket) return 'PENDING';
-  return String(bucket).toUpperCase();
+  return String(bucket || 'pending').toUpperCase();
 }
 
-function renderErrorCard(title, description, reason) {
+function getProbabilityNumber(value) {
+  const nextValue = Number(value);
+  return Number.isFinite(nextValue) ? nextValue : null;
+}
+
+function formatProbabilityPercent(value) {
+  const probability = getProbabilityNumber(value);
+  return probability == null ? 'N/A' : `${(probability * 100).toFixed(1)}%`;
+}
+
+function formatProbabilityDecimal(value) {
+  const probability = getProbabilityNumber(value);
+  return probability == null ? 'N/A' : probability.toFixed(3);
+}
+
+function isActionableSnapshot(snapshot = {}) {
+  if (snapshot.is_actionable === true) return true;
+  const riskBucket = String(snapshot.risk_bucket || '').toLowerCase();
+  const priorityScore = Number(snapshot.action_priority_score);
+  return riskBucket === 'high' || (Number.isFinite(priorityScore) && priorityScore >= 0.5);
+}
+
+function buildSignalLines(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => {
+        if (entry == null) return '';
+        if (typeof entry === 'string') return entry;
+        if (typeof entry === 'object') {
+          const label = entry.label || entry.signal || entry.key || entry.feature || '';
+          const signalValue = entry.value ?? entry.score ?? entry.delta ?? '';
+          return label ? `${label}: ${signalValue}` : JSON.stringify(entry);
+        }
+        return String(entry);
+      })
+      .filter(Boolean);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value).map(([key, signalValue]) => `${key}: ${signalValue}`);
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    return [value.trim()];
+  }
+
+  return [];
+}
+
+function sortDropoutRows(left, right) {
+  const leftProbability = getProbabilityNumber(left.dropout_probability) ?? -1;
+  const rightProbability = getProbabilityNumber(right.dropout_probability) ?? -1;
+  if (rightProbability !== leftProbability) {
+    return rightProbability - leftProbability;
+  }
+
+  const leftPriority = Number(left.action_priority_score);
+  const rightPriority = Number(right.action_priority_score);
+  const safeLeftPriority = Number.isFinite(leftPriority) ? leftPriority : -1;
+  const safeRightPriority = Number.isFinite(rightPriority) ? rightPriority : -1;
+  if (safeRightPriority !== safeLeftPriority) {
+    return safeRightPriority - safeLeftPriority;
+  }
+
+  return String(left.patientName || '').localeCompare(String(right.patientName || ''));
+}
+
+function MetricCard({ label, value, tone = 'default' }) {
   return (
-    <div className="dropout-card dropout-card--warning">
-      <div className="dropout-card__title">{title}</div>
-      <div className="section-note">{description}</div>
-      {reason ? <div className="section-note">Reason: {reason}</div> : null}
+    <div className={`dropout-dashboard__metric dropout-dashboard__metric--${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
 
-function computeStaleness(snapshot) {
-  if (!snapshot?.published_at) {
-    return 'pending';
+function DetailSection({ title, items, emptyLabel }) {
+  if (!items.length) {
+    return (
+      <div className="dropout-dashboard__detailSection">
+        <strong>{title}</strong>
+        <div className="section-note">{emptyLabel}</div>
+      </div>
+    );
   }
-  const ageMs = Date.now() - new Date(snapshot.published_at).getTime();
-  if (ageMs > 36 * 60 * 60 * 1000) {
-    return 'stale';
-  }
-  return snapshot.staleness_status || 'fresh';
+
+  return (
+    <div className="dropout-dashboard__detailSection">
+      <strong>{title}</strong>
+      <ul className="dropout-dashboard__detailList">
+        {items.map((item) => (
+          <li key={`${title}-${item}`}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
-export default function DropoutRiskPanel({ selectedPatient }) {
-  const [subscriptionState, setSubscriptionState] = useState({
-    patientId: '',
-    data: null,
-    error: '',
-    code: '',
-  });
-
-  const resolution = useMemo(() => deriveMappedSubject(selectedPatient), [selectedPatient]);
+export default function DropoutRiskPanel({
+  patients = [],
+  onOpenStudyCoordination,
+  onOpenPatients,
+}) {
+  const [snapshotRows, setSnapshotRows] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!selectedPatient?.id || !resolution.subjectId) {
-      return () => {};
-    }
-
-    return subscribeToDropoutPredictionSnapshot(
-      selectedPatient.id,
-      (snapshot) => {
-        if (!snapshot) {
-          setSubscriptionState({
-            patientId: selectedPatient.id,
-            data: null,
-            error: '',
-            code: 'snapshot_missing',
-          });
-          return;
-        }
-
-        setSubscriptionState({
-          patientId: selectedPatient.id,
-          data: snapshot,
-          error: '',
-          code: computeStaleness(snapshot),
-        });
+    return subscribeToAllDropoutPredictionSnapshots(
+      (rows) => {
+        setSnapshotRows(rows);
+        setError('');
       },
-      (error) => {
-        setSubscriptionState({
-          patientId: selectedPatient.id,
-          data: null,
-          error: error.message,
-          code: 'mirror_error',
-        });
+      (nextError) => {
+        setSnapshotRows([]);
+        setError(nextError.message || 'Unable to read current dropout snapshots.');
       }
     );
-  }, [resolution.subjectId, selectedPatient?.id]);
+  }, []);
+
+  const joinedRows = useMemo(() => {
+    const patientMap = new Map(patients.map((patient) => [patient.id, patient]));
+    return snapshotRows
+      .map((snapshot) => {
+        const patient = patientMap.get(snapshot.userId) || null;
+        return {
+          ...snapshot,
+          patient,
+          userId: snapshot.userId,
+          patientName: patient?.nickname || patient?.email || snapshot.subject_id || 'Unknown patient',
+          patientEmail: patient?.email || '',
+          subjectId: snapshot.subject_id || patient?.subject_id || patient?.subjectId || 'Not set',
+          primaryCrcName: patient?.primary_crc_name || 'Unassigned',
+          isActionable: isActionableSnapshot(snapshot),
+        };
+      })
+      .sort(sortDropoutRows);
+  }, [patients, snapshotRows]);
+
+  const filteredRows = useMemo(() => {
+    const queryText = searchQuery.trim().toLowerCase();
+    if (!queryText) return joinedRows;
+
+    return joinedRows.filter((entry) => {
+      const haystack = [
+        entry.patientName,
+        entry.subjectId,
+        entry.patientEmail,
+      ]
+        .map((value) => String(value || '').toLowerCase())
+        .join(' ');
+      return haystack.includes(queryText);
+    });
+  }, [joinedRows, searchQuery]);
+
+  const activeEntry = useMemo(
+    () => filteredRows.find((entry) => entry.userId === selectedUserId) || filteredRows[0] || null,
+    [filteredRows, selectedUserId]
+  );
+
+  const dashboardMetrics = useMemo(() => {
+    const scoredCount = joinedRows.length;
+    const highRiskCount = joinedRows.filter((entry) => String(entry.risk_bucket || '').toLowerCase() === 'high').length;
+    const actionableCount = joinedRows.filter((entry) => entry.isActionable).length;
+    const numericProbabilities = joinedRows
+      .map((entry) => getProbabilityNumber(entry.dropout_probability))
+      .filter((value) => value != null);
+
+    const averageProbability =
+      numericProbabilities.length > 0
+        ? numericProbabilities.reduce((sum, value) => sum + value, 0) / numericProbabilities.length
+        : null;
+
+    return {
+      scoredCount,
+      highRiskCount,
+      actionableCount,
+      averageProbability,
+    };
+  }, [joinedRows]);
+
+  const explanationSignals = useMemo(
+    () => buildSignalLines(activeEntry?.explanation_signals),
+    [activeEntry?.explanation_signals]
+  );
+  const missingInputs = useMemo(
+    () => buildSignalLines(activeEntry?.missing_inputs_summary),
+    [activeEntry?.missing_inputs_summary]
+  );
+  const dataQualityFlags = useMemo(
+    () => buildSignalLines(activeEntry?.data_quality_flags),
+    [activeEntry?.data_quality_flags]
+  );
+
+  const openStudyCoordination = () => {
+    if (activeEntry?.patient && typeof onOpenStudyCoordination === 'function') {
+      onOpenStudyCoordination(activeEntry.patient);
+    }
+  };
+
+  const openPatientRoster = () => {
+    if (activeEntry?.patient && typeof onOpenPatients === 'function') {
+      onOpenPatients(activeEntry.patient);
+    }
+  };
 
   const content = (() => {
-    if (!selectedPatient) {
-      return <div className="section-note">Select a patient to inspect the CRC-only dropout prediction.</div>;
-    }
-
-    if (!resolution.subjectId) {
-      return renderErrorCard(
-        'No mapped dropout subject',
-        'Select a dropout testing subject in Patient configuration before scoring this patient.',
-        'No mapped dropout subject. Assign a testing subject in Patient configuration.'
-      );
-    }
-
-    if (subscriptionState.patientId !== selectedPatient.id) {
-      return <div className="section-note">Loading the latest published dropout snapshot...</div>;
-    }
-
-    if (subscriptionState.error) {
-      return renderErrorCard(
-        'Snapshot unavailable',
-        'The CRC-only dropout mirror could not be loaded from Firestore.',
-        subscriptionState.error
-      );
-    }
-
-    if (!subscriptionState.data) {
-      return renderErrorCard(
-        'Prediction pending',
-        'No published dropout snapshot exists yet for this patient. Run the scheduled precompute or workflow dispatch first.',
-        ''
-      );
-    }
-
-    if (subscriptionState.data) {
-      const data = subscriptionState.data;
-      const staleness = computeStaleness(data);
+    if (error) {
       return (
-        <div className="dropout-stack">
-          <div className="dropout-card">
-            <div className="dropout-card__header">
-              <strong>{selectedPatient.nickname}</strong>
-              <span className="dropout-card__bucket">{renderRiskBucket(data.risk_bucket)}</span>
-            </div>
-            <div className="dropout-card__metric">Testing subject: {data.dropout_subject_id || data.subject_id || resolution.subjectId}</div>
-            <div className="dropout-card__metric">
-              Dropout probability:{' '}
-              {typeof data.dropout_probability === 'number' ? data.dropout_probability.toFixed(3) : 'N/A'}
-            </div>
-            <div className="dropout-card__metric">Recommended action: {data.recommended_action || 'N/A'}</div>
-            <div className="dropout-card__metric">Risk bucket: {data.risk_bucket || 'N/A'}</div>
-            <div className="dropout-card__metric">Last published: {data.published_at ? new Date(data.published_at).toLocaleString() : 'N/A'}</div>
-          </div>
+        <div className="empty-panel">
+          Unable to load live dropout snapshots right now.
+          <div className="section-note section-note--spaced">{error}</div>
+        </div>
+      );
+    }
 
-          <div className="dropout-card dropout-card--soft">
-            <strong>Mapping source</strong>
-            <div className="section-note">
-              {resolution.source === 'testing_mapping'
-                ? 'Using the explicit dropout testing subject selected for this patient.'
-                : 'Using the canonical subject ID because it already matches the dropout dataset format.'}
-            </div>
+    if (!joinedRows.length) {
+      return (
+        <div className="empty-panel">
+          No published dropout snapshots are available yet.
+          <div className="section-note section-note--spaced">
+            Run the daily precompute workflow or publish snapshots before using this dashboard.
           </div>
-
-          <div className={`dropout-card ${staleness === 'stale' ? 'dropout-card--warning' : 'dropout-card--soft'}`}>
-            <strong>Snapshot freshness</strong>
-            <div className="section-note">
-              {staleness === 'stale'
-                ? 'This published snapshot is stale. Re-run the scheduled precompute workflow to refresh it.'
-                : 'This panel is reading the current published CRC-only snapshot from Firestore.'}
-            </div>
-          </div>
-
-          {Array.isArray(data.data_quality_flags) && data.data_quality_flags.length > 0 ? (
-            <div className="dropout-card dropout-card--soft">
-              <strong>Data quality flags</strong>
-              <div className="section-note">{data.data_quality_flags.join(', ')}</div>
-            </div>
-          ) : null}
         </div>
       );
     }
 
     return (
-      <div className="dropout-card dropout-card--warning">
-        <div className="dropout-card__title">Pending contract state</div>
-        <div className="section-note">
-          The CRC panel is ready to consume the dropout prediction contract once a live payload is available.
+      <>
+        <div className="dropout-dashboard__metrics">
+          <MetricCard label="Total scored patients" value={dashboardMetrics.scoredCount} />
+          <MetricCard label="High-risk patients" value={dashboardMetrics.highRiskCount} tone="warning" />
+          <MetricCard label="Actionable patients" value={dashboardMetrics.actionableCount} tone="brand" />
+          <MetricCard
+            label="Average dropout probability"
+            value={dashboardMetrics.averageProbability == null ? 'N/A' : formatProbabilityPercent(dashboardMetrics.averageProbability)}
+          />
         </div>
-      </div>
+
+        <div className="dropout-dashboard__layout">
+          <div className="dropout-dashboard__listCard">
+            <div className="section-header section-header--tight">
+              <div>
+                <h3 className="mt-0">Risk-ranked patients</h3>
+                <div className="section-note">
+                  Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk.
+                </div>
+              </div>
+              <span className="metric-pill">{filteredRows.length} visible</span>
+            </div>
+
+            <input
+              type="text"
+              className="dropout-dashboard__search"
+              placeholder="Search patient name, subject ID, or email"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+
+            <div className="dropout-dashboard__list">
+              {filteredRows.length ? (
+                filteredRows.map((entry) => {
+                  const isSelected = entry.userId === activeEntry?.userId;
+                  return (
+                    <button
+                      key={entry.userId}
+                      type="button"
+                      className={`dropout-dashboard__row ${isSelected ? 'dropout-dashboard__row--selected' : ''}`}
+                      onClick={() => setSelectedUserId(entry.userId)}
+                    >
+                      <div className="dropout-dashboard__rowTop">
+                        <div>
+                          <div className="dropout-dashboard__patientName">{entry.patientName}</div>
+                          <div className="dropout-dashboard__rowMeta">{entry.patientEmail || 'No email recorded'}</div>
+                        </div>
+                        <span className="dropout-card__bucket">{renderRiskBucket(entry.risk_bucket)}</span>
+                      </div>
+
+                      <div className="dropout-dashboard__rowStats">
+                        <span>Subject ID: {entry.subjectId}</span>
+                        <span>Probability: {formatProbabilityPercent(entry.dropout_probability)}</span>
+                      </div>
+
+                      <div className="dropout-dashboard__rowStats">
+                        <span>Action: {entry.recommended_action || 'N/A'}</span>
+                        <span>{entry.published_at ? new Date(entry.published_at).toLocaleString() : 'Not published'}</span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="empty-panel">No patients match the current search.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="dropout-dashboard__detailCard">
+            {activeEntry ? (
+              <>
+                <div className="section-header">
+                  <div>
+                    <h3 className="mt-0">Patient dropout detail</h3>
+                    <div className="section-note">
+                      Detailed CRC-only snapshot for the selected patient. This panel updates immediately when you select a different row.
+                    </div>
+                  </div>
+                  <div className="dropout-dashboard__detailActions">
+                    <button className="btn btn-secondary btn-small" onClick={openPatientRoster} disabled={!activeEntry.patient}>
+                      Open Patients
+                    </button>
+                    <button className="btn btn-primary btn-small" onClick={openStudyCoordination} disabled={!activeEntry.patient}>
+                      Open Study Coordination
+                    </button>
+                  </div>
+                </div>
+
+                <div className="dropout-dashboard__detailSummary">
+                  <div className="dropout-card">
+                    <div className="dropout-card__header">
+                      <strong>{activeEntry.patientName}</strong>
+                      <span className="dropout-card__bucket">{renderRiskBucket(activeEntry.risk_bucket)}</span>
+                    </div>
+                    <div className="dropout-card__metric">Subject ID: {activeEntry.subjectId}</div>
+                    <div className="dropout-card__metric">Dropout probability: {formatProbabilityDecimal(activeEntry.dropout_probability)}</div>
+                    <div className="dropout-card__metric">Recommended action: {activeEntry.recommended_action || 'N/A'}</div>
+                    <div className="dropout-card__metric">Action priority score: {activeEntry.action_priority_score ?? 'N/A'}</div>
+                    <div className="dropout-card__metric">Primary CRC: {activeEntry.primaryCrcName}</div>
+                    <div className="dropout-card__metric">
+                      Last published: {activeEntry.published_at ? new Date(activeEntry.published_at).toLocaleString() : 'N/A'}
+                    </div>
+                  </div>
+
+                  <div className="dropout-card dropout-card--soft">
+                    <strong>Model contract</strong>
+                    <div className="dropout-card__metric">Stage: {activeEntry.routed_stage || 'N/A'}</div>
+                    <div className="dropout-card__metric">Prediction horizon: {activeEntry.pred_horizon_days || 'N/A'} days</div>
+                    <div className="dropout-card__metric">History window: {activeEntry.history_window_days || 'N/A'} days</div>
+                    <div className="dropout-card__metric">Model version: {activeEntry.model_version || 'N/A'}</div>
+                  </div>
+                </div>
+
+                <DetailSection
+                  title="Explanation signals"
+                  items={explanationSignals}
+                  emptyLabel="No explanation signals were included in the current snapshot."
+                />
+                <DetailSection
+                  title="Missing inputs summary"
+                  items={missingInputs}
+                  emptyLabel="No missing-input issues were reported for the current snapshot."
+                />
+                <DetailSection
+                  title="Data quality flags"
+                  items={dataQualityFlags}
+                  emptyLabel="No data-quality flags were reported for the current snapshot."
+                />
+              </>
+            ) : (
+              <div className="empty-panel">Select a ranked patient to inspect the current dropout snapshot.</div>
+            )}
+          </div>
+        </div>
+      </>
     );
   })();
 
@@ -194,7 +378,7 @@ export default function DropoutRiskPanel({ selectedPatient }) {
         <div>
           <h3 className="mt-0">Patient Dropout Prediction</h3>
           <div className="section-note">
-            CRC-only predictive view sourced from the latest published Firestore snapshot. This module must never be exposed in patient surfaces.
+            Dedicated CRC-only dashboard sourced from live Firestore current snapshots. Patients are ranked from highest to lowest dropout risk.
           </div>
         </div>
         <span className="metric-pill">CRC only</span>
