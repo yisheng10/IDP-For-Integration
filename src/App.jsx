@@ -4,7 +4,6 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { APP_BACKGROUND_IMAGE, APP_ICON, APP_NAME } from './config';
 import Login from './components/Login';
 import { auth } from './firebase';
-import HistoryPage from './pages/HistoryPage';
 import CRCHome from './pages/CRCHome';
 
 function UnsupportedWebAccess({ user, onLogout }) {
@@ -134,7 +133,7 @@ export default function App() {
             !user ? (
               <Navigate to="/login" replace />
             ) : isCrcUser ? (
-              <HistoryPage user={user} onLogout={handleLogout} />
+              <Navigate to="/home?section=safety-inbox&tab=history" replace />
             ) : (
               <Navigate to="/home" replace />
             )

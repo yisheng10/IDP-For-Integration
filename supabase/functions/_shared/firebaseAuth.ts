@@ -20,6 +20,6 @@ export async function requireFirebaseUser(request: Request) {
   return {
     uid: String(payload.user_id || payload.sub || ''),
     email: payload.email ? String(payload.email) : null,
+    token,
   };
 }
-

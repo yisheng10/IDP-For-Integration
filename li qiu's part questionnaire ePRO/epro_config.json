@@ -107,5 +107,45 @@
             "operator": "equals",
             "value": true
         }
+    },
+    {
+        "question_id": "ePRO_012",
+        "question_text": "Have you felt anxious, worried, or overwhelmed today?",
+        "question_type": "boolean",
+        "tier": "BASE",
+        "conditional_logic": null
+    },
+    {
+        "question_id": "ePRO_013",
+        "question_text": "On a scale of 0 to 10, where 0 is completely calm and 10 is the most anxious you can imagine, how anxious have you felt today?",
+        "question_type": "numeric_scale",
+        "tier": "CONDITIONAL",
+        "conditional_logic": {
+            "question_id": "ePRO_012",
+            "operator": "equals",
+            "value": true
+        }
+    },
+    {
+        "question_id": "ePRO_014",
+        "question_text": "On a scale of 0 to 10, where 0 is not interfering at all and 10 is interfering constantly, how much has anxiety interfered with your daily activities today?",
+        "question_type": "numeric_scale",
+        "tier": "CONDITIONAL",
+        "conditional_logic": {
+            "question_id": "ePRO_012",
+            "operator": "equals",
+            "value": true
+        }
+    },
+    {
+        "question_id": "ePRO_015",
+        "question_text": "Please describe any anxiety, worry, or overwhelm you experienced today.",
+        "question_type": "text",
+        "tier": "CONDITIONAL",
+        "conditional_logic": {
+            "question_id": "ePRO_012",
+            "operator": "equals",
+            "value": true
+        }
     }
 ]

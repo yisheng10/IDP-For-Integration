@@ -20,10 +20,10 @@ Deno.serve(async (request) => {
       patientName: body.patient_name,
       answers: body.answers,
       firebaseUid: user.uid,
+      firebaseToken: user.token,
     });
     return jsonResponse(payload, { status: 200 }, origin);
   } catch (error) {
     return jsonResponse({ error: error.message || 'Unable to submit questionnaire.' }, { status: 400 }, origin);
   }
 });
-

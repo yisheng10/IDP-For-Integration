@@ -1404,3 +1404,164 @@
   - read-only batch dry-run is working against real Firestore patient docs
   - the remaining blocker before switching the main live publisher over is reliable access to Supabase `patient_daily_logs`, or an equivalent live ePRO answer fallback source
 
+### ePRO-To-Dropout Live Data Cutover
+
+- Implemented the formal ePRO-to-dropout cutover so pain/anxiety can flow into live direct scoring without depending on Supabase `patient_daily_logs` as the primary source.
+- Updated the formal Edge-function baseline question set in:
+  - `supabase/functions/_shared/baselineConfig.ts`
+  and synced local parity config in:
+  - `li qiu's part questionnaire ePRO/epro_config.json`
+- Added a real protocol anxiety cluster:
+  - `ePRO_012` anxiety boolean gatekeeper
+  - `ePRO_013` anxiety 0-10 rating
+  - `ePRO_014` anxiety interference 0-10 rating
+  - `ePRO_015` anxiety text follow-up
+- Reworked the formal ePRO Edge runtime in:
+  - `supabase/functions/_shared/eproCore.ts`
+  so it now:
+  - extends the formal schedule from `4` days to `30` days
+  - removes `dropout risk` from question generation inputs
+  - uses real Firestore prompt context from:
+    - `users/{uid}/ai_chat_history`
+    - `users/{uid}/vitals`
+    - `users/{uid}/side_effect_reports`
+  - keeps the baseline protocol set immutable
+  - appends at most `2` customized questions
+  - restricts customized questions to `boolean` or `text`
+- Added Firebase token passthrough for Edge question generation context in:
+  - `supabase/functions/_shared/firebaseAuth.ts`
+  - `supabase/functions/epro-daily-survey/index.ts`
+  - `supabase/functions/epro-submit/index.ts`
+- Added a new shared Firestore prompt-context loader:
+  - `supabase/functions/_shared/firestorePromptContext.ts`
+- Updated the local Node parity service in:
+  - `li qiu's part questionnaire ePRO/server_integrated.js`
+  so local dev behavior now matches the new contract:
+  - `30` day horizon
+  - no dropout-risk prompt input
+  - baseline plus max-2 custom questions
+- Expanded the patient-app operational ePRO mirror in:
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/eproService.js`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/QuestionnaireScreen.js`
+  so Firestore `users/{uid}/epro_submissions/{formId}` now carries structured dropout-ready answer summaries:
+  - `day_number`
+  - `pain_score`
+  - `anxiety_score`
+  - `base_positive_flags`
+  - `has_free_text_followup`
+- Rewired the dropout live adapter in:
+  - `Patient-Dropout-Prediction/src/live_data_adapter.py`
+  so ePRO scoring now uses:
+  - primary source: Firestore `epro_submissions` answer summary fields
+  - fallback source: Supabase `patient_daily_logs`
+- Tightened fallback behavior so unsubmitted/assigned ePRO records do not trigger unnecessary Supabase answer lookups.
+- Extended publisher diagnostics in:
+  - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+  to report live ePRO answer-summary coverage:
+  - `patients_with_epro_answer_summary`
+- Added a controlled backfill utility for existing Firestore ePRO mirrors:
+  - `Patient-Dropout-Prediction/src/backfill_epro_answer_mirror.py`
+  - default mode is dry-run
+  - `--apply` is required before it writes any real Firestore updates
+- Validation completed for this cutover:
+  - Python syntax check passed for:
+    - `Patient-Dropout-Prediction/src/live_data_adapter.py`
+    - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+    - `Patient-Dropout-Prediction/src/backfill_epro_answer_mirror.py`
+  - local Node syntax check passed for:
+    - `li qiu's part questionnaire ePRO/server_integrated.js`
+  - targeted ESLint passed for:
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/eproService.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/QuestionnaireScreen.js`
+- Environment note:
+  - `deno` is not installed in this shell, so formal Edge TypeScript runtime validation by `deno check` could not be executed here.
+- Current cutover state:
+  - ePRO no longer uses dropout risk to generate questions
+  - anxiety is now a formal protocol-owned signal
+  - Firestore ePRO mirrors are now capable of carrying dropout-ready pain/anxiety summaries
+  - dropout live direct scoring is ready to prefer Firestore ePRO summaries over Supabase answer logs
+- Remaining execution steps, not yet run in this round:
+  - deploy the updated Edge functions
+  - submit at least one real questionnaire through the new flow
+  - run `publish_dropout_snapshots.py --source-mode dry-run-live`
+  - confirm non-zero `patients_with_epro_answer_summary`
+  - only then do manual real `--source-mode live` publish
+
+## 2026-04-02 - ePRO live summary verification and first live dropout publish
+
+- Resumed the paused ePRO-to-dropout cutover validation after Firestore quota recovered enough for targeted reads.
+- Verified a real Firestore mirrored ePRO submission document for:
+  - Firebase UID `Lt0ixlQZFkgg04MhBHwfQmW2tD33`
+  - `form_id = TL-S00011-day-1`
+- Confirmed the service-side Firestore mirror now contains dropout-ready structured summary fields:
+  - `pain_score = 2.3333333333333335`
+  - `anxiety_score = 5`
+  - `status = submitted`
+  - `base_positive_flags = ["ePRO_005", "ePRO_012"]`
+  - `has_free_text_followup = true`
+- Ran a targeted single-patient live dry-run:
+  - `publish_dropout_snapshots.py --source-mode dry-run-live --firebase-uids Lt0ixlQZFkgg04MhBHwfQmW2tD33 --limit-patients 1`
+- Dry-run result:
+  - `predictions_ready = 1`
+  - `epro_submissions = 1`
+  - `epro_answer_summary = 1`
+  - preview written to:
+    - `Patient-Dropout-Prediction/deploy_assets/manual_live_direct_dry_run_preview_20260402_singlepatient.json`
+- This confirmed the live path:
+  - `Firestore ePRO answer summary -> live_data_adapter -> history_records -> dropout scoring`
+- Executed the first real single-patient live publish using the new live-data path:
+  - `publish_dropout_snapshots.py --source-mode live --firebase-uids Lt0ixlQZFkgg04MhBHwfQmW2tD33 --limit-patients 1 --skip-testing-subject-sync`
+- Live publish succeeded:
+  - `Published 1 dropout prediction snapshots`
+  - `predictions_ready = 1`
+  - `epro_answer_summary = 1`
+- Verified Firestore current snapshot write at:
+  - `users/Lt0ixlQZFkgg04MhBHwfQmW2tD33/dropout_predictions/current`
+- Verified the current snapshot contains:
+  - `subject_id = TL-S00011`
+  - `dropout_probability = 0.79221`
+  - `risk_bucket = high`
+  - `recommended_action = review_today_consider_outreach`
+  - `published_at = 2026-04-02T10:50:03+00:00`
+- Verified matching Supabase history write in `dropout_predictions` for:
+  - `subject_id = TL-S00011`
+  - `dropout_probability = 0.79221`
+  - `risk_bucket = high`
+  - `recommended_action = review_today_consider_outreach`
+- Current state after this milestone:
+  - ePRO pain/anxiety summaries are now proven to flow into live direct dropout scoring
+  - the live publisher has been validated end-to-end on a real patient using the new source path
+  - frozen longitudinal history is no longer required for this validated live-scoring path
+  - next rollout decision is whether to expand from single-patient validation to broader real-patient live publishing and scheduled automation
+
+## 2026-04-02 - CRC safety information architecture simplified
+
+- Implemented the recommended IA change for overlapping `Alerts`, `Safety Inbox`, and `History` so CRC now gets:
+  - a top-right `Urgent` quick launcher
+  - one primary `Safety Inbox` workspace
+  - `History` merged into `Safety Inbox` as an internal tab instead of a separate sidebar destination
+- Updated `src/pages/CRCHome.jsx`:
+  - changed the top-right launcher label from `Alerts`/`Inbox`/`Message` variants to a stable `Urgent`
+  - switched the alert launcher widget into urgent-only list mode
+  - removed the separate `History` sidebar item
+  - added `tab=open|resolved|history` state for `Safety Inbox`
+  - passed structured incident data plus alert-thread history into the unified inbox panel
+- Updated `src/components/LiveChatWidget.jsx` usage path so the CRC header launcher behaves like a quick urgent entry point instead of a mixed history workspace.
+- Updated `src/components/TopNavbar.jsx` so the shared fallback label is also `Urgent`.
+- Updated `src/App.jsx`:
+  - deprecated `/history` as a standalone workflow route
+  - now redirects `/history` to `/home?section=safety-inbox&tab=history`
+  - kept the legacy page file on disk but disabled it as the primary path
+- Expanded `src/components/SafetyInboxPanel.jsx` into a single workspace with:
+  - `Open` tab for active structured incidents
+  - `Resolved` tab for completed incident follow-up
+  - `History` tab for read-only raw alert thread archive and audit search
+- Added new inbox tab styling and archive filter support in `src/index.css`.
+- Verification:
+  - CRC production build passed with `npm run build:crc`
+  - build required out-of-sandbox execution because sandboxed `esbuild` spawn hit `EPERM`; this was an environment permission issue, not a code error
+- Resulting workflow intent:
+  - `Urgent` = immediate quick launcher only
+  - `Safety Inbox` = CRC daily safety workspace
+  - `History` = archive tab inside `Safety Inbox`, not a competing main destination
+

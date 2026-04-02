@@ -118,7 +118,7 @@ export default function TopNavbar({
   };
 
   const alertCount = alerts.filter((alert) => alert.status === 'unread').length;
-  const resolvedAlertLabel = alertButtonLabel || (alertCount ? `Alerts (${alertCount})` : 'Alerts');
+  const resolvedAlertLabel = alertButtonLabel || (alertCount ? `Urgent (${alertCount})` : 'Urgent');
 
   return (
     <>

@@ -19,10 +19,10 @@ Deno.serve(async (request) => {
       requestedSubjectId: url.searchParams.get('subject_id'),
       patientName: url.searchParams.get('patient_name'),
       firebaseUid: user.uid,
+      firebaseToken: user.token,
     });
     return jsonResponse(payload, { status: 200 }, origin);
   } catch (error) {
     return jsonResponse({ error: error.message || 'Unable to load questionnaire.' }, { status: 400 }, origin);
   }
 });
-

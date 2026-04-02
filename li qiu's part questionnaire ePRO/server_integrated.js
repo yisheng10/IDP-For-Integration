@@ -58,11 +58,54 @@ const baselineConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 const SUBJECT_SESSIONS = new Map();
 const LEGACY_STATE = { subjectId: null };
-const MAX_TRIAL_DAY = 4;
+const MAX_TRIAL_DAY = 30;
 const SOURCE_SYSTEM = 'triallight-epro-service';
 
 function cloneBaselineConfig() {
   return JSON.parse(JSON.stringify(baselineConfig));
+}
+
+function normalizeQuestionText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeQuestionType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'boolean' ? 'boolean' : 'text';
+}
+
+function sanitizeCustomQuestions(rawQuestions, currentDay) {
+  const candidates = Array.isArray(rawQuestions)
+    ? rawQuestions
+    : Array.isArray(rawQuestions?.custom_questions)
+      ? rawQuestions.custom_questions
+      : [];
+
+  const normalized = [];
+  for (const [index, candidate] of candidates.entries()) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+    const questionText = normalizeQuestionText(candidate.question_text ?? candidate.question);
+    if (!questionText) {
+      continue;
+    }
+    const questionType = normalizeQuestionType(candidate.question_type ?? candidate.type);
+    normalized.push({
+      question_id: `ePRO_CUSTOM_D${String(currentDay).padStart(2, '0')}_${String(index + 1).padStart(2, '0')}`,
+      question_text:
+        questionType === 'boolean' && !/\(yes\/no\)/i.test(questionText)
+          ? `${questionText} (Yes/No)`
+          : questionText,
+      question_type: questionType,
+      tier: 'CUSTOM',
+      conditional_logic: null,
+    });
+    if (normalized.length >= 2) {
+      break;
+    }
+  }
+  return normalized;
 }
 
 function sanitizeSubjectId(subjectId) {
@@ -80,7 +123,6 @@ function buildFallbackProfile(subjectId, patientName) {
       temperature_celsius: 'Unknown',
     },
     chat_history: [],
-    dropout_risk: { level: 'unknown' },
   };
 }
 
@@ -131,6 +173,7 @@ async function ensureSession(subjectId, patientName) {
       dueAt: nextDueDate(assignedAt),
       localHistory: [],
     };
+    await generateNextDayConfig(session);
     SUBJECT_SESSIONS.set(cleanSubjectId, session);
   } else if (patientName) {
     session.activePatient.name = patientName;
@@ -185,33 +228,40 @@ function buildGenerationPrompt(session, recentHistory) {
   const patient = session.activePatient || buildFallbackProfile(session.subjectId);
 
   return `
-You are a Continuous Clinical Trial AI Orchestrator.
-Generate the JSON configuration for the patient's DAY ${session.currentDay} ePRO questionnaire.
+You are generating only the OPTIONAL customized section for a clinical ePRO form.
 
-PATIENT PROFILE:
-- Medical History: ${(patient.medical_history || []).join(', ')}
-- Vitals: BP ${patient.vitals_logged?.blood_pressure || 'Unknown'}, HR ${patient.vitals_logged?.heart_rate || 'Unknown'}, Temp ${patient.vitals_logged?.temperature_celsius || 'Unknown'}C
-- Chatbot Complaints: ${JSON.stringify(patient.chat_history || [])}
-- Dropout Risk: ${patient.dropout_risk?.level || 'unknown'}
+PATIENT:
+- Name: ${patient.name || session.subjectId}
+- Day number: ${session.currentDay}
+- Medical History: ${(patient.medical_history || []).join(', ') || 'Not provided'}
+- Recent vitals summary: ${JSON.stringify(patient.vitals_logged || {})}
+- Recent AI chat summary: ${JSON.stringify(patient.chat_history || [])}
 
-RECENT PATIENT TREND (LAST 3 DAYS):
+RECENT EPRO HISTORY (LAST 3 DAYS):
 ${JSON.stringify(recentHistory, null, 2)}
 
-======================================
-THE IMMUTABLE ORIGINAL PROTOCOL:
+IMMUTABLE BASELINE PROTOCOL QUESTIONS:
 ${JSON.stringify(baselineConfig, null, 2)}
-======================================
 
 STRICT GENERATION RULES:
-1. THE GATEKEEPER RULE: You MUST ALWAYS include the primary boolean (Yes/No) "BASE" questions from the Original Protocol.
-2. THE PARENT-CHILD RULE: If the patient answered "No" to a BASE symptom yesterday, REMOVE related CONDITIONAL questions today. If they answered "Yes", KEEP the CONDITIONAL questions.
-3. SMART BURDEN: ONLY remove a 0-10 scale if the patient explicitly gave it a rating of 1 or 2 yesterday. If the scale was missing yesterday but the BASE symptom was "Yes", RESTORE the scale.
-4. RELAPSE CATCHER: If the patient answers "Yes" to a gatekeeper today, restore the associated rating scale tomorrow.
-5. AI CUSTOMIZATION: If chatbot complaints mention a new symptom, invent ONE specific CONDITIONAL question for it.
-6. QUESTION FORMAT: Add "(0-10)" for rating and "(Yes/No)" for boolean.
+1. Do NOT rewrite, remove, reorder, or replace any baseline protocol question.
+2. You may add at most 2 customized questions.
+3. Customized questions may use ONLY medical history, recent vitals, recent side effects if present, and recent AI chat history.
+4. Do NOT use dropout risk in any way.
+5. Customized questions must be appended after the baseline set.
+6. Customized question types may ONLY be "boolean" or "text".
+7. Do NOT create any 0-10 rating customized question.
+8. If there is not enough meaningful context, return an empty array.
 
-OUTPUT JSON FORMAT EXACTLY:
-[{"id":"...","tier":"BASE or CONDITIONAL","question":"..."}]
+OUTPUT FORMAT:
+Return JSON only.
+Return either [] or:
+[
+  {
+    "question_text": "...",
+    "question_type": "boolean" | "text"
+  }
+]
 `;
 }
 
@@ -232,7 +282,8 @@ async function generateNextDayConfig(session) {
       .trim();
 
     const parsed = JSON.parse(responseText);
-    session.currentConfigCache = Array.isArray(parsed) && parsed.length > 0 ? parsed : cloneBaselineConfig();
+    const customQuestions = sanitizeCustomQuestions(parsed, session.currentDay);
+    session.currentConfigCache = [...cloneBaselineConfig(), ...customQuestions];
   } catch (error) {
     console.warn(`AI questionnaire generation fallback for ${session.subjectId}:`, error.message);
     session.currentConfigCache = cloneBaselineConfig();
@@ -254,11 +305,13 @@ function dailySurveyResponse(session) {
     patient_name: session.activePatient?.name || session.subjectId,
     patientName: session.activePatient?.name || session.subjectId,
     day: session.currentDay,
+    day_number: session.currentDay,
     form_id: buildFormId(session.subjectId, session.currentDay),
     assigned_at: session.assignedAt,
     due_at: session.dueAt,
     status: 'assigned',
     source_system: SOURCE_SYSTEM,
+    question_count: session.currentConfigCache.length,
     questions: session.currentConfigCache,
   };
 }
@@ -302,6 +355,7 @@ async function handleSubmit(subjectId, patientName, answers) {
   return {
     success: true,
     subject_id: session.subjectId,
+    day_number: session.currentDay - 1,
     form_id: formId,
     status: 'submitted',
     assigned_at: assignedAt,

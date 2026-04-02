@@ -64,9 +64,9 @@ const HOME_SECTIONS = {
   },
   'safety-inbox': {
     label: 'Safety Inbox',
-    path: '/home?section=safety-inbox',
+    path: '/home?section=safety-inbox&tab=open',
     title: 'Safety Inbox',
-    description: 'Filter open incidents, grouped compare cases, and due-state follow-up without leaving the CRC dashboard.',
+    description: 'Use one primary safety workspace for open cases, resolved follow-up, and historical alert threads.',
   },
   'clinical-intelligence': {
     label: 'Clinical Intelligence',
@@ -387,6 +387,14 @@ export default function CRCHome({ user, onLogout }) {
     setIsAlertWidgetOpen(true);
   };
 
+  const handleSafetyInboxTabChange = (tabId) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('section', 'safety-inbox');
+    nextParams.set('tab', tabId);
+    nextParams.delete('focus');
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const handleEnablePush = async () => {
     try {
       await registerBrowserPushSubscription(user.uid);
@@ -530,6 +538,18 @@ export default function CRCHome({ user, onLogout }) {
     patientName: patients.find((patient) => patient.id === alert.uid)?.nickname || alert.senderName || 'Unknown',
   }));
 
+  const safetyHistoryAlerts = useMemo(() => {
+    if (selPatient) {
+      return pAlerts.map((alert) => ({
+        ...alert,
+        uid: selPatient.id,
+        patientName: selPatient.nickname || alert.senderName || 'Unknown',
+      }));
+    }
+
+    return enrichedGlobalAlerts;
+  }, [enrichedGlobalAlerts, pAlerts, selPatient]);
+
   const getStatusStyle = (status) => {
     switch (status) {
       case 'confirmed':
@@ -605,6 +625,10 @@ export default function CRCHome({ user, onLogout }) {
     return HOME_SECTIONS[sectionId] ? sectionId : 'dashboard';
   }, [searchParams]);
   const activeClinicalFocus = searchParams.get('focus') === 'dropout' ? 'dropout' : 'guidance';
+  const activeSafetyTab = useMemo(() => {
+    const tabId = searchParams.get('tab');
+    return ['open', 'resolved', 'history'].includes(tabId) ? tabId : 'open';
+  }, [searchParams]);
   const activeNavId =
     activeHomeSection === 'clinical-intelligence'
       ? activeClinicalFocus === 'dropout'
@@ -648,13 +672,18 @@ export default function CRCHome({ user, onLogout }) {
           }
       : HOME_SECTIONS[activeHomeSection];
 
-  const openWorkspaceSection = (section, focus) => {
+  const openWorkspaceSection = (section, focus, tab) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('section', section);
     if (focus) {
       nextParams.set('focus', focus);
     } else {
       nextParams.delete('focus');
+    }
+    if (section === 'safety-inbox') {
+      nextParams.set('tab', tab || 'open');
+    } else {
+      nextParams.delete('tab');
     }
     setSearchParams(nextParams);
   };
@@ -713,19 +742,12 @@ export default function CRCHome({ user, onLogout }) {
     {
       title: 'Secondary',
       items: [
-        { id: 'history', label: 'History', description: 'Threads', icon: 'history', path: '/history' },
         { id: 'resources', label: 'Resources', description: 'CTCAE', icon: 'resources', path: HOME_SECTIONS.resources.path },
       ],
     },
   ];
 
-  const headerAlertButtonLabel = chatAlert
-    ? 'Chat'
-    : enrichedAlerts.length > 0
-      ? `Alerts (${enrichedAlerts.length})`
-      : selPatient
-        ? 'Message'
-        : 'Inbox';
+  const headerAlertButtonLabel = enrichedAlerts.length > 0 ? `Urgent (${enrichedAlerts.length})` : 'Urgent';
 
   return (
     <>
@@ -753,7 +775,8 @@ export default function CRCHome({ user, onLogout }) {
         userName={crcName}
         existingAlert={chatAlert}
         activeEmergencies={enrichedAlerts}
-        allAlerts={selPatient ? pAlerts : enrichedGlobalAlerts}
+        allAlerts={[]}
+        listScope="urgent"
         onClose={() => {
           setChatAlert(null);
           setIsAlertWidgetOpen(false);
@@ -981,21 +1004,25 @@ export default function CRCHome({ user, onLogout }) {
           {activeHomeSection === 'safety-inbox' ? (
           <section id="safety-inbox" className="dashboard-section">
             <div className="dashboard-section__header">
-              <div>
-                <div className="dashboard-kicker">Safety</div>
-                <h2 className="dashboard-section__title">Safety Inbox</h2>
-                <p className="section-note">
-                  Structured incidents, grouped compare cases, due-state follow-up, and browser alert activation stay here.
-                </p>
+                <div>
+                  <div className="dashboard-kicker">Safety</div>
+                  <h2 className="dashboard-section__title">Safety Inbox</h2>
+                  <p className="section-note">
+                    This is the primary CRC safety workspace for active cases, resolved follow-up, and historical alert threads.
+                  </p>
+                </div>
               </div>
-            </div>
 
             <SafetyInboxPanel
               incidents={incidents}
+              alertHistory={safetyHistoryAlerts}
               selectedPatient={selPatient}
               pushState={pushState}
               onEnablePush={handleEnablePush}
               onOpenIncident={handleOpenIncident}
+              onOpenAlertThread={handleNavAlertClick}
+              initialTab={activeSafetyTab}
+              onTabChange={handleSafetyInboxTabChange}
             />
           </section>
           ) : null}

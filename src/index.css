@@ -712,6 +712,56 @@ textarea[aria-invalid='true'] {
   font-size: 12px;
 }
 
+.inbox-tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.inbox-tabButton {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: #f8fbff;
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.inbox-tabButton:hover {
+  transform: translateY(-1px);
+  background: #eef5fb;
+  border-color: #bfd2e7;
+}
+
+.inbox-tabButton--active {
+  background: linear-gradient(135deg, #0f609b 0%, #0b4f82 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 12px 24px rgba(15, 96, 155, 0.18);
+}
+
+.inbox-tabBadge {
+  min-width: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 96, 155, 0.1);
+  color: var(--brand-strong);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.inbox-tabButton--active .inbox-tabBadge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
 .inbox-pushBox {
   display: flex;
   justify-content: space-between;
@@ -727,6 +777,19 @@ textarea[aria-invalid='true'] {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+}
+
+.inbox-filterHint {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f7fafc;
+  border: 1px solid #dbe5f0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .inbox-selectedPatient {

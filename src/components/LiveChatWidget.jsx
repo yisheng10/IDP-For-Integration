@@ -17,7 +17,8 @@ const LiveChatWidget = ({
   hideTrigger = false,
   onOpenChange,
   recipientId, 
-  recipientName 
+  recipientName,
+  listScope = 'all',
 }) => {
   const [internalIsOpen, setInternalIsOpen] = useState(isOpenInitially);
   const [activeAlertRef, setActiveAlertRef] = useState(null);
@@ -86,12 +87,13 @@ const LiveChatWidget = ({
   useEffect(() => {
     if (existingAlert) return; 
     if (isOpen && !triggerReason && !activeAlertRef) {
-      if (activeEmergencies.length > 0) setViewMode('list');
+      if (listScope === 'urgent') setViewMode('list');
+      else if (activeEmergencies.length > 0) setViewMode('list');
       else if (role === 'crc' && recipientId) setViewMode('create'); 
       else if (role === 'crc' && !recipientId) setViewMode('list'); 
       else setViewMode('list');
     }
-  }, [isOpen, activeEmergencies, triggerReason, activeAlertRef, role, recipientId, existingAlert]); 
+  }, [isOpen, activeEmergencies, triggerReason, activeAlertRef, role, recipientId, existingAlert, listScope]); 
 
   useEffect(() => {
     if (!activeAlertRef) return;
@@ -172,7 +174,7 @@ const LiveChatWidget = ({
   };
 
   const filteredActive = filterAlerts(activeEmergencies);
-  const filteredHistory = filterAlerts(allAlerts);
+  const filteredHistory = listScope === 'urgent' ? [] : filterAlerts(allAlerts);
 
   // --- RENDER HELPERS ---
   const renderMessage = (item, index) => {
@@ -253,7 +255,15 @@ const LiveChatWidget = ({
         
         <div style={{...styles.header, backgroundColor: isResolved ? '#666' : (role==='crc'?'#007bff':'#d32f2f')}}>
           <div>
-            {viewMode === 'list' && <span style={styles.headerTitle}>{activeEmergencies.length > 0 ? "Active Emergencies" : "Chat History"}</span>}
+            {viewMode === 'list' && (
+              <span style={styles.headerTitle}>
+                {listScope === 'urgent'
+                  ? 'Urgent cases'
+                  : activeEmergencies.length > 0
+                    ? 'Active Emergencies'
+                    : 'Chat History'}
+              </span>
+            )}
             {viewMode === 'chat' && <span style={styles.headerTitle}>Chat</span>}
             {viewMode === 'create' && <span style={styles.headerTitle}>New Message</span>}
           </div>
@@ -305,12 +315,20 @@ const LiveChatWidget = ({
                 <>
                   <div style={{fontSize:'12px', fontWeight:'bold', color:'#d32f2f', marginBottom:'5px', paddingLeft:'5px'}}>ACTIVE EMERGENCIES</div>
                   {filteredActive.length === 0 ? <div style={{padding:'10px', color:'#999', fontSize:'12px'}}>No matches found.</div> : filteredActive.map(renderAlertItem)}
-                  <hr style={{border:'0', borderTop:'1px solid #ddd', margin:'15px 0'}} />
+                  {listScope !== 'urgent' ? <hr style={{border:'0', borderTop:'1px solid #ddd', margin:'15px 0'}} /> : null}
                 </>
               )}
-              
-              <div style={{fontSize:'12px', fontWeight:'bold', color:'#666', marginBottom:'5px', paddingLeft:'5px'}}>HISTORY</div>
-              {filteredHistory.length === 0 ? <div style={{padding:'20px', textAlign:'center', color:'#666'}}>No chat history found.</div> : filteredHistory.map(renderAlertItem)}
+
+              {listScope === 'urgent' ? (
+                filteredActive.length === 0 ? (
+                  <div style={{padding:'20px', textAlign:'center', color:'#666'}}>No urgent cases right now.</div>
+                ) : null
+              ) : (
+                <>
+                  <div style={{fontSize:'12px', fontWeight:'bold', color:'#666', marginBottom:'5px', paddingLeft:'5px'}}>HISTORY</div>
+                  {filteredHistory.length === 0 ? <div style={{padding:'20px', textAlign:'center', color:'#666'}}>No chat history found.</div> : filteredHistory.map(renderAlertItem)}
+                </>
+              )}
             </div>
           )}
 
