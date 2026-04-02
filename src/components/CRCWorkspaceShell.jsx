@@ -137,6 +137,21 @@ function NavIcon({ icon }) {
           </svg>
         </IconWrapper>
       );
+    case 'epro':
+      return (
+        <IconWrapper>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+            <path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </IconWrapper>
+      );
     case 'history':
       return (
         <IconWrapper>

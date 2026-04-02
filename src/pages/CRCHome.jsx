@@ -20,7 +20,7 @@ import IncidentDetailModal from '../components/IncidentDetailModal';
 import ProtocolManager from '../components/ProtocolManager';
 import PatientList from '../components/PatientList';
 import PatientEditMenu from '../components/PatientEditMenu';
-import EproStatusPanel from '../components/EproStatusPanel';
+import EproReviewWorkspace from '../components/EproReviewWorkspace';
 import DropoutRiskPanel from '../components/DropoutRiskPanel';
 import SafetyInboxPanel from '../components/SafetyInboxPanel';
 import { getStatusText } from '../utils';
@@ -74,6 +74,12 @@ const HOME_SECTIONS = {
     title: 'Clinical intelligence workspace',
     description: 'Switch between dedicated Side Effect Guidance and Patient Dropout Prediction workspaces without sharing one long scroll.',
   },
+  epro: {
+    label: 'ePRO',
+    path: '/home?section=epro',
+    title: 'ePRO review and release',
+    description: 'Preview, edit wording, approve, and release today\'s trial and patient-specific questionnaires before patients can answer.',
+  },
   'protocol-library': {
     label: 'Protocol Library',
     path: '/home?section=protocol-library',
@@ -84,7 +90,7 @@ const HOME_SECTIONS = {
     label: 'Study Coordination',
     path: '/home?section=study-coordination',
     title: 'Study coordination',
-    description: 'Manage patient configuration, protocol alignment, appointments, recent vitals, and ePRO visibility.',
+    description: 'Manage patient configuration, protocol alignment, recent vitals, and appointments without duplicating ePRO operations here.',
   },
   resources: {
     label: 'Resources',
@@ -603,6 +609,9 @@ export default function CRCHome({ user, onLogout }) {
     } else if (legacyHash === 'study-coordination') {
       nextParams.set('section', 'study-coordination');
       nextParams.delete('focus');
+    } else if (legacyHash === 'epro') {
+      nextParams.set('section', 'epro');
+      nextParams.delete('focus');
     } else if (HOME_SECTIONS[legacyHash]) {
       nextParams.set('section', legacyHash);
       nextParams.delete('focus');
@@ -735,6 +744,7 @@ export default function CRCHome({ user, onLogout }) {
         { id: 'patients', label: 'Patients', description: 'Roster', icon: 'patients', path: HOME_SECTIONS.patients.path },
         { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Core intelligence', icon: 'guidance', badge: 'Core', emphasis: 'guidance', path: '/home?section=clinical-intelligence&focus=guidance' },
         { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', description: 'CRC only', icon: 'dropout', badge: 'Core', emphasis: 'dropout', path: '/home?section=clinical-intelligence&focus=dropout' },
+        { id: 'epro', label: 'ePRO', description: 'Review queue', icon: 'epro', path: HOME_SECTIONS.epro.path },
         { id: 'protocol-library', label: 'Protocol Library', description: 'Templates', icon: 'protocol', path: HOME_SECTIONS['protocol-library'].path },
         { id: 'safety-inbox', label: 'Safety Inbox', description: 'Incidents', icon: 'safety', path: HOME_SECTIONS['safety-inbox'].path },
       ],
@@ -1097,7 +1107,7 @@ export default function CRCHome({ user, onLogout }) {
                 <div className="dashboard-kicker">Study coordination</div>
                 <h2 className="dashboard-section__title">Patient configuration, protocol, and follow-up</h2>
                 <p className="section-note">
-                  Keep CRC ownership, protocol assignment, vitals, appointments, and mirrored ePRO status in one coordinated area.
+                  Keep CRC ownership, protocol assignment, vitals, and appointments in one coordinated area while ePRO review lives in its own workspace.
                 </p>
               </div>
             </div>
@@ -1262,13 +1272,30 @@ export default function CRCHome({ user, onLogout }) {
                 <div className="dashboard-kicker">Patient workspace</div>
                 <h2 className="workspace-card__title">Select a patient to begin</h2>
                 <p className="section-note">
-                  Choose a patient in the Patients section to edit CRC assignment, review vitals, manage appointments,
-                  and inspect mirrored ePRO status.
+                  Choose a patient in the Patients section to edit CRC assignment, review vitals, and manage appointments.
                 </p>
               </div>
             )}
+          </section>
+          ) : null}
 
-            <EproStatusPanel entries={eproEntries} selectedPatient={selPatient} patients={patients} />
+          {activeHomeSection === 'epro' ? (
+          <section id="epro" className="dashboard-section">
+            <div className="dashboard-section__header">
+              <div>
+                <div className="dashboard-kicker">ePRO</div>
+                <h2 className="dashboard-section__title">Daily ePRO review and release</h2>
+                <p className="section-note">
+                  Preview today&apos;s questionnaires, edit wording only, approve individual drafts, or approve the whole current-day queue before patients can answer.
+                </p>
+              </div>
+            </div>
+
+            <EproReviewWorkspace
+              user={user}
+              patients={patients}
+              entries={eproEntries}
+            />
           </section>
           ) : null}
 

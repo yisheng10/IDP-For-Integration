@@ -198,27 +198,30 @@ function formatChatSummary(rows: FirestoreRecord[]): string[] {
 export async function loadRealtimePromptContext({
   firebaseUid,
   firebaseToken,
+  targetFirebaseUid,
 }: {
   firebaseUid: string;
   firebaseToken: string;
+  targetFirebaseUid?: string | null;
 }) {
+  const effectiveUid = String(targetFirebaseUid || firebaseUid || '').trim();
   const [vitalsRows, sideEffectRows, chatRows] = await Promise.all([
     listUserSubcollectionDocs({
-      firebaseUid,
+      firebaseUid: effectiveUid,
       firebaseToken,
       collectionName: 'vitals',
       pageSize: 4,
       orderBy: 'timestamp desc',
     }),
     listUserSubcollectionDocs({
-      firebaseUid,
+      firebaseUid: effectiveUid,
       firebaseToken,
       collectionName: 'side_effect_reports',
       pageSize: 4,
       orderBy: 'submitted_at desc',
     }),
     listUserSubcollectionDocs({
-      firebaseUid,
+      firebaseUid: effectiveUid,
       firebaseToken,
       collectionName: 'ai_chat_history',
       pageSize: 12,
@@ -261,14 +264,21 @@ export async function upsertUserEproSubmissionMirror({
 export async function loadRealtimeUserIdentity({
   firebaseUid,
   firebaseToken,
+  targetFirebaseUid,
 }: {
   firebaseUid: string;
   firebaseToken: string;
+  targetFirebaseUid?: string | null;
 }) {
-  const userDoc = await getUserDocument({ firebaseUid, firebaseToken });
+  const effectiveUid = String(targetFirebaseUid || firebaseUid || '').trim();
+  const userDoc = await getUserDocument({ firebaseUid: effectiveUid, firebaseToken });
   return {
-    firebase_uid: firebaseUid,
+    firebase_uid: effectiveUid,
     subject_id: String(userDoc.subject_id || userDoc.subjectId || '').trim(),
     nickname: String(userDoc.nickname || '').trim(),
+    role: String(userDoc.role || '').trim().toLowerCase(),
+    protocol_id: String(userDoc.protocolId || '').trim(),
+    protocol_name: String(userDoc.protocolName || '').trim(),
+    primary_crc_id: String(userDoc.primary_crc_id || userDoc.primaryCrcId || '').trim(),
   };
 }

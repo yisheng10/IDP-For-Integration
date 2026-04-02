@@ -6,3 +6,8 @@ verify_jwt = false
 [functions.epro-submit]
 verify_jwt = false
 
+[functions.epro-review-queue]
+verify_jwt = false
+
+[functions.epro-review-action]
+verify_jwt = false

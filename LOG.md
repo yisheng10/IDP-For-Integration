@@ -1565,3 +1565,171 @@
   - `Safety Inbox` = CRC daily safety workspace
   - `History` = archive tab inside `Safety Inbox`, not a competing main destination
 
+## 2026-04-02 - CRC ePRO review-and-release workflow foundation
+
+- Implemented the CRC-side `ePRO` workspace foundation so ePRO no longer lives only as an operational summary inside `Study Coordination`.
+- Updated the CRC web navigation in:
+  - `src/pages/CRCHome.jsx`
+  - `src/components/CRCWorkspaceShell.jsx`
+- Added a new sidebar section:
+  - `ePRO`
+  - positioned directly below `Patient Dropout Prediction`
+  - routed via `/home?section=epro`
+- Removed the duplicated `ePRO Operations` block from `Study Coordination` and moved ePRO operational visibility into the dedicated `ePRO` workspace.
+- Added a new CRC review workspace component:
+  - `src/components/EproReviewWorkspace.jsx`
+  - supports:
+    - `Pending Trial Reviews`
+    - `Pending Patient Reviews`
+    - `Released Today`
+    - `Submitted / Overdue`
+    - single-item approve actions
+    - wording-only edit mode
+    - `Approve All ePRO` with double-confirm modal
+- Upgraded the operational status panel in:
+  - `src/components/EproStatusPanel.jsx`
+  - now supports header suppression so it can be embedded cleanly inside the new ePRO page without duplicating page titles.
+- Added CRC web-to-edge service wiring in:
+  - `src/services/eproReviewService.js`
+  - new edge function calls:
+    - `epro-review-queue`
+    - `epro-review-action`
+
+- Added new Supabase review data model migration:
+  - `supabase/migrations/20260402_epro_review_release_workflow.sql`
+- New review tables introduced:
+  - `epro_trial_daily_review`
+  - `epro_patient_daily_review`
+- These tables support:
+  - trial-level baseline review rows
+  - patient-level customized review rows
+  - wording overrides that only affect the current day/current review item
+  - approval metadata
+  - auto-release metadata
+
+- Added new shared ePRO service modules:
+  - `supabase/functions/_shared/eproShared.ts`
+  - `supabase/functions/_shared/eproReviewCore.ts`
+- Shared logic now covers:
+  - baseline cloning
+  - customized question generation
+  - review-window timing
+  - trial/patient review row creation
+  - wording override application
+  - single-item approval
+  - `Approve All` approval
+  - cutoff-based auto-release
+  - Firestore mirror synchronization for pending/released states
+
+- Added new edge functions:
+  - `supabase/functions/epro-review-queue/index.ts`
+  - `supabase/functions/epro-review-action/index.ts`
+- Current runtime intent:
+  - CRC workspace loads/builds today’s queue
+  - patient cannot answer a draft that is still pending CRC review
+  - approved or auto-released drafts become visible to the patient app
+
+- Reworked the official ePRO runtime path in:
+  - `supabase/functions/_shared/eproCore.ts`
+- `epro-daily-survey` is now release-aware:
+  - returns `awaiting_crc_review` when the current questionnaire is still pending CRC review
+  - only returns `questions` after approval or auto-release
+- `epro-submit` now only accepts the released questionnaire version and preserves review metadata in the Firestore mirror.
+
+- Expanded Firestore prompt/identity helper behavior in:
+  - `supabase/functions/_shared/firestorePromptContext.ts`
+- It can now:
+  - read target patient prompt context using a CRC Firebase token
+  - expose:
+    - `role`
+    - `protocol_id`
+    - `protocol_name`
+    - `primary_crc_id`
+
+- Updated patient app ePRO flow in:
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/eproService.js`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/QuestionnaireScreen.js`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js`
+- Patient-facing behavior now supports:
+  - `Today’s questionnaire is awaiting CRC review.`
+  - review metadata mirrored to `users/{uid}/epro_submissions/{formId}`
+  - continued answer-summary mirroring for:
+    - `pain_score`
+    - `anxiety_score`
+    - `base_positive_flags`
+    - `has_free_text_followup`
+
+- Verification completed in this workspace:
+  - `node --check` passed for:
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/eproService.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/QuestionnaireScreen.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js`
+  - CRC production build passed:
+    - `npm.cmd run build:crc`
+  - build still reports the existing large bundle warning, but the build completed successfully.
+
+- Validation limitation:
+  - `deno` is not installed in this shell, so formal local `deno` type/runtime validation for the new Edge Functions could not be executed here.
+
+- Current state after this milestone:
+  - CRC now has a dedicated `ePRO` workspace entry in the sidebar
+  - `Study Coordination` no longer duplicates ePRO operational UI
+  - the service layer now supports pending review, per-item approval, approve-all, and auto-release metadata
+  - the patient app now understands `awaiting_crc_review`
+  - remote database migration and edge function deployment still need to be executed before this workflow becomes live in production
+
+## 2026-04-02 - Supabase ePRO review deployment unblock
+
+- Resumed production rollout for the ePRO review-and-release workflow after the local implementation milestone.
+- Confirmed this workstation is now logged into Supabase CLI for project `fygkqituefwldmglijvy`.
+- Confirmed remote function baseline before deployment:
+  - existing: `process-pdf`, `epro-daily-survey`, `epro-submit`
+  - missing: `epro-review-queue`, `epro-review-action`
+- Confirmed remote database migration path is reachable via `supabase db push --dry-run`.
+- Fixed a production-blocking config gap in:
+  - `supabase/config.toml`
+- Added:
+  - `[functions.epro-review-queue] verify_jwt = false`
+  - `[functions.epro-review-action] verify_jwt = false`
+- Rationale:
+  - these CRC-facing functions receive Firebase ID tokens from the web client
+  - without `verify_jwt = false`, the Supabase gateway would reject requests before the function-level Firebase auth check runs
+
+## 2026-04-02 - Supabase ePRO review workflow deployed remotely
+
+- Applied remote database migrations to project `fygkqituefwldmglijvy` via Supabase CLI:
+  - `20260323_triallight_no_render_baseline.sql`
+  - `20260402_epro_review_release_workflow.sql`
+- Migration push completed successfully.
+- Deployed live Edge Functions:
+  - `epro-daily-survey`
+  - `epro-submit`
+  - `epro-review-queue`
+  - `epro-review-action`
+- Confirmed remote function list now includes:
+  - `epro-review-queue`
+  - `epro-review-action`
+- Confirmed the new review tables are reachable through the live Supabase REST layer:
+  - `epro_trial_daily_review`
+  - `epro_patient_daily_review`
+- Current state after deployment:
+  - the CRC-side ePRO review workspace is now backed by live review tables and live review/action functions
+  - patient questionnaire release can now be gated by CRC approval or auto-release cutoff on the backend
+  - end-to-end CRC/patient workflow verification is still required in the product UI
+
+## 2026-04-02 - CRC and patient web redeployed after ePRO review rollout
+
+- Rebuilt and redeployed both live Firebase Hosting surfaces after the ePRO review/release backend rollout.
+- Build steps completed successfully:
+  - `npm.cmd run build:crc`
+  - `npm.cmd run build:patient-web`
+- Live deployment completed successfully:
+  - `https://triallight.web.app`
+  - `https://triallight-patient.web.app`
+- This publish puts the latest front-end changes live, including:
+  - CRC `ePRO` sidebar workspace entry
+  - removal of duplicated `ePRO Operations` from `Study Coordination`
+  - patient-facing `awaiting CRC review` gating behavior
+- Existing warning retained:
+  - the CRC bundle still emits the non-blocking large chunk warning during build
+

@@ -29,7 +29,14 @@ function statusStyle(status) {
   return { background: '#eef4ff', color: '#1e4ea1', border: '1px solid #cad8f2' };
 }
 
-export default function EproStatusPanel({ entries = [], selectedPatient, patients = [] }) {
+export default function EproStatusPanel({
+  entries = [],
+  selectedPatient,
+  patients = [],
+  hideHeading = false,
+  title = 'ePRO Operations',
+  description = 'CRC visibility comes only from mirrored operational records, not questionnaire-service internals.',
+}) {
   const sortedEntries = useMemo(() => {
     return [...entries].sort((left, right) => {
       const leftTime = new Date(left.submitted_at || left.updated_at || left.assigned_at || 0).getTime();
@@ -70,12 +77,12 @@ export default function EproStatusPanel({ entries = [], selectedPatient, patient
   return (
     <div className="card" style={{ borderTop: '4px solid #0056b3' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-        <div>
-          <h3 className="mt-0" style={{ marginBottom: '6px' }}>ePRO Operations</h3>
-          <div style={{ color: '#5b6470', fontSize: '13px' }}>
-            CRC visibility comes only from mirrored operational records, not questionnaire-service internals.
+        {!hideHeading ? (
+          <div>
+            <h3 className="mt-0" style={{ marginBottom: '6px' }}>{title}</h3>
+            <div style={{ color: '#5b6470', fontSize: '13px' }}>{description}</div>
           </div>
-        </div>
+        ) : <div />}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <div style={styles.metricBox}>
             <div style={styles.metricLabel}>Assigned</div>
