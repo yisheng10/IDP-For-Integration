@@ -2,14 +2,22 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+function requireFirebaseEnv(name) {
+  const value = String(process.env[name] || '').trim();
+  if (!value) {
+    throw new Error(`Missing Firebase env: ${name}`);
+  }
+  return value;
+}
+
 const firebaseConfig = {
-  apiKey: 'AIzaSyBafCJ2iGZ-hYVpwHE_rubGDdOwhlqbkoQ',
-  authDomain: 'idp-authentication-7e8d7.firebaseapp.com',
-  projectId: 'idp-authentication-7e8d7',
-  storageBucket: 'idp-authentication-7e8d7.firebasestorage.app',
-  messagingSenderId: '858114692646',
-  appId: '1:858114692646:web:027f8d324fd693830578e7',
-  measurementId: 'G-7M5S7QN2TM',
+  apiKey: requireFirebaseEnv('EXPO_PUBLIC_FIREBASE_API_KEY'),
+  authDomain: requireFirebaseEnv('EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+  projectId: requireFirebaseEnv('EXPO_PUBLIC_FIREBASE_PROJECT_ID'),
+  storageBucket: requireFirebaseEnv('EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: requireFirebaseEnv('EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: requireFirebaseEnv('EXPO_PUBLIC_FIREBASE_APP_ID'),
+  measurementId: String(process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || '').trim() || undefined,
 };
 
 const app = initializeApp(firebaseConfig);

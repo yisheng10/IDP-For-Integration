@@ -4,6 +4,7 @@ import {
   collection,
   doc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -19,7 +20,11 @@ import { getSignedUrl } from './storageService'; // <--- Added to handle private
 // --- APPOINTMENT SUBSCRIPTIONS ---
 
 export const subscribeToAppointments = (userId, onUpdate, onError) => {
-  const q = query(collection(db, "users", userId, "appointments"), orderBy("datetime", "asc"));
+  const q = query(
+    collection(db, "users", userId, "appointments"),
+    orderBy("datetime", "asc"),
+    limit(20)
+  );
   return onSnapshot(q, (snapshot) => {
     const appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     onUpdate(appointments);

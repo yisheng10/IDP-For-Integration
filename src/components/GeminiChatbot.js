@@ -15,11 +15,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -27,7 +27,8 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import { GEMINI_API_KEY } from '../config';
+import { GEMINI_API_KEY, SIDE_EFFECT_GUIDANCE_MODEL } from '../config';
+import { useCall } from '../context/CallContext';
 import { db } from '../firebase';
 import { SAFETY_INSTRUCTIONS } from '../safetyInstructions';
 import { submitSideEffectReport } from '../services/sideEffectService';
@@ -35,9 +36,40 @@ import { getSignedUrl } from '../services/storageService';
 import { supabase } from '../supabaseClient';
 import { urlToBase64 } from '../utils';
 
-const CRC_AI_NAME = 'AI Copilot';
-const PATIENT_AI_NAME = 'AI Assistant';
+const CRC_AI_NAME = 'Side Effect Guidance';
+const PATIENT_AI_NAME = 'AI Side Effect Guidance';
 const DEFAULT_EMERGENCY_PHONE = '999';
+const CHAT_HISTORY_LIMIT = 100;
+const TEMPORARY_AI_ERROR_PATTERNS = [
+  '503',
+  '429',
+  'high demand',
+  'temporarily unavailable',
+  'overloaded',
+  'service unavailable',
+  'failed to fetch',
+  'networkerror',
+];
+const EMERGENCY_KEYWORDS = [
+  { label: 'Breathing difficulty', patterns: [/can'?t breathe/i, /cannot breathe/i, /difficulty breathing/i, /short(ness)? of breath/i, /喘/i] },
+  { label: 'Chest pain', patterns: [/chest pain/i, /tight chest/i, /胸痛/i] },
+  { label: 'Severe allergic reaction', patterns: [/swollen tongue/i, /swollen lips/i, /face swelling/i, /anaphyl/i, /allergic reaction/i] },
+  { label: 'Uncontrolled bleeding', patterns: [/bleeding.*won'?t stop/i, /cannot stop bleeding/i, /heavy bleeding/i] },
+  { label: 'Collapse or seizure', patterns: [/faint(ed|ing)?/i, /passed out/i, /unconscious/i, /seizure/i, /convulsion/i] },
+];
+const MODERATE_KEYWORDS = [
+  { label: 'Flu-like symptoms', patterns: [/\bflu\b/i, /\bfever\b/i, /\bchills?\b/i, /feel warm/i, /hot flush/i] },
+  { label: 'Dizziness', patterns: [/\bdizz(y|iness)\b/i, /lightheaded/i, /vertigo/i] },
+  { label: 'Nausea or vomiting', patterns: [/\bnausea\b/i, /\bvomit/i, /\bthrowing up\b/i] },
+  { label: 'Diarrhoea', patterns: [/\bdiarrh/i, /\bloose stool/i] },
+  { label: 'Rash or skin reaction', patterns: [/\brash\b/i, /\bhives\b/i, /\bitch(y|ing)\b/i] },
+  { label: 'Headache', patterns: [/\bheadache\b/i, /\bmigraine\b/i] },
+];
+const MILD_KEYWORDS = [
+  { label: 'Tiredness', patterns: [/\btired\b/i, /\bfatigue\b/i, /\bweak\b/i] },
+  { label: 'Body ache', patterns: [/\bache\b/i, /\bsore\b/i, /\bpain\b/i] },
+  { label: 'Cough or sore throat', patterns: [/\bcough\b/i, /\bsore throat\b/i, /\bthroat pain\b/i] },
+];
 
 function stripCodeFences(text) {
   return String(text || '')
@@ -71,6 +103,154 @@ function sanitizePhoneNumber(value) {
   return String(value || '').replace(/[^\d+]/g, '');
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getErrorMessage(error) {
+  return String(error?.message || error || '').trim();
+}
+
+function isTemporaryAiError(error) {
+  const message = getErrorMessage(error).toLowerCase();
+  return TEMPORARY_AI_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
+}
+
+function findFirstKeywordMatch(text, groups) {
+  for (const entry of groups) {
+    if (entry.patterns.some((pattern) => pattern.test(text))) {
+      return entry.label;
+    }
+  }
+  return '';
+}
+
+function inferLatestVitalsSummary(patientData) {
+  const latest = Array.isArray(patientData?.vitals) && patientData.vitals.length > 0 ? patientData.vitals[0] : null;
+  if (!latest) {
+    return {
+      summary: 'No recent vitals available in the app.',
+      hasCriticalVitals: false,
+    };
+  }
+
+  const rows = [];
+  if (latest.temperature) rows.push(`Temp ${latest.temperature} C`);
+  if (latest.bpSys) rows.push(`BP ${latest.bpSys}/${latest.bpDia || '-'}`);
+  if (latest.heartRate) rows.push(`HR ${latest.heartRate}`);
+  if (latest.spo2) rows.push(`SpO2 ${latest.spo2}%`);
+
+  const temp = Number(latest.temperature || 0);
+  const spo2 = Number(latest.spo2 || 0);
+  const bpSys = Number(latest.bpSys || 0);
+  const hasCriticalVitals = (temp && temp >= 39) || (spo2 && spo2 > 0 && spo2 < 92) || bpSys >= 180;
+
+  return {
+    summary: rows.length > 0 ? rows.join(' | ') : 'No recent vitals available in the app.',
+    hasCriticalVitals,
+  };
+}
+
+function looksLikeSymptomReport(userText) {
+  const text = String(userText || '').trim().toLowerCase();
+  if (!text) return false;
+  if (text.length >= 12) return true;
+  return (
+    EMERGENCY_KEYWORDS.some((entry) => entry.patterns.some((pattern) => pattern.test(text))) ||
+    MODERATE_KEYWORDS.some((entry) => entry.patterns.some((pattern) => pattern.test(text))) ||
+    MILD_KEYWORDS.some((entry) => entry.patterns.some((pattern) => pattern.test(text)))
+  );
+}
+
+function buildFallbackSideEffectAssessment({ userText, patientData, activeProtocolName }) {
+  const text = String(userText || '').trim();
+  const normalized = text.toLowerCase();
+  const vitals = inferLatestVitalsSummary(patientData);
+  const emergencyLabel = findFirstKeywordMatch(normalized, EMERGENCY_KEYWORDS);
+  const moderateLabel = findFirstKeywordMatch(normalized, MODERATE_KEYWORDS);
+  const mildLabel = findFirstKeywordMatch(normalized, MILD_KEYWORDS);
+
+  let severity = 'mild';
+  let symptomTitle = moderateLabel || mildLabel || 'Patient-reported symptom';
+  let immediateHelpRequested = false;
+  let shouldAlertCrc = false;
+  let triageSummary = 'Fallback triage used because the AI guidance service was temporarily unavailable.';
+  let guidanceTitle = 'Temporary guidance fallback';
+  let safetyAction = 'Please monitor the symptom closely, record your vitals if you can, and contact CRC if it gets worse or keeps coming back.';
+
+  if (emergencyLabel || vitals.hasCriticalVitals) {
+    severity = 'serious';
+    symptomTitle = emergencyLabel || 'Possible urgent symptom';
+    immediateHelpRequested = true;
+    shouldAlertCrc = true;
+    guidanceTitle = 'Urgent safety fallback';
+    triageSummary =
+      'Possible urgent symptom detected while the AI service was unavailable. Immediate phone escalation was recommended.';
+    safetyAction =
+      'Call the study emergency number or local emergency services immediately. Do not wait for chat if you feel unsafe, cannot breathe, have severe chest pain, uncontrolled bleeding, collapse, or rapidly worsening symptoms.';
+  } else if (moderateLabel) {
+    severity = 'moderate';
+    symptomTitle = moderateLabel;
+    shouldAlertCrc = true;
+    guidanceTitle = 'Same-day CRC follow-up fallback';
+    triageSummary =
+      'Moderate symptom pattern detected while the AI service was unavailable. Same-day CRC follow-up was recommended.';
+    safetyAction =
+      'Please record your latest vitals if possible, rest, avoid taking any extra study medication unless already instructed, and contact CRC today for review. Use the emergency call option sooner if symptoms worsen.';
+  }
+
+  const assistantText = [
+    `**${guidanceTitle}.** The AI service is temporarily busy, so I am using a safety fallback.`,
+    '',
+    `**What I understood:** ${text || 'A possible symptom was reported.'}`,
+    '',
+    `**Current triage level:** ${severity.toUpperCase()}`,
+    '',
+    `**Immediate next step:** ${safetyAction}`,
+    '',
+    `**Recent vitals:** ${vitals.summary}`,
+    '',
+    `**Protocol note:** I cannot safely confirm protocol-specific wording right now${activeProtocolName ? ` for ${activeProtocolName}` : ''}. CRC can review the active protocol directly if needed.`,
+    '',
+    '**Safety note:** This message is still documented for audit. If you feel suddenly worse, use direct phone escalation instead of waiting in chat.',
+  ].join('\n');
+
+  return {
+    assistantText,
+    extracted: {
+      contains_side_effect_report: looksLikeSymptomReport(text),
+      symptom_title: symptomTitle,
+      details: text,
+      severity,
+      onset_at_hint: new Date().toISOString(),
+      immediate_help_requested: immediateHelpRequested,
+      protocol_covered: null,
+      protocol_guidance: '',
+      should_alert_crc: shouldAlertCrc,
+      triage_summary: triageSummary,
+    },
+  };
+}
+
+async function generateContentWithRetry(model, parts) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const result = await model.generateContent(parts);
+      return result.response.text().trim();
+    } catch (error) {
+      lastError = error;
+      if (!isTemporaryAiError(error) || attempt === 1) {
+        throw error;
+      }
+      await sleep(1200 * (attempt + 1));
+    }
+  }
+
+  throw lastError || new Error('AI guidance request failed.');
+}
+
 function formatVitalLog(entry) {
   const date = new Date(entry.timestamp).toLocaleDateString();
   const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -101,16 +281,19 @@ const GeminiChatbot = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [historyReady, setHistoryReady] = useState(false);
+  const [showEmergencySheet, setShowEmergencySheet] = useState(false);
 
-  const flatListRef = useRef(null);
+  const scrollViewRef = useRef(null);
   const introWrittenRef = useRef(false);
   const protocolCacheRef = useRef({ key: null, part: null });
 
+  const { startCall } = useCall();
   const currentAiName = role === 'crc' ? CRC_AI_NAME : PATIENT_AI_NAME;
   const historyCollectionRef = userId ? collection(db, 'users', userId, 'ai_chat_history') : null;
 
   const callTargets = useMemo(
     () => ({
+      crcUserId: contactContext.primaryCrcId || '',
       crcLabel: contactContext.primaryCrcName || 'CRC',
       crcPhone: sanitizePhoneNumber(contactContext.primaryCrcPhone),
       emergencyPhone: sanitizePhoneNumber(contactContext.studyEmergencyPhone) || DEFAULT_EMERGENCY_PHONE,
@@ -129,12 +312,16 @@ const GeminiChatbot = ({
       return undefined;
     }
 
-    const historyQuery = query(historyCollectionRef, orderBy('timestamp', 'asc'));
+    const historyQuery = query(
+      historyCollectionRef,
+      orderBy('timestamp', 'desc'),
+      limit(CHAT_HISTORY_LIMIT)
+    );
     const unsubscribe = onSnapshot(historyQuery, (snapshot) => {
       const nextMessages = snapshot.docs.map((entry) => ({
         id: entry.id,
         ...entry.data(),
-      }));
+      })).reverse();
       setMessages(nextMessages);
       setHistoryReady(true);
       if (nextMessages.length > 0) {
@@ -150,6 +337,12 @@ const GeminiChatbot = ({
       setIsOpen(true);
     }
   }, [openSignal]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 120);
+    return () => clearTimeout(timer);
+  }, [isOpen, isLoading, messages]);
 
   const saveMessage = useCallback(async (messageRole, text) => {
     if (!historyCollectionRef || !text) return;
@@ -176,12 +369,6 @@ const GeminiChatbot = ({
     saveMessage('model', intro);
   }, [currentAiName, historyReady, isOpen, messages.length, role, saveMessage, userNickname]);
 
-  useEffect(() => {
-    if (messages.length > 0 && isOpen) {
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120);
-    }
-  }, [messages, isOpen, isLoading]);
-
   const fetchFullPatientContext = async (targetId) => {
     let vitalsStr = 'No vitals recorded.';
     let appointmentsStr = 'No upcoming appointments.';
@@ -195,7 +382,7 @@ const GeminiChatbot = ({
       if (patientData?.vitals?.length) {
         vitalsStr = patientData.vitals.slice(0, 10).map(formatVitalLog).join('\n');
       } else {
-        const vitalsQuery = query(collection(db, 'users', targetId, 'vitals'), orderBy('timestamp', 'desc'), limit(10));
+        const vitalsQuery = query(collection(db, 'users', targetId, 'vitals'), orderBy('timestamp', 'desc'), limit(5));
         const vitalsSnapshot = await getDocs(vitalsQuery);
         if (!vitalsSnapshot.empty) {
           vitalsStr = vitalsSnapshot.docs.map((entry) => formatVitalLog(entry.data())).join('\n');
@@ -211,7 +398,7 @@ const GeminiChatbot = ({
         const appointmentQuery = query(
           collection(db, 'users', targetId, 'appointments'),
           orderBy('datetime', 'asc'),
-          limit(5)
+          limit(3)
         );
         const appointmentSnapshot = await getDocs(appointmentQuery);
         if (!appointmentSnapshot.empty) {
@@ -224,10 +411,12 @@ const GeminiChatbot = ({
         }
       }
 
-      const userSnapshot = await getDoc(doc(db, 'users', targetId));
-      if (userSnapshot.exists()) {
-        const profile = userSnapshot.data();
-        protocolStatus = profile.protocolName || protocolStatus;
+      if (!activeProtocolName && !patientData?.protocolName) {
+        const userSnapshot = await getDoc(doc(db, 'users', targetId));
+        if (userSnapshot.exists()) {
+          const profile = userSnapshot.data();
+          protocolStatus = profile.protocolName || protocolStatus;
+        }
       }
     } catch (error) {
       console.error('Patient context read failed:', error);
@@ -243,9 +432,7 @@ const GeminiChatbot = ({
     }
 
     try {
-      const resolvedUrl = protocolUrl.startsWith('http')
-        ? protocolUrl
-        : await getSignedUrl(protocolUrl, 'protocol');
+      const resolvedUrl = protocolUrl.startsWith('http') ? protocolUrl : await getSignedUrl(protocolUrl, 'protocol');
       if (!resolvedUrl) {
         protocolCacheRef.current = { key: protocolUrl, part: null };
         return null;
@@ -272,7 +459,7 @@ const GeminiChatbot = ({
 
   const retrieveCtcaeContext = async (queryText) => {
     try {
-      if (!queryText || queryText.trim().length < 3) return '';
+      if (!queryText || queryText.trim().length < 3 || !GEMINI_API_KEY) return '';
 
       const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
       const embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
@@ -299,9 +486,20 @@ const GeminiChatbot = ({
     }
   };
 
-  const generateAssistantText = async ({ userText, transcript, vitalsStr, appointmentsStr, protocolStatus, ctcaeContext }) => {
+  const generateAssistantText = async ({
+    userText,
+    transcript,
+    vitalsStr,
+    appointmentsStr,
+    protocolStatus,
+    ctcaeContext,
+  }) => {
+    if (!GEMINI_API_KEY) {
+      throw new Error('Gemini API key is missing. Add EXPO_PUBLIC_GEMINI_API_KEY to the patient app .env and restart Expo.');
+    }
+
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: SIDE_EFFECT_GUIDANCE_MODEL });
     const protocolPart = await getProtocolInlinePart();
 
     const instructions = `
@@ -343,15 +541,15 @@ ${ctcaeContext || 'None'}
     if (protocolPart) parts.push(protocolPart);
     parts.push({ text: instructions });
 
-    const result = await model.generateContent(parts);
-    return result.response.text().trim();
+    return generateContentWithRetry(model, parts);
   };
 
   const extractSideEffectEvent = async ({ userText, transcript, vitalsStr, protocolStatus, ctcaeContext }) => {
     if (role !== 'patient') return null;
+    if (!GEMINI_API_KEY) return null;
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: SIDE_EFFECT_GUIDANCE_MODEL });
     const protocolPart = await getProtocolInlinePart();
 
     const extractorPrompt = `
@@ -402,11 +600,11 @@ Schema:
     if (protocolPart) parts.push(protocolPart);
     parts.push({ text: extractorPrompt });
 
-    const result = await model.generateContent(parts);
-    return safeJsonParse(result.response.text());
+    const resultText = await generateContentWithRetry(model, parts);
+    return safeJsonParse(resultText);
   };
 
-  const callPhoneNumber = async (phoneNumber, label) => {
+  const openPhoneLink = async (phoneNumber, label) => {
     const sanitized = sanitizePhoneNumber(phoneNumber);
     if (!sanitized) {
       Alert.alert('Phone not configured', `${label} phone number has not been configured yet.`);
@@ -421,6 +619,24 @@ Schema:
     }
 
     await Linking.openURL(url);
+  };
+
+  const copyEmergencyNumber = async () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(callTargets.emergencyPhone);
+      Alert.alert('Copied', 'Emergency number copied to clipboard.');
+      return;
+    }
+
+    Alert.alert('Clipboard unavailable', 'Copy the number manually from the screen.');
+  };
+
+  const handleEmergencyCall = async () => {
+    if (Platform.OS === 'web') {
+      setShowEmergencySheet(true);
+      return;
+    }
+    await openPhoneLink(callTargets.emergencyPhone, 'Emergency services');
   };
 
   const handleStructuredSideEffect = async (userText, extracted) => {
@@ -453,8 +669,8 @@ Schema:
 
     const auditMessage =
       result.crcAlerted || severity === 'serious'
-        ? `**Audit note:** I documented this symptom and alerted CRC automatically. Use direct phone escalation immediately if symptoms are severe or worsening.`
-        : `**Audit note:** I documented this symptom in the audit trail and matched it to the active protocol guidance.`;
+        ? '**Audit note:** I documented this symptom and alerted CRC automatically. Use direct phone escalation immediately if symptoms are severe or worsening.'
+        : '**Audit note:** I documented this symptom in the audit trail and matched it to the active protocol guidance.';
 
     await saveMessage('system', auditMessage);
     return { ...result, severity, protocolCovered };
@@ -485,28 +701,59 @@ Schema:
 
       const triageResult = await handleStructuredSideEffect(userText, extracted);
       const emergencyMatch = assistantText?.match(/\*\*\*EMERGENCY: (.*?)\*\*\*/);
-      const shouldFallbackToLiveChat =
-        role === 'patient' &&
-        emergencyMatch &&
-        !triageResult?.crcAlerted;
+      const shouldFallbackToLiveChat = role === 'patient' && emergencyMatch && !triageResult?.crcAlerted;
 
       if (shouldFallbackToLiveChat && onEmergencyTrigger) {
         onEmergencyTrigger(emergencyMatch[1].trim());
       }
     } catch (error) {
       console.error('AI Error:', error);
-      await saveMessage('model', '⚠️ AI Error. I could not process that message just now. Please retry, or use direct phone contact if the symptom is urgent.');
+      if (role === 'patient') {
+        const fallback = buildFallbackSideEffectAssessment({
+          userText,
+          patientData,
+          activeProtocolName,
+        });
+
+        await saveMessage('model', fallback.assistantText);
+        const triageResult = await handleStructuredSideEffect(userText, fallback.extracted);
+        if (fallback.extracted.immediate_help_requested && onEmergencyTrigger && !triageResult?.crcAlerted) {
+          onEmergencyTrigger(fallback.extracted.triage_summary);
+        }
+      } else {
+        await saveMessage(
+          'model',
+          `AI Error. ${error.message || 'I could not process that message just now. Please retry.'}`
+        );
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const renderMessage = ({ item }) => {
+  const handleCrcCall = async (isVideo) => {
+    if (!callTargets.crcUserId) {
+      Alert.alert('CRC not configured', 'Primary CRC must be assigned before in-app calling can start.');
+      return;
+    }
+
+    try {
+      await startCall(callTargets.crcUserId, callTargets.crcLabel, isVideo);
+    } catch (error) {
+      console.error('Call start failed:', error);
+      Alert.alert('Call failed', error.message || 'Unable to start the in-app call.');
+    }
+  };
+
+  const renderMessage = (item, index) => {
     const isUser = item.role === 'user';
     const isSystem = item.role === 'system';
 
     return (
-      <View style={[styles.msgRow, isUser ? styles.userRow : isSystem ? styles.systemRow : styles.modelRow]}>
+      <View
+        key={item.id || `${item.role}-${index}`}
+        style={[styles.msgRow, isUser ? styles.userRow : isSystem ? styles.systemRow : styles.modelRow]}
+      >
         <View
           style={[
             styles.bubble,
@@ -557,12 +804,15 @@ Schema:
                 talk, walk, or control bleeding normally.
               </Text>
               <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.callButton} onPress={() => callPhoneNumber(callTargets.crcPhone, callTargets.crcLabel)}>
-                  <Text style={styles.callButtonText}>Call {callTargets.crcLabel}</Text>
+                <TouchableOpacity style={styles.callButton} onPress={() => handleCrcCall(false)}>
+                  <Text style={styles.callButtonText}>Call CRC</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.callButton} onPress={() => handleCrcCall(true)}>
+                  <Text style={styles.callButtonText}>Video Call CRC</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.callButton, styles.callButtonDanger]}
-                  onPress={() => callPhoneNumber(callTargets.emergencyPhone, 'Emergency services')}
+                  onPress={handleEmergencyCall}
                 >
                   <Text style={styles.callButtonText}>Emergency Call</Text>
                 </TouchableOpacity>
@@ -570,20 +820,21 @@ Schema:
             </View>
           ) : null}
 
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item, index) => item.id || `${item.role}-${index}`}
-            renderItem={renderMessage}
-            contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
-            ListEmptyComponent={
-              historyReady ? (
+          <View style={styles.chatBody}>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesScroll}
+              contentContainerStyle={styles.messagesContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              {historyReady && messages.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>No audit chat history yet.</Text>
                 </View>
-              ) : null
-            }
-          />
+              ) : null}
+              {messages.map(renderMessage)}
+            </ScrollView>
+          </View>
 
           {isLoading ? <ActivityIndicator style={{ marginBottom: 10 }} color="#0056b3" /> : null}
 
@@ -604,6 +855,32 @@ Schema:
             </TouchableOpacity>
           </View>
         </View>
+
+        <Modal visible={showEmergencySheet} transparent animationType="fade">
+          <View style={styles.sheetBackdrop}>
+            <View style={styles.sheetCard}>
+              <Text style={styles.sheetTitle}>Emergency Call</Text>
+              <Text style={styles.sheetText}>
+                Use this trial or site emergency number for urgent phone escalation.
+              </Text>
+              <Text style={styles.sheetNumber}>{callTargets.emergencyPhone}</Text>
+              <View style={styles.sheetActions}>
+                <TouchableOpacity style={styles.sheetButtonSecondary} onPress={copyEmergencyNumber}>
+                  <Text style={styles.sheetButtonSecondaryText}>Copy number</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.sheetButtonPrimary}
+                  onPress={() => openPhoneLink(callTargets.emergencyPhone, 'Emergency services')}
+                >
+                  <Text style={styles.sheetButtonPrimaryText}>Open dialer</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => setShowEmergencySheet(false)}>
+                <Text style={styles.sheetClose}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -628,6 +905,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     overflow: 'hidden',
+    display: 'flex',
   },
   header: {
     padding: 16,
@@ -652,9 +930,10 @@ const styles = StyleSheet.create({
   },
   guidanceTitle: { fontWeight: '700', color: '#14324a', marginBottom: 6 },
   guidanceText: { color: '#52606d', lineHeight: 18, marginBottom: 12 },
-  actionRow: { flexDirection: 'row', gap: 10 },
+  actionRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   callButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 120,
     backgroundColor: '#0f609b',
     paddingVertical: 12,
     borderRadius: 12,
@@ -664,6 +943,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#b42318',
   },
   callButtonText: { color: 'white', fontWeight: '700', fontSize: 13 },
+  chatBody: {
+    flex: 1,
+    minHeight: 0,
+  },
+  messagesScroll: {
+    flex: 1,
+  },
+  messagesContent: {
+    padding: 12,
+    paddingBottom: 20,
+    flexGrow: 1,
+  },
   msgRow: { marginBottom: 10, flexDirection: 'row' },
   userRow: { justifyContent: 'flex-end' },
   modelRow: { justifyContent: 'flex-start' },
@@ -700,6 +991,69 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   sendBtnText: { color: 'white', fontWeight: '700' },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(12,31,48,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  sheetCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#14324a',
+    marginBottom: 8,
+  },
+  sheetText: {
+    color: '#52606d',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  sheetNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#b42318',
+    marginBottom: 16,
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  sheetButtonPrimary: {
+    flex: 1,
+    backgroundColor: '#0f609b',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  sheetButtonPrimaryText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  sheetButtonSecondary: {
+    flex: 1,
+    backgroundColor: '#eef3f8',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  sheetButtonSecondaryText: {
+    color: '#14324a',
+    fontWeight: '700',
+  },
+  sheetClose: {
+    color: '#0f609b',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
 });
 
 const markdownStyles = {

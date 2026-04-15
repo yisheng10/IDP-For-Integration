@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -160,7 +161,8 @@ export async function submitSideEffectReport({
 export function subscribeToSideEffectReports(userId, onUpdate, onError) {
   const reportsQuery = query(
     collection(db, 'users', userId, 'side_effect_reports'),
-    orderBy('submitted_at', 'desc')
+    orderBy('submitted_at', 'desc'),
+    limit(20)
   );
 
   return onSnapshot(

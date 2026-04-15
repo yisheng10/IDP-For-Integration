@@ -9,7 +9,13 @@ import {
   Text, TextInput, TouchableOpacity,
   View
 } from 'react-native';
-import { sendAlert, sendChatMessage, startDirectMessage, subscribeToChat } from '../services/alertService';
+import {
+  markAlertRead,
+  sendAlert,
+  sendChatMessage,
+  startDirectMessage,
+  subscribeToChat,
+} from '../services/alertService';
 
 const LiveChatWidget = ({ 
   user, 
@@ -89,10 +95,16 @@ const LiveChatWidget = ({
     if (!activeAlertRef) return;
     const unsubChat = subscribeToChat(activeAlertRef, (msgs) => setMessages(msgs));
     const unsubAlert = onSnapshot(activeAlertRef, (doc) => {
-      if (doc.exists()) setIsResolved(doc.data().status === 'read');
+      if (doc.exists()) {
+        const data = doc.data();
+        setIsResolved(data.status === 'read');
+        if (role === 'patient' && data.status === 'unread' && data.lastSender === 'crc') {
+          markAlertRead(activeAlertRef).catch((error) => console.error('Failed to mark alert read:', error));
+        }
+      }
     });
     return () => { unsubChat(); unsubAlert(); };
-  }, [activeAlertRef]);
+  }, [activeAlertRef, role]);
 
   useEffect(() => {
     if (messages.length > 0 && isOpen && viewMode === 'chat') {

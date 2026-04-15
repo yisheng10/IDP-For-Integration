@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import CalendarDateField from './CalendarDateField';
 import { auth, db } from '../firebase';
 import { enforceRoleSecurity } from '../utils';
 
@@ -59,7 +60,16 @@ export default function Login({ type, onLogin }) {
   const [lastName, setLastName] = useState('');
   const [gender, setGender] = useState('');
   const [dob, setDob] = useState('');
+  const [caregiverSupport, setCaregiverSupport] = useState('');
+  const [distanceToSiteKm, setDistanceToSiteKm] = useState('');
   const [isReg, setIsReg] = useState(false);
+
+  const isValidIsoDob = /^\d{4}-\d{2}-\d{2}$/.test(String(dob || ''));
+  const parsedDistanceToSiteKm = Number(distanceToSiteKm);
+  const hasValidDistanceToSiteKm =
+    String(distanceToSiteKm || '').trim() !== '' &&
+    Number.isFinite(parsedDistanceToSiteKm) &&
+    parsedDistanceToSiteKm >= 0;
 
   const handleAuth = async () => {
     try {
@@ -68,8 +78,14 @@ export default function Login({ type, onLogin }) {
 
       let user;
       if (isReg) {
-        if (type === 'patient' && (!firstName || !lastName || !gender || !dob)) {
+        if (type === 'patient' && (!firstName || !lastName || !gender || !dob || !caregiverSupport || !distanceToSiteKm)) {
           throw new Error('All fields are required.');
+        }
+        if (type === 'patient' && !isValidIsoDob) {
+          throw new Error('Please select a valid date of birth.');
+        }
+        if (type === 'patient' && !hasValidDistanceToSiteKm) {
+          throw new Error('Please enter a valid distance to site in kilometres.');
         }
 
         const response = await createUserWithEmailAndPassword(auth, email, password);
@@ -83,6 +99,8 @@ export default function Login({ type, onLogin }) {
             nickname: `${firstName} ${lastName}`,
             gender,
             dob,
+            caregiver_support: caregiverSupport === 'yes',
+            distance_to_site_km: parsedDistanceToSiteKm,
             role: type,
             email: user.email,
           },
@@ -139,8 +157,39 @@ export default function Login({ type, onLogin }) {
                 ))}
               </View>
 
-              <Text style={styles.label}>Date of birth</Text>
-              <TextInput style={styles.input} placeholder="YYYY-MM-DD" value={dob} onChangeText={setDob} />
+              <CalendarDateField
+                label="Date of birth"
+                value={dob}
+                onChange={setDob}
+                placeholder="Select date of birth"
+              />
+
+              <Text style={styles.label}>Caregiver support</Text>
+              <View style={styles.row}>
+                {[
+                  ['yes', 'Yes'],
+                  ['no', 'No'],
+                ].map(([value, label]) => (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.genderButton, caregiverSupport === value && styles.genderButtonActive]}
+                    onPress={() => setCaregiverSupport(value)}
+                  >
+                    <Text style={[styles.genderText, caregiverSupport === value && styles.genderTextActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Distance to study site (km)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 12.5"
+                value={distanceToSiteKm}
+                onChangeText={setDistanceToSiteKm}
+                keyboardType="decimal-pad"
+              />
             </>
           ) : null}
 

@@ -25,7 +25,7 @@ const ProtocolManager = ({ selectedPatient }) => {
       const q = query(collection(db, "protocols"), orderBy("uploadedAt", "desc"));
       const snapshot = await getDocs(q);
       setLibrary(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    } catch (e) { console.error("Fetch Library Error:", e); } 
+    } catch (_error) { console.error("Fetch Library Error:", _error); } 
     finally { setLoading(false); }
   };
 
@@ -64,7 +64,7 @@ const ProtocolManager = ({ selectedPatient }) => {
         await updateDoc(patientRef, { protocolName: protocol.name, protocolUrl: protocol.storagePath, protocolStatus: 'active', protocolAssignedAt: new Date().toISOString() });
         Alert.alert("Assigned", `"${protocol.name}" is now active.`);
       }
-    } catch (e) { Alert.alert("Error", e.message); }
+    } catch (_error) { Alert.alert("Error", _error.message); }
   };
 
   const handlePreview = async (storagePath) => {
@@ -72,7 +72,7 @@ const ProtocolManager = ({ selectedPatient }) => {
       const { data, error } = await supabase.storage.from('protocol').createSignedUrl(decodeURIComponent(storagePath), 60);
       if (error) throw error;
       if (data?.signedUrl) Linking.openURL(data.signedUrl);
-    } catch (e) { Alert.alert("Error", "Could not open file link"); }
+    } catch (_error) { Alert.alert("Error", "Could not open file link"); }
   };
 
   const handleDeleteGlobal = async (protocol) => {
@@ -86,7 +86,7 @@ const ProtocolManager = ({ selectedPatient }) => {
             await Promise.all(snapshot.docs.map(u => updateDoc(doc(db, "users", u.id), { protocolName: null, protocolUrl: null, protocolStatus: null })));
             await deleteDoc(doc(db, "protocols", protocol.id));
             fetchGlobalLibrary();
-          } catch(e) { Alert.alert("Error", e.message); } finally { setLoading(false); }
+          } catch(_error) { Alert.alert("Error", _error.message); } finally { setLoading(false); }
       }}
     ]);
   };

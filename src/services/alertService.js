@@ -13,10 +13,18 @@ import {
 import { db } from '../firebase'; // <--- Ensure firebase.js is in src/
 import { syncPatientEmergencyToIncident } from './incidentService';
 
+const DEFAULT_ALERT_LIST_LIMIT = 20;
+const DEFAULT_CHAT_MESSAGE_LIMIT = 100;
+
 // --- SUBSCRIPTIONS ---
 
 export const subscribeToUnresolvedAlerts = (onUpdate, onError) => {
-  const q = query(collectionGroup(db, 'alerts'), where('status', '==', 'unread'), orderBy('timestamp', 'desc'));
+  const q = query(
+    collectionGroup(db, 'alerts'),
+    where('status', '==', 'unread'),
+    orderBy('timestamp', 'desc'),
+    limit(DEFAULT_ALERT_LIST_LIMIT)
+  );
   return onSnapshot(q, (snapshot) => {
     const alerts = snapshot.docs.map(d => ({ id: d.id, ref: d.ref, uid: d.ref.parent.parent.id, ...d.data() }));
     onUpdate(alerts);
@@ -24,7 +32,11 @@ export const subscribeToUnresolvedAlerts = (onUpdate, onError) => {
 };
 
 export const subscribeToAlertHistory = (userId, onUpdate) => {
-  const q = query(collection(db, "users", userId, "alerts"), orderBy('timestamp', 'desc'));
+  const q = query(
+    collection(db, "users", userId, "alerts"),
+    orderBy('timestamp', 'desc'),
+    limit(DEFAULT_ALERT_LIST_LIMIT)
+  );
   return onSnapshot(q, (snapshot) => {
     const history = snapshot.docs.map(d => ({ id: d.id, ref: d.ref, ...d.data() }));
     onUpdate(history);
@@ -33,6 +45,13 @@ export const subscribeToAlertHistory = (userId, onUpdate) => {
 
 export const resolveAlert = async (alertRef) => {
   await updateDoc(alertRef, { status: 'read', resolvedAt: new Date().toISOString() });
+};
+
+export const markAlertRead = async (alertRef) => {
+  await updateDoc(alertRef, {
+    status: 'read',
+    lastViewedByPatientAt: new Date().toISOString(),
+  });
 };
 
 // --- MESSAGING LOGIC ---
@@ -145,9 +164,13 @@ export const sendChatMessage = async (alertRef, role, message, senderName) => {
 };
 
 export const subscribeToChat = (alertRef, onUpdate) => {
-  const q = query(collection(alertRef, "messages"), orderBy("timestamp", "asc"));
+  const q = query(
+    collection(alertRef, "messages"),
+    orderBy("timestamp", "desc"),
+    limit(DEFAULT_CHAT_MESSAGE_LIMIT)
+  );
   return onSnapshot(q, (snapshot) => {
-    const msgs = snapshot.docs.map(d => d.data());
+    const msgs = snapshot.docs.map(d => d.data()).reverse();
     onUpdate(msgs);
   });
 };

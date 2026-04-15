@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { auth, db } from '../firebase';
 import {
+  buildEproAnswerSummary,
   deriveSubjectId,
   fetchDailySurvey,
   mirrorEproOperationalRecord,
@@ -107,16 +108,24 @@ export default function QuestionnaireScreen() {
       setAnswers({});
       setError('');
 
-      if (!payload.trial_complete) {
+      if (!payload.trial_complete && !payload.awaiting_crc_review) {
         await mirrorEproOperationalRecord({
           userId: currentUser.uid,
           subjectId,
           formId: payload.form_id,
+          dayNumber: typeof payload.day_number === 'number' ? payload.day_number : payload.day,
           assignedAt: payload.assigned_at,
           dueAt: payload.due_at,
           status: payload.status || 'assigned',
           sourceSystem: payload.source_system,
           questionCount: Array.isArray(payload.questions) ? payload.questions.length : 0,
+          reviewStatus: payload.review_status,
+          reviewScope: payload.review_scope,
+          reviewCutoffAt: payload.review_cutoff_at,
+          patientVisibleAt: payload.patient_visible_at,
+          approvedAt: payload.approved_at,
+          approvedBy: payload.approved_by,
+          autoReleasedAt: payload.auto_released_at,
         });
       }
     } catch (loadError) {
@@ -158,6 +167,10 @@ export default function QuestionnaireScreen() {
 
     setSubmitting(true);
     try {
+      const answerSummary = buildEproAnswerSummary({
+        questions: visibleQuestions,
+        answers,
+      });
       const payload = await submitDailySurvey({
         subjectId: profile.subjectId,
         patientName: profile.patientName,
@@ -168,6 +181,7 @@ export default function QuestionnaireScreen() {
         userId: profile.userId,
         subjectId: profile.subjectId,
         formId: payload.form_id || survey.form_id,
+        dayNumber: typeof payload.day_number === 'number' ? payload.day_number : survey.day,
         assignedAt: survey.assigned_at,
         dueAt: survey.due_at,
         submittedAt: payload.submitted_at,
@@ -175,6 +189,17 @@ export default function QuestionnaireScreen() {
         completionLatencySec: payload.completion_latency_sec,
         sourceSystem: payload.source_system,
         questionCount: visibleQuestions.length,
+        painScore: answerSummary.painScore,
+        anxietyScore: answerSummary.anxietyScore,
+        basePositiveFlags: answerSummary.basePositiveFlags,
+        hasFreeTextFollowup: answerSummary.hasFreeTextFollowup,
+        reviewStatus: payload.review_status || survey.review_status,
+        reviewScope: survey.review_scope,
+        reviewCutoffAt: survey.review_cutoff_at,
+        patientVisibleAt: survey.patient_visible_at,
+        approvedAt: survey.approved_at,
+        approvedBy: survey.approved_by,
+        autoReleasedAt: survey.auto_released_at,
       });
 
       Alert.alert('Questionnaire submitted', 'Your CRC-facing operational record has been updated.');
@@ -308,7 +333,19 @@ export default function QuestionnaireScreen() {
           </View>
         ) : null}
 
-        {!error && !survey?.trial_complete
+        {!error && survey?.awaiting_crc_review ? (
+          <View style={styles.awaitingCard}>
+            <Text style={styles.awaitingTitle}>Awaiting CRC review</Text>
+            <Text style={styles.awaitingBody}>
+              Today&apos;s questionnaire is awaiting CRC review.
+            </Text>
+            <Text style={styles.awaitingMeta}>
+              Review cutoff: {survey?.review_cutoff_at ? new Date(survey.review_cutoff_at).toLocaleString() : 'Not set'}
+            </Text>
+          </View>
+        ) : null}
+
+        {!error && !survey?.trial_complete && !survey?.awaiting_crc_review
           ? visibleQuestions.map((question) => {
               const questionType = inferQuestionType(question);
               const questionId = getQuestionId(question);
@@ -333,7 +370,7 @@ export default function QuestionnaireScreen() {
             })
           : null}
 
-        {!error && !survey?.trial_complete ? (
+        {!error && !survey?.trial_complete && !survey?.awaiting_crc_review ? (
           <TouchableOpacity
             style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
@@ -553,5 +590,28 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#136741',
     fontWeight: '600',
+  },
+  awaitingCard: {
+    backgroundColor: '#fff8e8',
+    borderColor: '#f0d79a',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  awaitingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#8a5a00',
+  },
+  awaitingBody: {
+    marginTop: 8,
+    color: '#7a6226',
+    lineHeight: 20,
+  },
+  awaitingMeta: {
+    marginTop: 10,
+    color: '#8a6a1d',
+    fontSize: 13,
   },
 });

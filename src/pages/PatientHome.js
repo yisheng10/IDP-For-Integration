@@ -1,11 +1,14 @@
-import { addDoc, collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { addDoc, collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  ScrollView, StyleSheet,
-  Text, TextInput, TouchableOpacity,
-  View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import GeminiChatbot from '../components/GeminiChatbot';
 import LiveChatWidget from '../components/LiveChatWidget';
@@ -15,121 +18,175 @@ import { subscribeToAlertHistory } from '../services/alertService';
 import { subscribeToAppointments, updateAppointmentStatus } from '../services/appointmentService';
 import { subscribeToEproSubmissions } from '../services/eproService';
 import { subscribeToSideEffectReports } from '../services/sideEffectService';
+import { subscribeToAssignedTrialTemplate } from '../services/trialTemplateService';
 import { handleLoggedVitalSafety } from '../services/vitalSafetyService';
 import { getStatusText } from '../utils';
 
 const PatientHome = ({ user, onLogout }) => {
   const router = useRouter();
-  // --- STATES FOR ALL VITALS ---
-  const [temp, setTemp] = useState('');
-  const [bpSys, setBpSys] = useState('');
-  const [bpDia, setBpDia] = useState('');
-  const [heartRate, setHeartRate] = useState('');
-  const [respRate, setRespRate] = useState('');
-  const [spo2, setSpo2] = useState('');
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
-  const [bmi, setBmi] = useState(''); // Calculated
-  const [glucoseFasting, setGlucoseFasting] = useState('');
-  const [glucosePost, setGlucosePost] = useState('');
-  const [pef, setPef] = useState('');
-  const [fev1, setFev1] = useState('');
-  const [inr, setInr] = useState('');
-  const [ketones, setKetones] = useState('');
-  const [waist, setWaist] = useState('');
+  const previousUnreadCountRef = useRef(0);
 
-  const [history, setHistory] = useState([]);
-  const [appointments, setAppointments] = useState([]);
   const [nickname, setNickname] = useState('');
+  const [protocolId, setProtocolId] = useState(null);
   const [protocolUrl, setProtocolUrl] = useState(null);
   const [protocolName, setProtocolName] = useState(null);
-  const [requiredVitals, setRequiredVitals] = useState(['temperature', 'spo2', 'bp']);
+  const [primaryCrcId, setPrimaryCrcId] = useState('');
   const [primaryCrcName, setPrimaryCrcName] = useState('');
   const [primaryCrcPhone, setPrimaryCrcPhone] = useState('');
   const [studyEmergencyPhone, setStudyEmergencyPhone] = useState('');
-  const [assistantOpenSignal, setAssistantOpenSignal] = useState(0);
 
-  const [widgetOpen, setWidgetOpen] = useState(false);
-  const [triggerReason, setTriggerReason] = useState(null);
+  const [assignedTemplate, setAssignedTemplate] = useState(null);
+  const [vitalTemplates, setVitalTemplates] = useState([]);
+  const [vitalValues, setVitalValues] = useState({});
+
+  const [history, setHistory] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [activeEmergencies, setActiveEmergencies] = useState([]);
+  const [allAlerts, setAllAlerts] = useState([]);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [replyBanner, setReplyBanner] = useState(null);
   const [eproRecords, setEproRecords] = useState([]);
   const [sideEffectReports, setSideEffectReports] = useState([]);
 
+  const [assistantOpenSignal, setAssistantOpenSignal] = useState(0);
+  const [widgetOpen, setWidgetOpen] = useState(false);
+  const [triggerReason, setTriggerReason] = useState(null);
+
   useEffect(() => {
-    const unsubUser = onSnapshot(doc(db, "users", user.uid), (d) => {
-      if(d.exists()) {
-        const data = d.data();
-        setNickname(data.nickname);
-        setProtocolUrl(data.protocolUrl);
-        setProtocolName(data.protocolName);
-        if (data.monitoredVitals) setRequiredVitals(data.monitoredVitals);
-        setPrimaryCrcName(data.primary_crc_name || data.primaryCrcName || '');
-        setPrimaryCrcPhone(data.primary_crc_phone || data.primaryCrcPhone || '');
-        setStudyEmergencyPhone(data.study_emergency_phone || data.studyEmergencyPhone || '');
-      }
+    const unsubscribeUser = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+      setNickname(data.nickname || '');
+      setProtocolId(data.protocolId || null);
+      setProtocolUrl(data.protocolUrl || null);
+      setProtocolName(data.protocolName || null);
+      setPrimaryCrcId(data.primary_crc_id || data.primaryCrcId || '');
+      setPrimaryCrcName(data.primary_crc_name || data.primaryCrcName || '');
+      setPrimaryCrcPhone(data.primary_crc_phone || data.primaryCrcPhone || '');
+      setStudyEmergencyPhone(data.study_emergency_phone || data.studyEmergencyPhone || '');
     });
 
-    const q = query(collection(db, "users", user.uid, "vitals"), orderBy("timestamp", "desc"));
-    const unsubHistory = onSnapshot(q, s => setHistory(s.docs.map(d => ({id:d.id,...d.data()}))));
-    
-    const unsubAppt = subscribeToAppointments(user.uid, (data) => setAppointments(data));
-
-    const unsubAlerts = subscribeToAlertHistory(user.uid, (data) => {
-      const actives = data.filter(a => a.type !== 'MESSAGE' && a.status === 'unread');
-      setActiveEmergencies(actives);
-      if (triggerReason) setWidgetOpen(true);
+    const historyQuery = query(
+      collection(db, 'users', user.uid, 'vitals'),
+      orderBy('timestamp', 'desc'),
+      limit(20)
+    );
+    const unsubscribeHistory = onSnapshot(historyQuery, (snapshot) => {
+      setHistory(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
     });
 
-    const unsubEpro = subscribeToEproSubmissions(user.uid, (records) => setEproRecords(records));
-    const unsubSideEffects = subscribeToSideEffectReports(user.uid, (records) => setSideEffectReports(records));
-    
-    return () => { unsubUser(); unsubHistory(); unsubAppt(); unsubAlerts(); unsubEpro(); unsubSideEffects(); };
-  }, [user, triggerReason]);
+    const unsubscribeAppointments = subscribeToAppointments(user.uid, (records) => setAppointments(records));
+    const unsubscribeAlerts = subscribeToAlertHistory(user.uid, (records) => {
+      setAllAlerts(records);
+      const emergencies = records.filter((entry) => entry.type !== 'MESSAGE' && entry.status === 'unread');
+      setActiveEmergencies(emergencies);
 
-  // --- AUTO CALCULATE BMI ---
-  useEffect(() => {
-    if (weight && height) {
-      const hMeters = parseFloat(height) / 100;
-      const wKg = parseFloat(weight);
-      if (hMeters > 0 && wKg > 0) {
-        setBmi((wKg / (hMeters * hMeters)).toFixed(1));
-      } else {
-        setBmi('');
+      const unreadCrcReplies = records.filter(
+        (entry) => entry.status === 'unread' && entry.lastSender === 'crc'
+      );
+      if (unreadCrcReplies.length > previousUnreadCountRef.current) {
+        const newestReply = unreadCrcReplies[0];
+        setReplyBanner({
+          title: 'CRC replied',
+          body: newestReply.reason || 'A CRC message is waiting for you.',
+          alert: newestReply,
+        });
       }
-    }
-  }, [weight, height]);
+      previousUnreadCountRef.current = unreadCrcReplies.length;
+    });
 
-  const handleAdd = async () => {
-    // Basic Validation for core vitals if required
-    if (requiredVitals.includes('temperature') && !temp) return Alert.alert("Missing", "Enter Temperature");
-    if (requiredVitals.includes('spo2') && !spo2) return Alert.alert("Missing", "Enter SpO2");
-    
-    const dataPayload = {
-      timestamp: new Date().toISOString(),
-      // Add if values exist
-      ...(temp && { temperature: temp }),
-      ...(bpSys && { bpSys }),
-      ...(bpDia && { bpDia }),
-      ...(heartRate && { heartRate }),
-      ...(respRate && { respRate }),
-      ...(spo2 && { spo2 }),
-      ...(weight && { weight }),
-      ...(height && { height }),
-      ...(bmi && { bmi }),
-      ...(glucoseFasting && { glucoseFasting }),
-      ...(glucosePost && { glucosePost }),
-      ...(pef && { pef }),
-      ...(fev1 && { fev1 }),
-      ...(inr && { inr }),
-      ...(ketones && { ketones }),
-      ...(waist && { waist }),
+    const unsubscribeEpro = subscribeToEproSubmissions(user.uid, (records) => setEproRecords(records));
+    const unsubscribeSideEffects = subscribeToSideEffectReports(user.uid, (records) => setSideEffectReports(records));
+
+    return () => {
+      unsubscribeUser();
+      unsubscribeHistory();
+      unsubscribeAppointments();
+      unsubscribeAlerts();
+      unsubscribeEpro();
+      unsubscribeSideEffects();
+    };
+  }, [user.uid]);
+
+  useEffect(() => {
+    const profile = {
+      protocolId,
+      protocolName,
+      monitoredVitals: [],
     };
 
-    await addDoc(collection(db, "users", user.uid, "vitals"), dataPayload);
+    const unsubscribe = subscribeToAssignedTrialTemplate(
+      profile,
+      (template) => {
+        setAssignedTemplate(template);
+        setVitalTemplates(template?.vital_templates || []);
+      },
+      (error) => console.error('Trial template subscription failed:', error)
+    );
+
+    return () => unsubscribe?.();
+  }, [protocolId, protocolName]);
+
+  const unreadCrcReplies = useMemo(
+    () => allAlerts.filter((entry) => entry.status === 'unread' && entry.lastSender === 'crc'),
+    [allAlerts]
+  );
+
+  const latestEproRecord =
+    eproRecords.find((record) => record.status && record.status !== 'submitted') || eproRecords[0] || null;
+  const isAwaitingCrcReview =
+    latestEproRecord?.status === 'pending_crc_review' ||
+    latestEproRecord?.review_status === 'pending_crc_review';
+
+  const updateVitalValue = (key, value) => {
+    setVitalValues((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
+
+  const buildVitalPayload = () => {
+    const payload = {
+      timestamp: new Date().toISOString(),
+    };
+
+    vitalTemplates.forEach((template) => {
+      if (template.input_type === 'blood_pressure') {
+        const systolicKey = template.systolic_key || 'bpSys';
+        const diastolicKey = template.diastolic_key || 'bpDia';
+        if (vitalValues[systolicKey]) payload[systolicKey] = vitalValues[systolicKey];
+        if (vitalValues[diastolicKey]) payload[diastolicKey] = vitalValues[diastolicKey];
+      } else {
+        const storageKey = template.storage_key || template.key;
+        if (vitalValues[storageKey]) payload[storageKey] = vitalValues[storageKey];
+      }
+    });
+
+    if (payload.weight && payload.height) {
+      const weight = Number(payload.weight);
+      const heightMeters = Number(payload.height) / 100;
+      if (weight > 0 && heightMeters > 0) {
+        payload.bmi = (weight / (heightMeters * heightMeters)).toFixed(1);
+      }
+    }
+
+    return payload;
+  };
+
+  const handleAddVitals = async () => {
+    const payload = buildVitalPayload();
+    const enteredKeys = Object.keys(payload).filter((key) => key !== 'timestamp' && key !== 'bmi');
+
+    if (!enteredKeys.length) {
+      Alert.alert('Missing data', 'Enter at least one monitored vital before saving.');
+      return;
+    }
+
+    await addDoc(collection(db, 'users', user.uid, 'vitals'), payload);
 
     const safetyResult = await handleLoggedVitalSafety({
       userId: user.uid,
-      vitalPayload: dataPayload,
+      vitalPayload: payload,
       reporterName: nickname || 'Patient',
     });
 
@@ -141,52 +198,113 @@ const PatientHome = ({ user, onLogout }) => {
           : `CRC has been alerted automatically. Flagged issues: ${safetyResult.summary}.`
       );
     } else {
-      Alert.alert("Success", "Vitals logged successfully.");
+      Alert.alert('Success', 'Vitals logged successfully.');
     }
 
-    // Clear all
-    setTemp(''); setBpSys(''); setBpDia(''); setHeartRate(''); setRespRate('');
-    setSpo2(''); setWeight(''); setHeight(''); setBmi(''); setGlucoseFasting('');
-    setGlucosePost(''); setPef(''); setFev1(''); setInr(''); setKetones(''); setWaist('');
+    setVitalValues({});
   };
 
-  const handleStatusUpdate = async (id, status) => { 
-    try { await updateAppointmentStatus(user.uid, id, status); } 
-    catch (e) { Alert.alert("Error", e.message); } 
-  };
-  
-  const handleAIAlert = (reason) => { 
-    setTriggerReason(null); 
-    setTimeout(() => { setTriggerReason(reason || "AI Risk Detected"); setWidgetOpen(true); }, 100); 
+  const handleStatusUpdate = async (appointmentId, status) => {
+    try {
+      await updateAppointmentStatus(user.uid, appointmentId, status);
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
   };
 
-  const latestEproRecord =
-    eproRecords.find((record) => record.status && record.status !== 'submitted') || eproRecords[0] || null;
+  const handleAIAlert = (reason) => {
+    setTriggerReason(null);
+    setTimeout(() => {
+      setTriggerReason(reason || 'AI Risk Detected');
+      setWidgetOpen(true);
+    }, 100);
+  };
 
   const openQuestionnaire = () => {
     router.push('/questionnaire');
   };
 
-  // Helper to check if vital is required/enabled
-  const show = (key) => requiredVitals.includes(key);
+  const openLatestReply = () => {
+    const latestReply = unreadCrcReplies[0];
+    if (!latestReply) return;
+    setSelectedAlert(latestReply);
+    setWidgetOpen(true);
+    setReplyBanner(null);
+  };
+
+  const renderVitalInput = (template) => {
+    if (template.input_type === 'blood_pressure') {
+      const systolicKey = template.systolic_key || 'bpSys';
+      const diastolicKey = template.diastolic_key || 'bpDia';
+      return (
+        <View key={template.key} style={styles.row}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder={`${template.label} systolic (${template.unit || 'mmHg'})`}
+            keyboardType="numeric"
+            value={vitalValues[systolicKey] || ''}
+            onChangeText={(value) => updateVitalValue(systolicKey, value)}
+          />
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            placeholder={`${template.label} diastolic (${template.unit || 'mmHg'})`}
+            keyboardType="numeric"
+            value={vitalValues[diastolicKey] || ''}
+            onChangeText={(value) => updateVitalValue(diastolicKey, value)}
+          />
+        </View>
+      );
+    }
+
+    const storageKey = template.storage_key || template.key;
+    return (
+      <TextInput
+        key={template.key}
+        style={styles.input}
+        placeholder={`${template.label}${template.unit ? ` (${template.unit})` : ''}`}
+        keyboardType="numeric"
+        value={vitalValues[storageKey] || ''}
+        onChangeText={(value) => updateVitalValue(storageKey, value)}
+      />
+    );
+  };
 
   return (
-    <View style={{flex:1, backgroundColor:'#eef3f8'}}>
-      <TopNavbar user={user} defaultRole="Patient" onLogout={onLogout} />
-      
-      <LiveChatWidget 
-        user={user} role="patient" userName={nickname || "Patient"} 
-        triggerReason={triggerReason} activeEmergencies={activeEmergencies}
-        isOpenInitially={widgetOpen} 
-        onClose={() => { setWidgetOpen(false); setTriggerReason(null); }} 
+    <View style={{ flex: 1, backgroundColor: '#eef3f8' }}>
+      <TopNavbar
+        user={user}
+        defaultRole="Patient"
+        onLogout={onLogout}
+        alerts={unreadCrcReplies}
+        onAlertClick={(alert) => {
+          setSelectedAlert(alert);
+          setWidgetOpen(true);
+          setReplyBanner(null);
+        }}
       />
 
-      <ScrollView contentContainerStyle={{padding: 15, paddingBottom: 100}}>
+      <LiveChatWidget
+        user={user}
+        role="patient"
+        userName={nickname || 'Patient'}
+        triggerReason={triggerReason}
+        existingAlert={selectedAlert}
+        activeEmergencies={activeEmergencies}
+        isOpenInitially={widgetOpen}
+        onClose={() => {
+          setWidgetOpen(false);
+          setTriggerReason(null);
+          setSelectedAlert(null);
+        }}
+      />
+
+      <ScrollView contentContainerStyle={{ padding: 15, paddingBottom: 100 }}>
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>Patient home</Text>
           <Text style={styles.heroTitle}>Welcome back{nickname ? `, ${nickname.split(' ')[0]}` : ''}</Text>
           <Text style={styles.heroText}>
-            Complete today&apos;s tasks with fewer taps: questionnaire, appointments, vitals, and symptom guidance are all grouped below.
+            Complete today&apos;s tasks with fewer taps: vitals, recent history, AI side effect guidance,
+            questionnaires, and appointments are grouped below.
           </Text>
           <View style={styles.heroStats}>
             <View style={styles.heroStat}>
@@ -198,40 +316,67 @@ const PatientHome = ({ user, onLogout }) => {
               <Text style={styles.heroStatValue}>{appointments.length}</Text>
             </View>
             <View style={styles.heroStat}>
-              <Text style={styles.heroStatLabel}>Alerts</Text>
-              <Text style={styles.heroStatValue}>{activeEmergencies.length}</Text>
+              <Text style={styles.heroStatLabel}>Unread CRC replies</Text>
+              <Text style={styles.heroStatValue}>{unreadCrcReplies.length}</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Today’s ePRO</Text>
-          <Text style={styles.infoText}>
-            Complete your study questionnaire here. CRC sees only the operational status, not your patient-side
-            chat context.
-          </Text>
-          {latestEproRecord ? (
-            <View style={styles.eproSummaryBox}>
-              <Text style={styles.eproSummaryText}>Status: {getStatusText(latestEproRecord.status)}</Text>
-              <Text style={styles.eproSummaryText}>
-                Assigned: {latestEproRecord.assigned_at ? new Date(latestEproRecord.assigned_at).toLocaleString() : 'Not recorded'}
-              </Text>
-              <Text style={styles.eproSummaryText}>
-                Due: {latestEproRecord.due_at ? new Date(latestEproRecord.due_at).toLocaleString() : 'Not set'}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.infoText}>No mirrored questionnaire status yet. Open the questionnaire to start today’s form.</Text>
-          )}
-          <TouchableOpacity onPress={openQuestionnaire} style={styles.btnPrimary}>
-            <Text style={{color:'white', fontWeight:'bold'}}>Open ePRO Questionnaire</Text>
+        {replyBanner ? (
+          <TouchableOpacity style={styles.replyBanner} onPress={openLatestReply}>
+            <Text style={styles.replyBannerTitle}>{replyBanner.title}</Text>
+            <Text style={styles.replyBannerText}>{replyBanner.body}</Text>
           </TouchableOpacity>
+        ) : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Log Vitals</Text>
+          <Text style={styles.infoText}>
+            These monitored vitals now come from your assigned clinical trial template. CRC is alerted automatically
+            when abnormal thresholds are reached.
+          </Text>
+          <View style={styles.eproSummaryBox}>
+            <Text style={styles.eproSummaryText}>Assigned trial: {assignedTemplate?.name || protocolName || 'Not assigned'}</Text>
+            <Text style={styles.eproSummaryText}>
+              Monitored vitals: {vitalTemplates.length ? vitalTemplates.map((template) => template.label).join(', ') : 'Not configured'}
+            </Text>
+          </View>
+          <View style={{ gap: 10 }}>
+            {vitalTemplates.length ? vitalTemplates.map(renderVitalInput) : (
+              <Text style={styles.infoText}>CRC still needs to assign a clinical trial template before dynamic vital logging is available.</Text>
+            )}
+            <TouchableOpacity onPress={handleAddVitals} style={styles.btnPrimary}>
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Add Record</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>AI Symptom Guidance</Text>
+          <Text style={styles.cardTitle}>Recent vitals history</Text>
           <Text style={styles.infoText}>
-            Describe symptoms in the AI Assistant. It now extracts side effects automatically, documents them for audit,
+            This home screen shows a recent vitals window for quick review. Older measurements are not all listed here at once.
+          </Text>
+          {history.length === 0 ? (
+            <Text>No records.</Text>
+          ) : (
+            history.slice(0, 5).map((record) => (
+              <View key={record.id} style={styles.historyRow}>
+                <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>{new Date(record.timestamp).toLocaleString()}</Text>
+                <Text style={styles.historyText}>
+                  {Object.entries(record)
+                    .filter(([key]) => key !== 'id' && key !== 'timestamp')
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('  ')}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>AI Side Effect Guidance</Text>
+          <Text style={styles.infoText}>
+            Describe symptoms in the AI assistant. It extracts side effects automatically, documents them for audit,
             uses the active protocol when available, and alerts CRC directly when escalation is needed.
           </Text>
           {sideEffectReports[0] ? (
@@ -257,101 +402,100 @@ const PatientHome = ({ user, onLogout }) => {
             </Text>
           </View>
           <TouchableOpacity onPress={() => setAssistantOpenSignal((value) => value + 1)} style={styles.btnPrimary}>
-            <Text style={{color:'white', fontWeight:'bold'}}>Open AI Assistant</Text>
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Open AI Side Effect Guidance</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Today&apos;s ePRO</Text>
+          <Text style={styles.infoText}>
+            Complete your study questionnaire here. This panel shows the latest mirrored ePRO status for today&apos;s workflow, not a full questionnaire archive.
+          </Text>
+          {latestEproRecord ? (
+            <View style={styles.eproSummaryBox}>
+              <Text style={styles.eproSummaryText}>
+                Status: {isAwaitingCrcReview ? 'AWAITING CRC REVIEW' : getStatusText(latestEproRecord.status)}
+              </Text>
+              <Text style={styles.eproSummaryText}>
+                Assigned: {latestEproRecord.assigned_at ? new Date(latestEproRecord.assigned_at).toLocaleString() : 'Not recorded'}
+              </Text>
+              <Text style={styles.eproSummaryText}>
+                Due: {latestEproRecord.due_at ? new Date(latestEproRecord.due_at).toLocaleString() : 'Not set'}
+              </Text>
+              {isAwaitingCrcReview ? (
+                <Text style={styles.eproSummaryText}>
+                  Review cutoff: {latestEproRecord.review_cutoff_at ? new Date(latestEproRecord.review_cutoff_at).toLocaleString() : 'Not set'}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <Text style={styles.infoText}>No mirrored questionnaire status yet. Open the questionnaire to start today&apos;s form.</Text>
+          )}
+          <TouchableOpacity onPress={openQuestionnaire} style={styles.btnPrimary}>
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Open ePRO Questionnaire</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>My Appointments</Text>
-          {appointments.length === 0 ? <Text>No upcoming appointments.</Text> : (
-             appointments.map(a => (
-               <View key={a.id} style={styles.apptRow}>
-                 <View>
-                   <Text style={{fontWeight:'bold'}}>{new Date(a.datetime).toLocaleString()}</Text>
-                   <Text style={{color: a.status==='confirmed'?'green':a.status==='reschedule_requested'?'red':'orange'}}>
-                     {getStatusText(a.status)}
-                   </Text>
-                 </View>
-                 <View style={{gap: 5}}>
-                   {a.status === 'pending' && <TouchableOpacity onPress={()=>handleStatusUpdate(a.id, 'confirmed')} style={[styles.btnSmall, {backgroundColor:'green'}]}><Text style={{color:'white'}}>Confirm</Text></TouchableOpacity>}
-                   {(a.status === 'pending' || a.status === 'confirmed') && <TouchableOpacity onPress={()=>handleStatusUpdate(a.id, 'reschedule_requested')} style={[styles.btnSmall, {backgroundColor:'#6c757d'}]}><Text style={{color:'white'}}>Reschedule</Text></TouchableOpacity>}
-                 </View>
-               </View>
-             ))
+          <Text style={styles.infoText}>
+            Upcoming and recent appointment items are shown here for quick action during the current patient workflow.
+          </Text>
+          {appointments.length === 0 ? (
+            <Text>No upcoming appointments.</Text>
+          ) : (
+            appointments.map((appointment) => (
+              <View key={appointment.id} style={styles.apptRow}>
+                <View>
+                  <Text style={{ fontWeight: 'bold' }}>{new Date(appointment.datetime).toLocaleString()}</Text>
+                  <Text
+                    style={{
+                      color:
+                        appointment.status === 'confirmed'
+                          ? 'green'
+                          : appointment.status === 'reschedule_requested'
+                            ? 'red'
+                            : 'orange',
+                    }}
+                  >
+                    {getStatusText(appointment.status)}
+                  </Text>
+                </View>
+                <View style={{ gap: 5 }}>
+                  {appointment.status === 'pending' ? (
+                    <TouchableOpacity
+                      onPress={() => handleStatusUpdate(appointment.id, 'confirmed')}
+                      style={[styles.btnSmall, { backgroundColor: 'green' }]}
+                    >
+                      <Text style={{ color: 'white' }}>Confirm</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {appointment.status === 'pending' || appointment.status === 'confirmed' ? (
+                    <TouchableOpacity
+                      onPress={() => handleStatusUpdate(appointment.id, 'reschedule_requested')}
+                      style={[styles.btnSmall, { backgroundColor: '#6c757d' }]}
+                    >
+                      <Text style={{ color: 'white' }}>Reschedule</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            ))
           )}
         </View>
-
-        {/* VITALS INPUT CARD */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Log Vitals</Text>
-          <View style={{gap: 10}}>
-            
-            {show('temperature') && <TextInput style={styles.input} placeholder="Body Temperature (°C)" keyboardType="numeric" value={temp} onChangeText={setTemp} />}
-            
-            {show('bp') && (
-              <View style={styles.row}>
-                <TextInput style={[styles.input, {flex:1}]} placeholder="Systolic BP" keyboardType="numeric" value={bpSys} onChangeText={setBpSys} />
-                <TextInput style={[styles.input, {flex:1}]} placeholder="Diastolic BP" keyboardType="numeric" value={bpDia} onChangeText={setBpDia} />
-              </View>
-            )}
-
-            {show('heartRate') && <TextInput style={styles.input} placeholder="Heart Rate (bpm)" keyboardType="numeric" value={heartRate} onChangeText={setHeartRate} />}
-            {show('respRate') && <TextInput style={styles.input} placeholder="Respiratory Rate" keyboardType="numeric" value={respRate} onChangeText={setRespRate} />}
-            {show('spo2') && <TextInput style={styles.input} placeholder="SpO2 (%)" keyboardType="numeric" value={spo2} onChangeText={setSpo2} />}
-
-            {(show('weight') || show('height')) && (
-              <View style={styles.row}>
-                {show('weight') && <TextInput style={[styles.input, {flex:1}]} placeholder="Weight (kg)" keyboardType="numeric" value={weight} onChangeText={setWeight} />}
-                {show('height') && <TextInput style={[styles.input, {flex:1}]} placeholder="Height (cm)" keyboardType="numeric" value={height} onChangeText={setHeight} />}
-              </View>
-            )}
-            
-            {/* Display Calculated BMI */}
-            {bmi !== '' && <Text style={{fontWeight:'bold', textAlign:'center', color:'#007bff'}}>Calculated BMI: {bmi}</Text>}
-
-            {show('glucoseFasting') && <TextInput style={styles.input} placeholder="Fasting Glucose (mmol/L)" keyboardType="numeric" value={glucoseFasting} onChangeText={setGlucoseFasting} />}
-            {show('glucosePost') && <TextInput style={styles.input} placeholder="Post-Meal Glucose (mmol/L)" keyboardType="numeric" value={glucosePost} onChangeText={setGlucosePost} />}
-            
-            {show('pef') && <TextInput style={styles.input} placeholder="PEF (L/min)" keyboardType="numeric" value={pef} onChangeText={setPef} />}
-            {show('fev1') && <TextInput style={styles.input} placeholder="FEV1 (L)" keyboardType="numeric" value={fev1} onChangeText={setFev1} />}
-            
-            {show('inr') && <TextInput style={styles.input} placeholder="INR" keyboardType="numeric" value={inr} onChangeText={setInr} />}
-            {show('ketones') && <TextInput style={styles.input} placeholder="Ketones (mmol/L)" keyboardType="numeric" value={ketones} onChangeText={setKetones} />}
-            {show('waist') && <TextInput style={styles.input} placeholder="Waist Circumference (cm)" keyboardType="numeric" value={waist} onChangeText={setWaist} />}
-
-            <TouchableOpacity onPress={handleAdd} style={styles.btnPrimary}><Text style={{color:'white', fontWeight:'bold'}}>Add Record</Text></TouchableOpacity>
-          </View>
-        </View>
-
-        {/* HISTORY (Simplified View) */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>History (Latest)</Text>
-          {history.length === 0 ? <Text>No records.</Text> : history.slice(0, 5).map(r => (
-            <View key={r.id} style={styles.historyRow}>
-               <Text style={{fontWeight:'bold', marginBottom:5}}>{new Date(r.timestamp).toLocaleString()}</Text>
-               <Text style={styles.historyText}>
-                 {r.temperature && `Temp: ${r.temperature}°C  `} 
-                 {r.bpSys && `BP: ${r.bpSys}/${r.bpDia}  `}
-                 {r.spo2 && `SpO2: ${r.spo2}%  `}
-                 {r.weight && `Wt: ${r.weight}kg  `}
-                 {r.glucoseFasting && `Gluc(F): ${r.glucoseFasting}  `}
-               </Text>
-            </View>
-          ))}
-        </View>
-
       </ScrollView>
 
       <GeminiChatbot
         role="patient"
         userId={user.uid}
         userNickname={nickname}
-        patientData={{appointments, vitals: history}}
+        patientData={{ appointments, vitals: history }}
         protocolUrl={protocolUrl}
         activeProtocolName={protocolName}
         onEmergencyTrigger={handleAIAlert}
         openSignal={assistantOpenSignal}
         contactContext={{
+          primaryCrcId,
           primaryCrcName,
           primaryCrcPhone,
           studyEmergencyPhone,
@@ -409,6 +553,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  replyBanner: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fdba74',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 15,
+  },
+  replyBannerTitle: {
+    color: '#9a3412',
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  replyBannerText: {
+    color: '#9a3412',
+    lineHeight: 18,
+  },
   card: {
     backgroundColor: 'white',
     padding: 18,
@@ -422,18 +583,46 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 20, fontWeight: '800', marginBottom: 14, color: '#14324a' },
   infoText: { color: '#4f6478', lineHeight: 20, marginBottom: 12 },
-  eproSummaryBox: { backgroundColor: '#f5f9ff', borderWidth: 1, borderColor: '#d2def1', borderRadius: 12, padding: 12, marginBottom: 15 },
+  eproSummaryBox: {
+    backgroundColor: '#f5f9ff',
+    borderWidth: 1,
+    borderColor: '#d2def1',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 15,
+  },
   eproSummaryText: { color: '#355070', marginBottom: 4 },
-  contactBox: { backgroundColor: '#f8fbff', borderWidth: 1, borderColor: '#d9e6f4', borderRadius: 12, padding: 12, marginBottom: 10 },
+  contactBox: {
+    backgroundColor: '#f8fbff',
+    borderWidth: 1,
+    borderColor: '#d9e6f4',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
   contactTitle: { color: '#14324a', fontWeight: '700', marginBottom: 6 },
   contactText: { color: '#52606d', lineHeight: 18, marginBottom: 4 },
-  apptRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eef3f8' },
+  apptRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: '#eef3f8',
+  },
   btnSmall: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
-  input: { borderWidth: 1, borderColor: '#d3dde9', borderRadius: 12, padding: 12, backgroundColor: '#f8fbff', marginBottom: 0 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d3dde9',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#f8fbff',
+    marginBottom: 0,
+  },
   row: { flexDirection: 'row', gap: 10 },
   btnPrimary: { backgroundColor: '#0f609b', padding: 14, borderRadius: 14, alignItems: 'center', marginTop: 10 },
   historyRow: { paddingVertical: 12, borderBottomWidth: 1, borderColor: '#eef3f8' },
-  historyText: { fontSize: 12, color: '#52606d', lineHeight: 18 }
+  historyText: { fontSize: 12, color: '#52606d', lineHeight: 18 },
 });
 
 export default PatientHome;

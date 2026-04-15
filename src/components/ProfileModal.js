@@ -7,6 +7,7 @@ import {
   Text, TextInput, TouchableOpacity,
   View
 } from 'react-native';
+import CalendarDateField from './CalendarDateField';
 import { db } from '../firebase';
 
 const ProfileModal = ({ user, defaultRole, onClose }) => {
@@ -15,6 +16,14 @@ const ProfileModal = ({ user, defaultRole, onClose }) => {
   const [tempLast, setTempLast] = useState("");
   const [tempGender, setTempGender] = useState("");
   const [tempDob, setTempDob] = useState("");
+  const [tempCaregiverSupport, setTempCaregiverSupport] = useState("");
+  const [tempDistanceToSiteKm, setTempDistanceToSiteKm] = useState("");
+  const isValidIsoDob = !tempDob || /^\d{4}-\d{2}-\d{2}$/.test(String(tempDob || ''));
+  const parsedDistanceToSiteKm = Number(tempDistanceToSiteKm);
+  const hasValidDistanceToSiteKm =
+    String(tempDistanceToSiteKm || '').trim() !== '' &&
+    Number.isFinite(parsedDistanceToSiteKm) &&
+    parsedDistanceToSiteKm >= 0;
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "users", user.uid), (d) => {
@@ -23,6 +32,16 @@ const ProfileModal = ({ user, defaultRole, onClose }) => {
         setTempBio(data.bio || `New ${defaultRole}`);
         setTempGender(data.gender || "");
         setTempDob(data.dob || "");
+        setTempCaregiverSupport(
+          typeof data.caregiver_support === 'boolean'
+            ? (data.caregiver_support ? 'yes' : 'no')
+            : ''
+        );
+        setTempDistanceToSiteKm(
+          data.distance_to_site_km == null || data.distance_to_site_km === ''
+            ? ''
+            : String(data.distance_to_site_km)
+        );
         
         if (data.firstName) {
           setTempFirst(data.firstName);
@@ -39,12 +58,23 @@ const ProfileModal = ({ user, defaultRole, onClose }) => {
 
   const handleSave = async () => {
     try { 
+      if (!isValidIsoDob) {
+        throw new Error('Please select a valid date of birth.');
+      }
+      if (!tempCaregiverSupport) {
+        throw new Error('Please select whether caregiver support is available.');
+      }
+      if (!hasValidDistanceToSiteKm) {
+        throw new Error('Please enter a valid distance to site in kilometres.');
+      }
       await setDoc(doc(db, "users", user.uid), { 
         bio: tempBio, 
         firstName: tempFirst,
         lastName: tempLast,
         gender: tempGender,
         dob: tempDob,
+        caregiver_support: tempCaregiverSupport === 'yes',
+        distance_to_site_km: parsedDistanceToSiteKm,
         nickname: `${tempFirst} ${tempLast}`.trim() 
       }, { merge: true }); 
       Alert.alert("Success", "Profile updated!");
@@ -80,7 +110,37 @@ const ProfileModal = ({ user, defaultRole, onClose }) => {
             </TouchableOpacity>
           </View>
 
-          <TextInput style={styles.input} value={tempDob} onChangeText={setTempDob} placeholder="DOB (YYYY-MM-DD)" />
+          <CalendarDateField
+            label="Date of birth"
+            value={tempDob}
+            onChange={setTempDob}
+            placeholder="Select date of birth"
+          />
+
+          <Text style={{fontWeight:'bold', marginTop:10}}>Caregiver support:</Text>
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, tempCaregiverSupport === 'yes' && styles.activeToggle]}
+              onPress={() => setTempCaregiverSupport('yes')}
+            >
+              <Text style={{color: tempCaregiverSupport==='yes'?'white':'black'}}>Yes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, tempCaregiverSupport === 'no' && styles.activeToggle]}
+              onPress={() => setTempCaregiverSupport('no')}
+            >
+              <Text style={{color: tempCaregiverSupport==='no'?'white':'black'}}>No</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={{fontWeight:'bold', marginTop:10}}>Distance to study site (km):</Text>
+          <TextInput
+            style={styles.input}
+            value={tempDistanceToSiteKm}
+            onChangeText={setTempDistanceToSiteKm}
+            placeholder="e.g. 12.5"
+            keyboardType="decimal-pad"
+          />
 
           <Text style={{fontWeight:'bold', marginTop:10}}>Bio:</Text>
           <TextInput 

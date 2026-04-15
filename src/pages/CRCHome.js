@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, onSnapshot, orderBy, query, updateDoc, where
+  collection, doc, getDoc, limit, onSnapshot, orderBy, query, updateDoc, where
 } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -40,7 +40,6 @@ const CRCHome = ({ user, onLogout }) => {
   const [patients, setPatients] = useState([]);
   const [selPatient, setSelPatient] = useState(null);
   const [pAppts, setPAppts] = useState([]);
-  const [pAlerts, setPAlerts] = useState([]); 
   const [pVitals, setPVitals] = useState([]); 
   const [newDate, setNewDate] = useState('');
   
@@ -62,16 +61,17 @@ const CRCHome = ({ user, onLogout }) => {
   useEffect(() => { getDoc(doc(db, "users", user.uid)).then(d => d.exists() && setCrcName(d.data().nickname || "CRC")); }, [user]);
 
   useEffect(() => {
-    const q = query(collection(db, "users"), where("role", "==", "patient"));
+    const q = query(collection(db, "users"), where("role", "==", "patient"), limit(20));
     const unsub = onSnapshot(q, (snapshot) => {
        setPatients(snapshot.docs.map(d => ({id:d.id, ...d.data()})));
-       if (selPatient) {
-         const updated = snapshot.docs.find(d => d.id === selPatient.id);
-         if (updated) setSelPatient({id: updated.id, ...updated.data()});
-       }
+       setSelPatient((current) => {
+         if (!current) return current;
+         const updated = snapshot.docs.find(d => d.id === current.id);
+         return updated ? {id: updated.id, ...updated.data()} : current;
+       });
     });
     return () => unsub();
-  }, [selPatient]);
+  }, []);
 
   useEffect(() => { 
     const u = subscribeToUnresolvedAlerts(d => { 
@@ -87,6 +87,29 @@ const CRCHome = ({ user, onLogout }) => {
     const backHandler = BackHandler.addEventListener("hardwareBackPress", backAction);
     return () => backHandler.remove();
   }, [selPatient]);
+
+  useEffect(() => {
+    if (!selPatient?.id) {
+      setPAppts([]);
+      setPVitals([]);
+      return undefined;
+    }
+
+    const unsubAppts = subscribeToAppointments(selPatient.id, (data) => setPAppts(data));
+    const unsubAlerts = subscribeToAlertHistory(selPatient.id, () => {});
+    const qVitals = query(
+      collection(db, "users", selPatient.id, "vitals"),
+      orderBy("timestamp", "desc"),
+      limit(20)
+    );
+    const unsubVitals = onSnapshot(qVitals, (s) => setPVitals(s.docs.map(d => ({id:d.id, ...d.data()}))));
+
+    return () => {
+      unsubAppts();
+      unsubAlerts();
+      unsubVitals();
+    };
+  }, [selPatient?.id]);
 
   const selectP = (p) => {
     if(!p) return;
@@ -104,11 +127,6 @@ const CRCHome = ({ user, onLogout }) => {
     setTempVitalsConfig(configObj);
 
     purgeOldAppointments(p.id); 
-    const unsubAppts = subscribeToAppointments(p.id, (data) => setPAppts(data));
-    const unsubAlerts = subscribeToAlertHistory(p.id, (data) => setPAlerts(data));
-    const qVitals = query(collection(db, "users", p.id, "vitals"), orderBy("timestamp", "desc"));
-    const unsubVitals = onSnapshot(qVitals, (s) => setPVitals(s.docs.map(d => ({id:d.id, ...d.data()}))));
-    return () => { unsubAppts(); unsubAlerts(); unsubVitals(); };
   };
 
   const handleNavAlertClick = (alert) => { 
