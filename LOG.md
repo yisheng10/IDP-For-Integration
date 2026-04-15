@@ -3103,3 +3103,16 @@ eady calculation.
     - official demo pack regeneration succeeded:
       - `Patient-Dropout-Prediction/deploy_assets/demo_scenario_pack_candidate_024.json`
       - `Patient-Dropout-Prediction/DEMO_SCENARIO_PACK.md`
+2026-04-15
+- Git sync and GitHub push alignment:
+  - pushed `Patient-Dropout-Prediction` branch `codex/candidate-024-disengagement-hardening` to:
+    - `https://github.com/yisheng10/Patient-Dropout-Prediction.git`
+  - created and pushed patient app branch `codex/patient-app-sync-20260415` to:
+    - `https://github.com/yisheng10/IDP_PatientApp.git`
+  - added the patient app submodule mapping to root `.gitmodules`:
+    - path: `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2`
+    - url: `https://github.com/yisheng10/IDP_PatientApp.git`
+  - root integration branch remains:
+    - `codex/root-integration-sync-20260415`
+  - patient app gitlink now points to:
+    - `bf08a64204dd731d77c30c5ad02fffa704dc5cd7`
