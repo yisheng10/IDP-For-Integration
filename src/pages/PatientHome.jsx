@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { addDoc, collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { addDoc, collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
 
 import { analyzeVitals } from '../components/EmergencyHandler';
@@ -20,7 +20,6 @@ const PatientHome = ({ user, onLogout }) => {
   const [spo2, setSpo2] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
-  const [bmi, setBmi] = useState(''); 
   const [glucoseFasting, setGlucoseFasting] = useState('');
   const [glucosePost, setGlucosePost] = useState('');
   const [pef, setPef] = useState('');
@@ -56,7 +55,7 @@ const PatientHome = ({ user, onLogout }) => {
       }
     });
 
-    const q = query(collection(db, "users", user.uid, "vitals"), orderBy("timestamp", "desc"));
+    const q = query(collection(db, "users", user.uid, "vitals"), orderBy("timestamp", "desc"), limit(20));
     const unsubHistory = onSnapshot(q, s => setHistory(s.docs.map(d => ({id:d.id,...d.data()}))));
     
     const unsubAppt = subscribeToAppointments(user.uid, (data) => setAppointments(data));
@@ -67,23 +66,18 @@ const PatientHome = ({ user, onLogout }) => {
       setActiveEmergencies(actives);
       const notifs = data.filter(a => a.status === 'unread' && (a.lastSender === 'crc' || (a.senderRole === 'crc' && !a.lastSender)));
       setNotifications(notifs);
-      if (triggerReason) setWidgetOpen(true);
     });
     
     return () => { unsubUser(); unsubHistory(); unsubAppt(); unsubAlerts(); };
-  }, [user, triggerReason]);
+  }, [user.uid]);
 
-  useEffect(() => {
-    if (weight && height) {
-      const hMeters = parseFloat(height) / 100;
-      const wKg = parseFloat(weight);
-      if (hMeters > 0 && wKg > 0) {
-        setBmi((wKg / (hMeters * hMeters)).toFixed(1));
-      } else {
-        setBmi('');
-      }
-    }
-  }, [weight, height]);
+  const bmi = useMemo(() => {
+    if (!weight || !height) return '';
+    const hMeters = parseFloat(height) / 100;
+    const wKg = parseFloat(weight);
+    if (!(hMeters > 0 && wKg > 0)) return '';
+    return (wKg / (hMeters * hMeters)).toFixed(1);
+  }, [height, weight]);
 
   const handleAdd = async () => {
     if (requiredVitals.includes('temperature') && !temp) return alert("Missing: Enter Temperature");
@@ -119,7 +113,7 @@ const PatientHome = ({ user, onLogout }) => {
           alert("Success: Vitals Logged");
         }
         setTemp(''); setBpSys(''); setBpDia(''); setHeartRate(''); setRespRate('');
-        setSpo2(''); setWeight(''); setHeight(''); setBmi(''); setGlucoseFasting('');
+        setSpo2(''); setWeight(''); setHeight(''); setGlucoseFasting('');
         setGlucosePost(''); setPef(''); setFev1(''); setInr(''); setKetones(''); setWaist('');
     } catch (e) { alert("Error: " + e.message); }
   };

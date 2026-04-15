@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import WindowPaginationControls from './WindowPaginationControls';
 
 export default function PatientList({
   patients,
@@ -7,6 +8,14 @@ export default function PatientList({
   searchQuery,
   onSearchQueryChange,
   showSearchInput = true,
+  countLabel,
+  summaryNote,
+  footerContent = null,
+  currentPage = 1,
+  pageSize = 30,
+  onPageChange,
+  onPageSizeChange,
+  canGoNextPage = false,
 }) {
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const effectiveQuery = typeof searchQuery === 'string' ? searchQuery : localSearchQuery;
@@ -31,6 +40,15 @@ export default function PatientList({
     setLocalSearchQuery(value);
   };
 
+  useEffect(() => {
+    onPageChange?.(1);
+  }, [effectiveQuery, onPageChange]);
+
+  const totalLoadedPages = Math.max(1, Math.ceil(filteredPatients.length / pageSize));
+  const effectivePage = Math.min(currentPage, totalLoadedPages);
+  const visiblePatients = filteredPatients.slice((effectivePage - 1) * pageSize, effectivePage * pageSize);
+  const canGoNext = filteredPatients.length > effectivePage * pageSize || (!effectiveQuery.trim() && canGoNextPage);
+
   return (
     <div className="card workspace-card patient-roster">
       <div className="section-header">
@@ -39,8 +57,9 @@ export default function PatientList({
           <div className="section-note">
             Search by patient name, subject ID, or assigned CRC.
           </div>
+          {summaryNote ? <div className="section-note section-note--spaced">{summaryNote}</div> : null}
         </div>
-        <div className="metric-pill">{filteredPatients.length} visible</div>
+        <div className="metric-pill">{countLabel || `${filteredPatients.length} visible`}</div>
       </div>
 
       {showSearchInput ? (
@@ -55,10 +74,10 @@ export default function PatientList({
       )}
 
       <div className="patient-roster__list">
-        {filteredPatients.length === 0 ? (
+        {visiblePatients.length === 0 ? (
           <div className="empty-panel">No patients match the current search.</div>
         ) : (
-          filteredPatients.map((patient) => {
+          visiblePatients.map((patient) => {
             const isSelected = selectedPatientId === patient.id;
             return (
               <button
@@ -84,6 +103,17 @@ export default function PatientList({
           })
         )}
       </div>
+
+      <WindowPaginationControls
+        page={effectivePage}
+        pageSize={pageSize}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+        canGoNext={canGoNext}
+        note={`Page ${effectivePage} • Showing up to ${pageSize} patients per page from the current loaded roster window.`}
+      />
+
+      {footerContent ? <div className="section-note section-note--spaced">{footerContent}</div> : null}
     </div>
   );
 }

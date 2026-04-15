@@ -1,13 +1,20 @@
 {
   "name": "triallight-functions",
   "private": true,
+  "type": "module",
   "main": "index.js",
   "engines": {
     "node": "20"
   },
+  "scripts": {
+    "migrate:firestore": "node ./scripts/migrate-firestore-operational-data.mjs"
+  },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.49.8",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.0.1",
+    "pdfjs-dist": "3.11.174",
     "web-push": "^3.6.7"
   }
 }

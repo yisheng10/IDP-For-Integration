@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDoc,
   collection,
@@ -11,23 +10,48 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import ReactMarkdown from 'react-markdown';
 import { db } from '../firebase';
 import {
-  GEMINI_API_KEY,
   SIDE_EFFECT_GUIDANCE_MODEL,
   SIDE_EFFECT_GUIDANCE_PROVIDER,
 } from '../config';
 import { SAFETY_INSTRUCTIONS } from '../safetyInstructions';
-import { extractTextFromPdf } from '../utils';
+import { routeGuidanceRequest } from '../services/guidanceRouterService';
 import { requestSideEffectGuidance } from '../services/sideEffectGuidanceService';
-import { getSignedUrl } from '../services/storageService';
-import { supabase } from '../supabaseClient';
 
 const CRC_AI_NAME = 'Side Effect Guidance';
-const PATIENT_AI_NAME = 'AI Assistant';
+const CHAT_HISTORY_LIMIT = 100;
+const CONTEXT_WINDOW_LIMIT = 50;
+
+function buildThinkingLabel(step, options = {}) {
+  const ctcaeCount = Number(options.ctcaeCount) || 0;
+  const protocolCount = Number(options.protocolCount) || 0;
+  const routeDecision = String(options.routeDecision || '');
+
+  switch (step) {
+    case 'context':
+      return 'Reading patient context';
+    case 'route':
+      return 'Deciding whether retrieval is needed';
+    case 'retrieval-scoped':
+      return 'Searching CTCAE and the active protocol';
+    case 'retrieval-global':
+      return 'Searching the guidance library';
+    case 'retrieval-cache':
+      return 'Reusing recent grounded excerpts';
+    case 'draft':
+      if (routeDecision === 'skip') {
+        return 'Drafting without retrieval';
+      }
+      return `Drafting grounded answer (CTCAE ${ctcaeCount}, protocol ${protocolCount})`;
+    default:
+      return 'Thinking';
+  }
+}
 
 function buildProviderUserMessage(error) {
   if (error?.message) {
@@ -37,14 +61,108 @@ function buildProviderUserMessage(error) {
   return 'AI Error. Side Effect Guidance is unavailable right now.';
 }
 
+function serializeForPrompt(value) {
+  return JSON.stringify(value ?? null, null, 2);
+}
+
+function sortByRecentTimestamp(entries = [], keys = []) {
+  return [...entries].sort((left, right) => {
+    const leftTime =
+      keys.map((key) => new Date(left?.[key] || 0).getTime()).find((value) => value > 0) || 0;
+    const rightTime =
+      keys.map((key) => new Date(right?.[key] || 0).getTime()).find((value) => value > 0) || 0;
+    return rightTime - leftTime;
+  });
+}
+
+function buildStableSystemPrompt(aiName) {
+  return [
+    `You are ${aiName}.`,
+    'Role: CRC Copilot for the CRC workspace.',
+    'The current user is always a Clinical Research Coordinator (CRC).',
+    'You only operate inside the CRC website.',
+    'Use the directly injected workspace context and patient context as the live source of truth.',
+    'Do not treat the CRC as the patient.',
+    'Do not expose dropout model internals to the patient side.',
+    'Use retrieved CTCAE and protocol excerpts as the only cited source material for clinical or protocol claims.',
+    'If protocol excerpts are missing, say protocol grounding was not retrieved.',
+    '',
+    '=== SAFETY & RULES ===',
+    SAFETY_INSTRUCTIONS,
+  ].join('\n');
+}
+
+function buildPatientContextText({
+  profile,
+  patientSnapshot,
+  vitals,
+  appointments,
+  alerts,
+  eproEntries,
+  incidents,
+  protocol,
+}) {
+  return [
+    '=== PATIENT PROFILE ===',
+    serializeForPrompt(profile),
+    '=== ACTIVE PATIENT SNAPSHOT ===',
+    serializeForPrompt(patientSnapshot),
+    '=== VITALS ===',
+    serializeForPrompt(vitals),
+    '=== APPOINTMENTS ===',
+    serializeForPrompt(appointments),
+    '=== ALERT HISTORY ===',
+    serializeForPrompt(alerts),
+    '=== EPRO SUBMISSIONS ===',
+    serializeForPrompt(eproEntries),
+    '=== INCIDENT RECORDS ===',
+    serializeForPrompt(incidents),
+    '=== ACTIVE PROTOCOL ===',
+    serializeForPrompt(protocol),
+  ].join('\n\n');
+}
+
+function buildWorkspaceContextText({
+  patients,
+  urgentAlerts,
+  alerts,
+  eproEntries,
+  incidents,
+  selectedPatient,
+}) {
+  return [
+    '=== SELECTED PATIENT ===',
+    serializeForPrompt(selectedPatient),
+    '=== CRC PATIENT ROSTER WINDOW ===',
+    serializeForPrompt(patients),
+    '=== URGENT ALERTS ===',
+    serializeForPrompt(urgentAlerts),
+    '=== ALERT HISTORY WINDOW ===',
+    serializeForPrompt(alerts),
+    '=== EPRO WINDOW ===',
+    serializeForPrompt(eproEntries),
+    '=== INCIDENT WINDOW ===',
+    serializeForPrompt(incidents),
+  ].join('\n\n');
+}
+
 export default function GeminiChatbot({
-  role,
-  userNickname,
+  role = 'crc',
   userId,
   patientData,
-  activeProtocolName,
+  patientVitals = [],
+  patientAppointments = [],
+  patientAlerts = [],
+  patientEproEntries = [],
+  patientIncidents = [],
+  activeProtocolId = null,
+  activeProtocolName = null,
   onEmergencyTrigger,
   allPatients = [],
+  workspaceAlerts = [],
+  workspaceUrgentAlerts = [],
+  workspaceEproEntries = [],
+  workspaceIncidents = [],
   protocolUrl,
   presentation = 'floating',
   titleOverride,
@@ -56,57 +174,39 @@ export default function GeminiChatbot({
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [activeContextPatient, setActiveContextPatient] = useState(null);
+  const [thinkingLabel, setThinkingLabel] = useState('');
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [runtimeMeta, setRuntimeMeta] = useState({
-    provider: role === 'crc' ? SIDE_EFFECT_GUIDANCE_PROVIDER : 'gemini',
+    provider: SIDE_EFFECT_GUIDANCE_PROVIDER,
     model: SIDE_EFFECT_GUIDANCE_MODEL,
   });
 
+  const chatAreaRef = useRef(null);
   const chatSessionRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const pendingOutputAutoScrollRef = useRef(false);
   const systemPromptRef = useRef('');
+  const lastRetrievalRef = useRef(null);
+  const lastRetrievalTurnIndexRef = useRef(0);
+  const turnSequenceRef = useRef(0);
 
   const isDocked = presentation === 'docked';
   const chatVisible = isDocked || isOpen;
-  const currentAiName = titleOverride || (role === 'crc' ? CRC_AI_NAME : PATIENT_AI_NAME);
+  const currentAiName = titleOverride || CRC_AI_NAME;
   const historyCollectionRef = userId ? collection(db, 'users', userId, 'ai_chat_history') : null;
+  const workspaceContextText = useMemo(
+    () =>
+      buildWorkspaceContextText({
+        patients: allPatients,
+        urgentAlerts: workspaceUrgentAlerts,
+        alerts: workspaceAlerts,
+        eproEntries: workspaceEproEntries,
+        incidents: workspaceIncidents,
+        selectedPatient: patientData,
+      }),
+    [allPatients, patientData, workspaceAlerts, workspaceEproEntries, workspaceIncidents, workspaceUrgentAlerts]
+  );
 
-  useEffect(() => {
-    if (!historyCollectionRef) return undefined;
-
-    const historyQuery = query(historyCollectionRef, orderBy('timestamp', 'asc'));
-    const unsubscribe = onSnapshot(historyQuery, (snapshot) => {
-      const nextMessages = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
-      setMessages(nextMessages);
-      setIsHistoryLoaded(true);
-    });
-
-    return () => unsubscribe();
-  }, [historyCollectionRef]);
-
-  useEffect(() => {
-    if (role === 'crc' && patientData) {
-      setActiveContextPatient(patientData);
-    } else if (role === 'crc') {
-      setActiveContextPatient(null);
-    }
-  }, [patientData, role]);
-
-  useEffect(() => {
-    if (chatVisible && userId && isHistoryLoaded && !chatSessionRef.current) {
-      startHybridChat();
-    }
-  }, [chatVisible, isHistoryLoaded, protocolUrl, userId]);
-
-  useEffect(() => {
-    if (!chatVisible) return undefined;
-    const timer = window.setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-
-    return () => window.clearTimeout(timer);
-  }, [chatVisible, isLoading, messages]);
-
-  const saveMessage = async (messageRole, text) => {
+  const saveMessage = useCallback(async (messageRole, text) => {
     if (!historyCollectionRef || !text) return;
 
     try {
@@ -118,317 +218,267 @@ export default function GeminiChatbot({
     } catch (error) {
       console.error('Failed to save AI history:', error);
     }
-  };
+  }, [historyCollectionRef]);
 
-  const searchCTCAE = async (queryText) => {
+  const initializeGuidance = useCallback(async () => {
     try {
-      if (!queryText || queryText.length < 3 || !GEMINI_API_KEY) return '';
-
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-      const embeddingResult = await embeddingModel.embedContent(queryText);
-      const embedding = embeddingResult.embedding.values;
-
-      const { data, error } = await supabase.rpc('match_documents', {
-        query_embedding: embedding,
-        match_threshold: 0.5,
-        match_count: 5,
-      });
-
-      if (error || !data?.length) {
-        return '';
+      if (role !== 'crc') {
+        throw new Error('Side Effect Guidance in the CRC website is restricted to CRC users.');
       }
 
-      return data
-        .map((entry) => {
-          let pageNumber = 'Unknown';
-          try {
-            const metadata = typeof entry.metadata === 'string' ? JSON.parse(entry.metadata) : entry.metadata;
-            if (metadata?.page) pageNumber = metadata.page;
-          } catch {
-            pageNumber = 'Unknown';
-          }
-          return `[Page ${pageNumber}]: ${entry.content}`;
-        })
-        .join('\n\n---\n\n');
-    } catch (error) {
-      console.error('CTCAE search failed:', error);
-      return '';
-    }
-  };
-
-  const fetchGlobalPatientSummary = async () => {
-    if (!allPatients.length) {
-      return 'No patients found in the live database.';
-    }
-
-    const targetPatients = allPatients.slice(0, 50);
-    const patientSummaries = await Promise.all(
-      targetPatients.map(async (patient) => {
-        let summary = `- Name: **${patient.nickname}** (ID: ${patient.hospitalPatientId || 'N/A'})`;
-
-        try {
-          const vitalsQuery = query(
-            collection(db, 'users', patient.id, 'vitals'),
-            orderBy('timestamp', 'desc'),
-            limit(1)
-          );
-          const vitalsSnapshot = await getDocs(vitalsQuery);
-
-          if (!vitalsSnapshot.empty) {
-            const vitals = vitalsSnapshot.docs[0].data();
-            const day = new Date(vitals.timestamp).toLocaleDateString();
-            summary += `\n  Latest vitals (${day}): Temp ${vitals.temperature || '-'} C, BP ${vitals.bpSys || '-'}/${vitals.bpDia || '-'}, SpO2 ${vitals.spo2 || '-'}%`;
-          } else {
-            summary += '\n  Latest vitals: none';
-          }
-        } catch {
-          summary += '\n  Latest vitals: unavailable';
-        }
-
-        try {
-          const appointmentQuery = query(
-            collection(db, 'users', patient.id, 'appointments'),
-            orderBy('datetime', 'asc'),
-            limit(2)
-          );
-          const appointmentSnapshot = await getDocs(appointmentQuery);
-
-          if (!appointmentSnapshot.empty) {
-            const nextAppointments = appointmentSnapshot.docs
-              .map((entry) => {
-                const appointment = entry.data();
-                return `${new Date(appointment.datetime).toLocaleDateString()} (${appointment.status})`;
-              })
-              .join(', ');
-            summary += `\n  Upcoming appointments: ${nextAppointments}`;
-          }
-        } catch {
-          summary += '\n  Upcoming appointments: unavailable';
-        }
-
-        return summary;
-      })
-    );
-
-    return `=== LIVE PATIENT DATABASE ===\n${patientSummaries.join('\n')}`;
-  };
-
-  const fetchGlobalSchedule = async () => {
-    if (!allPatients.length) {
-      return 'No patients found.';
-    }
-
-    const today = new Date();
-    const scheduleRows = [];
-    const targetPatients = allPatients.slice(0, 20);
-
-    await Promise.all(
-      targetPatients.map(async (patient) => {
-        try {
-          const appointmentQuery = query(
-            collection(db, 'users', patient.id, 'appointments'),
-            orderBy('datetime', 'asc')
-          );
-          const appointmentSnapshot = await getDocs(appointmentQuery);
-
-          appointmentSnapshot.docs.forEach((entry) => {
-            const appointment = entry.data();
-            if (new Date(appointment.datetime) >= today) {
-              scheduleRows.push({
-                patient: patient.nickname,
-                datetime: appointment.datetime,
-                status: appointment.status,
-              });
-            }
-          });
-        } catch {
-          // Ignore individual patient fetch failures.
-        }
-      })
-    );
-
-    scheduleRows.sort((left, right) => new Date(left.datetime) - new Date(right.datetime));
-
-    if (!scheduleRows.length) {
-      return 'No upcoming appointments found globally.';
-    }
-
-    return `=== MASTER APPOINTMENT SCHEDULE ===\n${scheduleRows
-      .slice(0, 15)
-      .map((row) => `- ${new Date(row.datetime).toLocaleString()}: ${row.patient} (${row.status})`)
-      .join('\n')}`;
-  };
-
-  const fetchFullPatientContext = async (targetId, patientObject = null) => {
-    let vitalsSummary = 'No vitals recorded.';
-    let appointmentSummary = 'No upcoming appointments.';
-    let protocolText = null;
-    let protocolStatus = 'No protocol assigned.';
-
-    const formatVitalLog = (entry) => {
-      const date = new Date(entry.timestamp).toLocaleDateString();
-      const time = new Date(entry.timestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      return `[${date} ${time}] Temp:${entry.temperature || '-'} BP:${entry.bpSys || '-'}/${entry.bpDia || '-'} SpO2:${entry.spo2 || '-'}%`;
-    };
-
-    try {
-      const vitalsQuery = query(
-        collection(db, 'users', targetId, 'vitals'),
-        orderBy('timestamp', 'desc'),
-        limit(10)
-      );
-      const vitalsSnapshot = await getDocs(vitalsQuery);
-      if (!vitalsSnapshot.empty) {
-        vitalsSummary = vitalsSnapshot.docs.map((entry) => formatVitalLog(entry.data())).join('\n');
-      }
-
-      const appointmentQuery = query(
-        collection(db, 'users', targetId, 'appointments'),
-        orderBy('datetime', 'asc'),
-        limit(5)
-      );
-      const appointmentSnapshot = await getDocs(appointmentQuery);
-      if (!appointmentSnapshot.empty) {
-        appointmentSummary = appointmentSnapshot.docs
-          .map((entry) => {
-            const appointment = entry.data();
-            return `- ${new Date(appointment.datetime).toLocaleString()} (${appointment.status})`;
-          })
-          .join('\n');
-      }
-
-      let resolvedProtocolUrl = patientObject?.protocolUrl;
-      if (!resolvedProtocolUrl && protocolUrl) resolvedProtocolUrl = protocolUrl;
-
-      if (!resolvedProtocolUrl) {
-        const userDocument = await getDoc(doc(db, 'users', targetId));
-        if (userDocument.exists()) {
-          resolvedProtocolUrl = userDocument.data().protocolUrl;
-        }
-      }
-
-      if (resolvedProtocolUrl) {
-        let downloadUrl = resolvedProtocolUrl;
-        if (!resolvedProtocolUrl.startsWith('http')) {
-          const signedUrl = await getSignedUrl(resolvedProtocolUrl, 'protocol');
-          if (signedUrl) {
-            downloadUrl = signedUrl;
-          } else {
-            protocolStatus = 'Protocol file could not be authorized.';
-          }
-        }
-
-        if (downloadUrl && protocolStatus !== 'Protocol file could not be authorized.') {
-          const extractedText = await extractTextFromPdf(downloadUrl);
-          if (extractedText) {
-            protocolText = extractedText;
-            protocolStatus = activeProtocolName || patientObject?.protocolName || 'Protocol text extracted';
-          } else {
-            protocolStatus = 'Protocol text extraction failed.';
-          }
-        }
-      }
-    } catch (error) {
-      protocolStatus = `Protocol context error: ${error.message}`;
-    }
-
-    return {
-      vitalsSummary,
-      appointmentSummary,
-      protocolText,
-      protocolStatus,
-    };
-  };
-
-  const startHybridChat = async () => {
-    try {
-      let systemInstruction = `You are ${currentAiName}. Role: ${role === 'crc' ? 'CRC Assistant' : 'Patient Companion'}.`;
-
-      if (role === 'crc' && !patientData) {
-        systemInstruction +=
-          '\n\n[SYSTEM: GLOBAL DASHBOARD MODE]\nYou have access to the full patient database. Answer questions about any patient or the overall schedule.';
-        const globalSummary = await fetchGlobalPatientSummary();
-        systemInstruction += `\n\n${globalSummary}`;
-      }
-
-      const targetId = role === 'crc' ? patientData?.id : userId;
-
-      if (targetId && (role === 'patient' || patientData)) {
-        const { vitalsSummary, appointmentSummary, protocolText, protocolStatus } =
-          await fetchFullPatientContext(targetId, patientData);
-        const focusedPatientName = role === 'crc' ? patientData?.nickname : userNickname;
-
-        systemInstruction += `\n\n=== CURRENT FOCUS: ${focusedPatientName || 'Patient'} ===\nVITALS:\n${vitalsSummary}\n\nAPPOINTMENTS:\n${appointmentSummary}\n\nPROTOCOL STATUS: ${protocolStatus}`;
-
-        if (protocolText) {
-          systemInstruction += `\n\n[PROTOCOL DOCUMENT CONTENT]\n${protocolText}`;
-        }
-      }
-
-      systemInstruction += `\n\n=== SAFETY & RULES ===\n${SAFETY_INSTRUCTIONS}`;
-      systemPromptRef.current = systemInstruction;
+      systemPromptRef.current = buildStableSystemPrompt(currentAiName);
       chatSessionRef.current = true;
 
       if (messages.length === 0) {
-        const intro =
-          role === 'crc'
-            ? `**${currentAiName} ready.**\nRunning through ${SIDE_EFFECT_GUIDANCE_PROVIDER} with ${SIDE_EFFECT_GUIDANCE_MODEL}. I can help with vitals, appointments, protocols, and CTCAE guidance.`
-            : `Hello **${userNickname || 'there'}**. I am ${currentAiName}.`;
-        await saveMessage('model', intro);
+        await saveMessage(
+          'model',
+          `**${currentAiName} ready.**\nRunning through ${SIDE_EFFECT_GUIDANCE_PROVIDER} with ${SIDE_EFFECT_GUIDANCE_MODEL}. I can use routed retrieval with CTCAE and protocol grounding when needed.`
+        );
       }
     } catch (error) {
       console.error('AI initialization failed:', error);
     }
-  };
+  }, [currentAiName, messages.length, role, saveMessage]);
+
+  useEffect(() => {
+    if (!historyCollectionRef) return undefined;
+
+    const historyQuery = query(
+      historyCollectionRef,
+      orderBy('timestamp', 'desc'),
+      limit(CHAT_HISTORY_LIMIT)
+    );
+    const unsubscribe = onSnapshot(historyQuery, (snapshot) => {
+      const nextMessages = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })).reverse();
+      setMessages(nextMessages);
+      setIsHistoryLoaded(true);
+    });
+
+    return () => unsubscribe();
+  }, [historyCollectionRef]);
+
+  useEffect(() => {
+    if (patientData) {
+      setActiveContextPatient(patientData);
+    } else {
+      setActiveContextPatient(null);
+    }
+  }, [patientData]);
+
+  useEffect(() => {
+    lastRetrievalRef.current = null;
+    lastRetrievalTurnIndexRef.current = 0;
+    turnSequenceRef.current = 0;
+  }, [userId]);
+
+  useEffect(() => {
+    if (chatVisible && userId && isHistoryLoaded && !chatSessionRef.current) {
+      initializeGuidance();
+    }
+  }, [activeProtocolId, activeProtocolName, chatVisible, initializeGuidance, isHistoryLoaded, protocolUrl, userId]);
+
+  useEffect(() => {
+    if (!chatVisible || !pendingOutputAutoScrollRef.current || !chatAreaRef.current) {
+      return;
+    }
+
+    const latestMessage = messages[messages.length - 1];
+    if (!latestMessage || latestMessage.role !== 'model') {
+      return;
+    }
+
+    const chatArea = chatAreaRef.current;
+    const timer = window.setTimeout(() => {
+      chatArea.scrollTo({
+        top: chatArea.scrollHeight,
+        behavior: 'smooth',
+      });
+      pendingOutputAutoScrollRef.current = false;
+      setShowJumpToBottom(false);
+    }, 50);
+
+    return () => window.clearTimeout(timer);
+  }, [chatVisible, messages]);
+
+  useEffect(() => {
+    if (!chatVisible || !chatAreaRef.current) {
+      return;
+    }
+
+    const chatArea = chatAreaRef.current;
+    const distanceFromBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight;
+    setShowJumpToBottom(distanceFromBottom > 120);
+  }, [chatVisible, isLoading, messages]);
 
   const handleRefresh = async () => {
     setIsLoading(true);
     try {
-      await startHybridChat();
-      await saveMessage('system', '**AI memory refreshed.** Latest patient and protocol data loaded.');
+      chatSessionRef.current = null;
+      systemPromptRef.current = '';
+      lastRetrievalRef.current = null;
+      lastRetrievalTurnIndexRef.current = 0;
+      turnSequenceRef.current = 0;
+      await initializeGuidance();
+      await saveMessage('system', '**AI memory refreshed.** Latest CRC guidance context is active.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleClearHistory = async () => {
-    if (!window.confirm('Clear chat history?')) return;
+    if (!window.confirm('Clear chat history?') || !historyCollectionRef) return;
 
     setIsLoading(true);
     try {
-      const snapshot = await getDocs(historyCollectionRef);
+      const snapshot = await getDocs(
+        query(historyCollectionRef, orderBy('timestamp', 'desc'), limit(CHAT_HISTORY_LIMIT))
+      );
       const batch = writeBatch(db);
       snapshot.docs.forEach((entry) => batch.delete(entry.ref));
       await batch.commit();
       setMessages([]);
       chatSessionRef.current = null;
-      await startHybridChat();
+      systemPromptRef.current = '';
+      lastRetrievalRef.current = null;
+      lastRetrievalTurnIndexRef.current = 0;
+      turnSequenceRef.current = 0;
+      await initializeGuidance();
     } catch (error) {
       console.error('Failed to clear chat history:', error);
-      alert('Failed to clear chat history.');
+      window.alert('Failed to clear chat history.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const detectPatientInInput = (text) => {
-    if (role !== 'crc' || !allPatients.length) return null;
+    if (!allPatients.length) return null;
 
-    const lowerText = text.toLowerCase();
+    const lowerText = String(text || '').toLowerCase();
     const sortedPatients = [...allPatients].sort(
       (left, right) => (right.nickname?.length || 0) - (left.nickname?.length || 0)
     );
 
     return (
       sortedPatients.find((patient) => {
-        const name = (patient.nickname || '').toLowerCase();
+        const name = String(patient.nickname || '').toLowerCase();
         return name && name.length > 2 && lowerText.includes(name);
       }) || null
     );
+  };
+
+  const loadPatientPromptContext = async (targetPatient) => {
+    if (!targetPatient?.id) {
+      return {
+        patientId: null,
+        patientName: 'No active patient',
+        protocolId: null,
+        protocolName: null,
+        promptText: 'No single patient is selected. Use the CRC workspace context for workspace-level questions.',
+      };
+    }
+
+    const isSelectedPatient = patientData?.id === targetPatient.id;
+
+    if (isSelectedPatient) {
+      const protocol = {
+        protocolId: activeProtocolId || patientData?.protocolId || null,
+        protocolName: activeProtocolName || patientData?.protocolName || null,
+        protocolUrl: protocolUrl || patientData?.protocolUrl || null,
+        protocolStatus: patientData?.protocolStatus || null,
+      };
+
+      return {
+        patientId: patientData?.id || targetPatient.id,
+        patientName: patientData?.nickname || targetPatient.nickname || targetPatient.id,
+        protocolId: protocol.protocolId,
+        protocolName: protocol.protocolName,
+        promptText: buildPatientContextText({
+          profile: patientData,
+          patientSnapshot: patientData,
+          vitals: patientVitals,
+          appointments: patientAppointments,
+          alerts: patientAlerts,
+          eproEntries: patientEproEntries,
+          incidents: patientIncidents,
+          protocol,
+        }),
+      };
+    }
+
+    const profileSnapshot = await getDoc(doc(db, 'users', targetPatient.id));
+    const profile = profileSnapshot.exists()
+      ? { id: targetPatient.id, ...profileSnapshot.data() }
+      : { id: targetPatient.id, ...targetPatient };
+
+    const [vitalsSnapshot, appointmentsSnapshot, alertsSnapshot, eproSnapshot, incidentSnapshot] =
+      await Promise.all([
+        getDocs(
+          query(
+            collection(db, 'users', targetPatient.id, 'vitals'),
+            orderBy('timestamp', 'desc'),
+            limit(CONTEXT_WINDOW_LIMIT)
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, 'users', targetPatient.id, 'appointments'),
+            orderBy('datetime', 'asc'),
+            limit(CONTEXT_WINDOW_LIMIT)
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, 'users', targetPatient.id, 'alerts'),
+            orderBy('timestamp', 'desc'),
+            limit(CONTEXT_WINDOW_LIMIT)
+          )
+        ),
+        getDocs(query(collection(db, 'users', targetPatient.id, 'epro_submissions'), limit(CONTEXT_WINDOW_LIMIT))),
+        getDocs(
+          query(
+            collection(db, 'incident_records'),
+            where('linked_patient_ids', 'array-contains', targetPatient.id),
+            limit(CONTEXT_WINDOW_LIMIT)
+          )
+        ),
+      ]);
+
+    const vitals = vitalsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+    const appointments = appointmentsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+    const alerts = alertsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+    const eproEntries = sortByRecentTimestamp(
+      eproSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+      ['submitted_at', 'updated_at', 'assigned_at']
+    );
+    const incidents = sortByRecentTimestamp(
+      incidentSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+      ['updated_at', 'created_at']
+    );
+
+    const protocol = {
+      protocolId: profile.protocolId || null,
+      protocolName: profile.protocolName || null,
+      protocolUrl: profile.protocolUrl || null,
+      protocolStatus: profile.protocolStatus || null,
+    };
+
+    return {
+      patientId: profile.id || targetPatient.id,
+      patientName: profile.nickname || targetPatient.nickname || targetPatient.id,
+      protocolId: protocol.protocolId,
+      protocolName: protocol.protocolName,
+      promptText: buildPatientContextText({
+        profile,
+        patientSnapshot: targetPatient,
+        vitals,
+        appointments,
+        alerts,
+        eproEntries,
+        incidents,
+        protocol,
+      }),
+    };
   };
 
   const handleSend = async (event) => {
@@ -436,57 +486,52 @@ export default function GeminiChatbot({
     if (!input.trim() || isLoading) return;
 
     if (!chatSessionRef.current) {
-      await startHybridChat();
+      await initializeGuidance();
     }
     if (!chatSessionRef.current) return;
 
-    const userText = input;
+    const userText = input.trim();
+    turnSequenceRef.current += 1;
     setInput('');
     setIsLoading(true);
+    setThinkingLabel(buildThinkingLabel('context'));
+    pendingOutputAutoScrollRef.current = true;
     await saveMessage('user', userText);
 
     try {
       const mentionedPatient = detectPatientInInput(userText);
-      const fallbackPatient =
-        role === 'crc' ? activeContextPatient : { id: userId, nickname: userNickname };
-      const targetPatient = mentionedPatient || fallbackPatient;
-      let systemInjection = '';
-
-      const isAskingSchedule = /appointments|schedule|calendar/i.test(userText);
-      if (role === 'crc' && isAskingSchedule && !targetPatient) {
-        const scheduleSummary = await fetchGlobalSchedule();
-        systemInjection += `\n[SYSTEM: GLOBAL SCHEDULE]\n${scheduleSummary}\n`;
-      } else if (role === 'crc' && /patients|vitals|summary|list|everyone|all/i.test(userText)) {
-        const globalSummary = await fetchGlobalPatientSummary();
-        systemInjection += `\n[SYSTEM: REAL-TIME PATIENT DATABASE]\n${globalSummary}\n`;
+      const targetPatient = mentionedPatient || activeContextPatient || patientData || null;
+      if (mentionedPatient) {
+        setActiveContextPatient(mentionedPatient);
       }
 
-      const isProtocolQuestion = /protocol|summary|trial|pdf|document/i.test(userText);
-      if (targetPatient || isProtocolQuestion) {
-        const finalTarget =
-          targetPatient || activeContextPatient || (role === 'patient' ? { id: userId } : null);
+      const patientContext = await loadPatientPromptContext(targetPatient);
+      setThinkingLabel(buildThinkingLabel('route'));
 
-        if (finalTarget) {
-          const { vitalsSummary, appointmentSummary, protocolText, protocolStatus } =
-            await fetchFullPatientContext(finalTarget.id, finalTarget);
-          const patientName = finalTarget.nickname || 'The patient';
+      const routedGuidance = await routeGuidanceRequest({
+        userText,
+        workspaceContext: workspaceContextText,
+        patientContext: patientContext.promptText,
+        patientId: patientContext.patientId,
+        protocolId: patientContext.protocolId,
+        protocolName: patientContext.protocolName,
+        hasPatientContext: Boolean(patientContext.patientId),
+        historyMessages: messages,
+        retrievalCache: lastRetrievalRef.current,
+        currentTurnIndex: turnSequenceRef.current,
+        lastRetrievalTurnIndex: lastRetrievalTurnIndexRef.current,
+        onStageChange: (stage) => {
+          setThinkingLabel(buildThinkingLabel(stage));
+        },
+      });
 
-          systemInjection += `\n[DATA INJECTION FOR: ${patientName}]\nVITALS:\n${vitalsSummary}\n\nAPPOINTMENTS:\n${appointmentSummary}\n\nPROTOCOL STATUS: ${protocolStatus}`;
-
-          if (protocolText) {
-            systemInjection += `\n\n[PROTOCOL DOCUMENT CONTENT]\n${protocolText}`;
-          }
-        }
-      }
-
-      const ragContext = role === 'crc' ? '' : await searchCTCAE(userText);
-      if (ragContext) {
-        systemInjection += `\n\n[CTCAE KNOWLEDGE BASE]\n${ragContext}\n(Cite pages like [Page 4] when relevant)\n`;
-      }
-
-      if (role !== 'crc') {
-        throw new Error('AI Error. Web-based Side Effect Guidance is restricted to the CRC workspace.');
-      }
+      setThinkingLabel(
+        buildThinkingLabel('draft', {
+          ctcaeCount: routedGuidance.ctcaeCount,
+          protocolCount: routedGuidance.protocolCount,
+          routeDecision: routedGuidance.routeDecision,
+        })
+      );
 
       const conversation = messages
         .filter((message) => message.role === 'user' || message.role === 'model')
@@ -499,7 +544,7 @@ export default function GeminiChatbot({
         provider: SIDE_EFFECT_GUIDANCE_PROVIDER,
         systemPrompt: systemPromptRef.current,
         messages: conversation,
-        userMessage: systemInjection ? `${systemInjection}\nUser Query: ${userText}` : userText,
+        userMessage: routedGuidance.prompt,
       });
 
       setRuntimeMeta({
@@ -513,13 +558,46 @@ export default function GeminiChatbot({
       }
 
       await saveMessage('model', text);
+
+      if (routedGuidance.routeDecision === 'retrieve' && routedGuidance.nextRetrievalCache) {
+        lastRetrievalRef.current = routedGuidance.nextRetrievalCache;
+        lastRetrievalTurnIndexRef.current = turnSequenceRef.current;
+      } else if (routedGuidance.routeDecision === 'reuse_cache' && lastRetrievalRef.current) {
+        lastRetrievalTurnIndexRef.current = turnSequenceRef.current;
+      }
     } catch (error) {
       console.error('AI chat request failed:', error);
       await saveMessage('model', buildProviderUserMessage(error));
       chatSessionRef.current = null;
     } finally {
       setIsLoading(false);
+      setThinkingLabel('');
     }
+  };
+
+  const updateJumpToBottomState = () => {
+    const chatArea = chatAreaRef.current;
+    if (!chatArea) return;
+
+    const distanceFromBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight;
+    setShowJumpToBottom(distanceFromBottom > 120);
+  };
+
+  const handleChatAreaManualInteraction = () => {
+    pendingOutputAutoScrollRef.current = false;
+    updateJumpToBottomState();
+  };
+
+  const handleJumpToBottom = () => {
+    const chatArea = chatAreaRef.current;
+    if (!chatArea) return;
+
+    chatArea.scrollTo({
+      top: chatArea.scrollHeight,
+      behavior: 'smooth',
+    });
+    pendingOutputAutoScrollRef.current = false;
+    setShowJumpToBottom(false);
   };
 
   if (!chatVisible) {
@@ -540,11 +618,9 @@ export default function GeminiChatbot({
           {currentAiName}
         </span>
         {panelDescription ? <span className="guidance-panel__description">{panelDescription}</span> : null}
-        {role === 'crc' ? (
-          <span className={isDocked ? 'guidance-panel__context' : ''} style={isDocked ? undefined : styles.secondaryLine}>
-            Active context: <strong>{activeContextPatient?.nickname || 'Global CRC mode'}</strong>
-          </span>
-        ) : null}
+        <span className={isDocked ? 'guidance-panel__context' : ''} style={isDocked ? undefined : styles.secondaryLine}>
+          Active context: <strong>{activeContextPatient?.nickname || 'No patient selected'}</strong>
+        </span>
         <span className={isDocked ? 'guidance-panel__runtime' : ''} style={isDocked ? undefined : styles.runtimeInfo}>
           Runtime: <strong>{String(runtimeMeta.provider || SIDE_EFFECT_GUIDANCE_PROVIDER).toUpperCase()}</strong> using{' '}
           <strong>{runtimeMeta.model || SIDE_EFFECT_GUIDANCE_MODEL}</strong>
@@ -571,58 +647,91 @@ export default function GeminiChatbot({
   );
 
   const messagesBlock = (
-    <div className={isDocked ? 'guidance-panel__chatArea' : ''} style={isDocked ? undefined : styles.chatArea}>
-      {messages.map((message, index) => (
-        <div
-          key={message.id || index}
-          className={isDocked ? `guidance-panel__messageRow guidance-panel__messageRow--${message.role}` : ''}
-          style={
-            isDocked
-              ? undefined
-              : {
-                  ...styles.messageRow,
-                  justifyContent:
-                    message.role === 'user'
-                      ? 'flex-end'
-                      : message.role === 'system'
-                        ? 'center'
-                        : 'flex-start',
+    <div className={isDocked ? 'guidance-panel__chatShell' : ''} style={isDocked ? undefined : styles.chatShell}>
+      <div
+        ref={chatAreaRef}
+        className={isDocked ? 'guidance-panel__chatArea' : ''}
+        style={isDocked ? undefined : styles.chatArea}
+        onScroll={updateJumpToBottomState}
+        onWheel={handleChatAreaManualInteraction}
+        onTouchStart={handleChatAreaManualInteraction}
+        onPointerDown={handleChatAreaManualInteraction}
+      >
+        {messages.map((message, index) => (
+          <div
+            key={message.id || index}
+            className={isDocked ? `guidance-panel__messageRow guidance-panel__messageRow--${message.role}` : ''}
+            style={
+              isDocked
+                ? undefined
+                : {
+                    ...styles.messageRow,
+                    justifyContent:
+                      message.role === 'user'
+                        ? 'flex-end'
+                        : message.role === 'system'
+                          ? 'center'
+                          : 'flex-start',
+                  }
+            }
+          >
+            {message.role === 'system' ? (
+              <small
+                className={isDocked ? 'guidance-panel__systemMessage' : ''}
+                style={isDocked ? undefined : styles.systemMessage}
+              >
+                <ReactMarkdown>{message.text}</ReactMarkdown>
+              </small>
+            ) : (
+              <div
+                className={
+                  isDocked
+                    ? `guidance-panel__bubble ${message.role === 'user' ? 'guidance-panel__bubble--user' : 'guidance-panel__bubble--model'}`
+                    : ''
                 }
-          }
+                style={
+                  isDocked
+                    ? undefined
+                    : {
+                        ...styles.bubble,
+                        backgroundColor: message.role === 'user' ? '#0f609b' : '#f8fbff',
+                        color: message.role === 'user' ? 'white' : '#243b53',
+                        border: message.role === 'user' ? 'none' : '1px solid #dbe5f0',
+                      }
+                }
+              >
+                {message.role === 'model' ? <ReactMarkdown>{message.text}</ReactMarkdown> : message.text}
+              </div>
+            )}
+          </div>
+        ))}
+        {isLoading ? (
+          <div className={isDocked ? 'guidance-panel__loading' : ''} style={isDocked ? undefined : styles.loadingState}>
+            <span className={isDocked ? 'guidance-panel__thinkingBadge' : ''} style={isDocked ? undefined : styles.thinkingBadge}>
+              Think
+            </span>
+            <span>{thinkingLabel || 'Thinking'}</span>
+          </div>
+        ) : null}
+      </div>
+      {showJumpToBottom ? (
+        <button
+          type="button"
+          className={isDocked ? 'guidance-panel__jumpButton' : ''}
+          style={isDocked ? undefined : styles.jumpButton}
+          onClick={handleJumpToBottom}
+          title="Scroll to latest"
+          aria-label="Scroll to latest message"
         >
-          {message.role === 'system' ? (
-            <small className={isDocked ? 'guidance-panel__systemMessage' : ''} style={isDocked ? undefined : styles.systemMessage}>
-              <ReactMarkdown>{message.text}</ReactMarkdown>
-            </small>
-          ) : (
-            <div
-              className={
-                isDocked
-                  ? `guidance-panel__bubble ${message.role === 'user' ? 'guidance-panel__bubble--user' : 'guidance-panel__bubble--model'}`
-                  : ''
-              }
-              style={
-                isDocked
-                  ? undefined
-                  : {
-                      ...styles.bubble,
-                      backgroundColor: message.role === 'user' ? '#0f609b' : '#f8fbff',
-                      color: message.role === 'user' ? 'white' : '#243b53',
-                      border: message.role === 'user' ? 'none' : '1px solid #dbe5f0',
-                    }
-              }
-            >
-              {message.role === 'model' ? <ReactMarkdown>{message.text}</ReactMarkdown> : message.text}
-            </div>
-          )}
-        </div>
-      ))}
-      {isLoading ? (
-        <div className={isDocked ? 'guidance-panel__loading' : ''} style={isDocked ? undefined : styles.loadingState}>
-          Thinking...
-        </div>
+          <span
+            className={isDocked ? 'guidance-panel__jumpButtonIcon' : ''}
+            style={isDocked ? undefined : styles.jumpIcon}
+            aria-hidden="true"
+          >
+            ↓
+          </span>
+        </button>
       ) : null}
-      <div ref={messagesEndRef} />
     </div>
   );
 
@@ -638,11 +747,7 @@ export default function GeminiChatbot({
         style={isDocked ? undefined : styles.input}
         value={input}
         onChange={(event) => setInput(event.target.value)}
-        placeholder={
-          role === 'crc'
-            ? 'Describe a side effect, protocol rule, vitals concern, or follow-up action...'
-            : 'Type a message...'
-        }
+        placeholder="Describe a side effect, protocol rule, vitals concern, or follow-up action..."
       />
       <button
         type="submit"
@@ -746,6 +851,11 @@ const styles = {
     cursor: 'pointer',
     fontWeight: '600',
   },
+  chatShell: {
+    position: 'relative',
+    flex: 1,
+    minHeight: 0,
+  },
   chatArea: {
     flex: 1,
     padding: '20px',
@@ -769,9 +879,54 @@ const styles = {
     wordBreak: 'break-word',
   },
   loadingState: {
-    padding: '10px 2px',
-    fontStyle: 'italic',
-    color: '#64748b',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginTop: '6px',
+    padding: '10px 12px',
+    borderRadius: '999px',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    border: '1px solid #dbe5f0',
+    color: '#52606d',
+    width: 'fit-content',
+    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
+  },
+  thinkingBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '48px',
+    height: '28px',
+    padding: '0 10px',
+    borderRadius: '999px',
+    backgroundColor: '#e8f1fb',
+    color: '#0f609b',
+    fontSize: '12px',
+    fontWeight: '700',
+    letterSpacing: '0.02em',
+  },
+  jumpButton: {
+    position: 'absolute',
+    right: '18px',
+    bottom: '18px',
+    width: '54px',
+    height: '54px',
+    borderRadius: '999px',
+    border: '1px solid rgba(15, 23, 42, 0.1)',
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    color: '#ffffff',
+    boxShadow: '0 14px 28px rgba(15, 23, 42, 0.24)',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(10px)',
+    zIndex: 2,
+  },
+  jumpIcon: {
+    fontSize: '30px',
+    lineHeight: 1,
+    transform: 'translateY(-1px)',
   },
   inputArea: {
     display: 'flex',

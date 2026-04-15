@@ -19,15 +19,25 @@ async function getFirebaseIdToken() {
 
 async function callEdgeFunction(path, body) {
   const token = await getFirebaseIdToken();
-  const response = await fetch(`${resolveFunctionBaseUrl()}/${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body || {}),
-  });
+  let response;
+
+  try {
+    response = await fetch(`${resolveFunctionBaseUrl()}/${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body || {}),
+    });
+  } catch (error) {
+    const message = String(error?.message || error || '');
+    if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+      throw new Error('Unable to reach the ePRO review service from this local CRC preview. The deployed Supabase function must allow this local preview origin.');
+    }
+    throw error;
+  }
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {

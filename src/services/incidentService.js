@@ -414,15 +414,15 @@ export function getIncidentDueState(incident) {
 }
 
 export function subscribeToIncidentRecords(onUpdate, onError, options = {}) {
-  const baseQuery = options?.crcId
-    ? query(collection(db, 'incident_records'), where('primary_crc_id', '==', options.crcId))
-    : query(collection(db, 'incident_records'));
+  const safeLimit = Math.min(Math.max(Number(options?.limitCount) || 40, 1), 200);
+  const baseQuery = query(collection(db, 'incident_records'), orderBy('updated_at', 'desc'), limit(safeLimit));
 
   return onSnapshot(
     baseQuery,
     (snapshot) => {
       const incidents = snapshot.docs
         .map((entry) => ({ id: entry.id, ...entry.data() }))
+        .filter((incident) => (options?.crcId ? incident.primary_crc_id === options.crcId : true))
         .sort((left, right) => {
           const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
           const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();

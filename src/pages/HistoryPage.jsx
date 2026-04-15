@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { collectionGroup, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collectionGroup, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import LiveChatWidget from '../components/LiveChatWidget';
 import CRCWorkspaceShell from '../components/CRCWorkspaceShell';
+import WindowPaginationControls from '../components/WindowPaginationControls';
+import { fetchAlertHistorySummary } from '../services/crcSummaryService';
+
+const MAX_HISTORY_WINDOW_LIMIT = 200;
 
 export default function HistoryPage({ user, onLogout }) {
   const [allAlerts, setAllAlerts] = useState([]);
@@ -14,9 +18,15 @@ export default function HistoryPage({ user, onLogout }) {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [isAlertWidgetOpen, setIsAlertWidgetOpen] = useState(false);
+  const [historySummary, setHistorySummary] = useState(null);
+  const historyWindowLimit = Math.min(currentPage * itemsPerPage + 1, MAX_HISTORY_WINDOW_LIMIT + 1);
 
   useEffect(() => {
-    const alertsQuery = query(collectionGroup(db, 'alerts'), orderBy('timestamp', 'desc'));
+    const alertsQuery = query(
+      collectionGroup(db, 'alerts'),
+      orderBy('timestamp', 'desc'),
+      limit(historyWindowLimit)
+    );
     const unsubscribe = onSnapshot(alertsQuery, (snapshot) => {
       const rows = snapshot.docs.map((entry) => {
         const parentDoc = entry.ref.parent.parent;
@@ -26,6 +36,29 @@ export default function HistoryPage({ user, onLogout }) {
       setAllAlerts(rows);
     });
     return () => unsubscribe();
+  }, [historyWindowLimit]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHistorySummary() {
+      try {
+        const payload = await fetchAlertHistorySummary();
+        if (!cancelled) {
+          setHistorySummary(payload);
+        }
+      } catch (error) {
+        console.error('Unable to load full history summary:', error);
+        if (!cancelled) {
+          setHistorySummary(null);
+        }
+      }
+    }
+
+    loadHistorySummary();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredAlerts = useMemo(() => {
@@ -66,6 +99,8 @@ export default function HistoryPage({ user, onLogout }) {
 
   const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / itemsPerPage));
   const currentItems = filteredAlerts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const filtersActive = Boolean(searchText.trim() || filterDate || filterStatus !== 'all');
+  const canGoNextPage = filteredAlerts.length > currentPage * itemsPerPage || (!filtersActive && allAlerts.length > currentPage * itemsPerPage);
 
   const handleSort = (key) => {
     const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
@@ -97,7 +132,12 @@ export default function HistoryPage({ user, onLogout }) {
   };
 
   const activeAlerts = useMemo(() => allAlerts.filter((alert) => alert.status === 'unread'), [allAlerts]);
-  const resolvedCount = allAlerts.length - activeAlerts.length;
+  const activeAlertCount = Number.isFinite(Number(historySummary?.activeAlerts))
+    ? Number(historySummary.activeAlerts)
+    : activeAlerts.length;
+  const resolvedCount = Number.isFinite(Number(historySummary?.resolvedAlerts))
+    ? Number(historySummary.resolvedAlerts)
+    : (allAlerts.length - activeAlerts.length);
 
   const utilityContent = (
     <div className="utility-stack">
@@ -111,7 +151,7 @@ export default function HistoryPage({ user, onLogout }) {
         <div className="workspace-summary-grid workspace-summary-grid--compact">
           <div className="workspace-summary-item">
             <span>Active</span>
-            <strong>{activeAlerts.length}</strong>
+            <strong>{activeAlertCount}</strong>
           </div>
           <div className="workspace-summary-item">
             <span>Resolved</span>
@@ -173,8 +213,7 @@ export default function HistoryPage({ user, onLogout }) {
       ],
     },
   ];
-  const headerAlertButtonLabel = activeAlerts.length ? `Alerts (${activeAlerts.length})` : 'Inbox';
-
+  const headerAlertButtonLabel = activeAlertCount ? `Alerts (${activeAlertCount})` : 'Inbox';
   return (
     <CRCWorkspaceShell
       user={user}
@@ -187,9 +226,9 @@ export default function HistoryPage({ user, onLogout }) {
         setIsAlertWidgetOpen(true);
       }}
       alertButtonLabel={headerAlertButtonLabel}
-      alertButtonUrgent={activeAlerts.length > 0}
-      headerTitle="Global alert history"
-      headerDescription="Search historical alert threads, filter by date and status, and reopen the full documentation trail without leaving the CRC portal."
+      alertButtonUrgent={activeAlertCount > 0}
+      headerTitle="Recent alert history"
+      headerDescription="Search the recent alert archive, filter by date and status, and reopen live documentation threads without leaving the CRC portal."
     >
       <div className="workspace-two-column">
         {utilityContent}
@@ -197,9 +236,24 @@ export default function HistoryPage({ user, onLogout }) {
           <div className="section-header">
             <div>
               <h2 className="mt-0">Filter history</h2>
-              <div className="section-note">Use quick filters to narrow the audit trail before opening a thread.</div>
+              <div className="section-note">Use quick filters to narrow the recent alert archive before opening a thread.</div>
+              <div className="section-note section-note--spaced">
+                Showing {allAlerts.length} loaded records from the current recent window. Full history summary: {activeAlertCount} active, {resolvedCount} resolved.
+              </div>
             </div>
           </div>
+
+          <WindowPaginationControls
+            page={currentPage}
+            pageSize={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(value) => {
+              setItemsPerPage(value);
+              setCurrentPage(1);
+            }}
+            canGoNext={canGoNextPage}
+            note={`Page ${currentPage} • Showing up to ${itemsPerPage} history rows from the current loaded window.`}
+          />
 
           <div className="history-filter-grid">
             <input
@@ -309,6 +363,7 @@ export default function HistoryPage({ user, onLogout }) {
               style={{ width: '100px' }}
             >
               <option value={10}>10</option>
+              <option value={20}>20</option>
               <option value={30}>30</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
@@ -316,7 +371,7 @@ export default function HistoryPage({ user, onLogout }) {
             <button className="btn btn-secondary btn-small" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}>
               Prev
             </button>
-            <button className="btn btn-secondary btn-small" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}>
+            <button className="btn btn-secondary btn-small" disabled={!canGoNextPage} onClick={() => setCurrentPage((page) => page + 1)}>
               Next
             </button>
           </div>

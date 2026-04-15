@@ -4,7 +4,7 @@ export const APP_BACKGROUND_IMAGE = 'Background.jpg';
 
 export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 export const SIDE_EFFECT_GUIDANCE_PROVIDER =
-  import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_PROVIDER || 'gemini-browser';
+  import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_PROVIDER || 'firebase-callable';
 export const SIDE_EFFECT_GUIDANCE_MODEL =
   import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_MODEL || 'gemini-2.5-flash';
 

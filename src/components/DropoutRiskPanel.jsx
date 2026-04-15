@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { subscribeToAllDropoutPredictionSnapshots } from '../services/dropoutService';
+import WindowPaginationControls from './WindowPaginationControls';
+import {
+  fetchDropoutDashboardSummary,
+  subscribeToDropoutPredictionSnapshotsForUsers,
+} from '../services/dropoutService';
+
+const DEFAULT_DROPOUT_PAGE_SIZE = 30;
 
 function renderRiskBucket(bucket) {
   return String(bucket || 'pending').toUpperCase();
@@ -25,6 +31,14 @@ function isActionableSnapshot(snapshot = {}) {
   const riskBucket = String(snapshot.risk_bucket || '').toLowerCase();
   const priorityScore = Number(snapshot.action_priority_score);
   return riskBucket === 'high' || (Number.isFinite(priorityScore) && priorityScore >= 0.5);
+}
+
+function getConfidenceLabel(flagsValue) {
+  const flags = Array.isArray(flagsValue) ? flagsValue.map((entry) => String(entry || '').toLowerCase()) : [];
+  if (flags.includes('confidence_high')) return 'High';
+  if (flags.includes('confidence_medium')) return 'Medium';
+  if (flags.includes('confidence_limited')) return 'Limited';
+  return 'Unknown';
 }
 
 function buildSignalLines(value) {
@@ -112,9 +126,17 @@ export default function DropoutRiskPanel({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [error, setError] = useState('');
+  const [summary, setSummary] = useState(null);
+  const [summaryReady, setSummaryReady] = useState(false);
+  const [snapshotPageSize, setSnapshotPageSize] = useState(DEFAULT_DROPOUT_PAGE_SIZE);
+  const [snapshotPage, setSnapshotPage] = useState(1);
+
+  const loadedUserIds = useMemo(() => patients.map((patient) => patient.id).filter(Boolean), [patients]);
+  const loadedUserSignature = useMemo(() => loadedUserIds.join('|'), [loadedUserIds]);
 
   useEffect(() => {
-    return subscribeToAllDropoutPredictionSnapshots(
+    return subscribeToDropoutPredictionSnapshotsForUsers(
+      loadedUserIds,
       (rows) => {
         setSnapshotRows(rows);
         setError('');
@@ -124,6 +146,33 @@ export default function DropoutRiskPanel({
         setError(nextError.message || 'Unable to read current dropout snapshots.');
       }
     );
+  }, [loadedUserIds, loadedUserSignature]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDashboardSummary() {
+      try {
+        const payload = await fetchDropoutDashboardSummary();
+        if (!cancelled) {
+          setSummary(payload);
+        }
+      } catch (loadError) {
+        console.error('Unable to load full dropout dashboard summary:', loadError);
+        if (!cancelled) {
+          setSummary(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSummaryReady(true);
+        }
+      }
+    }
+
+    loadDashboardSummary();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const joinedRows = useMemo(() => {
@@ -150,42 +199,36 @@ export default function DropoutRiskPanel({
     if (!queryText) return joinedRows;
 
     return joinedRows.filter((entry) => {
-      const haystack = [
-        entry.patientName,
-        entry.subjectId,
-        entry.patientEmail,
-      ]
+      const haystack = [entry.patientName, entry.subjectId, entry.patientEmail]
         .map((value) => String(value || '').toLowerCase())
         .join(' ');
       return haystack.includes(queryText);
     });
   }, [joinedRows, searchQuery]);
 
+  const totalLoadedPages = Math.max(1, Math.ceil(filteredRows.length / snapshotPageSize));
+  const effectiveSnapshotPage = Math.min(snapshotPage, totalLoadedPages);
+  const visibleRows = filteredRows.slice(
+    (effectiveSnapshotPage - 1) * snapshotPageSize,
+    effectiveSnapshotPage * snapshotPageSize
+  );
+  const canGoToNextSnapshotPage = filteredRows.length > effectiveSnapshotPage * snapshotPageSize;
+
   const activeEntry = useMemo(
-    () => filteredRows.find((entry) => entry.userId === selectedUserId) || filteredRows[0] || null,
-    [filteredRows, selectedUserId]
+    () => visibleRows.find((entry) => entry.userId === selectedUserId) || visibleRows[0] || filteredRows[0] || null,
+    [filteredRows, selectedUserId, visibleRows]
   );
 
-  const dashboardMetrics = useMemo(() => {
-    const scoredCount = joinedRows.length;
-    const highRiskCount = joinedRows.filter((entry) => String(entry.risk_bucket || '').toLowerCase() === 'high').length;
-    const actionableCount = joinedRows.filter((entry) => entry.isActionable).length;
-    const numericProbabilities = joinedRows
-      .map((entry) => getProbabilityNumber(entry.dropout_probability))
-      .filter((value) => value != null);
-
-    const averageProbability =
-      numericProbabilities.length > 0
-        ? numericProbabilities.reduce((sum, value) => sum + value, 0) / numericProbabilities.length
-        : null;
-
-    return {
-      scoredCount,
-      highRiskCount,
-      actionableCount,
-      averageProbability,
-    };
-  }, [joinedRows]);
+  const dashboardMetrics = useMemo(
+    () => ({
+      scoredCount: Number.isFinite(Number(summary?.scored_count)) ? Number(summary.scored_count) : null,
+      highRiskCount: Number.isFinite(Number(summary?.high_risk_count)) ? Number(summary.high_risk_count) : null,
+      actionableCount: Number.isFinite(Number(summary?.actionable_count)) ? Number(summary.actionable_count) : null,
+      averageProbability: getProbabilityNumber(summary?.average_probability),
+      publishedAt: summary?.published_at || '',
+    }),
+    [summary]
+  );
 
   const explanationSignals = useMemo(
     () => buildSignalLines(activeEntry?.explanation_signals),
@@ -236,13 +279,29 @@ export default function DropoutRiskPanel({
     return (
       <>
         <div className="dropout-dashboard__metrics">
-          <MetricCard label="Total scored patients" value={dashboardMetrics.scoredCount} />
-          <MetricCard label="High-risk patients" value={dashboardMetrics.highRiskCount} tone="warning" />
-          <MetricCard label="Actionable patients" value={dashboardMetrics.actionableCount} tone="brand" />
+          <MetricCard label="Scored patients" value={dashboardMetrics.scoredCount ?? 'N/A'} />
+          <MetricCard label="High-risk patients" value={dashboardMetrics.highRiskCount ?? 'N/A'} tone="warning" />
+          <MetricCard label="Actionable patients" value={dashboardMetrics.actionableCount ?? 'N/A'} tone="brand" />
           <MetricCard
-            label="Average dropout probability"
-            value={dashboardMetrics.averageProbability == null ? 'N/A' : formatProbabilityPercent(dashboardMetrics.averageProbability)}
+            label="Average probability"
+            value={
+              dashboardMetrics.averageProbability == null
+                ? 'N/A'
+                : formatProbabilityPercent(dashboardMetrics.averageProbability)
+            }
           />
+        </div>
+
+        <div className="section-note section-note--spaced">
+          {summary
+            ? `Summary cards reflect the latest published full dropout dashboard summary${
+                dashboardMetrics.publishedAt
+                  ? ` from ${new Date(dashboardMetrics.publishedAt).toLocaleString()}`
+                  : ''
+              }. The ranked list below remains paginated from the currently loaded patient window.`
+            : summaryReady
+              ? 'Full dropout dashboard summary is not available yet. The ranked list below still works, but summary cards stay blank until the publisher writes dashboard_summaries/dropout_current.'
+              : 'Loading the latest published dropout dashboard summary...'}
         </div>
 
         <div className="dropout-dashboard__layout">
@@ -251,10 +310,15 @@ export default function DropoutRiskPanel({
               <div>
                 <h3 className="mt-0">Risk-ranked patients</h3>
                 <div className="section-note">
-                  Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk.
+                  Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk inside the loaded current snapshot window.
+                </div>
+                <div className="section-note section-note--spaced">
+                  Showing {visibleRows.length} visible patients from {filteredRows.length} loaded current snapshots. Full summary cards above are sourced separately from the latest published dashboard summary.
                 </div>
               </div>
-              <span className="metric-pill">{filteredRows.length} visible</span>
+              <div className="dropout-dashboard__detailActions">
+                <span className="metric-pill">{filteredRows.length} loaded</span>
+              </div>
             </div>
 
             <input
@@ -262,12 +326,27 @@ export default function DropoutRiskPanel({
               className="dropout-dashboard__search"
               placeholder="Search patient name, subject ID, or email"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setSnapshotPage(1);
+              }}
+            />
+
+            <WindowPaginationControls
+              page={effectiveSnapshotPage}
+              pageSize={snapshotPageSize}
+              onPageChange={setSnapshotPage}
+              onPageSizeChange={(value) => {
+                setSnapshotPageSize(value);
+                setSnapshotPage(1);
+              }}
+              canGoNext={canGoToNextSnapshotPage}
+              note={`Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} ranked patients from the loaded dropout snapshot window.`}
             />
 
             <div className="dropout-dashboard__list">
-              {filteredRows.length ? (
-                filteredRows.map((entry) => {
+              {visibleRows.length ? (
+                visibleRows.map((entry) => {
                   const isSelected = entry.userId === activeEntry?.userId;
                   return (
                     <button
@@ -290,7 +369,11 @@ export default function DropoutRiskPanel({
                       </div>
 
                       <div className="dropout-dashboard__rowStats">
+                        <span>Confidence: {getConfidenceLabel(entry.data_quality_flags)}</span>
                         <span>Action: {entry.recommended_action || 'N/A'}</span>
+                      </div>
+
+                      <div className="dropout-dashboard__rowStats">
                         <span>{entry.published_at ? new Date(entry.published_at).toLocaleString() : 'Not published'}</span>
                       </div>
                     </button>
@@ -330,6 +413,7 @@ export default function DropoutRiskPanel({
                     </div>
                     <div className="dropout-card__metric">Subject ID: {activeEntry.subjectId}</div>
                     <div className="dropout-card__metric">Dropout probability: {formatProbabilityDecimal(activeEntry.dropout_probability)}</div>
+                    <div className="dropout-card__metric">Confidence: {getConfidenceLabel(activeEntry.data_quality_flags)}</div>
                     <div className="dropout-card__metric">Recommended action: {activeEntry.recommended_action || 'N/A'}</div>
                     <div className="dropout-card__metric">Action priority score: {activeEntry.action_priority_score ?? 'N/A'}</div>
                     <div className="dropout-card__metric">Primary CRC: {activeEntry.primaryCrcName}</div>
@@ -378,7 +462,7 @@ export default function DropoutRiskPanel({
         <div>
           <h3 className="mt-0">Patient Dropout Prediction</h3>
           <div className="section-note">
-            Dedicated CRC-only dashboard sourced from live Firestore current snapshots. Patients are ranked from highest to lowest dropout risk.
+            Dedicated CRC-only dashboard sourced from live Firestore current snapshots. Summary cards use the published full dashboard summary, while the ranked list stays paginated within the loaded patient window.
           </div>
         </div>
         <span className="metric-pill">CRC only</span>

@@ -1,24 +1,26 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+function requireFirebaseEnv(name) {
+  const value = String(import.meta.env[name] || '').trim();
+  if (!value) {
+    throw new Error(`Missing Firebase env: ${name}`);
+  }
+  return value;
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBafCJ2iGZ-hYVpwHE_rubGDdOwhlqbkoQ",
-  authDomain: "idp-authentication-7e8d7.firebaseapp.com",
-  projectId: "idp-authentication-7e8d7",
-  storageBucket: "idp-authentication-7e8d7.firebasestorage.app",
-  messagingSenderId: "858114692646",
-  appId: "1:858114692646:web:027f8d324fd693830578e7",
-  measurementId: "G-7M5S7QN2TM"
+  apiKey: requireFirebaseEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: requireFirebaseEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: requireFirebaseEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: requireFirebaseEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: requireFirebaseEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: requireFirebaseEnv('VITE_FIREBASE_APP_ID'),
+  measurementId: String(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '').trim() || undefined,
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
@@ -27,11 +29,7 @@ export const db = getFirestore(app);
 export const functions = getFunctions(app, 'us-central1');
 
 const shouldUseFunctionsEmulator =
-  typeof window !== 'undefined' &&
-  (
-    import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === 'true' ||
-    (import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname))
-  );
+  typeof window !== 'undefined' && import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === 'true';
 
 if (shouldUseFunctionsEmulator && !window.__triallightFunctionsEmulatorConnected) {
   connectFunctionsEmulator(functions, '127.0.0.1', 5001);

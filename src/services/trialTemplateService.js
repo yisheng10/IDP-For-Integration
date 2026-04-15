@@ -252,7 +252,7 @@ export function describeInheritedVitals(vitalTemplates = []) {
 }
 
 export function subscribeToTrialTemplates(onUpdate, onError) {
-  const templatesQuery = query(collection(db, 'protocols'), orderBy('uploadedAt', 'desc'));
+  const templatesQuery = query(collection(db, 'protocols'), orderBy('uploadedAt', 'desc'), limit(20));
   return onSnapshot(
     templatesQuery,
     (snapshot) => {

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import EproStatusPanel from './EproStatusPanel';
+import WindowPaginationControls from './WindowPaginationControls';
 import {
   approveAllEproReviews,
   approvePatientReview,
@@ -67,6 +68,12 @@ export default function EproReviewWorkspace({
   user,
   patients = [],
   entries = [],
+  entryWindowLabel = '',
+  entriesPage = 1,
+  entriesPageSize = 30,
+  onEntriesPageChange,
+  onEntriesPageSizeChange,
+  canGoNextEntries = false,
 }) {
   const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -157,9 +164,17 @@ export default function EproReviewWorkspace({
         const leftTime = new Date(left.updated_at || left.submitted_at || left.assigned_at || 0).getTime();
         const rightTime = new Date(right.updated_at || right.submitted_at || right.assigned_at || 0).getTime();
         return rightTime - leftTime;
-      })
-      .slice(0, 8);
+      });
   }, [entries]);
+
+  const totalEntryPages = Math.max(1, Math.ceil(submittedOrOverdue.length / entriesPageSize));
+  const effectiveEntriesPage = Math.min(entriesPage, totalEntryPages);
+  const visibleSubmittedOrOverdue = submittedOrOverdue.slice(
+    (effectiveEntriesPage - 1) * entriesPageSize,
+    effectiveEntriesPage * entriesPageSize
+  );
+  const canAdvanceEntries =
+    submittedOrOverdue.length > effectiveEntriesPage * entriesPageSize || canGoNextEntries;
 
   const metrics = workspace?.metrics || {
     pending_trials: 0,
@@ -473,10 +488,19 @@ export default function EproReviewWorkspace({
             <div>
               <h3>Submitted / Overdue</h3>
               <div className="section-note">Most recent operational visibility from mirrored ePRO records.</div>
+              {entryWindowLabel ? <div className="section-note section-note--spaced">{entryWindowLabel}</div> : null}
             </div>
           </div>
-          {submittedOrOverdue.length ? (
-            submittedOrOverdue.map((entry) => (
+          <WindowPaginationControls
+            page={effectiveEntriesPage}
+            pageSize={entriesPageSize}
+            onPageChange={onEntriesPageChange}
+            onPageSizeChange={onEntriesPageSizeChange}
+            canGoNext={canAdvanceEntries}
+            note={`Page ${effectiveEntriesPage} • Showing up to ${entriesPageSize} submitted or overdue mirrored ePRO rows from the current loaded window.`}
+          />
+          {visibleSubmittedOrOverdue.length ? (
+            visibleSubmittedOrOverdue.map((entry) => (
               <button
                 key={entry.id}
                 type="button"

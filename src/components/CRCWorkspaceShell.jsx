@@ -242,30 +242,32 @@ export default function CRCWorkspaceShell({
   return (
     <div className={`crc-shell ${isCollapsed ? 'crc-shell--sidebarCollapsed' : ''}`}>
       <aside className={`crc-sidebar ${isCollapsed ? 'crc-sidebar--collapsed' : ''}`}>
-        <button
-          type="button"
-          className="crc-sidebar__brand"
-          onClick={() => {
-            navigate('/home');
-            onHomeClick?.();
-          }}
-        >
-          <span className="crc-sidebar__brandMark">TL</span>
-          <span className="crc-sidebar__brandText">
-            <span className="crc-sidebar__brandEyebrow">CRC workspace</span>
-            <span className="crc-sidebar__brandName">{APP_NAME}</span>
-          </span>
-        </button>
+        <div className="crc-sidebar__header">
+          <button
+            type="button"
+            className="crc-sidebar__brand"
+            onClick={() => {
+              navigate('/home');
+              onHomeClick?.();
+            }}
+          >
+            <span className="crc-sidebar__brandMark">TL</span>
+            <span className="crc-sidebar__brandText">
+              <span className="crc-sidebar__brandEyebrow">CRC workspace</span>
+              <span className="crc-sidebar__brandName">{APP_NAME}</span>
+            </span>
+          </button>
 
-        <button
-          type="button"
-          className="crc-sidebar__collapseToggle"
-          onClick={() => setIsCollapsed((current) => !current)}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <CollapseIcon collapsed={isCollapsed} />
-        </button>
+          <button
+            type="button"
+            className="crc-sidebar__collapseToggle"
+            onClick={() => setIsCollapsed((current) => !current)}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <CollapseIcon collapsed={isCollapsed} />
+          </button>
+        </div>
 
         <div className="crc-sidebar__scroll">
           <div className="crc-sidebar__navGroups" aria-label="CRC navigation">

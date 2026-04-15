@@ -16,6 +16,44 @@
 - Production cloud functions: partially blocked by Firebase plan limitations.
 
 ## Completed Work
+### Dropout Extreme Audit And Deploy Hardening
+- Upgraded the dropout training path so future candidate runs retain mandatory training-dynamics artifacts:
+  - `training_summary.json`
+  - `epoch_history.csv`
+  - TensorBoard event logs
+- Confirmed the frozen `honest_v3_official` runs already retain `training_summary.json` with epoch-by-epoch `epoch_history`, then wired those real frozen-run dynamics into the report figure pipeline instead of treating them as unavailable.
+- Extended the official audit runner to generate additional deploy/report-grade artifacts:
+  - subgroup-specific source-level SHAP outputs
+  - SHAP stability across challenger seeds
+  - calibration stability audit
+  - transformer split-level calibration summary
+- Re-ran the full official extreme audit on the CUDA environment and refreshed:
+  - `Patient-Dropout-Prediction/audit/official_model_extreme_audit/`
+  - `Patient-Dropout-Prediction/report_figures/patient_dropout/`
+- Expanded the report figure package from 16 to 20 figures, adding:
+  - official training dynamics
+  - calibration stability evidence
+  - subgroup-specific source-level TreeSHAP
+  - source-level SHAP stability across seeds
+- Added a deploy-facing publish gate layer to the live publisher so publish summaries now evaluate:
+  - score-generation success rate
+  - usable static-context coverage
+  - sufficient live-history coverage
+  - symptom-source coverage
+  - limited-confidence rate
+- Configured the publisher to block unsafe live publish on failed required gates and to surface limited-coverage mode explicitly instead of silently publishing as full-strength.
+- Added deployment and promotion guidance docs for the dropout module:
+  - `Patient-Dropout-Prediction/DUAL_ENGINE_EXPLAINABILITY_NOTE.md`
+  - `Patient-Dropout-Prediction/DEPLOY_READINESS.md`
+  - `Patient-Dropout-Prediction/CANDIDATE_PROMOTION_POLICY.md`
+- Added a structured candidate-search entrypoint:
+  - `Patient-Dropout-Prediction/src/run_candidate_search.py`
+- Refreshed dropout truth-source docs so they now explicitly mention:
+  - mandatory training dynamics
+  - shadow explainer positioning
+  - deploy gating expectations
+  - continued `pre-testing` / `not real-world validated` positioning
+
 ### Dropout Model Rebuild
 - Rebuilt the dropout backend around a single-model `stage_3_29_single` contract.
 - Removed the old staged strategy from the active training/inference path:
@@ -1024,9 +1062,12 @@
 - This means the technical blocker for the real remote publish is now explicitly surfaced by the tool itself, instead of only appearing as a later runtime failure.
 
 ### Publisher Preflight Ready-Flag Bugfix
-- Fixed a logic bug in Patient-Dropout-Prediction/src/publish_dropout_snapshots.py where live publish preflight could still report eady=False even when Firebase, Supabase, and frozen assets were all configured correctly.
-- Root cause: the eady expression handled the no-demo-scenarios case incorrectly.
-- Fix: normalized demo-scenario path readiness into a dedicated demo_path_ready boolean and reused it consistently in the report and final eady calculation.
+- Fixed a logic bug in Patient-Dropout-Prediction/src/publish_dropout_snapshots.py where live publish preflight could still report 
+eady=False even when Firebase, Supabase, and frozen assets were all configured correctly.
+- Root cause: the 
+eady expression handled the no-demo-scenarios case incorrectly.
+- Fix: normalized demo-scenario path readiness into a dedicated demo_path_ready boolean and reused it consistently in the report and final 
+eady calculation.
 - Result: --preflight-only can now be trusted as the gate before real dry-run or live publish.
 
 ### Publisher Mapping Diagnostics
@@ -1733,3 +1774,1332 @@
 - Existing warning retained:
   - the CRC bundle still emits the non-blocking large chunk warning during build
 
+## 2026-04-02 - CRC shell header and duplicate section hero cleanup
+
+- Refined the CRC shell layout to reduce repeated navigation cues and make the workspace easier for CRC users to scan.
+- Updated `src/components/CRCWorkspaceShell.jsx`:
+  - moved the sidebar collapse control into the sidebar header row
+  - aligned it beside the `TrialLight` brand block instead of floating it outside the sidebar edge
+- Updated `src/components/TopNavbar.jsx`:
+  - removed the duplicated top-right `Resources` launcher
+  - kept only `Urgent` and the profile menu in the top-right action area
+- Updated `src/pages/CRCHome.jsx`:
+  - removed repeated page-level section hero blocks from:
+    - `dashboard`
+    - `patients`
+    - `safety-inbox`
+    - `clinical-intelligence`
+    - `protocol-library`
+    - `study-coordination`
+    - `epro`
+    - `resources`
+  - kept the shell header as the single page title/description source
+- Updated `src/index.css`:
+  - added the new sidebar header row layout
+  - restyled the collapse button as an internal compact header button
+  - tightened section spacing after removing duplicated hero blocks
+- Verification completed:
+  - `npm.cmd run build:crc`
+  - build passed successfully
+- Existing warning retained:
+  - the CRC bundle still emits the non-blocking large chunk warning during build
+
+## 2026-04-03 - Fully-live dropout static sources and v2 deploy package
+
+- Added patient-level live static field capture in the patient app:
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/Login.js`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/ProfileModal.js`
+- New patient fields now persist to `users/{uid}`:
+  - `caregiver_support`
+  - `distance_to_site_km`
+- `dob` remains the source for runtime-derived `age`.
+
+- Added protocol PDF dropout static-context extraction service:
+  - `src/services/protocolStaticContextService.js`
+- The new service:
+  - signs the uploaded protocol PDF from Supabase Storage
+  - extracts text from the PDF
+  - uses Gemini plus deterministic normalization helpers to derive:
+    - `trial_phase`
+    - `condition_family`
+    - `enrollment`
+    - `criteria_complexity`
+    - intervention flags
+  - writes `protocols/{protocolId}.dropout_static_context`
+  - writes extraction metadata:
+    - `extracted_at`
+    - `extractor_version`
+    - `source_pdf_path`
+    - `extraction_status`
+- Wired protocol upload to trigger extraction immediately after the protocol doc is created:
+  - `src/components/ProtocolManager.jsx`
+
+- Refactored the live dropout runtime to remove frozen static registry usage from the live path:
+  - `Patient-Dropout-Prediction/src/live_data_adapter.py`
+  - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+- Live scoring static inputs are now assembled only from:
+  - `users/{uid}` patient fields
+  - `protocols/{protocolId}.dropout_static_context`
+- `live_data_adapter.py` now:
+  - derives `age` from `dob`
+  - maps `caregiver_support` -> model `caregiver`
+  - maps `distance_to_site_km` -> model `dist_km`
+  - no longer reads `subject_context_registry`
+  - emits separate diagnostics for:
+    - patient static coverage
+    - protocol static coverage
+    - dynamic source coverage
+- `publish_dropout_snapshots.py` now:
+  - no longer requires `subject_context_registry` in live preflight
+  - syncs `dropout_testing_subjects` from live Firestore patient docs in live mode
+  - skips patients with missing live static fields and reports explicit diagnostics
+
+- Updated the model/training schema for the fully-live v2 line:
+  - `Patient-Dropout-Prediction/src/feature_pipeline.py`
+  - `Patient-Dropout-Prediction/src/integration_adapters.py`
+  - `Patient-Dropout-Prediction/src/train.py`
+  - `Patient-Dropout-Prediction/src/predict.py`
+  - `Patient-Dropout-Prediction/src/data_generator.py`
+- Removed `trial_dropout_prior` from the model input schema.
+- The hybrid generator still uses latent trial-level dropout pressure internally, but the exported training rows for the new schema no longer expose `trial_dropout_prior` as a model feature.
+
+- Trained two fully-live v2 candidate runs without overwriting the legacy deployed package:
+  - patient split:
+    - `Patient-Dropout-Prediction/runs/fully_live_v2/stage_3_29_single__FVtriallight_hybrid_v3_symptom_focus__SSpatient__FGfull__2026-04-03T09-20-16+00-00`
+    - best metrics:
+      - `p_at_r80 = 0.3805`
+      - `pr_auc = 0.5988`
+      - `alert_frac_at_r80 = 0.3085`
+      - `test_positive_rate = 0.1467`
+  - trial split:
+    - `Patient-Dropout-Prediction/runs/fully_live_v2/stage_3_29_single__FVtriallight_hybrid_v3_symptom_focus__SStrial__FGfull__2026-04-03T09-47-36+00-00`
+    - best metrics:
+      - `p_at_r80 = 0.3761`
+      - `pr_auc = 0.6044`
+      - `alert_frac_at_r80 = 0.3105`
+      - `test_positive_rate = 0.1459`
+
+- Created a new fully-live v2 deploy package without overwriting the legacy checkpoint directory:
+  - `Patient-Dropout-Prediction/deploy_assets/checkpoints_live_v2/model_stage_3_29_single.pth`
+  - `Patient-Dropout-Prediction/deploy_assets/checkpoints_live_v2/artifacts_stage_3_29_single.pkl`
+  - `Patient-Dropout-Prediction/deploy_assets/checkpoints/frozen_model_manifest_live_v2.json`
+- Updated `Patient-Dropout-Prediction/src/module_service.py` to prefer the new fully-live v2 manifest before legacy manifests.
+- The new manifest intentionally omits `subject_context_registry_path`.
+
+- Verification completed:
+  - Python syntax checks passed for the modified dropout backend files via `py_compile`
+  - local model smoke test succeeded using the new fully-live v2 manifest and checkpoint directory
+  - local static-context smoke test succeeded for:
+    - `dob`
+    - `caregiver_support`
+    - `distance_to_site_km`
+    - `dropout_static_context`
+  - `npm.cmd run build:crc` passed successfully
+- Current known environment gap:
+  - the local `Patient-Dropout-Prediction/env` runtime used in this session is missing `requests`
+  - live publisher preflight still runs and confirms registry is no longer required, but real live publish from that specific environment still needs a Python environment with the full HTTP dependency set
+
+## 2026-04-03 - Honest dropout evaluation split and live-only generator pressure proxy
+
+- Reviewed the dropout pipeline with a realism-first focus and implemented two structural corrections in the active backend:
+  - `Patient-Dropout-Prediction/src/train.py`
+  - `Patient-Dropout-Prediction/src/data_generator.py`
+
+- Reworked training/evaluation so epoch selection and policy threshold derivation no longer look at the held-out test set:
+  - added an explicit train/validation/test split inside `build_or_load_window_cache`
+  - cache files now persist:
+    - `__train.npz`
+    - `__val.npz`
+    - `__test.npz`
+  - added `validation_frac` support to training runs
+  - best checkpoint selection now uses validation metrics only
+  - `risk_policy` is now derived from validation predictions instead of test predictions
+  - training summaries now include:
+    - `best_validation_metrics`
+    - validation label diagnostics
+- Updated `Patient-Dropout-Prediction/src/evaluate_saved_models.py` to consume the new cached split structure.
+
+- Removed the remaining hidden dependence on non-live `trial_dropout_prior` inside the hybrid generator world model:
+  - replaced it with a live-schema-compatible `trial_operational_pressure` proxy derived only from:
+    - `trial_phase`
+    - `condition_family`
+    - `enrollment`
+    - `criteria_complexity`
+    - intervention flags
+  - removed `droupout_rate` from the generator merge path so the synthetic patient world is no longer implicitly shaped by a deployment-unavailable field
+  - updated latent burden, flare probability, abnormal vital probability, baseline engagement, baseline symptom pressure, and anxiety-branch activation to use the new proxy
+
+- Exported a new realism-aligned hybrid dataset without overwriting previous datasets:
+  - `Patient-Dropout-Prediction/data/super_fusion_dataset_30days_1__debug1000_v35fullyliveproxy.csv`
+  - `Patient-Dropout-Prediction/data/super_fusion_dataset_30days_1__debug1000_v35fullyliveproxy__sanity.json`
+- New dataset diagnostics:
+  - rows: `938,268`
+  - patients: `26,063`
+  - trials: `1,000`
+  - row positive rate: `0.1098`
+  - patient event rate: `0.5728`
+- Compared with the prior `v34bprevalencefix` sanity report:
+  - row positive rate increased from `0.1012` to `0.1098`
+  - patient event rate increased from `0.5279` to `0.5728`
+
+- Trained new honesty-first runs on the `v35fullyliveproxy` dataset:
+  - patient split:
+    - `Patient-Dropout-Prediction/runs/fully_live_v3_honest/stage_3_29_single__FVtriallight_hybrid_v3_symptom_focus__SSpatient__FGfull__2026-04-03T10-58-04+00-00`
+    - validation best:
+      - `p_at_r80 = 0.3896`
+      - `pr_auc = 0.6231`
+      - `alert_frac_at_r80 = 0.3390`
+    - held-out test:
+      - `p_at_r80 = 0.3731`
+      - `pr_auc = 0.6056`
+      - `alert_frac_at_r80 = 0.3528`
+      - `roc_auc = 0.8557`
+      - `brier = 0.1575`
+  - trial split:
+    - `Patient-Dropout-Prediction/runs/fully_live_v3_honest/stage_3_29_single__FVtriallight_hybrid_v3_symptom_focus__SStrial__FGfull__2026-04-03T11-18-27+00-00`
+    - validation best:
+      - `p_at_r80 = 0.4052`
+      - `pr_auc = 0.6107`
+      - `alert_frac_at_r80 = 0.3515`
+    - held-out test:
+      - `p_at_r80 = 0.3914`
+      - `pr_auc = 0.6136`
+      - `alert_frac_at_r80 = 0.3307`
+      - `roc_auc = 0.8611`
+      - `brier = 0.1491`
+
+- Ran one targeted tuning experiment for the weaker patient split using focal loss plus hard-negative oversampling:
+  - `Patient-Dropout-Prediction/runs/fully_live_v3_honest_tuned/stage_3_29_single__FVtriallight_hybrid_v3_symptom_focus__SSpatient__FGfull__2026-04-03T11-36-53+00-00`
+  - held-out test:
+    - `p_at_r80 = 0.3775`
+    - `pr_auc = 0.5991`
+    - `alert_frac_at_r80 = 0.3490`
+    - `roc_auc = 0.8520`
+    - `brier = 0.1687`
+- Result:
+  - tuning slightly improved patient-split `p_at_r80`
+  - but worsened `pr_auc`, `roc_auc`, and `brier`
+  - so the tuned patient run was not promoted as the preferred candidate
+
+- Important interpretation from this round:
+  - the previous fully-live v2 metrics were optimistic because test data was being used for epoch selection and policy derivation
+  - the new `fully_live_v3_honest` line is more deployment-realistic even when its reported metrics are less flattering
+  - under the more honest patient split, the transformer advantage over the logistic baseline is modest and not dominant on every metric
+
+## 2026-04-03 - Honest v3 official freeze, v37 prevalence target, and default runtime cutover
+
+- Finalized the official dropout generator target instead of continuing open-ended tuning:
+  - tightened the generator confirmation rules in `Patient-Dropout-Prediction/src/data_generator.py`
+  - froze the disengagement world at:
+    - `SYMPTOM_FLARE_PRIOR_SCALE = 0.50`
+    - `PRIMARY_CONFIRM_STREAK_DAYS = 6`
+    - `SYMPTOM_CONFIRM_WINDOW_DAYS = 10`
+    - `SYMPTOM_CONFIRM_MIN_HITS = 9`
+    - `MIXED_CONFIRM_PRIMARY_STREAK_DAYS = 5`
+    - `MIXED_CONFIRM_RECENT_SYMPTOM_HITS = 3`
+
+- Exported the new official honest dataset without overwriting prior datasets:
+  - `Patient-Dropout-Prediction/data/super_fusion_dataset_30days_1__debug1000_v37honestofficial.csv`
+  - `Patient-Dropout-Prediction/data/super_fusion_dataset_30days_1__debug1000_v37honestofficial__sanity.json`
+- The new sanity report hit the intended patient-level prevalence target:
+  - `patient_event_rate = 0.204773`
+  - `row_positive_rate = 0.039817`
+  - `confirmed_disengagement_patient_count = 5337`
+  - `primary_event_share = 0.677534`
+  - `symptom_event_share = 0.334270`
+
+- Retrained the final honest candidate on the frozen `v37honestofficial` dataset using strict train/validation/test separation:
+  - patient split:
+    - `Patient-Dropout-Prediction/runs/honest_v3_official/stage_3_29_single__FVtriallight_hybrid_v3_symptom_focus__SSpatient__FGfull__2026-04-03T12-37-08+00-00`
+    - final transformer:
+      - `p_at_r80 = 0.4493`
+      - `pr_auc = 0.6088`
+      - `alert_frac_at_r80 = 0.0848`
+      - `roc_auc = 0.9720`
+      - `brier = 0.0725`
+    - logistic challenger:
+      - `p_at_r80 = 0.4161`
+      - `pr_auc = 0.5706`
+      - `alert_frac_at_r80 = 0.0916`
+      - `roc_auc = 0.9671`
+      - `brier = 0.0720`
+  - trial split:
+    - `Patient-Dropout-Prediction/runs/honest_v3_official/stage_3_29_single__FVtriallight_hybrid_v3_symptom_focus__SStrial__FGfull__2026-04-03T12-59-05+00-00`
+    - final transformer:
+      - `p_at_r80 = 0.4391`
+      - `pr_auc = 0.6029`
+      - `alert_frac_at_r80 = 0.0838`
+      - `roc_auc = 0.9715`
+      - `brier = 0.0667`
+    - logistic challenger:
+      - `p_at_r80 = 0.3948`
+      - `pr_auc = 0.5505`
+      - `alert_frac_at_r80 = 0.0935`
+      - `roc_auc = 0.9653`
+      - `brier = 0.0693`
+
+- Promotion gate result:
+  - the final honest transformer did not materially underperform logistic on patient split
+  - the final honest transformer clearly beat logistic on both `p_at_r80` and `pr_auc` under the stricter trial split
+  - `alert_frac_at_r80` stayed below the logistic challenger on both splits
+  - therefore the official model line was promoted to:
+    - `Honest v3`
+    - policy: `Recall-first`
+
+- Created a new official deployment bundle without overwriting the older fully-live v2 package:
+  - `Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3/model_stage_3_29_single.pth`
+  - `Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3/artifacts_stage_3_29_single.pkl`
+  - `Patient-Dropout-Prediction/deploy_assets/checkpoints/frozen_model_manifest_honest_v3.json`
+- The new manifest records:
+  - official model line: `Honest v3`
+  - official split strategy: `trial`
+  - selection policy: `Recall-first`
+  - rollout note that `frozen_model_manifest_live_v2.json` is now rollback only
+
+- Updated the active runtime default order in:
+  - `Patient-Dropout-Prediction/src/module_service.py`
+- New manifest priority order now starts with:
+  - `frozen_model_manifest_honest_v3.json`
+
+- Updated deployment-facing docs:
+  - `Patient-Dropout-Prediction/DEPLOYMENT.md`
+  - `Patient-Dropout-Prediction/OFFICIAL_MODEL.md`
+- These now make the official stance explicit:
+  - `Honest v3` is the current official runtime line
+  - `fully_live_v2` remains available for rollback only
+  - `trial_dropout_prior` and `subject_context_registry` are not part of the official live runtime contract
+
+- Verification completed:
+  - `py_compile` passed for:
+    - `Patient-Dropout-Prediction/src/module_service.py`
+    - `Patient-Dropout-Prediction/src/train.py`
+    - `Patient-Dropout-Prediction/src/data_generator.py`
+    - `Patient-Dropout-Prediction/src/evaluate_saved_models.py`
+  - runtime manifest loading confirmed that the default selected manifest is now:
+    - `Honest v3`
+    - checkpoints dir: `deploy_assets/checkpoints_honest_v3`
+    - official split: `trial`
+
+## 2026-04-03 (dropout prediction P0-P2 completion pass)
+
+- Extended the Honest v3 training/runtime toolchain with validation-fitted probability calibration:
+  - added `Patient-Dropout-Prediction/src/calibration_utils.py`
+  - updated:
+    - `Patient-Dropout-Prediction/src/train.py`
+    - `Patient-Dropout-Prediction/src/evaluate_saved_models.py`
+    - `Patient-Dropout-Prediction/src/risk_engine_inference.py`
+    - `Patient-Dropout-Prediction/src/risk_engine_batch_inference.py`
+- New behavior:
+  - calibration is fit on `validation`
+  - calibrated probabilities are used for final evaluation and runtime scoring when present in artifacts
+  - summaries now retain both raw and calibrated metrics
+
+- Implemented a formal missing-data confidence policy for CRC-facing dropout outputs:
+  - updated `Patient-Dropout-Prediction/src/module_service.py`
+  - updated `src/components/DropoutRiskPanel.jsx`
+- Added explicit confidence tiers:
+  - `confidence_high`
+  - `confidence_medium`
+  - `confidence_limited`
+- CRC list/detail views now surface a confidence label alongside risk ranking.
+
+- Switched the scheduled GitHub Actions dropout workflow to the official Honest v3 checkpoint directory:
+  - updated `.github/workflows/dropout-precompute.yml`
+  - `DROPOUT_CHECKPOINTS_DIR` now defaults to:
+    - `Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3`
+
+- Added shadow monitoring support to the dropout publisher:
+  - updated `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+- New publisher behavior:
+  - preflight now prints:
+    - official model line
+    - selection policy
+    - official split strategy
+    - shadow monitoring requirement state
+  - publish can now dual-write shadow rows to:
+    - `dropout_shadow_predictions`
+  - dry-run previews now include:
+    - `shadow_prediction_rows`
+  - shadow rows include:
+    - model line metadata
+    - source mode
+    - subject mapping source
+    - confidence/missing-input payloads
+    - live source coverage
+    - future proxy-evaluation status metadata
+
+- Added a new Supabase migration for dropout shadow monitoring:
+  - `supabase/migrations/20260403_dropout_shadow_monitoring.sql`
+- New tables:
+  - `dropout_shadow_predictions`
+  - `dropout_proxy_evaluations`
+
+- Added a forward proxy evaluation script:
+  - `Patient-Dropout-Prediction/src/evaluate_shadow_proxies.py`
+- This script:
+  - reads due/pending shadow predictions
+  - rebuilds live history for the scored patient
+  - computes forward proxy outcomes such as:
+    - `no_activity_7d`
+    - `no_vitals_or_epro_7d`
+    - `unanswered_followup_72h`
+    - `serious_symptom_disengagement_7d`
+    - `missed_appointment_and_no_recovery_7d`
+  - upserts results into `dropout_proxy_evaluations`
+  - patches the linked shadow row with completion/error status
+
+- Added a protocol static-context QA export script:
+  - `Patient-Dropout-Prediction/src/audit_protocol_static_context.py`
+- This exports a CSV review sheet from Firestore `protocols/{protocolId}.dropout_static_context` for manual QA.
+
+- Added a focused ablation runner for the official Honest v3 line:
+  - `Patient-Dropout-Prediction/src/run_focus_ablation_suite.py`
+- Supported scenarios:
+  - `no_epro_pain_anxiety`
+  - `no_crc_followup`
+  - `no_side_effects`
+  - `dynamic_only`
+
+- Extended the training pipeline to support static-context ablation without changing the runtime contract:
+  - updated `Patient-Dropout-Prediction/src/train.py`
+- New training flag:
+  - `--static_mode full|none`
+- This allows a formal `dynamic_only` challenger run while keeping validation/test separation intact.
+
+- Updated deployment and official-model docs:
+  - `Patient-Dropout-Prediction/DEPLOYMENT.md`
+  - `Patient-Dropout-Prediction/OFFICIAL_MODEL.md`
+- Docs now explicitly cover:
+  - Honest v3 monitoring controls
+  - shadow/proxy evaluation tables and scripts
+  - calibration and confidence policy
+  - protocol QA and focused ablation tooling
+
+- Verification completed:
+  - `py_compile` passed for:
+    - `Patient-Dropout-Prediction/src/calibration_utils.py`
+    - `Patient-Dropout-Prediction/src/risk_engine_inference.py`
+    - `Patient-Dropout-Prediction/src/risk_engine_batch_inference.py`
+    - `Patient-Dropout-Prediction/src/train.py`
+    - `Patient-Dropout-Prediction/src/evaluate_saved_models.py`
+    - `Patient-Dropout-Prediction/src/module_service.py`
+    - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+    - `Patient-Dropout-Prediction/src/evaluate_shadow_proxies.py`
+    - `Patient-Dropout-Prediction/src/audit_protocol_static_context.py`
+    - `Patient-Dropout-Prediction/src/run_focus_ablation_suite.py`
+  - `npm.cmd run build:crc` passed after sandbox-escalated local build verification
+  - non-blocking warning remains:
+    - large JS bundle size during CRC production build
+
+## 2026-04-04
+
+- Stabilized the TrialLight dropout package for the pre-testing phase instead of enabling real-world shadow validation too early.
+- Added a formal evidence pack:
+  - `Patient-Dropout-Prediction/EVIDENCE_PACK.md`
+- Added a fixed testing-start runbook for future real-user testing:
+  - `Patient-Dropout-Prediction/TESTING_START_RUNBOOK.md`
+- Added a demo scenario pack builder and generated official Honest v3 demo artifacts:
+  - `Patient-Dropout-Prediction/src/build_demo_scenario_pack.py`
+  - `Patient-Dropout-Prediction/deploy_assets/demo_scenario_pack_honest_v3.json`
+  - `Patient-Dropout-Prediction/DEMO_SCENARIO_PACK.md`
+
+- Reworked the focused ablation workflow so it is practical in the current phase:
+  - updated `Patient-Dropout-Prediction/src/run_focus_ablation_suite.py`
+- The runner now supports:
+  - `suite-mode=sensitivity` for frozen-model source-missing analysis
+  - `suite-mode=retrain` for future heavyweight re-train ablations
+- For the current pre-testing freeze, the official ablation profile is:
+  - `train_windows = 30000`
+  - `test_windows = 15000`
+  - patient split + trial split
+  - scenarios:
+    - `no_epro_pain_anxiety`
+    - `no_crc_followup`
+    - `no_side_effects`
+    - `dynamic_only`
+- Generated ablation outputs:
+  - `Patient-Dropout-Prediction/runs/fa/20260404T025227Z/ablation_summary.json`
+  - `Patient-Dropout-Prediction/ABLATION_SUMMARY.md`
+
+- Frozen ablation conclusions recorded:
+  - side-effect / incident signals are the strongest dependency in the current model
+  - ePRO / pain / anxiety matter, but are not the single dominant anchor
+  - CRC follow-up / reply helps, but is not the main driver in the current synthetic world
+  - dynamic signals carry most of the ranking power
+  - transformer stays stronger than logistic in most stress cases, but degrades sharply when side-effect signals are removed
+
+- Replaced the old professor demo guide so it now follows Honest v3 rather than the legacy frozen `v35subjectid` runtime:
+  - `Patient-Dropout-Prediction/PROFESSOR_DEMO_SCENARIOS.md`
+
+- Added protocol static-context QA readiness artifacts:
+  - `Patient-Dropout-Prediction/PROTOCOL_STATIC_CONTEXT_QA_STATUS.md`
+  - `Patient-Dropout-Prediction/audit/protocol_static_context_qa_template.csv`
+- Current blocker is explicit:
+  - the real 25-protocol QA export is still pending because `FIREBASE_SERVICE_ACCOUNT_JSON` is not loaded in the local shell
+
+- Local verification completed:
+  - `py_compile` passed for:
+    - `Patient-Dropout-Prediction/src/run_focus_ablation_suite.py`
+    - `Patient-Dropout-Prediction/src/build_demo_scenario_pack.py`
+    - `Patient-Dropout-Prediction/src/audit_protocol_static_context.py`
+    - `Patient-Dropout-Prediction/src/evaluate_shadow_proxies.py`
+
+- Added a full historical and status audit document for the entire dropout workstream:
+  - `Patient-Dropout-Prediction/FULL_HISTORY_AND_STATUS_REPORT.md`
+- This report consolidates:
+  - the full implementation timeline from the first Codex takeover
+  - major design pivots
+  - model/dataset/runtime milestones
+  - official metrics and current contract
+  - completed vs partial vs pending work
+  - remaining gaps and recommended next actions
+
+- Added a root-level whole-system workflow and status document for supervisor review:
+  - `TRIALLIGHT_FULL_WORKFLOW_AND_STATUS.md`
+- This new document covers:
+  - the full TrialLight system boundary and architecture
+  - CRC web, patient app, ePRO, protocol extraction, safety, and dropout workflows
+  - Firebase / Supabase / GitHub Actions runtime responsibilities
+  - current subsystem maturity, risks, and likely supervisor criticism points
+  - recommended feedback questions and next-step priorities
+  - a condensed cross-system implementation timeline
+
+## 2026-04-05
+
+- Prepared a simulation-study research protocol package for TrialLight as a drug-clinical-trial-only workflow study using healthy volunteers role-playing as patients.
+- Added an editable English source draft:
+  - `TRIALLIGHT_SIMULATED_DRUG_TRIAL_RESEARCH_PROTOCOL.md`
+- Generated Word deliverables based on the provided UMMC MREC research protocol template:
+  - initial draft output:
+    - `TrialLight_Simulated_Drug_Clinical_Trial_Research_Protocol.docx`
+  - clean final submission copy:
+    - `TrialLight_Simulated_Drug_Clinical_Trial_Research_Protocol_SUBMISSION.docx`
+- The protocol package now includes:
+  - a specific problem statement focused on reducing study-coordinator burden in side-effect monitoring for investigational drug subjects
+  - study aim, null/alternative hypotheses, and measurable objectives
+  - a detailed simulation methodology with a fictional Phase II oral investigational drug workflow
+  - proposed sample size, recruitment, inclusion/exclusion criteria, scenario packs, conventional-vs-TrialLight crossover testing, rescue/safety logic, metrics, success criteria, data analysis, data handling, gantt plan, and potential impact
+- Incorporated key guidance themes from the provided Ms Wong transcript:
+  - start from a specific problem statement
+  - define measurable outcomes instead of vague burden claims
+  - use healthy volunteers / role-play simulation when real patient recruitment is not practical
+  - keep a rescue/safety protocol and avoid over-promising reliance on the app
+
+## 2026-04-07
+
+- Reviewed the latest parallel 30-day live testing plan from:
+  - `C:/Users/TUF-A15/Downloads/latest TrialLight_parallel_30day_protocol_background_noise_yellow.docx`
+- Added a new planning guardrail document for future ChatGPT web revisions:
+  - `TRIALLIGHT_TESTING_PLAN_CONTEXT_FOR_CHATGPT_WEB.md`
+- This new document captures:
+  - whether the current TrialLight system can realistically support the latest testing design
+  - which parts are directly supported by the product versus supported only through study scaffolding
+  - what the dropout module, ePRO flow, safety workflow, and synthetic background patient list can and cannot validly claim
+  - wording and interpretation boundaries needed to avoid overclaiming real-world validity
+  - operational constraints such as avoiding Firebase-heavy validation assumptions during planning
+
+- Reviewed the new full 15-day + 15-day Sequence AB testing package from:
+  - `C:/Users/TUF-A15/Downloads/15 day 15 days/TrialLight Testing Plan.docx`
+  - `C:/Users/TUF-A15/Downloads/15 day 15 days/Pack_01_Master_Setup_and_Control.docx`
+  - `C:/Users/TUF-A15/Downloads/15 day 15 days/Pack_02_Operational_Forms.docx`
+  - `C:/Users/TUF-A15/Downloads/15 day 15 days/Pack_03_Patient_Role_Packs.docx`
+  - `C:/Users/TUF-A15/Downloads/15 day 15 days/Pack_04_Answer_Key_and_Background_Group.docx`
+- Added a deep critique document for return-to-Codex revision:
+  - `TRIALLIGHT_TESTING_PLAN_PACKS_DEEP_CRITIQUE.md`
+- The critique focuses on:
+  - cross-document inconsistencies between the main plan, role packs, answer key, and operational forms
+  - design confounds introduced by fixed Sequence AB ordering and non-equivalent role progression across phases
+  - current-system mismatches such as dropout-history assumptions and incorrect same-day `late ePRO` wording
+  - measurement gaps where the current forms are too coarse for the metrics being claimed
+  - background-group realism problems that could make CRC list-noise testing weaker than intended
+
+## 2026-04-09
+
+- Performed a Firebase read-storm static review across the active frontend source trees only:
+  - `src/`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/`
+- Explicitly did **not** inspect or touch `newest-crc-web/`.
+- Added a detailed review document for return-to-Codex debugging:
+  - `FIREBASE_READ_STORM_FRONTEND_STATIC_REVIEW.md`
+- The review documents:
+  - high-confidence read amplification hotspots in CRC web and patient app
+  - unbounded `collectionGroup` and list listeners
+  - uncapped per-user history subscriptions
+  - chatbot client-side fan-out reads
+  - WebRTC call-context listener leaks
+  - safe replacement query/listener patterns and a recommended fix order
+
+- Applied frontend safety caps and listener cleanup patches across the active CRC web and patient mobile trees to stop likely Firestore read amplification without touching `newest-crc-web/`.
+- CRC web hardening changes:
+  - capped alert, appointment, protocol-template, incident, patient-roster, CRC-roster, selected-patient vitals, history, and dropout snapshot subscriptions to safe upper bounds
+  - replaced the raw global alert listener in `src/pages/CRCHome.jsx` with the capped `subscribeToRecentAlertsGlobal(...)` service path
+  - capped the global `epro_submissions` listener in `src/pages/CRCHome.jsx`
+  - reduced `GeminiChatbot.jsx` global CRC mode from cross-patient Firestore fan-out to in-memory patient-summary mode
+  - disabled expensive global appointment aggregation in CRC chatbot safe mode
+  - capped AI chat history reads and capped history clearing to the latest bounded window
+  - fixed nested WebRTC `onSnapshot(...)` leaks in `src/context/CallContext.jsx`
+- Patient mobile hardening changes:
+  - capped alert history, chat message, appointments, ePRO submission, side-effect report, and vitals-history subscriptions
+  - capped patient AI chat history reads and reduced per-send context fetch sizes
+  - fixed nested WebRTC `onSnapshot(...)` leaks in `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/context/CallContext.web.js`
+- Also patched two high-risk legacy/reference screens that still sit inside the scanned source trees:
+  - `src/pages/PatientHome.jsx`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/CRCHome.js`
+  to avoid listener reattachment and leaked per-patient subscriptions if those screens are opened accidentally.
+- Local verification:
+  - avoided any Firebase/Firestore access
+  - whole-repo `npm run lint` was not useful because it traverses legacy/build output and unrelated folders
+  - targeted `npx.cmd eslint ...` over only the patched files completed with **0 errors**
+  - one existing non-blocking warning remains in `src/components/GeminiChatbot.jsx` about a missing `useEffect` dependency on `startHybridChat`
+
+- Applied a minimum rollback pass to restore frontend coverage semantics without undoing the read-storm safety fixes.
+- Scope of this rollback pass:
+  - kept WebRTC listener cleanup, bounded chat history, and other leak-prevention patches
+  - did **not** touch `newest-crc-web/`
+  - did **not** access Firebase/Firestore
+  - did **not** change the dropout backend, publisher, manifest, or feature engineering
+- CRC web rollback refinements:
+  - changed global CRC patient roster loading from a hard `limit(20)` pattern to a stable expandable roster window in `src/pages/CRCHome.jsx`
+  - changed global alerts, ePRO feed, and incident inbox in `src/pages/CRCHome.jsx` to use recent-window sizing controls instead of fixed `20`-row assumptions
+  - updated `src/components/PatientList.jsx` to surface loaded-range messaging and a `Load more patients` control
+  - updated `src/components/SafetyInboxPanel.jsx` so history/incidents explicitly describe the loaded recent window and can request more recent records instead of implying completeness
+  - updated `src/components/EproReviewWorkspace.jsx` so the submitted/overdue area now declares that it is showing a recent operational window and can load more
+  - updated `src/pages/HistoryPage.jsx` so it no longer presents `limit(20)` as a full audit archive; it now labels the view as a recent alert window with `Load more recent history`
+- Dropout dashboard rollback refinements:
+  - updated `src/services/dropoutService.js` so the global snapshot listener now targets only `current` docs and uses a configurable recent-window limit instead of an arbitrary uncapped collectionGroup slice
+  - updated `src/components/DropoutRiskPanel.jsx` so metrics and labels are explicitly based on the loaded recent snapshot window, with `Load more recent snapshots` support
+  - this rollback pass does **not** change model scoring or dropout probability calculation; it only changes the frontend interpretation of loaded snapshot coverage
+- Patient-facing wording refinements:
+  - updated `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js` so vitals, ePRO, and appointment cards now explicitly describe themselves as recent/current windows rather than complete all-time history
+- CRC chatbot clarification:
+  - updated `src/components/GeminiChatbot.jsx` so CRC global mode is explicitly framed as summary-only rather than a full-database assistant, while keeping the safe-mode read protections in place
+- Local verification for the rollback pass:
+  - targeted `npx.cmd eslint ...` over the newly edited files completed with **0 errors**
+  - one pre-existing non-blocking warning remains in `src/components/GeminiChatbot.jsx` about a missing `useEffect` dependency on `startHybridChat`
+
+- Adjusted the minimum rollback defaults so CRC recent-window views now open at **30** items instead of **40**.
+- Updated default window sizes and step sizes in:
+  - `src/pages/CRCHome.jsx`
+  - `src/components/DropoutRiskPanel.jsx`
+  - `src/pages/HistoryPage.jsx`
+  - `src/services/alertService.js`
+  - `src/services/dropoutService.js`
+- This change does **not** alter backend logic, model scoring, or Firebase access patterns beyond reducing the default initial loaded window size from 40 to 30.
+- Local verification:
+  - targeted `npx.cmd eslint ...` over the touched files completed with **0 errors**
+
+- Reworked the CRC rollback controls from no-op `Load more` buttons into explicit pagination controls with page-size selection.
+- Pagination contract now uses `10 / 20 / 30 / 50 / 100` page-size options plus `Prev / Next` across the affected CRC views.
+- Implemented this pagination contract in:
+  - `src/components/WindowPaginationControls.jsx` (new shared control)
+  - `src/components/PatientList.jsx`
+  - `src/components/DropoutRiskPanel.jsx`
+  - `src/components/SafetyInboxPanel.jsx`
+  - `src/components/EproReviewWorkspace.jsx`
+  - `src/pages/HistoryPage.jsx`
+  - `src/pages/CRCHome.jsx`
+- Corrected the no-op roster/inbox/feed behavior by changing the query-window strategy:
+  - Firestore recent-window queries now overfetch by **one extra row** (`page * pageSize + 1`) so the UI can tell whether a real next page exists
+  - this fixes cases like “21 patients fully visible but the UI still keeps showing `Load more`”
+- Dropout dashboard stability fix:
+  - stopped relying on the previous global collectionGroup current-snapshot query for the dashboard list
+  - `src/components/DropoutRiskPanel.jsx` now reads current dropout snapshot docs per loaded patient window instead, which removes the blank-screen risk introduced by the stricter previous query
+  - this does **not** change dropout scoring logic; it only changes how the CRC page reads and paginates current snapshot documents
+- ePRO local preview resilience:
+  - `src/services/eproReviewService.js` now turns raw network `Failed to fetch` errors into a clearer CRC-local-preview message instead of surfacing the browser fetch error directly
+  - this does **not** fabricate missing review data; it only improves the local error message when the review service is unreachable
+- Alert history subscription refinement:
+  - `src/services/alertService.js` now accepts a configurable bounded history window for patient-specific alert history as well, so Safety Inbox history paging is no longer hard-capped at the old fixed value
+- Local verification:
+  - targeted `npx.cmd eslint ...` over the edited CRC files completed with **0 errors**
+  - `npm.cmd run build:crc` completed successfully after a sandbox-related `esbuild` spawn restriction was bypassed with explicit local build approval
+
+- Reworked CRC dashboard summaries so they no longer depend on the currently loaded page window.
+- Full-summary wiring completed for:
+  - patient roster totals via `src/services/crcSummaryService.js` + `getCountFromServer`
+  - Safety Inbox counters via `src/services/crcSummaryService.js` + `fetchIncidentSummary(...)`
+  - alert/history counters via `src/services/crcSummaryService.js` + `fetchAlertHistorySummary(...)`
+  - dropout summary cards via a dedicated Firestore summary doc read from `dashboard_summaries/dropout_current`
+- Frontend summary integration changes:
+  - `src/pages/CRCHome.jsx` now loads independent roster / alert / incident aggregate summaries and uses them for overview cards and loaded-window notes
+  - `src/components/SafetyInboxPanel.jsx` now uses passed full summary counts for tab badges and top counters instead of only the currently loaded rows
+  - `src/pages/HistoryPage.jsx` now uses a full alert-history summary for its queue snapshot and header count while keeping the list itself paginated
+  - `src/components/DropoutRiskPanel.jsx` now separates:
+    - full published dashboard summary cards
+    - paginated current-snapshot patient list
+- Dropout backend publishing contract:
+  - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py` now builds and writes a dedicated dashboard summary payload to:
+    - `dashboard_summaries/dropout_current`
+  - the same dry-run preview output now includes `dashboard_summary`
+- ePRO local preview support:
+  - added local preview origins (`localhost` / `127.0.0.1` on ports `4175`, `4176`, plus matching `5173` and `8081`) to `supabase/functions/_shared/cors.ts`
+  - this is a code-only fix for local CRC preview CORS support; the deployed Edge Functions still need redeploy before local preview can actually reach the service
+  - improved `src/services/eproReviewService.js` network error messaging so local preview failures explicitly point at the missing deployed allowlist support
+- Local verification for this pass:
+  - targeted `npx.cmd eslint "src/pages/CRCHome.jsx" "src/components/DropoutRiskPanel.jsx" "src/components/SafetyInboxPanel.jsx" "src/pages/HistoryPage.jsx" "src/services/crcSummaryService.js" "src/services/eproReviewService.js"` completed with **0 errors**
+  - `py_compile` passed for `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+  - `npm.cmd run build:crc` completed successfully
+  - build still reports the existing non-blocking large bundle warning only
+
+- Fixed the `TrialLight Dropout Precompute` GitHub Actions workflow path and runtime hygiene:
+  - upgraded `actions/checkout` from `v4` to `v5`
+  - upgraded `actions/setup-python` from `v5` to `v6`
+  - added explicit workspace file verification for:
+    - `Patient-Dropout-Prediction/requirements.txt`
+    - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+  - switched dependency install and Python runs to explicit `python -m pip ...` / `python "./Patient-Dropout-Prediction/src/publish_dropout_snapshots.py" ...` invocation style
+  - added read-only workflow permissions block
+- This CI fix targets the reported failure:
+  - `Could not open requirements file: Patient-Dropout-Prediction/requirements.txt`
+  - and reduces the risk of future action-runtime drift from the Node 20 deprecation warning
+- Remote ePRO deployment:
+  - redeployed Supabase Edge Functions after the CORS allowlist update:
+    - `epro-review-queue`
+    - `epro-review-action`
+    - `epro-daily-survey`
+    - `epro-submit`
+  - deployed against project ref `fygkqituefwldmglijvy`
+  - purpose: allow local CRC preview origins (`localhost` / `127.0.0.1` on `4175` and `4176`) to reach the ePRO review service
+- Important safety note:
+  - did **not** run the live dropout publisher after this change
+  - this means no new Firestore-wide dropout scoring pass was triggered by me in this step
+
+- Local live dropout publisher execution attempt:
+  - created isolated local virtual environments to avoid the broken global Python environments on this machine:
+    - `.venv-dropout312`
+    - `.venv-dropout314`
+  - `.venv-dropout312` could not be used because the Windows Store Python 3.12 launcher path inside the venv was invalid on this machine
+  - `.venv-dropout314` was created successfully and could import:
+    - `pandas`
+    - `torch`
+    - `firebase_admin`
+  - live publisher preflight then completed successfully with:
+    - `source_mode=live`
+    - `official_model_line=Honest v3`
+    - valid Firestore service account file
+    - valid Supabase URL / service-role key
+  - attempted one real live publish using:
+    - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py --source-mode live`
+  - result:
+    - publisher failed immediately with Firestore `429 Quota exceeded`
+    - failure happened during the initial live patient scan / testing-subject sync stage
+    - therefore:
+      - no successful Firestore mirror refresh occurred
+      - no successful Supabase dropout snapshot publish occurred
+      - no successful `dashboard_summaries/dropout_current` refresh occurred from this run
+  - important interpretation:
+    - the publisher path itself is now runnable locally
+    - the remaining blocker is current Firestore quota exhaustion, not a local code-path failure
+
+- Patient-side AI side effect guidance resilience:
+  - updated `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js`
+  - when Gemini side-effect guidance fails because the upstream model is temporarily unavailable or overloaded:
+    - patient chat no longer stops at a raw AI error
+    - the app now falls back to deterministic local safety guidance
+    - fallback guidance still distinguishes:
+      - urgent / serious patterns
+      - moderate same-day CRC follow-up patterns
+      - milder monitor-and-contact-if-worse patterns
+    - fallback mode still attempts to document the symptom through the structured side-effect reporting path
+  - added a lightweight retry for temporary Gemini-side failures before entering fallback mode
+  - local verification:
+    - `npx.cmd eslint "src/components/GeminiChatbot.js"` completed with `0 errors`
+
+- TrialLight x Terry RAG donor merge continuation (code-complete only, no remote cutover executed):
+  - kept the old integration plan as the source of truth and continued the merge into the active host repo instead of replacing it with `newest-crc-web/`
+  - confirmed the shared storage boundary remains:
+    - Firebase for auth and operational runtime docs
+    - Supabase for guidance / retrieval / vector-backed schema
+  - completed active CRC-side appointment suggestion cutover:
+    - `src/services/appointmentService.js` now routes AI appointment suggestion through `suggestAppointmentDateHttp`
+    - browser-side protocol PDF parsing for appointment AI is no longer the active CRC path
+  - completed active protocol guidance ingestion merge:
+    - `src/components/ProtocolManager.jsx` now triggers server-side guidance indexing on upload/update
+    - protocol docs now surface guidance indexing status and allow retry
+    - protocol delete now performs best-effort guidance chunk cleanup before doc/storage removal
+    - existing dropout static-context extraction remains intact
+  - completed active CRC guidance host merge:
+    - `src/components/GeminiChatbot.jsx` now uses routed server-side guidance / retrieval flow
+    - added bounded patient-context fallback reads only for selected or specifically targeted patients
+    - retained docked UI shell, recent-window history, and read-storm protections
+    - `src/pages/CRCHome.jsx` now passes selected-patient vitals / appointments / alerts / ePRO / incident context into the guidance host
+  - completed root Firebase Functions donor merge:
+    - root `functions/` is now the single backend package host
+    - added `functions/guidanceRuntime.js`
+    - upgraded `functions/index.js` to ESM and preserved the existing incident push trigger
+    - unified exports now include:
+      - `sideEffectGuidanceChat`
+      - `sideEffectGuidanceChatHttp`
+      - `classifyGuidanceRoute`
+      - `classifyGuidanceRouteHttp`
+      - `retrieveGuidanceContext`
+      - `retrieveGuidanceContextHttp`
+      - `ingestGuidanceDocument`
+      - `deleteGuidanceDocumentChunks`
+      - `deleteGuidanceDocumentChunksHttp`
+      - `processPendingProtocolGuidanceIndex`
+      - `suggestAppointmentDate`
+      - `suggestAppointmentDateHttp`
+  - updated `functions/package.json` to support the merged guidance runtime:
+    - set package type to `module`
+    - added dependencies for:
+      - `@google/generative-ai`
+      - `@supabase/supabase-js`
+      - `pdfjs-dist`
+    - retained existing `firebase-admin`, `firebase-functions`, and `web-push`
+  - installed the new root Functions dependencies locally in `functions/` to update the lockfile and validate the merged package
+  - added a formal integration/cutover runbook:
+    - `TERRY_RAG_INTEGRATION_RUNBOOK.md`
+    - covers:
+      - current code-complete donor merge status
+      - Supabase guidance migration/bootstrap steps
+      - Firebase Auth migration preserving UIDs
+      - Firestore migration checklist
+      - later cutover order
+      - explicit note that real remote cutover is still pending
+  - local validation for this donor-merge continuation:
+    - `npx.cmd eslint "src/components/GeminiChatbot.jsx" "src/components/ProtocolManager.jsx" "src/pages/CRCHome.jsx" "src/services/appointmentService.js"` completed with `0 errors`
+    - `node --check "functions/index.js"` passed
+    - `node --check "functions/guidanceRuntime.js"` passed
+  - important safety note:
+    - no real Firebase Auth export/import was executed
+    - no Firestore data migration was executed
+    - no Firebase Functions deploy was executed in this continuation step
+    - no Supabase migration apply / bootstrap indexing was executed in this continuation step
+
+- TrialLight x Terry RAG follow-on cutover scaffolding:
+  - continued the unfinished Terry integration plan after the previous interruption
+  - verified local Firebase CLI access:
+    - current local CLI account can access Terry target project `traillight-4750b`
+  - verified the local legacy Firebase service account still points to:
+    - `idp-authentication-7e8d7`
+  - added reusable active-repo guidance text utilities:
+    - `src/services/guidanceTextUtils.js`
+  - added a Supabase-first CTCAE bootstrap script so guidance indexing can be rebuilt from the active repo instead of relying on donor-only files:
+    - `scripts/guidance/upload-ctcae-and-index.mjs`
+    - root shortcut:
+      - `npm run guidance:bootstrap:ctcae`
+  - added a Firestore migration scaffold for later Terry cutover work:
+    - `functions/scripts/migrate-firestore-operational-data.mjs`
+    - functions shortcut:
+      - `npm run migrate:firestore`
+    - behavior:
+      - default dry-run
+      - `--execute` required for real writes
+      - preserves document IDs
+      - supports `users`, `protocols`, `incident_records`, `alerts`, and `dashboard_summaries`
+      - supports nested `users/*` and `alerts/*/messages` migration
+  - extended `TERRY_RAG_INTEGRATION_RUNBOOK.md` with:
+    - available local helper scripts
+    - current blockers
+    - explicit note that full deploy/cutover still depends on proper Terry runtime secrets
+  - local validation for this scaffolding pass:
+    - `node --check "scripts/guidance/upload-ctcae-and-index.mjs"` passed
+    - `node --check "functions/scripts/migrate-firestore-operational-data.mjs"` passed
+    - `npx.cmd eslint "src/services/guidanceTextUtils.js"` passed
+  - current blocker discovered during readiness checks:
+    - local `functions/.env` does not yet contain the full Terry guidance runtime secrets, especially:
+      - `SILICONFLOW_API_KEY`
+      - `SUPABASE_SERVICE_ROLE_KEY`
+      - router / retrieval env set
+  - important safety note:
+    - no Supabase migration was applied in this pass
+    - no Terry Firebase Functions deploy was executed in this pass
+    - no Auth export/import or Firestore migration was executed in this pass
+
+- Patient disengagement prediction extreme audit hardening:
+  - confirmed the previous long-running official audit was mistakenly executed from:
+    - `D:\IDP For Integration\.venv-dropout314`
+    - that environment had `torch 2.11.0+cpu`, so the Transformer audit path was running on CPU
+  - verified the correct CUDA-enabled dropout environment is:
+    - `D:\IDP For Integration\Patient-Dropout-Prediction\env`
+    - detected:
+      - `torch 2.9.1+cu126`
+      - `cuda_available=True`
+      - device:
+        - `NVIDIA GeForce RTX 4060 Laptop GPU`
+  - installed `xgboost` into the CUDA-enabled dropout environment so the challenger can run there too
+  - updated the shadow challenger to prefer GPU automatically when CUDA is available:
+    - `Patient-Dropout-Prediction/src/audit_challenger.py`
+  - updated dropout Python requirements to include:
+    - `xgboost>=3.2.0`
+  - next execution path for the official audit is now:
+    - `D:\IDP For Integration\Patient-Dropout-Prediction\env\Scripts\python.exe`
+    - with explicit `--device cuda`
+  - reran the official extreme audit from the CUDA-enabled dropout environment:
+    - `Patient-Dropout-Prediction/env`
+    - explicit device:
+      - `--device cuda`
+    - official audit package written to:
+      - `Patient-Dropout-Prediction/audit/official_model_extreme_audit`
+  - upgraded the challenger prediction helper to use booster/DMatrix prediction instead of the sklearn `predict_proba(...)` path:
+    - goal:
+      - reduce the earlier XGBoost device-mismatch warning during GPU-backed challenger runs
+  - refreshed the main dropout documentation so it now matches the current frozen official system and extreme audit outputs:
+    - `Patient-Dropout-Prediction/README.md`
+    - `Patient-Dropout-Prediction/INTERFACES.md`
+    - `Patient-Dropout-Prediction/OFFICIAL_MODEL.md`
+    - `Patient-Dropout-Prediction/EVIDENCE_PACK.md`
+  - added a report-grade figure generator:
+    - `Patient-Dropout-Prediction/report_figures/patient_dropout/generate_report_figures.py`
+  - added a structured figure manifest:
+    - `Patient-Dropout-Prediction/report_figures/patient_dropout/figure_manifest.md`
+  - generated the current report figure package:
+    - output root:
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout`
+    - current figure count:
+      - `16`
+    - current figure set includes:
+      - label prevalence
+      - split summary
+      - window schematic
+      - event-day histogram
+      - ROC curve
+      - PR curve
+      - confusion matrix
+      - metrics summary
+      - threshold sweep
+      - calibration plus score distribution
+      - Transformer vs challenger comparison
+      - trajectory examples
+      - side-effect dependency
+      - TreeSHAP global bar chart
+      - counterfactual examples
+      - challenger seed stability
+  - updated the official audit runner so that non-skip runs now call the figure generator instead of only writing a placeholder summary:
+    - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+  - local validation for this pass:
+    - `py_compile` passed for:
+      - `Patient-Dropout-Prediction/src/audit_challenger.py`
+      - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout/generate_report_figures.py`
+    - figure generator completed successfully and rewrote the report figure package
+  - final end-to-end rerun completed from the CUDA-enabled dropout environment:
+    - command path:
+      - `Patient-Dropout-Prediction/env/Scripts/python.exe`
+    - audit entrypoint:
+      - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+    - run mode:
+      - `--refresh_dataset_reports --device cuda`
+      - figures enabled
+    - outputs refreshed successfully:
+      - `Patient-Dropout-Prediction/audit/official_model_extreme_audit`candidate_027 
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout`
+    - result:
+    - official audit package regenerated
+      - report figures regenerated
+      - no XGBoost device-mismatch warning appeared in the final rerun output
+
+- Patient disengagement prediction candidate-search acceleration and promotion checks:
+  - hardened the candidate-search entrypoint so CUDA requests fail early instead of silently downgrading:
+    - `Patient-Dropout-Prediction/src/run_candidate_search.py`
+  - extended candidate-search config/runtime controls:
+    - added explicit `--eval_batch_size`
+    - added explicit `--num_workers`
+    - default search worker count is now `2` on this machine
+  - upgraded the training runtime for faster GPU feeding:
+    - `WindowArrayDataset` now keeps prebuilt tensors instead of converting NumPy arrays inside `__getitem__`
+    - GPU transfers now use `non_blocking=True` when pinned memory is enabled
+    - train/validation/test loaders now all use the same bounded worker/pin-memory path
+  - added training-throughput observability:
+    - per-batch `running_samples_per_second`
+    - per-epoch `train_loop_seconds`
+    - per-epoch `validation_seconds`
+    - per-epoch `epoch_seconds`
+  - added a local throughput probe:
+    - `Patient-Dropout-Prediction/src/benchmark_training_throughput.py`
+  - measured loader throughput on the CUDA environment:
+    - `num_workers=0` -> about `14949.8 samples/sec`
+    - `num_workers=1` -> about `17392.6 samples/sec`
+    - `num_workers=2` -> about `19659.8 samples/sec`
+  - discovered the real epoch-time bottleneck was not CUDA fallback and not per-epoch calibration:
+    - the old threshold-search utilities in `Patient-Dropout-Prediction/src/quality_utils.py` were effectively doing repeated full-array scans across thousands of candidate thresholds
+    - this made validation dominate wall-clock time even when the GPU training loop was already fast
+  - replaced the old threshold-search path with a vectorized threshold-curve implementation in:
+    - `Patient-Dropout-Prediction/src/quality_utils.py`
+  - also reduced evaluation overhead in:
+    - `Patient-Dropout-Prediction/src/train.py`
+    - evaluation now collects batch arrays and concatenates once instead of extending Python lists value-by-value
+  - observed runtime impact after the threshold-search rewrite:
+    - validation time dropped from roughly tens of minutes per epoch on the earlier interrupted run to about `0.9s - 1.4s` per epoch on the new CUDA candidate runs with `eval_batch_size=2048`
+  - confirmed and finalized the previously interrupted `candidate_023` run:
+    - trial split final metrics:
+      - `pr_auc = 0.6349835540049881`
+      - `p_at_r80 = 0.47372084928646013`
+      - `brier = 0.02803468331694603`
+      - `best_epoch = 8`
+  - ran additional CUDA candidate-search passes under:
+    - `Patient-Dropout-Prediction/runs/cs_r3/`
+  - completed `candidate_051`:
+    - trial split final metrics:
+      - `pr_auc = 0.6286444120210056`
+      - `p_at_r80 = 0.47211864590644836`
+      - `brier = 0.028235578909516335`
+      - `best_epoch = 7`
+  - completed `candidate_055`:
+    - trial split final metrics:
+      - `pr_auc = 0.635723709149364`
+      - `p_at_r80 = 0.4732678532600403`
+      - `brier = 0.028000595048069954`
+      - `best_epoch = 8`
+  - completed `candidate_059`:
+    - trial split final metrics:
+      - `pr_auc = 0.6330567699826282`
+      - `p_at_r80 = 0.4735560119152069`
+      - `brier = 0.028034035116434097`
+      - `best_epoch = 7`
+  - completed `candidate_063`:
+    - trial split final metrics:
+      - `pr_auc = 0.6364926167756876`
+      - `p_at_r80 = 0.4776695668697357`
+      - `brier = 0.027835262939333916`
+      - `best_epoch = 8`
+  - current candidate ranking status:
+    - `candidate_063` is now the best observed trial-split candidate across all three main metrics:
+      - highest `pr_auc`
+      - highest `p_at_r80`
+      - lowest `brier`
+  - ran a stricter patient-split reference validation for `candidate_063` under:
+    - `Patient-Dropout-Prediction/runs/promotion_checks/candidate_063_patient_ref/`
+  - `candidate_063` patient-split reference result:
+    - `pr_auc = 0.6116755599990669`
+    - `p_at_r80 = 0.4712558090686798`
+    - `brier = 0.02963775023818016`
+    - `best_epoch = 6`
+  - patient-split interpretation:
+    - `candidate_063` still beats the frozen official patient-split reference on the main ranking metrics, so the gain is not confined to trial-split only
+  - found a TensorBoard tail-end stability bug:
+    - training could succeed and write `training_summary.json`, but `writer.add_hparams(...)` could still crash the process on Windows/Python 3.14 when TensorBoard tried to open a nested event file path
+  - hardened that path in:
+    - `Patient-Dropout-Prediction/src/train.py`
+    - training now writes a stable `tensorboard_hparams.json`
+    - TensorBoard hparams logging is now best-effort and no longer allowed to mark a completed training run as failed
+  - verified the final TensorBoard tail-end fix with a fresh 1-epoch CUDA smoke run under:
+    - `Patient-Dropout-Prediction/runs/smoke_checks/tensorboard_hparams_guard/`
+  - smoke verification result:
+    - training completed successfully
+    - no async TensorBoard stack trace appeared after completion
+    - the run logged:
+      - `TensorBoard hparams event logging skipped on Windows; wrote tensorboard_hparams.json instead`
+  - resumed the remaining untested `d_model=160` / `focal` candidate set in `cs_r3`
+  - completed `candidate_024`:
+    - trial split final metrics:
+      - `pr_auc = 0.6370487693141496`
+      - `p_at_r80 = 0.4764572083950043`
+      - `brier = 0.027922669425606728`
+      - `best_epoch = 10`
+  - completed `candidate_028`:
+    - trial split final metrics:
+      - `pr_auc = 0.6335499860648979`
+      - `p_at_r80 = 0.4743165671825409`
+      - `brier = 0.02799743227660656`
+      - `best_epoch = 8`
+  - completed `candidate_031`:
+    - trial split final metrics:
+      - `pr_auc = 0.6306586240993716`
+      - `p_at_r80 = 0.4729800224304199`
+      - `brier = 0.02807207591831684`
+      - `best_epoch = 8`
+  - completed `candidate_032`:
+    - trial split final metrics:
+      - `pr_auc = 0.625231665452409`
+      - `p_at_r80 = 0.4730902910232544`
+      - `brier = 0.028201062232255936`
+      - `best_epoch = 7`
+  - completed `candidate_052`:
+    - trial split final metrics:
+      - `pr_auc = 0.6266125679077555`
+      - `p_at_r80 = 0.46915918588638306`
+      - `brier = 0.02829384244978428`
+      - `best_epoch = 7`
+  - completed `candidate_056`:
+    - trial split final metrics:
+      - `pr_auc = 0.636401802320226`
+      - `p_at_r80 = 0.4764572083950043`
+      - `brier = 0.027988992631435394`
+      - `best_epoch = 10`
+  - completed `candidate_060`:
+    - trial split final metrics:
+      - `pr_auc = 0.6245074162432255`
+      - `p_at_r80 = 0.47343710064888`
+      - `brier = 0.028238127008080482`
+      - `best_epoch = 7`
+  - completed `candidate_064`:
+    - trial split final metrics:
+      - `pr_auc = 0.6358089559561889`
+      - `p_at_r80 = 0.47792115807533264`
+      - `brier = 0.027846096083521843`
+      - `best_epoch = 8`
+  - ranking interpretation after the expanded focal-160 sweep:
+    - `candidate_024` is now best on trial `pr_auc`
+    - `candidate_064` is now best on trial `p_at_r80`
+    - `candidate_063` remains best on trial `brier`
+    - the current promotion decision therefore requires a stricter cross-split comparison rather than a single-metric pick
+  - ran patient-split reference validations for the new top trial candidates:
+    - `Patient-Dropout-Prediction/runs/promotion_checks/candidate_024_patient_ref/`
+    - `Patient-Dropout-Prediction/runs/promotion_checks/candidate_064_patient_ref/`
+  - `candidate_024` patient-split reference result:
+    - `pr_auc = 0.6159468068634809`
+    - `p_at_r80 = 0.471280574798584`
+    - `brier = 0.029501639306545258`
+    - `best_epoch = 9`
+  - `candidate_064` patient-split reference result:
+    - `pr_auc = 0.613818993572208`
+    - `p_at_r80 = 0.46530279517173767`
+    - `brier = 0.0296112522482872`
+    - `best_epoch = 6`
+  - cross-split promotion interpretation:
+    - `candidate_024` currently looks like the strongest promotion candidate overall because it leads trial `pr_auc` and also has the best patient-split `pr_auc` among the current leading trio (`024 / 063 / 064`)
+    - `candidate_064` is the strongest pure recall-first trial candidate but weakens on patient-split reference compared with `024` and `063`
+    - `candidate_063` remains the most calibration-friendly of the three on trial `brier`
+  - extended the audit runner so it no longer only supports the frozen official run dirs:
+    - `Patient-Dropout-Prediction/src/run_official_model_audit.py` now accepts:
+      - `--trial_run_dir`
+      - `--patient_run_dir`
+      - `--model_line`
+    - this enables running the full extreme audit package directly against a promotion candidate such as `candidate_024`
+  - reviewed the first interrupted `candidate_024` extreme audit attempt after a user-side interruption:
+    - the run itself did not prove a model bug
+    - the main confirmed engineering issues were in the audit path, not the trained candidate
+  - hardened the candidate audit runtime in:
+    - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+  - audit runtime hardening changes:
+    - candidate audits now reuse a shared raw dataset cache across trial/patient contexts instead of loading duplicate raw DataFrames into memory
+    - Transformer evaluation now uses:
+      - configurable `--num_workers`
+      - `pin_memory=True` on CUDA
+      - `non_blocking=True` device transfers
+    - candidate audits now support bounded explanation/stress sampling via:
+      - `--shap_sample_size`
+      - `--stress_sample_size`
+    - SHAP / subgroup-SHAP / SHAP-stability no longer need to materialize full-test-set explanation tensors by default
+    - missingness stress can now run on a bounded sampled audit pack instead of repeatedly deep-copying the full test frame
+    - `_anchor_context_frame(...)` now prefilters raw rows by relevant patient/trial/day keys before copying audit context columns, so candidate audits no longer deep-copy the full raw dataset just to enrich the held-out anchor rows
+    - SHAP sampling now preserves all available positive windows before sampling negatives, which is better aligned with low-prevalence dropout explanation analysis than plain proportional sampling
+    - missingness stress no longer deep-copies the entire sampled challenger frame per stress level; it now reuses a shallow frame view and only materializes replacement arrays for the dynamically blanked source columns
+    - `run_official_model_audit.py` now emits step-level terminal logs and prints full traceback on failure, so long-running candidate audits are no longer opaque when they stall or terminate early
+    - fixed a sampled-SHAP counterfactual indexing bug in the audit runner: counterfactual case generation now uses the sampled SHAP reference pack/frame explicitly instead of mixing sampled SHAP tensors with full-test-frame row indices
+  - audit honesty safeguards kept in place:
+    - full held-out Transformer/XGBoost metrics are still computed on the full test split
+    - only the heavier explanation/stress layers are sampled
+    - the sampled row counts are now written into the audit markdown so the report does not pretend those sections were full-population explanations
+  - reran the full `candidate_024` extreme audit successfully after the runtime/memory/indexing fixes:
+    - audit output:
+      - `Patient-Dropout-Prediction/audit/candidate_024_extreme_audit_rerun_20260412_e/`
+    - figure package:
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout_candidate_024_rerun_20260412_e/`
+    - runtime:
+      - completed end-to-end in about `21.7 minutes` with `--device cuda --batch_size 512 --num_workers 0`
+    - key audited Transformer metrics remained aligned with the candidate training summaries:
+      - trial:
+        - `pr_auc = 0.637048654839693`
+        - `p_at_r80 = 0.4764572083950043`
+        - `brier = 0.027922671288251877`
+      - patient reference:
+        - `pr_auc = 0.6159469226096889`
+        - `p_at_r80 = 0.471280574798584`
+        - `brier = 0.029501641169190407`
+    - the audit now completes all of:
+      - subgroup audit
+      - explainability audit
+      - counterfactual audit
+      - robustness audit
+      - SHAP stability audit
+      - calibration stability audit
+      - report figure generation
+  - reran the full `candidate_064` extreme audit successfully with the same hardened audit runner:
+    - audit output:
+      - `Patient-Dropout-Prediction/audit/candidate_064_extreme_audit_rerun_20260413_a/`
+    - figure package:
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout_candidate_064_rerun_20260413_a/`
+    - runtime:
+      - completed end-to-end in about `21.5 minutes` with `--device cuda --batch_size 512 --num_workers 0`
+    - key audited Transformer metrics:
+      - trial:
+        - `pr_auc = 0.635808838542744`
+        - `p_at_r80 = 0.47792115807533264`
+        - `brier = 0.027846097946166992`
+      - patient reference:
+        - `pr_auc = 0.613818877275259`
+        - `p_at_r80 = 0.46530279517173767`
+        - `brier = 0.0296112522482872`
+  - completed a direct promotion comparison across:
+    - `Honest v3`
+    - `Candidate 024`
+    - `Candidate 064`
+  - promotion comparison artifact:
+    - `Patient-Dropout-Prediction/audit/promotion_comparison_20260413.md`
+  - current promotion recommendation:
+    - `Candidate 024` should replace `Honest v3` as the leading official promotion candidate because it is the strongest balanced cross-split candidate
+    - `Candidate 064` should be retained as the strongest recall-first alternate candidate, but not as the main replacement line
+  - formally switched the dropout truth-source defaults from `Honest v3` to `Candidate 024` for the current pre-testing official line:
+    - updated script defaults:
+      - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+      - `Patient-Dropout-Prediction/src/run_candidate_search.py`
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout/generate_report_figures.py`
+    - updated truth-source documents:
+      - `Patient-Dropout-Prediction/OFFICIAL_MODEL.md`
+      - `Patient-Dropout-Prediction/README.md`
+      - `Patient-Dropout-Prediction/EVIDENCE_PACK.md`
+      - `Patient-Dropout-Prediction/CANDIDATE_PROMOTION_POLICY.md`
+      - `Patient-Dropout-Prediction/DEPLOY_READINESS.md`
+    - created the new official audit alias package:
+      - `Patient-Dropout-Prediction/audit/official_candidate_024_extreme_audit/`
+      - copied from:
+        - `Patient-Dropout-Prediction/audit/candidate_024_extreme_audit_rerun_20260412_e/`
+    - generated the new official report figure package:
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout_official_candidate_024/`
+    - important scope note:
+      - this change promotes `Candidate 024` as the current official truth source for audit/reporting and default tooling
+      - it does **not** silently claim that live deploy bundles were already repackaged away from the archived `Honest v3` rollback assets
+  - verified after the switch:
+    - `py_compile` passes for:
+      - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+      - `Patient-Dropout-Prediction/src/run_candidate_search.py`
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout/generate_report_figures.py`
+    - new figure manifest generated successfully under:
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout_official_candidate_024/figure_manifest.md`
+  - fixed local CRC/patient website boot failures caused by missing Firebase web env values:
+    - root CRC local env file `D:\IDP For Integration\.env.local` was missing all required `VITE_FIREBASE_*` keys
+    - patient app local env file `D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2\.env` was missing all required `EXPO_PUBLIC_FIREBASE_*` keys
+    - recovered the active `traillight-4750b` web app SDK config from Firebase CLI and restored:
+      - API key
+      - auth domain
+      - project ID
+      - storage bucket
+      - messaging sender ID
+      - app ID
+      - measurement ID
+  - verification after env repair:
+    - CRC web production build succeeded again with the restored Firebase env:
+      - `npm run build:crc`
+    - patient web static export succeeded and Expo confirmed the Firebase env block is now loaded:
+      - `npm --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web`
+    - remaining local-user action:
+      - restart any old CRC `vite preview` or patient `expo web` process so the running site picks up the corrected env files
+  - applied a local demo-only rollback from Terry Firebase back to the legacy Firebase project `idp-authentication-7e8d7`:
+    - updated local-only files:
+      - `D:\IDP For Integration\.env.local`
+      - `D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2\.env`
+    - restored legacy web SDK values:
+      - `apiKey = AIzaSyBafCJ2iGZ-hYVpwHE_rubGDdOwhlqbkoQ`
+      - `authDomain = idp-authentication-7e8d7.firebaseapp.com`
+      - `projectId = idp-authentication-7e8d7`
+      - `storageBucket = idp-authentication-7e8d7.firebasestorage.app`
+      - `messagingSenderId = 858114692646`
+      - `appId = 1:858114692646:web:027f8d324fd693830578e7`
+      - `measurementId = G-7M5S7QN2TM`
+    - scope note:
+      - this rollback is local/demo-only
+      - it does not change `.env.example`
+      - it does not change `.firebaserc`
+      - it does not change the long-term migration target `traillight-4750b`
+  - verified after the local demo rollback:
+    - CRC web build still succeeds:
+      - `npm run build:crc`
+    - patient web export still succeeds and reads the restored legacy Firebase env block:
+      - `npm --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web`
+  - fixed a CRC Side Effect Guidance panel render crash in the demo rollback path:
+    - file:
+      - `D:\IDP For Integration\src\components\GeminiChatbot.jsx`
+    - root cause:
+      - `initializeGuidance` was referenced inside `useEffect` dependency evaluation before the callback was initialized
+      - this can crash the docked guidance panel at render time and present as a blank workspace
+    - fix:
+      - moved `saveMessage` and `initializeGuidance` above the `useEffect` blocks that depend on them
+  - hardened the CRC guidance flow for legacy-Firebase demo mode:
+    - file:
+      - `D:\IDP For Integration\src\services\guidanceRouterService.js`
+    - problem:
+      - the routed retrieval path depends on newer guidance HTTP functions
+      - the legacy Firebase project used for the professor demo may not have those functions deployed
+    - fix:
+      - retrieval now falls back to a no-retrieval prompt instead of aborting the whole guidance request
+      - this keeps the Gemini browser guidance path usable even if retrieval/router infrastructure is unavailable
+  - verification after the guidance fixes:
+    - CRC production build succeeds again:
+      - `npm run build:crc`
+  - reverted the local demo-only Firebase rollback and restored the working tree back to Terry Firebase `traillight-4750b`:
+    - updated local-only files:
+      - `D:\IDP For Integration\.env.local`
+      - `D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2\.env`
+    - restored Terry web SDK values:
+      - `projectId = traillight-4750b`
+      - `authDomain = traillight-4750b.firebaseapp.com`
+      - `storageBucket = traillight-4750b.firebasestorage.app`
+      - `messagingSenderId = 793680079698`
+      - `appId = 1:793680079698:web:562cb6043570196222a88b`
+      - `measurementId = G-5J5ZLP3ENX`
+    - scope note:
+      - this only restores the local env back to the current migration target
+      - it still does not change `.env.example`
+      - it still does not change `.firebaserc`
+  - verification after restoring Terry Firebase env locally:
+    - CRC web build succeeds:
+      - `npm run build:crc`
+    - patient web export succeeds and Expo reads the restored Terry Firebase env block:
+      - `npm --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web`
+  - completed the next patient disengagement prediction hardening pass to align runtime, deploy assets, demo artifacts, and human-facing docs around `Candidate 024`:
+    - repackaged the local default deploy bundle for the current official line:
+      - created `Patient-Dropout-Prediction/deploy_assets/checkpoints_candidate_024/`
+      - copied the promoted `Candidate 024` checkpoint and artifact bundle into that packaged location
+      - updated:
+        - `Patient-Dropout-Prediction/deploy_assets/checkpoints/frozen_model_manifest.json`
+        - `Patient-Dropout-Prediction/deploy_assets/checkpoints/frozen_model_manifest_candidate_024.json`
+        - `Patient-Dropout-Prediction/src/module_service.py`
+    - scope note:
+      - the local default manifest now resolves to `Candidate 024`
+      - `Honest v3` remains archived as the rollback baseline
+      - this still does **not** claim that a real remote publish has happened
+  - unified key disengagement truth-source docs and runtime guidance away from stale `Honest v3` wording:
+    - updated:
+      - `Patient-Dropout-Prediction/DEPLOYMENT.md`
+      - `Patient-Dropout-Prediction/TESTING_START_RUNBOOK.md`
+      - `Patient-Dropout-Prediction/EVIDENCE_PACK.md`
+      - `Patient-Dropout-Prediction/RUNTIME.md`
+      - `Patient-Dropout-Prediction/PROFESSOR_DEMO_SCENARIOS.md`
+      - `Patient-Dropout-Prediction/DEPLOY_READINESS.md`
+      - `Patient-Dropout-Prediction/OFFICIAL_MODEL.md`
+      - `Patient-Dropout-Prediction/FULL_HISTORY_AND_STATUS_REPORT.md`
+    - wording rule now made explicit:
+      - use `disengagement prediction` in human-facing docs
+      - keep legacy `dropout_*` contract fields and `/dropout-risk/*` routes where compatibility matters
+  - refreshed the official demo-scenario tooling for the current official line:
+    - updated:
+      - `Patient-Dropout-Prediction/src/build_demo_scenario_pack.py`
+    - improvements:
+      - default JSON output now targets `deploy_assets/demo_scenario_pack_candidate_024.json`
+      - markdown now labels the score as `Disengagement probability (contract field: dropout_probability)`
+      - manual medium-risk boundary scenario was re-tuned for the current `Candidate 024` thresholds so demo-pack generation no longer fails under the promoted line
+    - regenerated artifacts:
+      - `Patient-Dropout-Prediction/deploy_assets/demo_scenario_pack_candidate_024.json`
+      - `Patient-Dropout-Prediction/DEMO_SCENARIO_PACK.md`
+  - cleaned remaining human-facing script wording for the disengagement rename without breaking compatibility:
+    - updated:
+      - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+      - `Patient-Dropout-Prediction/src/http_service.py`
+      - `Patient-Dropout-Prediction/src/risk_engine_inference.py`
+      - `Patient-Dropout-Prediction/src/risk_engine_batch_inference.py`
+      - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout/generate_report_figures.py`
+    - also updated current official audit summaries:
+      - `Patient-Dropout-Prediction/audit/official_candidate_024_extreme_audit/official_model_audit_summary.json`
+      - `Patient-Dropout-Prediction/audit/official_candidate_024_extreme_audit/report_ready_summary.json`
+  - made the protocol static-context QA blocker precise instead of generic:
+    - updated:
+      - `Patient-Dropout-Prediction/PROTOCOL_STATIC_CONTEXT_QA_STATUS.md`
+    - clarified blocker:
+      - local workspace only has the legacy Firebase service account for `idp-authentication-7e8d7`
+      - executing the real 25-protocol QA export for the current target now explicitly requires a `traillight-4750b` service account JSON passed through `FIREBASE_SERVICE_ACCOUNT_JSON`
+  - verification after this hardening pass:
+    - `py_compile` passes for:
+      - `Patient-Dropout-Prediction/src/run_official_model_audit.py`
+      - `Patient-Dropout-Prediction/src/build_demo_scenario_pack.py`
+      - `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+      - `Patient-Dropout-Prediction/src/http_service.py`
+      - `Patient-Dropout-Prediction/src/risk_engine_inference.py`
+      - `Patient-Dropout-Prediction/src/risk_engine_batch_inference.py`
+      - `Patient-Dropout-Prediction/report_figures/patient_dropout/generate_report_figures.py`
+    - official demo pack regeneration succeeded:
+      - `Patient-Dropout-Prediction/deploy_assets/demo_scenario_pack_candidate_024.json`
+      - `Patient-Dropout-Prediction/DEMO_SCENARIO_PACK.md`

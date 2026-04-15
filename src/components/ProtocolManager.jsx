@@ -11,6 +11,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { coerceNotificationPolicy, getDefaultNotificationPolicy } from '../services/incidentService';
+import {
+  deleteGuidanceDocumentChunks,
+  ingestGuidanceDocument,
+} from '../services/guidanceIngestionService';
 import { supabase } from '../supabaseClient';
 import {
   buildFallbackMonitoredVitals,
@@ -20,6 +24,7 @@ import {
   isBuiltinVitalTemplate,
   subscribeToTrialTemplates,
 } from '../services/trialTemplateService';
+import { extractAndPersistProtocolDropoutStaticContext } from '../services/protocolStaticContextService';
 
 const POLICY_FIELDS = ['mild', 'moderate', 'serious'];
 const DUE_UNITS = ['hour', 'day', 'week', 'month'];
@@ -175,6 +180,31 @@ function renderThresholdFields(template, protocolId, templateIndex, onChange) {
   );
 }
 
+function formatGuidanceIndexStatus(protocol) {
+  const status = String(protocol?.guidance_index_status || '').trim().toLowerCase();
+  if (status === 'ready') {
+    const pageCount = Number(protocol?.guidance_page_count) || 0;
+    const chunkCount = Number(protocol?.guidance_chunk_count) || 0;
+    const indexedAt = protocol?.guidance_indexed_at
+      ? new Date(protocol.guidance_indexed_at).toLocaleString()
+      : null;
+    return `Guidance index ready${pageCount || chunkCount ? `: ${pageCount} pages, ${chunkCount} chunks` : ''}${
+      indexedAt ? ` (${indexedAt})` : ''
+    }`;
+  }
+
+  if (status === 'indexing') {
+    return 'Guidance indexing is running in the background.';
+  }
+
+  if (status === 'error') {
+    const errorMessage = String(protocol?.guidance_index_error || '').trim();
+    return `Guidance index error${errorMessage ? `: ${errorMessage}` : ''}`;
+  }
+
+  return 'Guidance index has not run yet.';
+}
+
 const ProtocolManager = ({ selectedPatient, patients = [] }) => {
   const [file, setFile] = useState(null);
   const [protocols, setProtocols] = useState([]);
@@ -229,21 +259,78 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
     try {
       const fileName = file.name;
       const storagePath = fileName;
+      const uploadedAt = new Date().toISOString();
+      let extractionWarning = '';
+      let guidanceWarning = '';
 
       const { error: uploadError } = await supabase.storage.from('protocol').upload(storagePath, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      await addDoc(collection(db, 'protocols'), {
-        name: fileName,
-        storagePath,
-        uploadedAt: new Date().toISOString(),
-        notification_policy: normalizePolicyForSave(getDefaultNotificationPolicy()),
-        vital_templates: coerceVitalTemplates([], ['temperature', 'spo2', 'bp']),
-        dropout_trial_id: '',
-      });
+      const existingProtocol = protocols.find(
+        (protocol) => protocol.storagePath === storagePath || protocol.name === fileName
+      );
+
+      let protocolId = existingProtocol?.id || null;
+
+      if (existingProtocol) {
+        await updateDoc(doc(db, 'protocols', existingProtocol.id), {
+          name: fileName,
+          storagePath,
+          uploadedAt,
+          guidance_index_status: 'indexing',
+          guidance_index_error: null,
+          guidance_indexed_at: null,
+        });
+      } else {
+        const protocolRef = await addDoc(collection(db, 'protocols'), {
+          name: fileName,
+          storagePath,
+          uploadedAt,
+          notification_policy: normalizePolicyForSave(getDefaultNotificationPolicy()),
+          vital_templates: coerceVitalTemplates([], ['temperature', 'spo2', 'bp']),
+          dropout_trial_id: '',
+          extraction_status: 'pending',
+          guidance_index_status: 'indexing',
+          guidance_index_error: null,
+          guidance_indexed_at: null,
+        });
+        protocolId = protocolRef.id;
+      }
+
+      if (!protocolId) {
+        throw new Error('Protocol document ID could not be resolved after upload.');
+      }
+
+      try {
+        await extractAndPersistProtocolDropoutStaticContext(protocolId, {
+          name: fileName,
+          storagePath,
+        });
+      } catch (extractionError) {
+        console.error('Protocol dropout static-context extraction failed:', extractionError);
+        extractionWarning = ` Dropout static context extraction failed: ${extractionError.message}`;
+      }
+
+      try {
+        await ingestGuidanceDocument({
+          sourceType: 'protocol',
+          documentId: protocolId,
+          protocolId,
+          protocolName: fileName,
+          title: fileName,
+          storageBucket: 'protocol',
+          storagePath,
+          metadata: {
+            source_label: fileName,
+          },
+        });
+      } catch (guidanceError) {
+        console.error('Protocol guidance indexing trigger failed:', guidanceError);
+        guidanceWarning = ` Guidance indexing trigger failed: ${guidanceError.message}`;
+      }
 
       setFile(null);
-      window.alert('Success: Added to Trial Library');
+      window.alert(`Success: Added to Trial Library.${extractionWarning}${guidanceWarning}`);
     } catch (error) {
       console.error(error);
       window.alert(`Upload failed: ${error.message}`);
@@ -258,6 +345,16 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
     }
 
     try {
+      try {
+        await deleteGuidanceDocumentChunks({
+          sourceType: 'protocol',
+          documentId: protocol.id,
+          protocolId: protocol.id,
+        });
+      } catch (guidanceCleanupError) {
+        console.error('Guidance chunk cleanup failed during protocol delete:', guidanceCleanupError);
+      }
+
       const usersQuery = query(collection(db, 'users'), where('protocolId', '==', protocol.id));
       const usersSnapshot = await getDocs(usersQuery);
 
@@ -283,6 +380,38 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
       }
     } catch (error) {
       window.alert(`Delete failed: ${error.message}`);
+    }
+  };
+
+  const handleRetryGuidanceIndex = async (protocol) => {
+    try {
+      await updateDoc(doc(db, 'protocols', protocol.id), {
+        guidance_index_status: 'indexing',
+        guidance_index_error: null,
+        guidance_indexed_at: null,
+      });
+
+      await ingestGuidanceDocument({
+        sourceType: 'protocol',
+        documentId: protocol.id,
+        protocolId: protocol.id,
+        protocolName: protocol.name,
+        title: protocol.name,
+        storageBucket: 'protocol',
+        storagePath: protocol.storagePath,
+        metadata: {
+          source_label: protocol.name,
+        },
+      });
+
+      window.alert('Guidance indexing re-triggered successfully.');
+    } catch (error) {
+      console.error('Guidance indexing retry failed:', error);
+      await updateDoc(doc(db, 'protocols', protocol.id), {
+        guidance_index_status: 'error',
+        guidance_index_error: error.message,
+      });
+      window.alert(`Guidance indexing retry failed: ${error.message}`);
     }
   };
 
@@ -550,6 +679,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                     <div className="section-note">
                       Uploaded {protocol.uploadedAt ? new Date(protocol.uploadedAt).toLocaleString() : 'Unknown time'}
                     </div>
+                    <div className="section-note section-note--spaced">{formatGuidanceIndexStatus(protocol)}</div>
                   </div>
 
                   <div className="protocol-library__cardActions">
@@ -565,6 +695,13 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                     </button>
                     <button onClick={() => handleSaveProtocol(protocol.id)} className="btn btn-primary btn-small">
                       Save template
+                    </button>
+                    <button
+                      onClick={() => handleRetryGuidanceIndex(protocol)}
+                      className="btn btn-secondary btn-small"
+                      disabled={!protocol.storagePath}
+                    >
+                      Retry guidance index
                     </button>
                     <button
                       onClick={() => handleActivate(protocol)}

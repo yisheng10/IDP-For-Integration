@@ -2140,8 +2140,16 @@ td {
   box-shadow: 12px 0 30px rgba(15, 23, 42, 0.06);
 }
 
+.crc-sidebar__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .crc-sidebar__brand {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   justify-content: flex-start;
 }
 
@@ -2151,13 +2159,21 @@ td {
 }
 
 .crc-sidebar__collapseToggle {
+  width: 40px;
+  height: 40px;
   min-height: 40px;
+  padding: 0;
   border: 1px solid #d7e3ef;
   border-radius: 14px;
   background: #ffffff;
   color: #33506a;
   font-weight: 800;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
 }
 
 .crc-sidebar__scroll {
@@ -2203,7 +2219,14 @@ td {
   padding-inline: 10px;
 }
 
+.crc-sidebar--collapsed .crc-sidebar__header {
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
 .crc-sidebar--collapsed .crc-sidebar__brand {
+  width: auto;
   justify-content: center;
 }
 
@@ -2300,11 +2323,11 @@ td {
 }
 
 .dashboard-surface {
-  padding-top: 28px;
+  padding-top: 18px;
 }
 
 .dashboard-section {
-  gap: 22px;
+  gap: 18px;
 }
 
 .workspace-actionStrip {
@@ -2378,19 +2401,8 @@ td {
 }
 
 .crc-sidebar__collapseToggle {
-  position: absolute;
-  top: 22px;
-  right: -16px;
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
-  padding: 0;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
-  z-index: 4;
+  position: static;
+  z-index: auto;
 }
 
 .crc-sidebar__collapseToggle svg {
@@ -2834,10 +2846,9 @@ td {
 
 @media (max-width: 960px) {
   .crc-sidebar__collapseToggle {
-    position: static;
     width: 40px;
     height: 40px;
-    margin-left: auto;
+    margin-left: 0;
   }
 
   .patient-config__grid,

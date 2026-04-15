@@ -4,7 +4,9 @@ import {
   collectionGroup,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -32,12 +34,17 @@ import {
   subscribeToAppointments,
   updateAppointmentStatus,
 } from '../services/appointmentService';
-import { subscribeToAlertHistory, subscribeToUnresolvedAlerts } from '../services/alertService';
+import { subscribeToAlertHistory, subscribeToRecentAlertsGlobal, subscribeToUnresolvedAlerts } from '../services/alertService';
 import {
   getBrowserPushState,
   registerBrowserPushSubscription,
   showForegroundIncidentNotification,
 } from '../services/browserPushService';
+import {
+  fetchAlertHistorySummary,
+  fetchIncidentSummary,
+  fetchPatientRosterSummary,
+} from '../services/crcSummaryService';
 import { fetchDropoutTestingSubjects } from '../services/dropoutService';
 import { getIncidentDueState, subscribeToIncidentRecords } from '../services/incidentService';
 import { getSignedUrl } from '../services/storageService';
@@ -48,6 +55,12 @@ import {
 } from '../services/trialTemplateService';
 
 const AI_SUGGESTION_TITLE = 'AI Scheduler';
+const MAX_PATIENT_ROSTER_LIMIT = 200;
+const CRC_ROSTER_LIMIT = 80;
+const MAX_GLOBAL_ALERT_LIMIT = 200;
+const MAX_GLOBAL_EPRO_LIMIT = 200;
+const MAX_GLOBAL_INCIDENT_LIMIT = 200;
+const DEFAULT_WINDOW_PAGE_SIZE = 30;
 
 const HOME_SECTIONS = {
   dashboard: {
@@ -134,6 +147,36 @@ export default function CRCHome({ user, onLogout }) {
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [isAlertWidgetOpen, setIsAlertWidgetOpen] = useState(false);
+  const [patientRosterPage, setPatientRosterPage] = useState(1);
+  const [patientRosterPageSize, setPatientRosterPageSize] = useState(DEFAULT_WINDOW_PAGE_SIZE);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(DEFAULT_WINDOW_PAGE_SIZE);
+  const [eproEntriesPage, setEproEntriesPage] = useState(1);
+  const [eproEntriesPageSize, setEproEntriesPageSize] = useState(DEFAULT_WINDOW_PAGE_SIZE);
+  const [incidentPage, setIncidentPage] = useState(1);
+  const [incidentPageSize, setIncidentPageSize] = useState(DEFAULT_WINDOW_PAGE_SIZE);
+  const [patientRosterSummary, setPatientRosterSummary] = useState(null);
+  const [globalAlertSummary, setGlobalAlertSummary] = useState(null);
+  const [selectedAlertSummary, setSelectedAlertSummary] = useState(null);
+  const [globalIncidentSummary, setGlobalIncidentSummary] = useState(null);
+  const [selectedIncidentSummary, setSelectedIncidentSummary] = useState(null);
+
+  const patientRosterLimit = Math.min(
+    patientRosterPage * patientRosterPageSize + 1,
+    MAX_PATIENT_ROSTER_LIMIT + 1
+  );
+  const globalAlertLimit = Math.min(
+    historyPage * historyPageSize + 1,
+    MAX_GLOBAL_ALERT_LIMIT + 1
+  );
+  const globalEproLimit = Math.min(
+    eproEntriesPage * eproEntriesPageSize + 1,
+    MAX_GLOBAL_EPRO_LIMIT + 1
+  );
+  const incidentWindowLimit = Math.min(
+    incidentPage * incidentPageSize + 1,
+    MAX_GLOBAL_INCIDENT_LIMIT + 1
+  );
 
   const prevAlertCountRef = useRef(0);
   const isFirstLoadRef = useRef(true);
@@ -148,17 +191,126 @@ export default function CRCHome({ user, onLogout }) {
   }, [user]);
 
   useEffect(() => {
-    const patientsQuery = query(collection(db, 'users'), where('role', '==', 'patient'));
-    const unsubscribe = onSnapshot(patientsQuery, (snapshot) => {
-      setPatients(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
-    });
-    return () => unsubscribe();
+    let cancelled = false;
+
+    async function loadRosterSummary() {
+      try {
+        const payload = await fetchPatientRosterSummary(user.uid);
+        if (!cancelled) {
+          setPatientRosterSummary(payload);
+        }
+      } catch (error) {
+        console.error('Failed to load patient roster summary:', error);
+        if (!cancelled) {
+          setPatientRosterSummary(null);
+        }
+      }
+    }
+
+    loadRosterSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.uid]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadGlobalSummaries() {
+      try {
+        const [alertsPayload, incidentsPayload] = await Promise.all([
+          fetchAlertHistorySummary(),
+          fetchIncidentSummary(),
+        ]);
+        if (!cancelled) {
+          setGlobalAlertSummary(alertsPayload);
+          setGlobalIncidentSummary(incidentsPayload);
+        }
+      } catch (error) {
+        console.error('Failed to load global CRC summaries:', error);
+        if (!cancelled) {
+          setGlobalAlertSummary(null);
+          setGlobalIncidentSummary(null);
+        }
+      }
+    }
+
+    loadGlobalSummaries();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    const crcQuery = query(collection(db, 'users'), where('role', '==', 'crc'));
+    if (!selPatient?.id) {
+      setSelectedAlertSummary(null);
+      setSelectedIncidentSummary(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadSelectedPatientSummaries() {
+      try {
+        const [alertsPayload, incidentsPayload] = await Promise.all([
+          fetchAlertHistorySummary({ selectedPatientId: selPatient.id }),
+          fetchIncidentSummary({ selectedPatientId: selPatient.id }),
+        ]);
+        if (!cancelled) {
+          setSelectedAlertSummary(alertsPayload);
+          setSelectedIncidentSummary(incidentsPayload);
+        }
+      } catch (error) {
+        console.error('Failed to load selected-patient summaries:', error);
+        if (!cancelled) {
+          setSelectedAlertSummary(null);
+          setSelectedIncidentSummary(null);
+        }
+      }
+    }
+
+    loadSelectedPatientSummaries();
+    return () => {
+      cancelled = true;
+    };
+  }, [selPatient?.id]);
+
+  useEffect(() => {
+    const patientsQuery = query(
+      collection(db, 'users'),
+      where('role', '==', 'patient'),
+      orderBy(documentId()),
+      limit(patientRosterLimit)
+    );
+    const unsubscribe = onSnapshot(patientsQuery, (snapshot) => {
+      const rows = snapshot.docs
+        .map((entry) => ({ id: entry.id, ...entry.data() }))
+        .sort((left, right) => {
+          const leftLabel = String(left.nickname || left.email || left.id || '').toLowerCase();
+          const rightLabel = String(right.nickname || right.email || right.id || '').toLowerCase();
+          return leftLabel.localeCompare(rightLabel);
+        });
+      setPatients(rows);
+    });
+    return () => unsubscribe();
+  }, [patientRosterLimit]);
+
+  useEffect(() => {
+    const crcQuery = query(
+      collection(db, 'users'),
+      where('role', '==', 'crc'),
+      orderBy(documentId()),
+      limit(CRC_ROSTER_LIMIT)
+    );
     const unsubscribe = onSnapshot(crcQuery, (snapshot) => {
-      setCrcUsers(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+      const rows = snapshot.docs
+        .map((entry) => ({ id: entry.id, ...entry.data() }))
+        .sort((left, right) => {
+          const leftLabel = String(left.nickname || left.email || left.id || '').toLowerCase();
+          const rightLabel = String(right.nickname || right.email || right.id || '').toLowerCase();
+          return leftLabel.localeCompare(rightLabel);
+        });
+      setCrcUsers(rows);
     });
     return () => unsubscribe();
   }, []);
@@ -244,26 +396,22 @@ export default function CRCHome({ user, onLogout }) {
       isFirstLoadRef.current = false;
     });
 
-    const globalAlertQuery = query(collectionGroup(db, 'alerts'));
-    const unsubscribeGlobal = onSnapshot(globalAlertQuery, (snapshot) => {
-      const rows = snapshot.docs
-        .map((entry) => {
-          const parentDoc = entry.ref.parent.parent;
-          const uid = parentDoc ? parentDoc.id : 'unknown';
-          return { id: entry.id, ref: entry.ref, uid, ...entry.data() };
-        })
-        .sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp));
+    const unsubscribeGlobal = subscribeToRecentAlertsGlobal((rows) => {
       setGlobalAlerts(rows);
-    });
+    }, globalAlertLimit);
 
     return () => {
       unsubscribeActive();
       unsubscribeGlobal();
     };
-  }, []);
+  }, [globalAlertLimit]);
 
   useEffect(() => {
-    const eproQuery = query(collectionGroup(db, 'epro_submissions'));
+    const eproQuery = query(
+      collectionGroup(db, 'epro_submissions'),
+      orderBy('updated_at', 'desc'),
+      limit(globalEproLimit)
+    );
     const unsubscribe = onSnapshot(eproQuery, (snapshot) => {
       const records = snapshot.docs
         .map((entry) => {
@@ -279,7 +427,7 @@ export default function CRCHome({ user, onLogout }) {
       setEproEntries(records);
     });
     return () => unsubscribe();
-  }, []);
+  }, [globalEproLimit]);
 
   useEffect(() => {
     let isFirstIncidentLoad = true;
@@ -314,10 +462,11 @@ export default function CRCHome({ user, onLogout }) {
           if (matched) setActiveIncident(matched);
         }
       },
-      (error) => console.error('Incident subscription failed:', error)
+      (error) => console.error('Incident subscription failed:', error),
+      { limitCount: incidentWindowLimit }
     );
     return () => unsubscribe();
-  }, [searchParams, user.uid]);
+  }, [incidentWindowLimit, searchParams, user.uid]);
 
   useEffect(() => {
     if (!selectedPatientId) {
@@ -328,19 +477,25 @@ export default function CRCHome({ user, onLogout }) {
       return undefined;
     }
 
-    const vitalsQuery = query(collection(db, 'users', selectedPatientId, 'vitals'), orderBy('timestamp', 'desc'));
+    const vitalsQuery = query(
+      collection(db, 'users', selectedPatientId, 'vitals'),
+      orderBy('timestamp', 'desc'),
+      limit(20)
+    );
     const unsubscribeVitals = onSnapshot(vitalsQuery, (snapshot) => {
       setPVitals(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
     });
     const unsubscribeAppointments = subscribeToAppointments(selectedPatientId, setPAppts);
-    const unsubscribeAlerts = subscribeToAlertHistory(selectedPatientId, setPAlerts);
+    const unsubscribeAlerts = subscribeToAlertHistory(selectedPatientId, setPAlerts, {
+      limitCount: globalAlertLimit,
+    });
 
     return () => {
       unsubscribeVitals();
       unsubscribeAppointments();
       unsubscribeAlerts();
     };
-  }, [selectedPatientId]);
+  }, [globalAlertLimit, selectedPatientId]);
 
   const selectP = (patient) => {
     if (!patient) {
@@ -556,6 +711,33 @@ export default function CRCHome({ user, onLogout }) {
     return enrichedGlobalAlerts;
   }, [enrichedGlobalAlerts, pAlerts, selPatient]);
 
+  const totalPatientCount = Number.isFinite(Number(patientRosterSummary?.totalPatients))
+    ? Number(patientRosterSummary.totalPatients)
+    : patients.length;
+  const assignedPatientCount = Number.isFinite(Number(patientRosterSummary?.assignedPatients))
+    ? Number(patientRosterSummary.assignedPatients)
+    : patients.filter((patient) => (patient.primary_crc_id || patient.primaryCrcId || '') === user.uid).length;
+  const activeHistorySummary = selPatient ? selectedAlertSummary : globalAlertSummary;
+  const activeIncidentSummary = selPatient ? selectedIncidentSummary : globalIncidentSummary;
+  const canGoToNextPatientRosterPage = totalPatientCount > patientRosterPage * patientRosterPageSize;
+  const canGoToNextHistoryPage =
+    (Number.isFinite(Number(activeHistorySummary?.totalAlerts))
+      ? Number(activeHistorySummary.totalAlerts)
+      : safetyHistoryAlerts.length) > historyPage * historyPageSize;
+  const canGoToNextEproPage = eproEntries.length > eproEntriesPage * eproEntriesPageSize;
+  const canGoToNextIncidentPage =
+    (Number.isFinite(Number(activeIncidentSummary?.totalIncidents))
+      ? Number(activeIncidentSummary.totalIncidents)
+      : incidents.length) > incidentPage * incidentPageSize;
+  const patientRosterSummaryNote = `Showing ${patients.length} loaded patients from ${totalPatientCount} total patients. Assigned to this CRC: ${assignedPatientCount}.`;
+  const historyWindowLabel = selPatient
+    ? `Showing ${safetyHistoryAlerts.length} loaded alert-history records for ${selPatient.nickname || 'the selected patient'}. Full patient alert summary: ${selectedAlertSummary?.activeAlerts ?? 0} active, ${selectedAlertSummary?.resolvedAlerts ?? 0} resolved.`
+    : `Showing ${globalAlerts.length} loaded global alert-history records from the current recent window. Full alert summary: ${globalAlertSummary?.activeAlerts ?? 0} active, ${globalAlertSummary?.resolvedAlerts ?? 0} resolved.`;
+  const incidentWindowLabel = selPatient
+    ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.resolvedIncidents ?? 0} resolved, ${selectedIncidentSummary?.groupedIncidents ?? 0} grouped.`
+    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${globalIncidentSummary?.openIncidents ?? 0} open, ${globalIncidentSummary?.resolvedIncidents ?? 0} resolved, ${globalIncidentSummary?.groupedIncidents ?? 0} grouped.`;
+  const eproWindowLabel = `Showing ${eproEntries.length} loaded mirrored ePRO records from the current recent window.`;
+
   const getStatusStyle = (status) => {
     switch (status) {
       case 'confirmed':
@@ -575,6 +757,26 @@ export default function CRCHome({ user, onLogout }) {
     () => (selPatient ? { ...selPatient, vitals: pVitals, appointments: pAppts } : null),
     [pAppts, pVitals, selPatient]
   );
+  const selectedPatientEproEntries = useMemo(() => {
+    if (!selPatient?.id) return [];
+    return eproEntries
+      .filter((entry) => entry.uid === selPatient.id)
+      .slice(0, 50);
+  }, [eproEntries, selPatient?.id]);
+  const selectedPatientIncidents = useMemo(() => {
+    if (!selPatient?.id) return [];
+    return incidents
+      .filter((incident) => {
+        const linkedIds = Array.isArray(incident.linked_patient_ids) ? incident.linked_patient_ids : [];
+        const linkedPatients = Array.isArray(incident.linked_patients) ? incident.linked_patients : [];
+        const matchesLinkedIds = linkedIds.includes(selPatient.id);
+        const matchesLinkedPatients = linkedPatients.some(
+          (patient) => patient?.patient_id === selPatient.id || patient?.uid === selPatient.id
+        );
+        return matchesLinkedIds || matchesLinkedPatients;
+      })
+      .slice(0, 50);
+  }, [incidents, selPatient?.id]);
 
   useEffect(() => {
     if (!activeIncident) return;
@@ -648,23 +850,18 @@ export default function CRCHome({ user, onLogout }) {
       : activeHomeSection;
 
   const openIncidentCount = useMemo(
-    () => incidents.filter((incident) => incident.status !== 'resolved').length,
-    [incidents]
+    () => globalIncidentSummary?.openIncidents ?? incidents.filter((incident) => incident.status !== 'resolved').length,
+    [globalIncidentSummary, incidents]
   );
   const overdueIncidentCount = useMemo(
-    () => incidents.filter((incident) => getIncidentDueState(incident) === 'overdue').length,
-    [incidents]
+    () => globalIncidentSummary?.overdueIncidents ?? incidents.filter((incident) => getIncidentDueState(incident) === 'overdue').length,
+    [globalIncidentSummary, incidents]
   );
   const selectedPatientIncidentCount = useMemo(() => {
     if (!selPatient) return 0;
-    return incidents.filter((incident) => (incident.linked_patient_ids || []).includes(selPatient.id)).length;
-  }, [incidents, selPatient]);
-  const seriousActiveAlertCount = urgentAlerts.filter((alert) => alert.status === 'unread').length;
-  const assignedPatientCount = useMemo(
-    () =>
-      patients.filter((patient) => (patient.primary_crc_id || patient.primaryCrcId || '') === user.uid).length,
-    [patients, user.uid]
-  );
+    return selectedIncidentSummary?.totalIncidents ?? incidents.filter((incident) => (incident.linked_patient_ids || []).includes(selPatient.id)).length;
+  }, [incidents, selPatient, selectedIncidentSummary]);
+  const seriousActiveAlertCount = globalAlertSummary?.activeUrgentAlerts ?? urgentAlerts.filter((alert) => alert.status === 'unread').length;
 
   const currentHeaderSection =
     activeHomeSection === 'clinical-intelligence'
@@ -824,16 +1021,6 @@ export default function CRCHome({ user, onLogout }) {
         <div className="dashboard-surface">
           {activeHomeSection === 'dashboard' ? (
           <section id="dashboard" className="dashboard-section">
-            <div className="dashboard-section__header">
-              <div>
-                <div className="dashboard-kicker">Dashboard</div>
-                <h2 className="dashboard-section__title">CRC overview</h2>
-                <p className="section-note">
-                  Start from the metrics, keep the selected patient visible, and open urgent work without losing context.
-                </p>
-              </div>
-            </div>
-
             <div className="overview-grid">
               <div className="overview-card">
                 <span>Assigned patients</span>
@@ -947,21 +1134,26 @@ export default function CRCHome({ user, onLogout }) {
 
           {activeHomeSection === 'patients' ? (
           <section id="patients" className="dashboard-section">
-            <div className="dashboard-section__header">
-              <div>
-                <div className="dashboard-kicker">Patients</div>
-                <h2 className="dashboard-section__title">Patient roster and handoff</h2>
-                <p className="section-note">
-                  Use the roster to switch context cleanly before moving into safety review, guidance, or study coordination.
-                </p>
-              </div>
-            </div>
-
             <div className="dashboard-mainGrid">
               <PatientList
                 patients={patients}
                 selectedPatientId={selectedPatientId}
                 onSelect={selectP}
+                countLabel={`${patients.length} loaded`}
+                summaryNote={patientRosterSummaryNote}
+                currentPage={patientRosterPage}
+                pageSize={patientRosterPageSize}
+                onPageChange={setPatientRosterPage}
+                onPageSizeChange={(value) => {
+                  setPatientRosterPageSize(value);
+                  setPatientRosterPage(1);
+                }}
+                canGoNextPage={canGoToNextPatientRosterPage}
+                footerContent={
+                  canGoToNextPatientRosterPage
+                    ? 'More patients may exist beyond the current loaded roster window.'
+                    : 'All currently loaded patients fit inside the current roster page window.'
+                }
               />
 
               <div className="card workspace-card">
@@ -1013,16 +1205,6 @@ export default function CRCHome({ user, onLogout }) {
 
           {activeHomeSection === 'safety-inbox' ? (
           <section id="safety-inbox" className="dashboard-section">
-            <div className="dashboard-section__header">
-                <div>
-                  <div className="dashboard-kicker">Safety</div>
-                  <h2 className="dashboard-section__title">Safety Inbox</h2>
-                  <p className="section-note">
-                    This is the primary CRC safety workspace for active cases, resolved follow-up, and historical alert threads.
-                  </p>
-                </div>
-              </div>
-
             <SafetyInboxPanel
               incidents={incidents}
               alertHistory={safetyHistoryAlerts}
@@ -1033,6 +1215,20 @@ export default function CRCHome({ user, onLogout }) {
               onOpenAlertThread={handleNavAlertClick}
               initialTab={activeSafetyTab}
               onTabChange={handleSafetyInboxTabChange}
+              historyWindowLabel={historyWindowLabel}
+              incidentWindowLabel={incidentWindowLabel}
+              historySummary={activeHistorySummary}
+              incidentSummary={activeIncidentSummary}
+              historyPage={historyPage}
+              historyPageSize={historyPageSize}
+              onHistoryPageChange={setHistoryPage}
+              onHistoryPageSizeChange={setHistoryPageSize}
+              canGoNextHistory={canGoToNextHistoryPage}
+              incidentPage={incidentPage}
+              incidentPageSize={incidentPageSize}
+              onIncidentPageChange={setIncidentPage}
+              onIncidentPageSizeChange={setIncidentPageSize}
+              canGoNextIncidents={canGoToNextIncidentPage}
             />
           </section>
           ) : null}
@@ -1040,24 +1236,24 @@ export default function CRCHome({ user, onLogout }) {
           {activeHomeSection === 'clinical-intelligence' ? (
           activeClinicalFocus === 'guidance' ? (
             <section id="side-effect-guidance" className="dashboard-section">
-              <div className="dashboard-section__header">
-                <div>
-                  <div className="dashboard-kicker">Clinical intelligence</div>
-                  <h2 className="dashboard-section__title">Side Effect Guidance</h2>
-                  <p className="section-note">
-                    Protocol-backed guidance now lives in its own dedicated workspace instead of sharing a single long scroll area.
-                  </p>
-                </div>
-              </div>
-
               <GeminiChatbot
                 role="crc"
                 userId={user.uid}
                 userNickname={crcName}
                 patientData={stablePatientData}
+                patientVitals={pVitals}
+                patientAppointments={pAppts}
+                patientAlerts={pAlerts}
+                patientEproEntries={selectedPatientEproEntries}
+                patientIncidents={selectedPatientIncidents}
+                activeProtocolId={selPatient?.protocolId || null}
                 protocolUrl={selPatient?.protocolUrl}
                 activeProtocolName={selPatient?.protocolName}
                 allPatients={patients}
+                workspaceAlerts={globalAlerts}
+                workspaceUrgentAlerts={urgentAlerts}
+                workspaceEproEntries={eproEntries}
+                workspaceIncidents={incidents}
                 presentation="docked"
                 titleOverride="Side Effect Guidance"
                 panelDescription="Review symptoms, protocol guidance, CTCAE context, and follow-up actions from one docked CRC workspace."
@@ -1065,16 +1261,6 @@ export default function CRCHome({ user, onLogout }) {
             </section>
           ) : (
             <section id="patient-dropout-prediction" className="dashboard-section">
-              <div className="dashboard-section__header">
-                <div>
-                  <div className="dashboard-kicker">Clinical intelligence</div>
-                  <h2 className="dashboard-section__title">Patient Dropout Prediction</h2>
-                  <p className="section-note">
-                    Dedicated dropout workspace with live patient ranking, patient search, summary metrics, and patient-specific CRC detail.
-                  </p>
-                </div>
-              </div>
-
               <DropoutRiskPanel
                 patients={patients}
                 onOpenPatients={(patient) => openDropoutPatientWorkspace(patient, 'patients')}
@@ -1086,32 +1272,12 @@ export default function CRCHome({ user, onLogout }) {
 
           {activeHomeSection === 'protocol-library' ? (
           <section id="protocol-library" className="dashboard-section">
-            <div className="dashboard-section__header">
-              <div>
-                <div className="dashboard-kicker">Trial templates</div>
-                <h2 className="dashboard-section__title">Protocol Library</h2>
-                <p className="section-note">
-                  Upload protocol PDFs, review current usage, and keep vital templates with mild, moderate, and serious notification settings together.
-                </p>
-              </div>
-            </div>
-
             <ProtocolManager selectedPatient={selPatient} patients={patients} />
           </section>
           ) : null}
 
           {activeHomeSection === 'study-coordination' ? (
           <section id="study-coordination" className="dashboard-section">
-            <div className="dashboard-section__header">
-              <div>
-                <div className="dashboard-kicker">Study coordination</div>
-                <h2 className="dashboard-section__title">Patient configuration, protocol, and follow-up</h2>
-                <p className="section-note">
-                  Keep CRC ownership, protocol assignment, vitals, and appointments in one coordinated area while ePRO review lives in its own workspace.
-                </p>
-              </div>
-            </div>
-
             {selPatient ? (
               <>
                 <div className="workspace-two-column">
@@ -1281,36 +1447,25 @@ export default function CRCHome({ user, onLogout }) {
 
           {activeHomeSection === 'epro' ? (
           <section id="epro" className="dashboard-section">
-            <div className="dashboard-section__header">
-              <div>
-                <div className="dashboard-kicker">ePRO</div>
-                <h2 className="dashboard-section__title">Daily ePRO review and release</h2>
-                <p className="section-note">
-                  Preview today&apos;s questionnaires, edit wording only, approve individual drafts, or approve the whole current-day queue before patients can answer.
-                </p>
-              </div>
-            </div>
-
             <EproReviewWorkspace
               user={user}
               patients={patients}
               entries={eproEntries}
+              entryWindowLabel={eproWindowLabel}
+              entriesPage={eproEntriesPage}
+              entriesPageSize={eproEntriesPageSize}
+              onEntriesPageChange={setEproEntriesPage}
+              onEntriesPageSizeChange={(value) => {
+                setEproEntriesPageSize(value);
+                setEproEntriesPage(1);
+              }}
+              canGoNextEntries={canGoToNextEproPage}
             />
           </section>
           ) : null}
 
           {activeHomeSection === 'resources' ? (
           <section id="resources" className="dashboard-section">
-            <div className="dashboard-section__header">
-              <div>
-                <div className="dashboard-kicker">Resources</div>
-                <h2 className="dashboard-section__title">Clinical references</h2>
-                <p className="section-note">
-                  Keep CTCAE and active protocol references accessible inside the same CRC workspace.
-                </p>
-              </div>
-            </div>
-
             <div className="workspace-two-column">
               <div className="card workspace-card">
                 <div className="section-header">

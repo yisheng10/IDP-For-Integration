@@ -10,6 +10,7 @@
     "build:shareable": "npm run build:crc && npm run build:patient-web",
     "build": "vite build",
     "deploy:hosting": "firebase deploy --only hosting:crc,hosting:patient",
+    "guidance:bootstrap:ctcae": "node scripts/guidance/upload-ctcae-and-index.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useRef, useContext } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { db, auth } from '../firebase';
 import { 
   collection, addDoc, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc 
@@ -26,11 +26,29 @@ export const CallProvider = ({ children }) => {
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
   const unsubscribeCallRef = useRef(null);
+  const unsubscribeAnswerListenerRef = useRef(null);
+  const unsubscribeAnswerCandidatesRef = useRef(null);
+  const unsubscribeOfferCandidatesRef = useRef(null);
   
   const statusRef = useRef('idle'); 
   const prevStatusRef = useRef('idle'); // Track history for sound transitions
 
   const candidateQueue = useRef([]); 
+
+  const clearNegotiationListeners = () => {
+    if (unsubscribeAnswerListenerRef.current) {
+      unsubscribeAnswerListenerRef.current();
+      unsubscribeAnswerListenerRef.current = null;
+    }
+    if (unsubscribeAnswerCandidatesRef.current) {
+      unsubscribeAnswerCandidatesRef.current();
+      unsubscribeAnswerCandidatesRef.current = null;
+    }
+    if (unsubscribeOfferCandidatesRef.current) {
+      unsubscribeOfferCandidatesRef.current();
+      unsubscribeOfferCandidatesRef.current = null;
+    }
+  };
 
   // --- SHORT NOTIFICATION SOUNDS (Managed Here) ---
   // Ringtone/Ringback are now in CallOverlay for better reliability
@@ -44,6 +62,66 @@ export const CallProvider = ({ children }) => {
     ],
   };
 
+  const updateStatus = useCallback((status) => {
+    prevStatusRef.current = statusRef.current; 
+    statusRef.current = status;
+    setCallStatus(status);
+  }, []);
+
+  const addCandidateToPC = useCallback((candidate) => {
+    const pc = peerConnection.current;
+    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+      pc.addIceCandidate(candidate).catch(e => console.error(e));
+    } else {
+      candidateQueue.current.push(candidate);
+    }
+  }, []);
+
+  const listenForIncomingCalls = useCallback((uid) => {
+    const signalDoc = doc(db, 'users', uid, 'active_call', 'current');
+    if (unsubscribeCallRef.current) {
+      unsubscribeCallRef.current();
+      unsubscribeCallRef.current = null;
+    }
+    unsubscribeCallRef.current = onSnapshot(signalDoc, async (snapshot) => {
+      const data = snapshot.data();
+      if (!data) return;
+      if (data.callerId === uid) return;
+      if (statusRef.current === 'calling' || statusRef.current === 'active') return;
+
+      if (data.type === 'offer') {
+        setCallDocId(data.callId); 
+        setOtherUserName(data.callerName || 'Unknown');
+        setCallType(data.callType || 'audio');
+        updateStatus('incoming'); 
+      }
+    });
+  }, [updateStatus]);
+
+  const endCall = useCallback(async (notifyOthers = true) => {
+    if (localStreamRef.current) localStreamRef.current.getTracks().forEach((track) => track.stop());
+    if (peerConnection.current) peerConnection.current.close();
+    clearNegotiationListeners();
+
+    setLocalStream(null);
+    setRemoteStream(null);
+    localStreamRef.current = null;
+    peerConnection.current = null;
+    
+    updateStatus('idle'); 
+    setCallDocId(null);
+    candidateQueue.current = [];
+
+    if (notifyOthers && callDocId) {
+      try {
+        await updateDoc(doc(db, 'calls', callDocId), { status: 'ended' });
+        if (user?.uid) await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current'));
+      } catch {
+        // Ignore cleanup failures.
+      }
+    }
+  }, [callDocId, updateStatus, user]);
+
   useEffect(() => {
     answerRef.current.loop = false;
     endedRef.current.loop = false;
@@ -51,49 +129,52 @@ export const CallProvider = ({ children }) => {
     const unsubAuth = auth.onAuthStateChanged(async (u) => {
       setUser(u);
       if (u) {
-        try { if(u.uid) await deleteDoc(doc(db, 'users', u.uid, 'active_call', 'current')); } catch (e) {}
+        try {
+          if (u.uid) await deleteDoc(doc(db, 'users', u.uid, 'active_call', 'current'));
+        } catch {
+          // Ignore cleanup failures.
+        }
         listenForIncomingCalls(u.uid);
       }
     });
 
-    // Device Enumeration
     navigator.mediaDevices.enumerateDevices().then(setDevices).catch(console.error);
     navigator.mediaDevices.addEventListener('devicechange', () => {
-       navigator.mediaDevices.enumerateDevices().then(setDevices).catch(console.error);
+      navigator.mediaDevices.enumerateDevices().then(setDevices).catch(console.error);
     });
 
-    return () => unsubAuth();
-  }, []);
+    return () => {
+      unsubAuth();
+      if (unsubscribeCallRef.current) {
+        unsubscribeCallRef.current();
+        unsubscribeCallRef.current = null;
+      }
+      clearNegotiationListeners();
+    };
+  }, [listenForIncomingCalls]);
 
-  // --- SOUND TRANSITION MANAGER ---
   useEffect(() => {
     const curr = callStatus;
     const prev = prevStatusRef.current;
 
     const playSound = (audioRef) => {
-      // Apply Speaker Selection
       if (selectedAudioOutput && typeof audioRef.current.setSinkId === 'function') {
         audioRef.current.setSinkId(selectedAudioOutput).catch(e => console.warn(e));
       }
-      // Force volume reset
       audioRef.current.volume = 1.0; 
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(e => console.warn("Audio blocked (User Interaction Required):", e));
     };
 
-    // 1. CALL ANSWERED (Transition to Active)
     if (curr === 'active' && prev !== 'active') {
       playSound(answerRef);
-    }
-    // 2. CALL ENDED (Transition to Idle from active/calling/incoming)
-    else if (curr === 'idle' && prev !== 'idle') {
+    } else if (curr === 'idle' && prev !== 'idle') {
       playSound(endedRef);
     }
 
     prevStatusRef.current = curr;
   }, [callStatus, selectedAudioOutput]);
 
-  // --- DEVICE SWITCHING ---
   const switchAudioInput = async (deviceId) => {
     setSelectedAudioInput(deviceId);
     if ((callStatus === 'active' || callStatus === 'calling') && localStreamRef.current) {
@@ -142,39 +223,7 @@ export const CallProvider = ({ children }) => {
       });
     }
     return () => { if (unsubCallDoc) unsubCallDoc(); };
-  }, [callDocId]);
-
-  const updateStatus = (status) => {
-    prevStatusRef.current = statusRef.current; 
-    statusRef.current = status;
-    setCallStatus(status);
-  };
-
-  const addCandidateToPC = (candidate) => {
-    const pc = peerConnection.current;
-    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-      pc.addIceCandidate(candidate).catch(e => console.error(e));
-    } else {
-      candidateQueue.current.push(candidate);
-    }
-  };
-
-  const listenForIncomingCalls = (uid) => {
-    const signalDoc = doc(db, 'users', uid, 'active_call', 'current');
-    unsubscribeCallRef.current = onSnapshot(signalDoc, async (snapshot) => {
-      const data = snapshot.data();
-      if (!data) return;
-      if (data.callerId === uid) return;
-      if (statusRef.current === 'calling' || statusRef.current === 'active') return;
-
-      if (data.type === 'offer') {
-        setCallDocId(data.callId); 
-        setOtherUserName(data.callerName || 'Unknown');
-        setCallType(data.callType || 'audio');
-        updateStatus('incoming'); 
-      }
-    });
-  };
+  }, [callDocId, endCall]);
 
   // --- START CALL ---
   const startCall = async (calleeId, calleeName, isVideo = false) => {
@@ -185,6 +234,7 @@ export const CallProvider = ({ children }) => {
     setOtherUserName(calleeName);
     setCallType(isVideo ? 'video' : 'audio');
     candidateQueue.current = [];
+    clearNegotiationListeners();
 
     const constraints = {
         audio: selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : true,
@@ -229,7 +279,7 @@ export const CallProvider = ({ children }) => {
       callId: callDocRef.id
     });
 
-    onSnapshot(callDocRef, (snapshot) => {
+    unsubscribeAnswerListenerRef.current = onSnapshot(callDocRef, (snapshot) => {
       const data = snapshot.data();
       if (!pc.currentRemoteDescription && data?.answer) {
         const answerDescription = new RTCSessionDescription(data.answer);
@@ -241,7 +291,7 @@ export const CallProvider = ({ children }) => {
       }
     });
 
-    onSnapshot(collection(callDocRef, 'answerCandidates'), (snapshot) => {
+    unsubscribeAnswerCandidatesRef.current = onSnapshot(collection(callDocRef, 'answerCandidates'), (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') addCandidateToPC(new RTCIceCandidate(change.doc.data()));
       });
@@ -252,6 +302,7 @@ export const CallProvider = ({ children }) => {
   const answerCall = async () => {
     updateStatus('active'); 
     candidateQueue.current = [];
+    clearNegotiationListeners();
 
     const callDocRef = doc(db, 'calls', callDocId);
     const callSnap = await getDoc(callDocRef);
@@ -287,30 +338,11 @@ export const CallProvider = ({ children }) => {
 
     await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
 
-    onSnapshot(collection(callDocRef, 'offerCandidates'), (snapshot) => {
+    unsubscribeOfferCandidatesRef.current = onSnapshot(collection(callDocRef, 'offerCandidates'), (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') addCandidateToPC(new RTCIceCandidate(change.doc.data()));
       });
     });
-  };
-
-  const endCall = async (notifyOthers = true) => {
-    if (localStreamRef.current) localStreamRef.current.getTracks().forEach((track) => track.stop());
-    if (peerConnection.current) peerConnection.current.close();
-
-    setLocalStream(null);
-    setRemoteStream(null);
-    
-    updateStatus('idle'); 
-    setCallDocId(null);
-    candidateQueue.current = [];
-
-    if (notifyOthers && callDocId) {
-        try {
-          await updateDoc(doc(db, 'calls', callDocId), { status: 'ended' });
-          if (user?.uid) await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current'));
-        } catch(e) {}
-    }
   };
 
   return (

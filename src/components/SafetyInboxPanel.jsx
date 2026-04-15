@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getIncidentDueState } from '../services/incidentService';
+import WindowPaginationControls from './WindowPaginationControls';
 
 function dueLabel(state) {
   switch (state) {
@@ -36,6 +37,20 @@ const SafetyInboxPanel = ({
   onOpenAlertThread,
   initialTab = 'open',
   onTabChange,
+  historyWindowLabel = '',
+  incidentWindowLabel = '',
+  historySummary = null,
+  incidentSummary = null,
+  historyPage = 1,
+  historyPageSize = 30,
+  onHistoryPageChange,
+  onHistoryPageSizeChange,
+  canGoNextHistory = false,
+  incidentPage = 1,
+  incidentPageSize = 30,
+  onIncidentPageChange,
+  onIncidentPageSizeChange,
+  canGoNextIncidents = false,
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [severityFilter, setSeverityFilter] = useState('all');
@@ -46,16 +61,26 @@ const SafetyInboxPanel = ({
   const [historyDate, setHistoryDate] = useState('');
   const [historyStatusFilter, setHistoryStatusFilter] = useState('all');
   const [historySort, setHistorySort] = useState({ key: 'timestamp', direction: 'desc' });
-  const [historyPage, setHistoryPage] = useState(1);
-  const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
 
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
 
   useEffect(() => {
-    setHistoryPage(1);
-  }, [activeTab, historySearch, historyDate, historyItemsPerPage, historyStatusFilter]);
+    onHistoryPageChange?.(1);
+  }, [activeTab, historySearch, historyDate, historyStatusFilter, onHistoryPageChange, selectedPatient]);
+
+  useEffect(() => {
+    onIncidentPageChange?.(1);
+  }, [
+    activeTab,
+    dueFilter,
+    incidentStatusFilter,
+    protocolFilter,
+    selectedPatient,
+    severityFilter,
+    onIncidentPageChange,
+  ]);
 
   const handleTabChange = (nextTab) => {
     setActiveTab(nextTab);
@@ -129,22 +154,41 @@ const SafetyInboxPanel = ({
     return rows;
   }, [alertHistory, historyDate, historySearch, historySort, historyStatusFilter, selectedPatient]);
 
-  const openCount = incidents.filter((incident) => incident.status !== 'resolved').length;
-  const resolvedCount = incidents.filter((incident) => incident.status === 'resolved').length;
-  const groupedCount = incidents.filter((incident) => incident.compare_ready).length;
-  const activeHistoryCount = alertHistory.filter((alert) => alert.status === 'unread').length;
-  const totalHistoryPages = Math.max(1, Math.ceil(filteredHistory.length / historyItemsPerPage));
+  const openCount = Number.isFinite(Number(incidentSummary?.openIncidents))
+    ? Number(incidentSummary.openIncidents)
+    : incidents.filter((incident) => incident.status !== 'resolved').length;
+  const resolvedCount = Number.isFinite(Number(incidentSummary?.resolvedIncidents))
+    ? Number(incidentSummary.resolvedIncidents)
+    : incidents.filter((incident) => incident.status === 'resolved').length;
+  const groupedCount = Number.isFinite(Number(incidentSummary?.groupedIncidents))
+    ? Number(incidentSummary.groupedIncidents)
+    : incidents.filter((incident) => incident.compare_ready).length;
+  const activeHistoryCount = Number.isFinite(Number(historySummary?.activeAlerts))
+    ? Number(historySummary.activeAlerts)
+    : alertHistory.filter((alert) => alert.status === 'unread').length;
+  const totalHistoryPages = Math.max(1, Math.ceil(filteredHistory.length / historyPageSize));
   const currentHistoryItems = filteredHistory.slice(
-    (historyPage - 1) * historyItemsPerPage,
-    historyPage * historyItemsPerPage
+    (historyPage - 1) * historyPageSize,
+    historyPage * historyPageSize
   );
+  const historyFiltersActive = Boolean(selectedPatient || historySearch.trim() || historyDate || historyStatusFilter !== 'all');
+  const canAdvanceHistory =
+    filteredHistory.length > historyPage * historyPageSize || (!historyFiltersActive && canGoNextHistory);
+  const incidentFiltersActive =
+    Boolean(selectedPatient || severityFilter !== 'all' || incidentStatusFilter !== 'all' || protocolFilter.trim() || dueFilter !== 'all');
+  const visibleIncidents = filteredIncidents.slice(
+    (incidentPage - 1) * incidentPageSize,
+    incidentPage * incidentPageSize
+  );
+  const canAdvanceIncidents =
+    filteredIncidents.length > incidentPage * incidentPageSize || (!incidentFiltersActive && canGoNextIncidents);
 
   const handleHistorySort = (key) => {
     setHistorySort((current) => ({
       key,
       direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
     }));
-    setHistoryPage(1);
+    onHistoryPageChange?.(1);
   };
 
   const historySortIndicator = (key) => {
@@ -199,8 +243,21 @@ const SafetyInboxPanel = ({
             <div>
               <strong>History archive</strong>
               <div className="section-note">Read-only alert thread archive for search and audit.</div>
+              {historyWindowLabel ? <div className="section-note section-note--spaced">{historyWindowLabel}</div> : null}
             </div>
           </div>
+
+          <WindowPaginationControls
+            page={historyPage}
+            pageSize={historyPageSize}
+            onPageChange={onHistoryPageChange}
+            onPageSizeChange={(value) => {
+              onHistoryPageSizeChange?.(value);
+              onHistoryPageChange?.(1);
+            }}
+            canGoNext={canAdvanceHistory}
+            note={`Page ${historyPage} • Showing up to ${historyPageSize} alert-history rows from the current loaded window.`}
+          />
 
           <div className="history-filter-grid">
             <input
@@ -228,7 +285,7 @@ const SafetyInboxPanel = ({
                 setHistorySearch('');
                 setHistoryDate('');
                 setHistoryStatusFilter('all');
-                setHistoryPage(1);
+                onHistoryPageChange?.(1);
               }}
             >
               Clear
@@ -301,39 +358,8 @@ const SafetyInboxPanel = ({
             </table>
           </div>
 
-          <div className="section-header history-pagination">
-            <div className="section-note">
-              Page <strong>{historyPage}</strong> of <strong>{totalHistoryPages}</strong>
-            </div>
-            <div className="history-pagination__controls">
-              <select
-                value={historyItemsPerPage}
-                onChange={(event) => {
-                  setHistoryItemsPerPage(Number(event.target.value));
-                  setHistoryPage(1);
-                }}
-                style={{ width: '100px' }}
-              >
-                <option value={10}>10</option>
-                <option value={30}>30</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-              <button
-                className="btn btn-secondary btn-small"
-                disabled={historyPage === 1}
-                onClick={() => setHistoryPage((page) => Math.max(page - 1, 1))}
-              >
-                Prev
-              </button>
-              <button
-                className="btn btn-secondary btn-small"
-                disabled={historyPage === totalHistoryPages}
-                onClick={() => setHistoryPage((page) => Math.min(page + 1, totalHistoryPages))}
-              >
-                Next
-              </button>
-            </div>
+          <div className="section-note">
+            Loaded history pages available in the current filtered window: <strong>{totalHistoryPages}</strong>
           </div>
         </>
       ) : (
@@ -385,14 +411,28 @@ const SafetyInboxPanel = ({
           ) : null}
 
           <div className="utility-list utility-list--scroll">
-            {filteredIncidents.length === 0 ? (
+            {incidentWindowLabel ? (
+              <div className="section-note section-note--spaced">{incidentWindowLabel}</div>
+            ) : null}
+            <WindowPaginationControls
+              page={incidentPage}
+              pageSize={incidentPageSize}
+              onPageChange={onIncidentPageChange}
+              onPageSizeChange={(value) => {
+                onIncidentPageSizeChange?.(value);
+                onIncidentPageChange?.(1);
+              }}
+              canGoNext={canAdvanceIncidents}
+              note={`Page ${incidentPage} • Showing up to ${incidentPageSize} safety cases from the current loaded window.`}
+            />
+            {visibleIncidents.length === 0 ? (
               <div className="empty-panel">
                 {activeTab === 'resolved'
                   ? 'No resolved incidents match the current filters.'
                   : 'No active incidents match the current filters.'}
               </div>
             ) : (
-              filteredIncidents.map((incident) => {
+              visibleIncidents.map((incident) => {
                 const state = getIncidentDueState(incident);
                 return (
                   <button

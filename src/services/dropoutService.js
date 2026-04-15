@@ -1,10 +1,12 @@
-import { collectionGroup, doc, onSnapshot } from 'firebase/firestore';
+import { collectionGroup, doc, documentId, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { DROPOUT_RUNTIME } from '../config';
 import { supabase } from '../supabaseClient';
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
 const REQUEST_TIMEOUT_MS = 45000;
+const DEFAULT_RECENT_SNAPSHOT_LIMIT = 30;
+const MAX_RECENT_SNAPSHOT_LIMIT = 200;
 
 function isLocalHostname(hostname) {
   return hostname === 'localhost' || hostname === '127.0.0.1';
@@ -201,22 +203,75 @@ export function subscribeToDropoutPredictionSnapshot(userId, onUpdate, onError) 
   );
 }
 
-export function subscribeToAllDropoutPredictionSnapshots(onUpdate, onError) {
-  return onSnapshot(
+export function subscribeToDropoutPredictionSnapshotsForUsers(userIds = [], onUpdate, onError) {
+  const uniqueUserIds = Array.from(new Set((Array.isArray(userIds) ? userIds : []).filter(Boolean)));
+
+  if (!uniqueUserIds.length) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const snapshotMap = new Map();
+  const unsubscribers = uniqueUserIds.map((userId) =>
+    onSnapshot(
+      doc(db, 'users', userId, 'dropout_predictions', 'current'),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          snapshotMap.set(userId, {
+            id: snapshot.id,
+            userId,
+            ...snapshot.data(),
+          });
+        } else {
+          snapshotMap.delete(userId);
+        }
+
+        onUpdate(Array.from(snapshotMap.values()));
+      },
+      onError
+    )
+  );
+
+  return () => {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
+}
+
+export function subscribeToAllDropoutPredictionSnapshots(onUpdate, onError, options = {}) {
+  const safeLimit = Math.min(
+    Math.max(Number(options?.limitCount) || DEFAULT_RECENT_SNAPSHOT_LIMIT, 1),
+    MAX_RECENT_SNAPSHOT_LIMIT
+  );
+  const snapshotQuery = query(
     collectionGroup(db, 'dropout_predictions'),
+    where(documentId(), '==', 'current'),
+    orderBy('published_at', 'desc'),
+    limit(safeLimit)
+  );
+  return onSnapshot(
+    snapshotQuery,
     (snapshot) => {
-      const rows = snapshot.docs
-        .filter((entry) => entry.id === 'current')
-        .map((entry) => {
-          const userDoc = entry.ref.parent.parent;
-          return {
-            id: entry.id,
-            userId: userDoc?.id || '',
-            ...entry.data(),
-          };
-        });
+      const rows = snapshot.docs.map((entry) => {
+        const userDoc = entry.ref.parent.parent;
+        return {
+          id: entry.id,
+          userId: userDoc?.id || '',
+          ...entry.data(),
+        };
+      });
       onUpdate(rows);
     },
     onError
   );
+}
+
+export async function fetchDropoutDashboardSummary() {
+  const summarySnapshot = await getDoc(doc(db, 'dashboard_summaries', 'dropout_current'));
+  if (!summarySnapshot.exists()) {
+    return null;
+  }
+  return {
+    id: summarySnapshot.id,
+    ...summarySnapshot.data(),
+  };
 }

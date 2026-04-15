@@ -13,10 +13,20 @@ import {
 import { db } from '../firebase';
 import { syncPatientEmergencyToIncident } from './incidentService';
 
+const DEFAULT_ALERT_LIST_LIMIT = 20;
+const DEFAULT_GLOBAL_ALERT_LIST_LIMIT = 30;
+const MAX_GLOBAL_ALERT_LIST_LIMIT = 200;
+const DEFAULT_CHAT_MESSAGE_LIMIT = 100;
+
 // --- SUBSCRIPTIONS ---
 
 export const subscribeToUnresolvedAlerts = (onUpdate, onError) => {
-  const q = query(collectionGroup(db, 'alerts'), where('status', '==', 'unread'), orderBy('timestamp', 'desc'));
+  const q = query(
+    collectionGroup(db, 'alerts'),
+    where('status', '==', 'unread'),
+    orderBy('timestamp', 'desc'),
+    limit(DEFAULT_ALERT_LIST_LIMIT)
+  );
   return onSnapshot(q, (snapshot) => {
     const alerts = snapshot.docs.map(d => ({ 
       id: d.id, 
@@ -28,12 +38,15 @@ export const subscribeToUnresolvedAlerts = (onUpdate, onError) => {
   }, onError);
 };
 
-// --- FIX: INCREASED LIMIT TO 5000 TO SHOW ALL HISTORY ---
-export const subscribeToRecentAlertsGlobal = (onUpdate, limitCount = 5000) => {
+export const subscribeToRecentAlertsGlobal = (onUpdate, limitCount = DEFAULT_GLOBAL_ALERT_LIST_LIMIT) => {
+  const safeLimit = Math.min(
+    Math.max(Number(limitCount) || DEFAULT_GLOBAL_ALERT_LIST_LIMIT, 1),
+    MAX_GLOBAL_ALERT_LIST_LIMIT
+  );
   const q = query(
     collectionGroup(db, 'alerts'), 
     orderBy('timestamp', 'desc'), 
-    limit(limitCount)
+    limit(safeLimit)
   );
   
   return onSnapshot(q, (snapshot) => {
@@ -49,8 +62,16 @@ export const subscribeToRecentAlertsGlobal = (onUpdate, limitCount = 5000) => {
   });
 };
 
-export const subscribeToAlertHistory = (userId, onUpdate) => {
-  const q = query(collection(db, "users", userId, "alerts"), orderBy('timestamp', 'desc'));
+export const subscribeToAlertHistory = (userId, onUpdate, options = {}) => {
+  const safeLimit = Math.min(
+    Math.max(Number(options?.limitCount) || DEFAULT_ALERT_LIST_LIMIT, 1),
+    MAX_GLOBAL_ALERT_LIST_LIMIT
+  );
+  const q = query(
+    collection(db, "users", userId, "alerts"),
+    orderBy('timestamp', 'desc'),
+    limit(safeLimit)
+  );
   return onSnapshot(q, (snapshot) => {
     const history = snapshot.docs.map(d => ({ id: d.id, ref: d.ref, ...d.data() }));
     onUpdate(history);
@@ -186,9 +207,13 @@ export const sendChatMessage = async (alertRef, role, message, senderName) => {
 };
 
 export const subscribeToChat = (alertRef, onUpdate) => {
-  const q = query(collection(alertRef, "messages"), orderBy("timestamp", "asc"));
+  const q = query(
+    collection(alertRef, "messages"),
+    orderBy("timestamp", "desc"),
+    limit(DEFAULT_CHAT_MESSAGE_LIMIT)
+  );
   return onSnapshot(q, (snapshot) => {
-    const msgs = snapshot.docs.map(d => d.data());
+    const msgs = snapshot.docs.map(d => d.data()).reverse();
     onUpdate(msgs);
   });
 };

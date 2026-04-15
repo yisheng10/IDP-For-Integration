@@ -1,6 +1,12 @@
 export const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
   'http://localhost:8081',
+  'http://127.0.0.1:8081',
+  'http://localhost:4175',
+  'http://127.0.0.1:4175',
+  'http://localhost:4176',
+  'http://127.0.0.1:4176',
   'https://triallight.web.app',
   'https://triallight-patient.web.app',
 ];
@@ -36,4 +42,3 @@ export function jsonResponse(payload: unknown, init: ResponseInit = {}, origin: 
     },
   });
 }
-
