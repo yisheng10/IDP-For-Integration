@@ -1774,6 +1774,7 @@ eady calculation.
 - Existing warning retained:
   - the CRC bundle still emits the non-blocking large chunk warning during build
 
+<<<<<<< Updated upstream
 ## 2026-04-02 - CRC shell header and duplicate section hero cleanup
 
 - Refined the CRC shell layout to reduce repeated navigation cues and make the workspace easier for CRC users to scan.
@@ -3116,3 +3117,21 @@ eady calculation.
     - `codex/root-integration-sync-20260415`
   - patient app gitlink now points to:
     - `bf08a64204dd731d77c30c5ad02fffa704dc5cd7`
+
+## 2026-04-28 - Patient app login/ePRO triage
+
+- Investigated current patient-side failures reported as:
+  - patient login not working
+  - ePRO questionnaire not opening
+- Confirmed a concrete Firebase project mismatch in the Supabase ePRO runtime:
+  - `supabase/functions/_shared/firebaseAuth.ts`
+  - `supabase/functions/_shared/firestorePromptContext.ts`
+- Fixed both shared helpers so the default Firebase project fallback now matches the current patient app target:
+  - from `idp-authentication-7e8d7`
+  - to `traillight-4750b`
+- Rationale:
+  - the patient app is currently configured against `traillight-4750b`
+  - the ePRO Edge runtime was still validating Firebase bearer tokens and defaulting Firestore mirror reads/writes against the legacy project
+  - this mismatch could block questionnaire load/submit even when the patient app itself booted correctly
+- Follow-up note:
+  - if existing legacy patient accounts still cannot log in after this fix, that is likely an Auth/data migration gap rather than a front-end code bug

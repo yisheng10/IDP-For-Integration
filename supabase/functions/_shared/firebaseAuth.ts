@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from 'npm:jose@5.9.6';
 
-const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID') || 'idp-authentication-7e8d7';
+const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID') || 'traillight-4750b';
 const jwks = createRemoteJWKSet(
   new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
 );

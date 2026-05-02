@@ -1,4 +1,4 @@
-const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID') || 'idp-authentication-7e8d7';
+const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID') || 'traillight-4750b';
 
 type FirestoreRecord = Record<string, unknown> & {
   id?: string;
