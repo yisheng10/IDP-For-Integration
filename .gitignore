@@ -18,6 +18,10 @@ coverage/
 .env
 .env.*
 !.env.example
+Supabase and Firebase accesses credentials.txt
+.supabase-cli-config/
+.firebase-tools-config/
+supabase/.temp/
 
 # Firebase local config
 .firebase/

@@ -3135,3 +3135,33 @@ eady calculation.
   - this mismatch could block questionnaire load/submit even when the patient app itself booted correctly
 - Follow-up note:
   - if existing legacy patient accounts still cannot log in after this fix, that is likely an Auth/data migration gap rather than a front-end code bug
+
+## 2026-05-01 / 2026-05-02 - Patient login and ePRO recovery continuation
+
+- Continued low-read diagnostics and remote recovery work for the patient-side login / ePRO failures.
+- Confirmed with Firebase Auth-only diagnostics that the main patient login blocker is an incomplete Auth migration:
+  - old Firebase project `idp-authentication-7e8d7` currently has `24` Auth users
+  - Terry Firebase project `traillight-4750b` currently has `5` Auth users
+  - at least `22` legacy login emails are still missing from the Terry project
+- Important scope note:
+  - these diagnostics used Firebase Auth APIs only
+  - they did **not** require a Firestore collection scan
+  - they were intentionally chosen to avoid consuming the project's Firestore read quota
+- Completed the remote ePRO edge-function recovery step using the supplied Supabase access token:
+  - deployed:
+    - `supabase/functions/epro-daily-survey`
+    - `supabase/functions/epro-submit`
+  - project ref:
+    - `fygkqituefwldmglijvy`
+  - result:
+    - the patient questionnaire endpoints now run with the updated Terry Firebase project fallback in:
+      - `supabase/functions/_shared/firebaseAuth.ts`
+      - `supabase/functions/_shared/firestorePromptContext.ts`
+- Continued password-preserving migration investigation for legacy patient logins:
+  - exported legacy Auth accounts locally into a gitignored `.firebase/` working file
+  - confirmed the legacy project returns `passwordHash` fields only as redacted placeholders with the current service account access
+  - confirmed the currently accessible project config does not expose usable hash parameters for import
+- Current blocker after this pass:
+  - legacy patient accounts can be enumerated safely
+  - but the available credentials still do **not** expose the real password hash material or hash config needed for a safe password-preserving Firebase Auth import
+  - because of that, a full old-password-preserving Auth migration has **not** been executed yet
