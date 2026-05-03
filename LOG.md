@@ -3165,3 +3165,332 @@ eady calculation.
   - legacy patient accounts can be enumerated safely
   - but the available credentials still do **not** expose the real password hash material or hash config needed for a safe password-preserving Firebase Auth import
   - because of that, a full old-password-preserving Auth migration has **not** been executed yet
+
+## 2026-05-02 - Patient auth reset migration fallback preparation
+
+- Prepared a real fallback path for legacy patient login recovery when old-password-preserving Firebase Auth import is not available.
+- Added a new functions-side migration helper:
+  - `functions/scripts/backfill-patient-auth-reset.mjs`
+- Added a matching functions script entry:
+  - `npm run backfill:patient-auth-reset`
+- Added a dedicated runbook:
+  - `PATIENT_AUTH_RESET_MIGRATION_RUNBOOK.md`
+- The fallback migration is intentionally designed to preserve the same Firebase `uid` while switching patients onto a password reset flow:
+  - create missing Terry Firebase Auth users with the legacy UID
+  - keep patient Firestore data under `users/{uid}`
+  - generate reset links instead of attempting to preserve the old password hash
+- Safety / quota notes captured in the fallback tooling:
+  - default mode is dry-run only
+  - default dry-run avoids full Firestore scans
+  - optional deeper inspection of patient subcollections is explicit rather than automatic
+- Added explicit manual-review tagging inside the fallback migration plan for:
+  - legacy Auth users that no longer have a source `users/{uid}` profile document
+  - legacy patient profiles that still lack a `subject_id`
+- Added `--clean-only` support to the fallback migration helper so the first real execution can safely target only the automatically clean subset.
+- Added `--no-continue-url` support so password reset links can still be generated when the preferred continue URL domain is not allowlisted in Firebase Auth.
+- This keeps the next execution step deliberate:
+  - dry-run first
+  - then explicit dangerous flags for Auth writes, Firestore copy, and reset-link generation
+
+## 2026-05-02 - Clean patient auth reset migration executed
+
+- Executed the UID-preserving fallback migration for the automatically clean patient subset against `traillight-4750b`.
+- Real remote execution results:
+  - created `16` missing Terry Firebase Auth users with the same legacy UIDs
+  - copied `16` `users/{uid}` profile documents
+  - copied `459` nested patient Firestore documents across the selected subcollections
+  - generated `16` Firebase-hosted password reset links
+- Sensitive local artifacts were written only into ignored `.firebase/` working files:
+  - `.firebase/patient-auth-reset-plan.json`
+  - `.firebase/patient-password-reset-links.json`
+- Added a `--no-continue-url` fallback and used it successfully because the preferred reset continue URL domain was not allowlisted in Firebase Auth.
+- Remaining manual-review backlog after the clean execution:
+  - `1` email collision against a different Terry UID
+  - `1` legacy Auth user with no source `users/{uid}` profile
+  - `5` legacy patient profiles that still lack `subject_id`
+
+## 2026-05-02 - Targeted Terry patient deletion tooling
+
+- Added a destructive-but-scoped Firebase cleanup helper for explicit patient UID removal:
+  - `functions/scripts/delete-target-patient-users.mjs`
+- Added a matching functions script entry:
+  - `npm run delete:target-patient-users`
+- The helper is intentionally narrow:
+  - requires an explicit `--uids=` list
+  - dry-run by default
+  - separates:
+    - recursive Firestore deletion under `users/{uid}`
+    - Firebase Auth deletion
+- This was added so any approved Terry-side patient cleanup can be executed against a fixed reviewed UID list rather than through ad hoc console actions.
+
+## 2026-05-02 - Reviewed Terry patient deletions confirmed
+
+- Confirmed by direct Terry Firebase status check that the previously reviewed six patient UIDs are no longer present in the Terry target project:
+  - Firebase Auth users missing
+  - `users/{uid}` profile documents missing
+- Important follow-up note:
+  - one of those six UIDs was later requested to be kept
+  - but the status check confirmed that this UID had already been removed before the scope was narrowed
+  - any further recovery for that patient now requires an explicit restore step from the legacy project rather than a selective delete
+
+## 2026-05-02 - Single patient restore after narrowed keep decision
+
+- Restored the requested Terry patient account:
+  - UID: `UAWfSS7KZmfY164jm26DwVLOSRN2`
+  - email: `jianhongtan73@gmail.com`
+- Real remote recovery steps completed:
+  - recreated the Terry Firebase Auth user with the original legacy UID
+  - restored the Terry `users/{uid}` profile document from the legacy project
+  - generated a Firebase-hosted password reset link without a custom continue URL
+- Local ignored working artifacts for this restore:
+  - `.firebase/restore-uaw-plan.json`
+  - `.firebase/restore-uaw-reset-link.json`
+- Also fixed the fallback reset-link helper so the `--no-continue-url` path now calls the Admin SDK without passing an invalid empty ActionCodeSettings payload.
+
+## 2026-05-02 - Patient login forgot-password support
+
+- Added a patient-side `Forgot password?` action to the active login screen:
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/Login.js`
+- Scope:
+  - patient login only
+  - not shown during patient registration
+  - not shown for CRC login
+- Behavior:
+  - sends a Firebase Auth password reset email for the entered patient email
+  - blocks obvious CRC `@hospital.com` misuse from the patient surface
+  - surfaces clearer reset-specific error messages for invalid email, missing user, rate limit, and network failure
+- This gives affected patients a direct self-service reset path from the login UI instead of relying only on manually distributed reset links.
+
+## 2026-05-02 - Clearer CRC and patient login failure prompts
+
+- Refined the active login error copy in both surfaces:
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/Login.js`
+  - `src/components/Login.jsx`
+- Login failures now distinguish:
+  - incorrect password
+  - no account found for the entered email
+  - Firebase generic `auth/invalid-credential` responses, explained in plain language as:
+    - email missing from the current Firebase project
+    - or incorrect password
+- This avoids the previous overly generic “check your email and password” message for CRC and patient sign-in.
+
+## 2026-05-02 - Patient auth backlog re-baselined and collision reconciled
+
+- Re-ran the legacy-vs-Terry patient Auth dry-run after the earlier targeted deletions and single-account restore.
+- Current source/target Auth comparison at that point:
+  - legacy Auth users: `24`
+  - Terry Auth users: `22`
+  - remaining missing legacy UIDs in Terry: `6`
+  - skipped CRC-style account(s): `1`
+- Confirmed that `5` of the remaining missing UIDs were intentionally decommissioned rather than accidentally left pending.
+- Added a dedicated reconciliation helper for the single remaining email-collision case:
+  - `functions/scripts/reconcile-patient-email-conflict.mjs`
+  - `npm run reconcile:patient-email-conflict`
+- Executed the reconciliation for:
+  - legacy source UID `Q5wxUBAt0hfuyIZW1mbrh3EtJnh1`
+  - Terry target UID `43Sa3yF88BXBaucckMdzcmGxpM42`
+- Real remote reconciliation result:
+  - preserved the existing Terry Auth user
+  - merged the legacy patient profile into the Terry `users/{uid}` record
+  - copied `22` nested patient docs from the legacy UID path into the Terry UID path
+  - restored `subject_id = TL-S00014` onto the Terry-side patient profile
+- Added a status document so the patient-account cutover state is explicit:
+  - `PATIENT_AUTH_CUTOVER_STATUS.md`
+
+## 2026-05-02 - Root live runtime prepared for Gemini-based cutover
+
+- Re-verified that both local front-end runtimes now point at Terry Firebase:
+  - root CRC env `VITE_FIREBASE_PROJECT_ID=traillight-4750b`
+  - patient app env `EXPO_PUBLIC_FIREBASE_PROJECT_ID=traillight-4750b`
+- Rebuilt both active surfaces successfully via:
+  - `npm run build:shareable`
+- Filled the local root `functions/.env` to support the current Gemini live path:
+  - `SIDE_EFFECT_GUIDANCE_MODEL`
+  - `APPOINTMENT_GUIDANCE_MODEL`
+  - `GUIDANCE_ROUTER_MODEL`
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+- Full Terry retrieval/indexing remains deferred because `SILICONFLOW_API_KEY` is still not available for this wave.
+
+## 2026-05-02 - Terry live cutover deploy attempt status
+
+- Performed a real remote deploy attempt for the merged root Firebase Functions package against `traillight-4750b`.
+- Result:
+  - deploy blocked by missing Terry IAM permission `iam.serviceAccounts.ActAs`
+  - required runtime service account:
+    - `traillight-4750b@appspot.gserviceaccount.com`
+- Performed a real remote deploy attempt for Firebase Hosting targets:
+  - `hosting:crc`
+  - `hosting:patient`
+- Result:
+  - both local predeploy builds succeeded
+  - remote Hosting deploy failed with `403 The caller does not have permission`
+- Conclusion:
+  - code and local build paths are now ready for the current Gemini-based cutover
+  - the remaining blocker for real root Functions / Hosting cutover is Terry project IAM, not local code state
+
+## 2026-05-02 - Protocol static-context cutover blockers refined
+
+- Initial `protocol static-context QA` export against Terry Firebase still returned zero rows.
+- Investigated the root cause directly:
+  - Terry did not initially have the `protocols` collection migrated
+  - migrated the `protocols` collection from the legacy Firebase project into Terry
+  - source and target protocol docs were then inspected field-by-field
+- Key finding:
+  - the blocker is no longer "missing Terry service account"
+  - the blocker is now "protocol documents do not yet contain `dropout_static_context`"
+- Added a root helper for protocol static-context backfill:
+  - `functions/scripts/backfill-protocol-static-context.mjs`
+  - `npm run backfill:protocol-static-context`
+- Also added a `--fallback-only` mode so protocol PDFs can be processed with local heuristics only, without sending protocol contents to Gemini.
+- Current limitation:
+  - the external policy denied Gemini-based protocol extraction because that would send protocol PDF text to a third-party model
+  - the later fallback-only remote execution was not completed in this session because the elevated command quota was exhausted
+- Updated documentation to reflect the real blocker change:
+  - `TERRY_RAG_INTEGRATION_RUNBOOK.md`
+  - `Patient-Dropout-Prediction/PROTOCOL_STATIC_CONTEXT_QA_STATUS.md`
+
+## 2026-05-03 - Protocol static-context fallback backfill executed on Terry
+
+- Executed the fallback-only protocol static-context backfill against Terry Firebase via:
+  - `functions/scripts/backfill-protocol-static-context.mjs`
+  - `--fallback-only --execute`
+- Real Terry result:
+  - `4` protocol docs now contain `dropout_static_context`
+  - `1` migrated protocol doc still could not be populated because it has no `storagePath`
+- Exported the first real Terry protocol QA sheet:
+  - `Patient-Dropout-Prediction/audit/protocol_static_context_qa.csv`
+  - current row count: `4`
+
+## 2026-05-03 - Patient static-context backfill executed from official subject registry
+
+- Added a dedicated helper:
+  - `functions/scripts/backfill-patient-static-context.mjs`
+  - `npm run backfill:patient-static-context`
+- Updated the live disengagement adapter so live static context can use direct patient `age` when `dob` is absent:
+  - `Patient-Dropout-Prediction/src/live_data_adapter.py`
+- First dry-run showed legacy Firebase did not contain the missing static fields either, so source-copy alone was insufficient.
+- Switched the helper to use the official subject registry:
+  - `Patient-Dropout-Prediction/deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv`
+- Real Terry write result:
+  - `17` Terry patient profiles received safe static-context patches
+  - patched fields came from the official registry and included:
+    - `age`
+    - `caregiver`
+    - `dist_km`
+
+## 2026-05-03 - Disengagement live dry-run improved but remains blocked
+
+- Re-ran the Terry live disengagement dry-run after the protocol and patient static-context backfills:
+  - output preview:
+    - `Patient-Dropout-Prediction/deploy_assets/manual_live_direct_dry_run_preview_20260503_after_static_backfill.json`
+- Real result:
+  - scanned patient docs: `21`
+  - predictions ready: `3`
+  - usable static-context count: `5`
+  - sufficient live-history count: `3`
+  - missing subject_id count: `4`
+- This is a real improvement over the earlier zero-score state, but publish gates still fail because:
+  - many Terry patients still lack reliable protocol assignment (`protocolId` / `protocolName`)
+  - live operational history is still sparse for most Terry patients
+- The blocker is therefore no longer "patient static fields are universally missing".
+- The current dominant blockers are:
+  - patient-to-protocol linkage
+  - live history completeness
+- Exported a manual remediation list for the remaining protocol-assignment gap:
+  - `Patient-Dropout-Prediction/audit/terry_patient_protocol_assignment_gaps_20260503.csv`
+
+## 2026-05-03 - Patient subject assignments synced into TrialLight and live adapter now falls back to the official registry
+
+- Extended the live disengagement adapter so trial-level static context can fall back to the official subject registry when the patient-side protocol doc is missing or incomplete:
+  - `Patient-Dropout-Prediction/src/live_data_adapter.py`
+- Added a dedicated TrialLight writeback helper for curated patient subject assignments:
+  - `functions/scripts/sync-patient-subject-assignments.mjs`
+  - `npm run sync:patient-subject-assignments`
+- Ran a dry-run plan against the updated curated CSV:
+  - `Patient-Dropout-Prediction/audit/terry_patient_protocol_assignment_gaps_20260503.csv`
+  - real result:
+    - `17` rows reviewed
+    - `16` rows eligible for writeback
+    - `1` row still missing `subject_id`
+- Executed the curated writeback into the TrialLight Firebase project:
+  - `16` patient `users/{uid}` documents were patched with reviewed:
+    - `subject_id`
+    - `subjectId`
+    - `protocolName = Prot_000.pdf`
+    - `dropout_registry_trial_id` when available
+- Re-ran a targeted live dry-run for the previously unmapped patients:
+  - output preview:
+    - `Patient-Dropout-Prediction/deploy_assets/manual_live_direct_dry_run_preview_20260503_subject_sync_targeted.json`
+  - real result:
+    - known `missing subject_id` blocker reduced from `4` to `1`
+    - the recovered patients now enter live scoring and fail later on:
+      - `No operational timestamp found`
+- This confirms the dominant blocker has shifted again:
+  - not subject mapping
+  - not universal static-context absence
+  - now mainly sparse live operational history
+- A fresh full `21`-patient live dry-run was attempted after the subject sync, but it exceeded a 10-minute timeout budget before completion:
+  - no new global all-patient totals are claimed yet from that run
+
+## 2026-05-03 - Patient disengagement repo-side closure hardening completed
+
+- Closed the training-artifact enforcement gap in:
+  - `Patient-Dropout-Prediction/src/train.py`
+- New training runs now explicitly emit:
+  - `epoch_history.json`
+  - `training_artifact_manifest.json`
+  - `validation_metrics.json`
+  - `test_metrics.json`
+  - `threshold_sweep.json`
+  - `calibration_summary.json`
+- The new manifest records:
+  - best interim checkpoint path
+  - final checkpoint path
+  - checkpoint retention policy
+  - TensorBoard event-log presence versus Windows JSON fallback
+- Tightened candidate promotion tooling in:
+  - `Patient-Dropout-Prediction/src/run_candidate_search.py`
+- Candidate search now distinguishes:
+  - `trial_only_first_pass`
+  - `artifact_incomplete_first_pass_only`
+  - `promotion_ready`
+- Verified the new enforcement against the current official historical run:
+  - `candidate_024` is now honestly classified as `artifact_incomplete_first_pass_only` under the stricter artifact policy
+  - this does not reopen the existing official-line decision; it only closes the written-policy versus code-policy gap for future runs
+- Refreshed the current search artifact in place without rerunning training:
+  - `Patient-Dropout-Prediction/runs/cs_r3/candidate_search_summary.json`
+  - the summary now records:
+    - `current_official_line`
+    - `artifact_validation`
+    - `trial_only_first_pass`
+    - `promotion_ready`
+    - `promotion_scope`
+- Reconciled the main disengagement truth-source docs:
+  - `Patient-Dropout-Prediction/README.md`
+  - `Patient-Dropout-Prediction/OFFICIAL_MODEL.md`
+  - `Patient-Dropout-Prediction/EVIDENCE_PACK.md`
+  - `Patient-Dropout-Prediction/DEPLOY_READINESS.md`
+  - `Patient-Dropout-Prediction/PROTOCOL_STATIC_CONTEXT_QA_STATUS.md`
+- Key doc cleanup completed:
+  - static-input wording now matches the real runtime fallback path (`age`/`dob`, `caregiver_support`/`caregiver`, `distance_to_site_km`/`dist_km`)
+  - legacy `dropout_*` field names are now explicitly documented as compatibility-only contract names
+  - official docs now consistently state the current dominant blocker:
+    - sparse live operational history
+  - protocol static-context QA is now explicitly documented as partial rather than implicitly waiting on a nonexistent 25-row completeness claim
+- Added a new compact deploy-facing evidence package:
+  - `Patient-Dropout-Prediction/audit/official_candidate_024_extreme_audit/deploy_evidence_summary.md`
+  - `Patient-Dropout-Prediction/audit/official_candidate_024_extreme_audit/deploy_evidence_summary.json`
+- Updated the official figure manifest so deploy-facing figures are explicitly labeled as:
+  - `deploy gate evidence`
+- Added a repo-hygiene classification note:
+  - `Patient-Dropout-Prediction/REPO_HYGIENE_STATUS.md`
+- This classifies current subrepo residue into:
+  - official evidence
+  - official tooling
+  - temporary rerun residue
+  - local-only debugging output
+- Validation completed:
+  - `py_compile` passed for:
+    - `Patient-Dropout-Prediction/src/train.py`
+    - `Patient-Dropout-Prediction/src/run_candidate_search.py`

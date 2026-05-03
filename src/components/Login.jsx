@@ -23,8 +23,14 @@ function getAuthErrorMessage({ error, type, isReg }) {
   if (code === 'auth/invalid-email') {
     return `Please enter a valid ${surfaceLabel.toLowerCase()} email address.`;
   }
-  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-    return `${surfaceLabel} login failed. Check your ${surfaceLabel.toLowerCase()} email and password and try again.`;
+  if (code === 'auth/wrong-password') {
+    return `${surfaceLabel} login failed. The password is incorrect. Please try again.`;
+  }
+  if (code === 'auth/user-not-found') {
+    return `No ${surfaceLabel.toLowerCase()} account was found for this email address in the current Firebase project.`;
+  }
+  if (code === 'auth/invalid-credential') {
+    return `${surfaceLabel} login failed. The email address does not exist in the current Firebase project, or the password is incorrect.`;
   }
   if (code === 'auth/email-already-in-use') {
     return `${surfaceLabel} account already exists. Please log in instead.`;

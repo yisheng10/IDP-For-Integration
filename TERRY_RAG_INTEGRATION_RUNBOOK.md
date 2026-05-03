@@ -161,13 +161,24 @@ The following blockers were identified during readiness checks:
 
 - local source Firebase service account currently points to:
   - `idp-authentication-7e8d7`
-- Terry Firebase project access is available through local Firebase CLI login, but a Terry project service account has not been provisioned in the workspace yet
-- local root `functions/.env` still lacks the new Terry runtime secrets required for full guidance retrieval/indexing, especially:
+- Terry Firebase service-account access is now available locally, but the current deployment principal still lacks the Firebase IAM needed for full live cutover:
+  - Cloud Functions deploy currently fails on missing `iam.serviceAccounts.ActAs`
+  - Firebase Hosting deploy currently fails with `403 The caller does not have permission`
+- local root `functions/.env` has been filled to support the current Gemini live path, but full Terry retrieval/indexing is still blocked by missing external retrieval secrets, especially:
   - `SILICONFLOW_API_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - router / retrieval env set
+  - any final production-approved retrieval/indexing secret bundle if the team wants SiliconFlow-backed grounded retrieval in this wave
 
-This means the repo is code-complete, but a full Terry RAG production deploy cannot be completed safely until those secrets are available in the proper deployment environment.
+This means the repo is code-complete and the Gemini live path is locally configured, but a full Terry RAG production deploy still depends on:
+
+- Terry IAM sufficient for Functions / Hosting deploy
+- the remaining retrieval/indexing secret bundle if grounded retrieval is meant to go live now
+- patient-side protocol assignment and live-data completeness reaching a level that allows disengagement publish gates to pass
+
+Latest live-cutover movement on the disengagement side:
+
+- a curated patient-subject assignment sync has now written `16` reviewed `subject_id` values back into the TrialLight Firebase `users/{uid}` documents
+- targeted verification shows the previously unmapped patients now fail on missing live operational timestamps rather than missing mapping
+- this means subject mapping is no longer the dominant blocker; live data completeness is
 
 ## Required Environment Variables
 
@@ -412,8 +423,11 @@ As of this runbook version, the project status is:
 - **Donor merge:** code-complete
 - **Supabase guidance schema:** prepared in repo
 - **Root Functions merge:** code-complete
-- **Firebase target switch in config:** prepared
-- **Real Auth / Firestore migration:** not executed
-- **Real deploy / hosting cutover:** not executed
+- **Firebase target switch in config:** active in local env for CRC and patient
+- **Patient Auth recovery / reset migration:** partially executed
+- **Patient-side Terry cutover:** materially advanced, but not fully closed
+- **Root Functions deploy:** attempted and blocked by Terry IAM
+- **Firebase Hosting deploy:** attempted and blocked by Terry IAM
+- **Full Terry retrieval/indexing:** deferred unless the remaining external retrieval secrets are provided
 
 This runbook should be used as the later operational checklist when the team is ready to perform the dangerous remote migration steps.
