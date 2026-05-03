@@ -3494,3 +3494,100 @@ eady calculation.
   - `py_compile` passed for:
     - `Patient-Dropout-Prediction/src/train.py`
     - `Patient-Dropout-Prediction/src/run_candidate_search.py`
+
+## 2026-05-03 - TrialLight Firebase Functions and Hosting deploy completed
+
+- Verified the root Firebase deploy configuration already in repo:
+  - `.firebaserc` still targets Firebase project ID `traillight-4750b`
+  - the Firebase console display name may now read `TrialLight`, but deploy commands still bind to the project ID
+- Verified production bundle generation before deploy:
+  - CRC web `npm run build:crc` succeeded
+  - patient web `npm run build:patient-web` succeeded
+- Confirmed the real deploy principal had to come from `firebase login`, not only the local service-account path:
+  - `npx firebase login:list` now shows the owner-authorized Google account
+- Live Firebase Functions deploy succeeded:
+  - command used:
+    - `npx firebase deploy --only functions --project traillight-4750b`
+  - deployed/upserted the active Gemini guidance runtime and operational functions in `functions/`
+  - included:
+    - `classifyGuidanceRoute`
+    - `classifyGuidanceRouteHttp`
+    - `deleteGuidanceDocumentChunks`
+    - `deleteGuidanceDocumentChunksHttp`
+    - `ingestGuidanceDocument`
+    - `processPendingProtocolGuidanceIndex`
+    - `retrieveGuidanceContext`
+    - `retrieveGuidanceContextHttp`
+    - `sideEffectGuidanceChat`
+    - `sideEffectGuidanceChatHttp`
+    - `suggestAppointmentDate`
+    - `suggestAppointmentDateHttp`
+    - `sendIncidentPushNotifications`
+- Live Firebase Hosting deploy succeeded:
+  - command used:
+    - `npx firebase deploy --only hosting:crc,hosting:patient --project traillight-4750b`
+  - CRC hosting released:
+    - `https://triallight.web.app`
+  - patient hosting released:
+    - `https://triallight-patient.web.app`
+- Important scope note:
+  - this completes the current root Gemini-based live web/runtime publish path
+  - it does **not** mean full Terry SiliconFlow-backed retrieval/indexing has been enabled
+  - current full Terry retrieval/indexing remains deferred unless the team later chooses to provide the remaining SiliconFlow secret bundle
+
+## 2026-05-03 - External UI/UX skill repository downloaded for future TrialLight CRC redesign work
+
+- Downloaded the external UI/UX skill repository into the workspace for later design work:
+  - `external-skills/ui-ux-pro-max-skill`
+- No CRC or patient UI changes were started in this step.
+- Confirmed the repository is a skill bundle rather than a single top-level `SKILL.md`.
+- Confirmed the main skill path for later installation/use:
+  - `external-skills/ui-ux-pro-max-skill/.claude/skills/ui-ux-pro-max/SKILL.md`
+- Confirmed additional companion skills are present in the bundle, including:
+  - `design`
+  - `design-system`
+  - `ui-styling`
+  - `brand`
+  - `banner-design`
+  - `slides`
+- This step was limited to downloading and locating the skill structure only; no UI redesign was started.
+
+## 2026-05-03 - UI/UX Pro Max skill bundle installed into local Codex skills
+
+- Installed the external UI/UX Pro Max skill bundle into the local Codex skills directory:
+  - `C:\Users\TUF-A15\.codex\skills\ui-ux-pro-max`
+  - `C:\Users\TUF-A15\.codex\skills\design`
+  - `C:\Users\TUF-A15\.codex\skills\design-system`
+  - `C:\Users\TUF-A15\.codex\skills\ui-styling`
+  - `C:\Users\TUF-A15\.codex\skills\brand`
+  - `C:\Users\TUF-A15\.codex\skills\banner-design`
+  - `C:\Users\TUF-A15\.codex\skills\slides`
+- Installation source:
+  - `nextlevelbuilder/ui-ux-pro-max-skill`
+- Verified all seven skill directories now exist locally.
+- No TrialLight CRC or patient UI code was modified in this step.
+- No redesign work was started in this step; this was installation-only preparation.
+
+## 2026-05-03 - TrialLight CRC mockup direction package prepared before implementation
+
+- Defined a desktop-only CRC UI direction mockup scope before any production UI changes:
+  - `CRC_UI_DIRECTION_MOCKUPS_SPEC.md`
+- Locked the mockup package to three directions:
+  - `Clinical Command Center`
+  - `Calm Research Operations`
+  - `Precision Intelligence Workspace`
+- Locked the page coverage for each direction board:
+  - `CRC Login`
+  - `Today`
+  - `Patients`
+  - `Patient Workspace / Study Coordination`
+  - `Safety`
+  - `Intelligence / Side Effect Guidance`
+  - `Intelligence / Patient Disengagement Prediction`
+  - `Questionnaires`
+  - `Protocols`
+  - `Resources`
+- Locked the mockup target device to desktop browser only.
+- Confirmed this step is mockup-only:
+  - no CRC runtime code changed
+  - no current UI implementation changed

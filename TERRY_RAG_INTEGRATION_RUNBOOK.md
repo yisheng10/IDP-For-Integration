@@ -426,8 +426,12 @@ As of this runbook version, the project status is:
 - **Firebase target switch in config:** active in local env for CRC and patient
 - **Patient Auth recovery / reset migration:** partially executed
 - **Patient-side Terry cutover:** materially advanced, but not fully closed
-- **Root Functions deploy:** attempted and blocked by Terry IAM
-- **Firebase Hosting deploy:** attempted and blocked by Terry IAM
+- **Root Functions deploy:** completed to `traillight-4750b` using an owner-authorized Firebase CLI session
+- **Firebase Hosting deploy:** completed to `traillight-4750b`
+- **Published hosting endpoints:**
+  - CRC: `https://triallight.web.app`
+  - patient: `https://triallight-patient.web.app`
+- **Current live AI/runtime path:** the Gemini-based root Functions runtime is now live
 - **Full Terry retrieval/indexing:** deferred unless the remaining external retrieval secrets are provided
 
 This runbook should be used as the later operational checklist when the team is ready to perform the dangerous remote migration steps.
