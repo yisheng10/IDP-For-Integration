@@ -161,7 +161,7 @@ export default function Login({ type, onLogin }) {
   return (
     <div className="login-card">
       <div className="dashboard-kicker">{type === 'crc' ? 'CRC sign-in' : 'Patient access'}</div>
-      <h2 className="mt-0" style={{ marginBottom: '10px' }}>{type === 'crc' ? 'CRC Portal' : isReg ? 'Patient Sign Up' : 'Patient Login'}</h2>
+      <h2 className="mt-0" style={{ marginBottom: '10px' }}>{type === 'crc' ? 'CRC Workspace Sign-in' : isReg ? 'Patient Sign Up' : 'Patient Login'}</h2>
       <p className="section-note" style={{ marginBottom: '18px' }}>
         {type === 'crc'
           ? 'Use your hospital email to enter the CRC workspace.'

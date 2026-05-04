@@ -200,7 +200,7 @@ const SafetyInboxPanel = ({
     <div className="card workspace-card utility-card utility-card--safety">
       <div className="section-header">
         <div>
-          <h3 className="mt-0" style={{ marginBottom: '6px' }}>Safety Inbox</h3>
+          <h3 className="mt-0" style={{ marginBottom: '6px' }}>Safety</h3>
           <div className="section-note">
             Use one primary workspace for active safety cases, resolved follow-up, and historical alert threads.
           </div>

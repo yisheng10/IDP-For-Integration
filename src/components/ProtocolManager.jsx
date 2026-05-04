@@ -308,7 +308,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
         });
       } catch (extractionError) {
         console.error('Protocol dropout static-context extraction failed:', extractionError);
-        extractionWarning = ` Dropout static context extraction failed: ${extractionError.message}`;
+        extractionWarning = ` Disengagement static context extraction failed: ${extractionError.message}`;
       }
 
       try {
@@ -621,7 +621,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
       <div className="card workspace-card">
         <div className="section-header">
           <div>
-            <h3>Protocol Library</h3>
+            <h3>Protocols</h3>
             <div className="section-note">
               Protocol PDFs act as trial templates. Each template owns its vital sign template, threshold rules, and mild,
               moderate, and serious follow-up policy.
@@ -720,7 +720,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                   <div className="protocol-library__layout">
                     <div className="protocol-library__main">
                       <div className="info-banner protocol-library__metaCard">
-                        <TemplateField label="Optional dropout dataset trial ID">
+                        <TemplateField label="Optional disengagement dataset trial ID">
                           <input
                             value={draft.dropout_trial_id}
                             onChange={(event) =>

@@ -3535,6 +3535,26 @@ eady calculation.
   - it does **not** mean full Terry SiliconFlow-backed retrieval/indexing has been enabled
   - current full Terry retrieval/indexing remains deferred unless the team later chooses to provide the remaining SiliconFlow secret bundle
 
+## 2026-05-04 - Added teammate codebase packaging script
+
+- Added a reusable root packaging script:
+  - `scripts/package-codebase-for-teammate.ps1`
+- The script is designed for teammate-sharing rather than full local-environment backup.
+- Default exclusions now remove the main size and risk sources:
+  - Git metadata
+  - Node and Python virtual environments
+  - large training datasets and cached window datasets
+  - build outputs and local temp folders
+  - local secrets and committed credential text files
+  - deprecated/reference trees not needed for normal continuation work
+  - large raw disengagement prediction CSV outputs and rerun residue
+- Verified the script with `-DryRun`.
+- Current dry-run result for the default lean share package:
+  - included files: `998`
+  - excluded files: `363835`
+  - included size: about `99.33 MB`
+- The script supports a custom zip output path so teammates can produce a named zip directly where they want it.
+
 ## 2026-05-03 - External UI/UX skill repository downloaded for future TrialLight CRC redesign work
 
 - Downloaded the external UI/UX skill repository into the workspace for later design work:
@@ -3591,3 +3611,70 @@ eady calculation.
 - Confirmed this step is mockup-only:
   - no CRC runtime code changed
   - no current UI implementation changed
+
+## 2026-05-03 - TrialLight CRC web UI direction implemented for the root website
+
+- Implemented the selected CRC direction on the root CRC website only:
+  - overall direction: `Precision Intelligence Workspace`
+  - visual tone: `restrained upgrade`
+  - home label: `Today`
+  - `ePRO` naming preserved
+  - patient app intentionally untouched
+- Reworked CRC route semantics so the main website now treats these as first-class sections:
+  - `today`
+  - `patients`
+  - `safety`
+  - `side-effect-guidance`
+  - `patient-disengagement`
+  - `epro`
+  - `protocols`
+  - `resources`
+- Added compatibility mapping so older CRC links continue to resolve:
+  - `dashboard` -> `today`
+  - `safety-inbox` -> `safety`
+  - `protocol-library` -> `protocols`
+  - `study-coordination` -> `patients&panel=coordination`
+  - `clinical-intelligence&focus=guidance` -> `side-effect-guidance`
+  - `clinical-intelligence&focus=dropout` -> `patient-disengagement`
+- Reworked the CRC information architecture:
+  - removed the top-level aggregate `Intelligence` section
+  - kept `Side Effect Guidance` and `Patient Disengagement Prediction` as separate first-class sidebar entries
+  - merged `Study Coordination` into the `Patients` workspace instead of leaving it as a separate top-level section
+- Updated the `Today` workspace to function as a shift-opening task surface with:
+  - assigned patients
+  - active safety items
+  - pending ePRO items
+  - actionable disengagement flags
+  - direct action cards into safety, guidance, ePRO, and prediction
+- Updated the `Patients` workspace to include:
+  - roster
+  - pinned patient context
+  - in-page `Handoff` / `Study Coordination` switching
+  - trial assignment, subject mapping, recent vitals, and appointment scheduling within the same patient-first workspace
+- Updated CRC-facing naming and page copy:
+  - `Patient Dropout Prediction` -> `Patient Disengagement Prediction`
+  - `Safety Inbox` -> `Safety`
+  - `Protocol Library` -> `Protocols`
+  - `CRC Portal` -> `CRC Workspace`
+- Preserved compatibility at the code-contract layer:
+  - existing backend `dropout_*` field names remain untouched where required
+  - disengagement UI text changed without breaking the current CRC-only runtime contract
+- Updated the root login surface to match the CRC workspace wording:
+  - `TrialLight CRC Workspace`
+  - clearer CRC-only operations copy
+- Hardened CRC auth bootstrap so local preview no longer looks like a white screen while auth
+  initializes:
+  - replaced the white-on-light loading layer with a visible startup card
+  - added a 4-second fallback that releases the app to the CRC sign-in screen if Firebase auth
+    bootstrap stalls
+  - added an honest warning banner on the sign-in screen when saved-session recovery times out
+- Added a CRC workspace runtime error boundary around the authenticated home route:
+  - post-login crashes now render a visible diagnostic card instead of a blank page
+  - the error card shows the real runtime message and offers reload / return-to-sign-in actions
+- Fixed the post-login CRC workspace crash:
+  - the new `Today` priority-action block had been declared before the safety and routing values it
+    depended on
+  - moved the action-definition block below those runtime values so the authenticated home workspace
+    no longer trips a temporal-dead-zone error during startup
+- Build verification:
+  - `npm run build:crc` completed successfully after the UI/route changes

@@ -36,7 +36,7 @@ export default function PatientEditMenu({
           <h3>Patient configuration</h3>
           <div className="section-note">
             Trial assignment controls inherited monitored vitals. Patient-level configuration stays limited to identifiers,
-            CRC ownership, emergency contact details, and the canonical subject ID used by the CRC-only dropout runtime.
+            CRC ownership, emergency contact details, and the canonical subject ID used by the CRC-only disengagement runtime.
           </div>
         </div>
         <button onClick={onDelete} className="btn btn-danger btn-small">
@@ -145,7 +145,7 @@ export default function PatientEditMenu({
           ))}
         </select>
         <div className="section-note section-note--spaced">
-          Choose the canonical subject ID that this real CRC patient should map to during TrialLight v1 dropout prediction runs and demos.
+          Choose the canonical subject ID that this real CRC patient should map to during TrialLight v1 disengagement prediction runs and demos.
         </div>
       </div>
 

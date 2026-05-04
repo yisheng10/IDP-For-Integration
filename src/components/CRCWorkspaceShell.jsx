@@ -247,7 +247,7 @@ export default function CRCWorkspaceShell({
             type="button"
             className="crc-sidebar__brand"
             onClick={() => {
-              navigate('/home');
+              navigate('/home?section=today');
               onHomeClick?.();
             }}
           >

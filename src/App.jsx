@@ -6,6 +6,63 @@ import Login from './components/Login';
 import { auth } from './firebase';
 import CRCHome from './pages/CRCHome';
 
+class CRCWorkspaceErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('CRC workspace runtime error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="login-wrapper">
+          <div className="login-card" style={{ maxWidth: '640px' }}>
+            <div className="dashboard-kicker">CRC workspace error</div>
+            <h2 className="mt-0" style={{ marginBottom: '10px' }}>
+              The CRC workspace could not finish loading
+            </h2>
+            <p className="section-note">
+              The sign-in succeeded, but the main CRC workspace crashed during startup. The message below is the
+              actual runtime error, not a generic white screen.
+            </p>
+            <div
+              className="info-banner"
+              style={{
+                marginTop: '16px',
+                background: 'rgba(255, 245, 245, 0.96)',
+                borderColor: '#efc3c3',
+                color: 'var(--danger)',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              <strong>Runtime error:</strong> {this.state.error?.message || 'Unknown CRC workspace error'}
+            </div>
+            <div className="workspace-actionStrip" style={{ marginTop: '18px' }}>
+              <button className="btn btn-primary" onClick={() => window.location.assign('/login')}>
+                Back to sign-in
+              </button>
+              <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+                Reload workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function UnsupportedWebAccess({ user, onLogout }) {
   return (
     <div className="login-wrapper">
@@ -33,9 +90,10 @@ function UnsupportedWebAccess({ user, onLogout }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authBootstrapWarning, setAuthBootstrapWarning] = useState(false);
 
   useEffect(() => {
-    document.title = `${APP_NAME} CRC Portal`;
+    document.title = `${APP_NAME} CRC Workspace`;
 
     let iconLink = document.querySelector("link[rel~='icon']");
     if (!iconLink) {
@@ -45,12 +103,26 @@ export default function App() {
     }
     iconLink.href = APP_ICON;
 
+    let authResolved = false;
+    const bootstrapTimeout = window.setTimeout(() => {
+      if (!authResolved) {
+        setAuthBootstrapWarning(true);
+        setLoading(false);
+      }
+    }, 4000);
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      authResolved = true;
+      window.clearTimeout(bootstrapTimeout);
       setUser(currentUser || null);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      authResolved = true;
+      window.clearTimeout(bootstrapTimeout);
+      unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -70,16 +142,19 @@ export default function App() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          ...appStyle,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: 'white',
-        }}
-      >
-        <h2>Loading CRC session...</h2>
+      <div style={appStyle}>
+        <div className="login-wrapper">
+          <div className="login-card" style={{ maxWidth: '560px' }}>
+            <div className="dashboard-kicker">Starting workspace</div>
+            <h2 className="mt-0" style={{ marginBottom: '10px' }}>
+              Loading CRC session...
+            </h2>
+            <p className="section-note">
+              Checking the saved Firebase sign-in state. If this takes longer than a few seconds, the
+              sign-in screen will open automatically.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -97,19 +172,34 @@ export default function App() {
                 <div className="login-card" style={{ maxWidth: '560px', marginBottom: '18px' }}>
                   <div className="dashboard-kicker">CRC operations workspace</div>
                   <h1 className="dashboard-title" style={{ marginBottom: '10px' }}>
-                    {APP_NAME} CRC Portal
+                    {APP_NAME} CRC Workspace
                   </h1>
                   <p className="dashboard-subtitle">
-                    Safety review, ePRO visibility, patient coordination, appointments, and dropout monitoring in one
-                    clinical operations workspace.
+                    Safety review, ePRO visibility, patient coordination, side effect guidance, and patient
+                    disengagement prediction in one clinical operations workspace.
                   </p>
-                  <div className="info-banner" style={{ marginTop: '18px' }}>
-                    <strong>V1 boundary:</strong> The website is reserved for CRC workflows. Patient access belongs in
-                    the patient mobile app.
-                  </div>
+                <div className="info-banner" style={{ marginTop: '18px' }}>
+                  <strong>V1 boundary:</strong> The website is reserved for CRC workflows. Patient access belongs in
+                  the patient mobile app.
                 </div>
-                <Login type="crc" onLogin={() => {}} />
+                {authBootstrapWarning ? (
+                  <div
+                    className="info-banner"
+                    style={{
+                      marginTop: '14px',
+                      background: 'rgba(255, 248, 235, 0.96)',
+                      borderColor: '#f0d6a9',
+                      color: 'var(--warning)',
+                    }}
+                  >
+                    Saved session recovery took longer than expected, so the website continued to the sign-in
+                    screen. If you were expecting an automatic sign-in, refresh once after login services
+                    stabilize.
+                  </div>
+                ) : null}
               </div>
+              <Login type="crc" onLogin={() => {}} />
+            </div>
             )
           }
         />
@@ -120,7 +210,9 @@ export default function App() {
             !user ? (
               <Navigate to="/login" replace />
             ) : isCrcUser ? (
-              <CRCHome user={user} onLogout={handleLogout} />
+              <CRCWorkspaceErrorBoundary>
+                <CRCHome user={user} onLogout={handleLogout} />
+              </CRCWorkspaceErrorBoundary>
             ) : (
               <UnsupportedWebAccess user={user} onLogout={handleLogout} />
             )
@@ -133,7 +225,7 @@ export default function App() {
             !user ? (
               <Navigate to="/login" replace />
             ) : isCrcUser ? (
-              <Navigate to="/home?section=safety-inbox&tab=history" replace />
+              <Navigate to="/home?section=safety&tab=history" replace />
             ) : (
               <Navigate to="/home" replace />
             )

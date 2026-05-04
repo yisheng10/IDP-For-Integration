@@ -196,17 +196,17 @@ export default function HistoryPage({ user, onLogout }) {
 
   const navSections = [
     {
-      title: 'Primary',
+      title: 'Workspace',
       items: [
-        { id: 'dashboard', label: 'Dashboard', description: 'Overview', icon: 'dashboard', path: '/home?section=dashboard' },
+        { id: 'today', label: 'Today', description: 'Shift overview', icon: 'dashboard', path: '/home?section=today' },
         { id: 'patients', label: 'Patients', description: 'Roster', icon: 'patients', path: '/home?section=patients' },
-        { id: 'safety-inbox', label: 'Safety Inbox', description: 'Incidents', icon: 'safety', path: '/home?section=safety-inbox' },
-        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Gemini', icon: 'guidance', path: '/home?section=clinical-intelligence&focus=guidance' },
-        { id: 'patient-dropout-prediction', label: 'Patient Dropout Prediction', description: 'CRC only', icon: 'dropout', path: '/home?section=clinical-intelligence&focus=dropout' },
+        { id: 'safety', label: 'Safety', description: 'Incidents & history', icon: 'safety', path: '/home?section=safety' },
+        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Patient-grounded AI', icon: 'guidance', path: '/home?section=side-effect-guidance' },
+        { id: 'patient-disengagement', label: 'Patient Disengagement Prediction', description: 'CRC only', icon: 'dropout', path: '/home?section=patient-disengagement' },
       ],
     },
     {
-      title: 'Secondary',
+      title: 'Reference',
       items: [
         { id: 'history', label: 'History', description: 'Threads', icon: 'history', path: '/history' },
         { id: 'resources', label: 'Resources', description: 'CTCAE', icon: 'resources', path: '/home?section=resources' },

@@ -143,7 +143,7 @@ export default function DropoutRiskPanel({
       },
       (nextError) => {
         setSnapshotRows([]);
-        setError(nextError.message || 'Unable to read current dropout snapshots.');
+        setError(nextError.message || 'Unable to read current disengagement snapshots.');
       }
     );
   }, [loadedUserIds, loadedUserSignature]);
@@ -158,7 +158,7 @@ export default function DropoutRiskPanel({
           setSummary(payload);
         }
       } catch (loadError) {
-        console.error('Unable to load full dropout dashboard summary:', loadError);
+        console.error('Unable to load full disengagement dashboard summary:', loadError);
         if (!cancelled) {
           setSummary(null);
         }
@@ -259,7 +259,7 @@ export default function DropoutRiskPanel({
     if (error) {
       return (
         <div className="empty-panel">
-          Unable to load live dropout snapshots right now.
+          Unable to load live disengagement snapshots right now.
           <div className="section-note section-note--spaced">{error}</div>
         </div>
       );
@@ -268,9 +268,9 @@ export default function DropoutRiskPanel({
     if (!joinedRows.length) {
       return (
         <div className="empty-panel">
-          No published dropout snapshots are available yet.
+          No published disengagement snapshots are available yet.
           <div className="section-note section-note--spaced">
-            Run the daily precompute workflow or publish snapshots before using this dashboard.
+            Run the daily precompute workflow or publish snapshots before using this workspace.
           </div>
         </div>
       );
@@ -283,7 +283,7 @@ export default function DropoutRiskPanel({
           <MetricCard label="High-risk patients" value={dashboardMetrics.highRiskCount ?? 'N/A'} tone="warning" />
           <MetricCard label="Actionable patients" value={dashboardMetrics.actionableCount ?? 'N/A'} tone="brand" />
           <MetricCard
-            label="Average probability"
+            label="Average risk"
             value={
               dashboardMetrics.averageProbability == null
                 ? 'N/A'
@@ -294,14 +294,14 @@ export default function DropoutRiskPanel({
 
         <div className="section-note section-note--spaced">
           {summary
-            ? `Summary cards reflect the latest published full dropout dashboard summary${
+            ? `Summary cards reflect the latest published full disengagement dashboard summary${
                 dashboardMetrics.publishedAt
                   ? ` from ${new Date(dashboardMetrics.publishedAt).toLocaleString()}`
                   : ''
               }. The ranked list below remains paginated from the currently loaded patient window.`
             : summaryReady
-              ? 'Full dropout dashboard summary is not available yet. The ranked list below still works, but summary cards stay blank until the publisher writes dashboard_summaries/dropout_current.'
-              : 'Loading the latest published dropout dashboard summary...'}
+              ? 'Full disengagement dashboard summary is not available yet. The ranked list below still works, but summary cards stay blank until the next published summary is available.'
+              : 'Loading the latest published disengagement dashboard summary...'}
         </div>
 
         <div className="dropout-dashboard__layout">
@@ -313,7 +313,7 @@ export default function DropoutRiskPanel({
                   Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk inside the loaded current snapshot window.
                 </div>
                 <div className="section-note section-note--spaced">
-                  Showing {visibleRows.length} visible patients from {filteredRows.length} loaded current snapshots. Full summary cards above are sourced separately from the latest published dashboard summary.
+                  Showing {visibleRows.length} visible patients from {filteredRows.length} loaded current snapshots. Full summary cards above are sourced separately from the latest published disengagement summary.
                 </div>
               </div>
               <div className="dropout-dashboard__detailActions">
@@ -341,7 +341,7 @@ export default function DropoutRiskPanel({
                 setSnapshotPage(1);
               }}
               canGoNext={canGoToNextSnapshotPage}
-              note={`Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} ranked patients from the loaded dropout snapshot window.`}
+              note={`Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} ranked patients from the loaded disengagement snapshot window.`}
             />
 
             <div className="dropout-dashboard__list">
@@ -365,7 +365,7 @@ export default function DropoutRiskPanel({
 
                       <div className="dropout-dashboard__rowStats">
                         <span>Subject ID: {entry.subjectId}</span>
-                        <span>Probability: {formatProbabilityPercent(entry.dropout_probability)}</span>
+                        <span>Risk: {formatProbabilityPercent(entry.dropout_probability)}</span>
                       </div>
 
                       <div className="dropout-dashboard__rowStats">
@@ -390,7 +390,7 @@ export default function DropoutRiskPanel({
               <>
                 <div className="section-header">
                   <div>
-                    <h3 className="mt-0">Patient dropout detail</h3>
+                    <h3 className="mt-0">Patient disengagement detail</h3>
                     <div className="section-note">
                       Detailed CRC-only snapshot for the selected patient. This panel updates immediately when you select a different row.
                     </div>
@@ -412,7 +412,7 @@ export default function DropoutRiskPanel({
                       <span className="dropout-card__bucket">{renderRiskBucket(activeEntry.risk_bucket)}</span>
                     </div>
                     <div className="dropout-card__metric">Subject ID: {activeEntry.subjectId}</div>
-                    <div className="dropout-card__metric">Dropout probability: {formatProbabilityDecimal(activeEntry.dropout_probability)}</div>
+                    <div className="dropout-card__metric">Risk probability: {formatProbabilityDecimal(activeEntry.dropout_probability)}</div>
                     <div className="dropout-card__metric">Confidence: {getConfidenceLabel(activeEntry.data_quality_flags)}</div>
                     <div className="dropout-card__metric">Recommended action: {activeEntry.recommended_action || 'N/A'}</div>
                     <div className="dropout-card__metric">Action priority score: {activeEntry.action_priority_score ?? 'N/A'}</div>
@@ -448,7 +448,7 @@ export default function DropoutRiskPanel({
                 />
               </>
             ) : (
-              <div className="empty-panel">Select a ranked patient to inspect the current dropout snapshot.</div>
+              <div className="empty-panel">Select a ranked patient to inspect the current disengagement snapshot.</div>
             )}
           </div>
         </div>
@@ -460,9 +460,9 @@ export default function DropoutRiskPanel({
     <div className="card workspace-card intelligence-card intelligence-card--dropout">
       <div className="section-header">
         <div>
-          <h3 className="mt-0">Patient Dropout Prediction</h3>
+          <h3 className="mt-0">Patient Disengagement Prediction</h3>
           <div className="section-note">
-            Dedicated CRC-only dashboard sourced from live Firestore current snapshots. Summary cards use the published full dashboard summary, while the ranked list stays paginated within the loaded patient window.
+            Dedicated CRC-only workspace sourced from live Firestore current snapshots. Summary cards use the published full disengagement summary, while the ranked list stays paginated within the loaded patient window.
           </div>
         </div>
         <span className="metric-pill">CRC only</span>
