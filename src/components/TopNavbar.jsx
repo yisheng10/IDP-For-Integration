@@ -22,11 +22,19 @@ export default function TopNavbar({
   alertButtonUrgent = false,
   title,
   description,
+  contextPills = [],
+  searchValue = '',
+  onSearchChange,
+  searchPlaceholder = 'Search loaded patients',
+  searchResults = [],
+  onSearchSelect,
 }) {
   const [displayName, setDisplayName] = useState(user.email);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const profileRef = useRef(null);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
@@ -37,7 +45,7 @@ export default function TopNavbar({
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user.uid]);
 
   const displayInitials = useMemo(() => {
     const words = String(displayName || 'User')
@@ -58,6 +66,9 @@ export default function TopNavbar({
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setShowProfileMenu(false);
       }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
     };
 
     const handleKeyDown = (event) => {
@@ -76,6 +87,7 @@ export default function TopNavbar({
 
   const alertCount = alerts.filter((alert) => alert.status === 'unread').length;
   const resolvedAlertLabel = alertButtonLabel || (alertCount ? `Urgent (${alertCount})` : 'Urgent');
+  const hasSearchResults = Array.isArray(searchResults) && searchResults.length > 0;
 
   return (
     <>
@@ -86,6 +98,58 @@ export default function TopNavbar({
             <h1 className="topnav__title">{title}</h1>
             <p className="topnav__description">{description}</p>
           </div>
+          {contextPills.length ? (
+            <div className="topnav__contextRow">
+              {contextPills.map((pill) => (
+                <span key={pill} className="topnav__contextPill">
+                  {pill}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="topnav__searchWrap" ref={searchRef}>
+          <input
+            type="search"
+            className="topnav__searchInput"
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onChange={(event) => {
+              onSearchChange?.(event.target.value);
+              setShowSearchResults(true);
+            }}
+            onFocus={() => setShowSearchResults(true)}
+          />
+          {showSearchResults && searchValue.trim() ? (
+            <div className="topnav__dropdown topnav__dropdown--wide">
+              <div className="topnav__dropdownHeader">
+                {hasSearchResults ? 'Loaded patient matches' : 'No loaded patients match this search'}
+              </div>
+              {hasSearchResults ? (
+                searchResults.map((result) => (
+                  <button
+                    key={result.id}
+                    type="button"
+                    className="topnav__dropdownItem"
+                    onClick={() => {
+                      onSearchSelect?.(result);
+                      setShowSearchResults(false);
+                    }}
+                  >
+                    <div className="topnav__searchResultTitle">{result.nickname || result.email || 'Unnamed patient'}</div>
+                    <div className="topnav__searchResultMeta">
+                      {result.subject_id || result.subjectId || 'No subject ID'} · {result.primary_crc_name || 'Unassigned CRC'}
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="topnav__dropdownEmpty">
+                  Search only works against the currently loaded CRC patient roster window.
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="topnav__right">

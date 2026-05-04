@@ -3678,3 +3678,75 @@ eady calculation.
     no longer trips a temporal-dead-zone error during startup
 - Build verification:
   - `npm run build:crc` completed successfully after the UI/route changes
+
+## 2026-05-04 - CRC precision intelligence refinement (desktop CRC web only)
+
+- Pushed the previously committed CRC startup-fix commit on root branch `codex/root-integration-sync-20260415` before starting new UI work:
+  - root push completed for commit `282c63a Fix CRC workspace startup crash and white screen`
+- Continued CRC web UI/UX refinement toward `CRC_UI_DIRECTION_MOCKUPS_SPEC.md` Direction 3 `Precision Intelligence Workspace` without touching the patient app.
+- Kept the locked product and data boundaries:
+  - CRC web only
+  - `ePRO` naming unchanged
+  - no patient-side changes
+  - no Firestore schema changes
+  - no new Firebase queries added for UI polish
+- Reworked the CRC top shell toward the selected direction:
+  - introduced stronger desktop analytical framing for the app shell
+  - prepared the header for local quick patient search over the already-loaded roster window only
+  - kept `Side Effect Guidance` and `Patient Disengagement Prediction` as separate first-class sidebar entries
+- Reworked the CRC login experience toward the selected mockup direction:
+  - replaced the prior large-background feel with a structured portal layout
+  - added an upper CRC workspace identity / boundary card
+  - kept the lower sign-in card focused on the real existing CRC login flow
+  - preserved CRC-only boundary wording and hospital-email requirement
+- Added local quick-search behavior in the CRC top bar:
+  - search is limited to the currently loaded patient roster window
+  - no cross-source or global Firebase search was added
+  - selecting a result routes back into the `Patients` workspace with that patient pinned
+- Refined the `Today` workspace:
+  - added a clearer `Today's overview` heading and stronger shift-opening framing
+  - kept the real four summary metrics only:
+    - assigned patients
+    - active safety items
+    - pending ePRO
+    - actionable disengagement flags
+  - kept only lightweight next-action guidance derived from existing data
+- Refined the `Patients` workspace:
+  - converted the roster into a denser analytical list/table style
+  - added safe local filters only for:
+    - protocol assigned/unassigned
+    - subject mapped/unmapped
+  - kept search scoped to existing loaded data only
+  - renamed the patient tab from `Handoff` to `Overview`
+- Refined the shared visual system for CRC pages:
+  - deep-navy sidebar
+  - pale blue-gray app background
+  - white high-radius workspace cards
+  - tighter analytical top bar
+  - `IBM Plex Sans` / `IBM Plex Mono` typography stack with safe fallbacks
+  - more consistent clinical blue / amber / restrained red state language
+- Applied the refined visual language across existing real pages without adding unsupported product features:
+  - `Today`
+  - `Patients`
+  - `Safety`
+  - `Side Effect Guidance`
+  - `Patient Disengagement Prediction`
+  - `ePRO`
+  - `Protocols`
+  - `Resources`
+- Explicitly did not add mockup-only features that TrialLight does not currently own:
+  - no global multi-source search
+  - no `Documents / Notes / Tasks`
+  - no expanded resource knowledgebase
+  - no new patient-risk taxonomy
+  - no new task-engine backend
+- Verification:
+  - `npm.cmd run build:crc` passed after the refinement changes
+  - targeted lint passed for touched CRC files:
+    - `src/App.jsx`
+    - `src/components/Login.jsx`
+    - `src/components/TopNavbar.jsx`
+    - `src/components/CRCWorkspaceShell.jsx`
+    - `src/components/PatientList.jsx`
+    - `src/pages/CRCHome.jsx`
+  - full-repo `npm run lint` still reports unrelated errors from virtualenvs, generated assets, and subtrees outside the CRC refinement scope

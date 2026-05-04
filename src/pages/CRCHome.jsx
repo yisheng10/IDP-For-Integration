@@ -167,6 +167,7 @@ export default function CRCHome({ user, onLogout }) {
   const [globalIncidentSummary, setGlobalIncidentSummary] = useState(null);
   const [selectedIncidentSummary, setSelectedIncidentSummary] = useState(null);
   const [disengagementSummary, setDisengagementSummary] = useState(null);
+  const [rosterSearchQuery, setRosterSearchQuery] = useState('');
 
   const patientRosterLimit = Math.min(
     patientRosterPage * patientRosterPageSize + 1,
@@ -938,6 +939,31 @@ export default function CRCHome({ user, onLogout }) {
   const seriousActiveAlertCount = globalAlertSummary?.activeUrgentAlerts ?? urgentAlerts.filter((alert) => alert.status === 'unread').length;
 
   const currentHeaderSection = HOME_SECTIONS[activeHomeSection];
+  const headerContextPills = useMemo(
+    () => ['CRC-only surface', 'Patient safety first', 'Study-bound data'],
+    []
+  );
+
+  const headerSearchResults = useMemo(() => {
+    const queryText = rosterSearchQuery.trim().toLowerCase();
+    if (!queryText) return [];
+
+    return patients
+      .filter((patient) => {
+        const haystack = [
+          patient.nickname,
+          patient.email,
+          patient.subject_id,
+          patient.subjectId,
+          patient.primary_crc_name,
+        ]
+          .map((value) => String(value || '').toLowerCase())
+          .join(' ');
+
+        return haystack.includes(queryText);
+      })
+      .slice(0, 6);
+  }, [patients, rosterSearchQuery]);
 
   const openWorkspaceSection = (section, { panel, tab } = {}) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -1019,6 +1045,11 @@ export default function CRCHome({ user, onLogout }) {
     openWorkspaceSection('patients', {
       panel: panel === 'coordination' ? 'coordination' : undefined,
     });
+  };
+
+  const handleHeaderSearchSelect = (patient) => {
+    selectP(patient);
+    openWorkspaceSection('patients');
   };
 
   const handleOpenClinicalResource = async (filePath, bucket = 'pdfs') => {
@@ -1129,10 +1160,24 @@ export default function CRCHome({ user, onLogout }) {
         onHomeClick={() => selectP(null)}
         headerTitle={currentHeaderSection.title}
         headerDescription={currentHeaderSection.description}
+        headerContextPills={headerContextPills}
+        searchValue={rosterSearchQuery}
+        onSearchChange={setRosterSearchQuery}
+        searchResults={headerSearchResults}
+        onSearchSelect={handleHeaderSearchSelect}
       >
         <div className="dashboard-surface">
           {activeHomeSection === 'today' ? (
             <section id="today" className="dashboard-section">
+              <div className="dashboard-section__header">
+                <div>
+                  <div className="dashboard-kicker">Today</div>
+                  <h2 className="dashboard-section__title">Today&apos;s overview</h2>
+                  <p className="section-note">
+                    Triage urgent work first, then move into patient-specific coordination, ePRO, and intelligence workspaces.
+                  </p>
+                </div>
+              </div>
               <div className="overview-grid">
                 <div className="overview-card">
                   <span>Assigned patients</span>
@@ -1278,6 +1323,9 @@ export default function CRCHome({ user, onLogout }) {
                   onSelect={selectP}
                   countLabel={`${patients.length} loaded`}
                   summaryNote={patientRosterSummaryNote}
+                  searchQuery={rosterSearchQuery}
+                  onSearchQueryChange={setRosterSearchQuery}
+                  showSearchInput={false}
                   currentPage={patientRosterPage}
                   pageSize={patientRosterPageSize}
                   onPageChange={setPatientRosterPage}
@@ -1312,7 +1360,7 @@ export default function CRCHome({ user, onLogout }) {
                         className={`workspace-tabButton ${activePatientPanel === 'summary' ? 'workspace-tabButton--active' : ''}`}
                         onClick={() => openWorkspaceSection('patients')}
                       >
-                        Handoff
+                        Overview
                       </button>
                       <button
                         type="button"

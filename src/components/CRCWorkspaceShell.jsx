@@ -213,6 +213,11 @@ export default function CRCWorkspaceShell({
   onHomeClick,
   headerTitle,
   headerDescription,
+  headerContextPills = [],
+  searchValue = '',
+  onSearchChange,
+  searchResults = [],
+  onSearchSelect,
   children,
 }) {
   const navigate = useNavigate();
@@ -313,13 +318,18 @@ export default function CRCWorkspaceShell({
           onLogout={onLogout}
           alerts={alerts}
           onAlertsClick={onAlertsClick}
-          alertButtonLabel={alertButtonLabel}
-          alertButtonUrgent={alertButtonUrgent}
-          title={headerTitle}
-          description={headerDescription}
-        />
+        alertButtonLabel={alertButtonLabel}
+        alertButtonUrgent={alertButtonUrgent}
+        title={headerTitle}
+        description={headerDescription}
+        contextPills={headerContextPills}
+        searchValue={searchValue}
+        onSearchChange={onSearchChange}
+        searchResults={searchResults}
+        onSearchSelect={onSearchSelect}
+      />
 
-        <main className="crc-shell__content">{children}</main>
+      <main className="crc-shell__content">{children}</main>
       </div>
     </div>
   );

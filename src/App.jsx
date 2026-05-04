@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { APP_BACKGROUND_IMAGE, APP_ICON, APP_NAME } from './config';
+import { APP_ICON, APP_NAME } from './config';
 import Login from './components/Login';
 import { auth } from './firebase';
 import CRCHome from './pages/CRCHome';
@@ -130,12 +130,9 @@ export default function App() {
   };
 
   const appStyle = {
-    backgroundImage: APP_BACKGROUND_IMAGE ? `url("${APP_BACKGROUND_IMAGE}")` : 'none',
-    backgroundSize: 'cover',
-    backgroundAttachment: 'fixed',
     minHeight: '100vh',
     width: '100vw',
-    backgroundColor: '#eaf1f7',
+    backgroundColor: '#edf3f8',
   };
 
   const isCrcUser = Boolean(user?.email?.endsWith('@hospital.com'));
@@ -169,37 +166,55 @@ export default function App() {
               <Navigate to="/home" replace />
             ) : (
               <div className="login-wrapper">
-                <div className="login-card" style={{ maxWidth: '560px', marginBottom: '18px' }}>
-                  <div className="dashboard-kicker">CRC operations workspace</div>
-                  <h1 className="dashboard-title" style={{ marginBottom: '10px' }}>
-                    {APP_NAME} CRC Workspace
-                  </h1>
-                  <p className="dashboard-subtitle">
-                    Safety review, ePRO visibility, patient coordination, side effect guidance, and patient
-                    disengagement prediction in one clinical operations workspace.
-                  </p>
-                <div className="info-banner" style={{ marginTop: '18px' }}>
-                  <strong>V1 boundary:</strong> The website is reserved for CRC workflows. Patient access belongs in
-                  the patient mobile app.
-                </div>
-                {authBootstrapWarning ? (
-                  <div
-                    className="info-banner"
-                    style={{
-                      marginTop: '14px',
-                      background: 'rgba(255, 248, 235, 0.96)',
-                      borderColor: '#f0d6a9',
-                      color: 'var(--warning)',
-                    }}
-                  >
-                    Saved session recovery took longer than expected, so the website continued to the sign-in
-                    screen. If you were expecting an automatic sign-in, refresh once after login services
-                    stabilize.
+                <div className="login-portal">
+                  <div className="login-card login-card--intro">
+                    <div className="dashboard-kicker">CRC operations workspace</div>
+                    <h1 className="dashboard-title login-portal__title">
+                      {APP_NAME} CRC Workspace
+                    </h1>
+                    <p className="dashboard-subtitle login-portal__subtitle">
+                      Safety review, ePRO visibility, patient coordination, side effect guidance, and patient
+                      disengagement prediction in one clinical operations workspace.
+                    </p>
+                    <div className="login-portal__infoGrid">
+                      <div className="login-portal__infoTile">
+                        <strong>CRC-only system</strong>
+                        <span>Separate from the patient mobile app to preserve role boundaries.</span>
+                      </div>
+                      <div className="login-portal__infoTile">
+                        <strong>Patient safety first</strong>
+                        <span>Structured monitoring, ePRO review, and safety triage in one desktop workflow.</span>
+                      </div>
+                      <div className="login-portal__infoTile">
+                        <strong>Study-bound data</strong>
+                        <span>Protocol-linked context, subject mapping, and CRC actions stay auditable.</span>
+                      </div>
+                    </div>
+                    <div className="info-banner login-portal__banner">
+                      <strong>V1 boundary:</strong> The website is reserved for CRC workflows. Patient access belongs in
+                      the patient mobile app.
+                    </div>
+                    {authBootstrapWarning ? (
+                      <div
+                        className="info-banner login-portal__warning"
+                        style={{
+                          background: 'rgba(255, 248, 235, 0.96)',
+                          borderColor: '#f0d6a9',
+                          color: 'var(--warning)',
+                        }}
+                      >
+                        Saved session recovery took longer than expected, so the website continued to the sign-in
+                        screen. If you were expecting an automatic sign-in, refresh once after login services
+                        stabilize.
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
+
+                  <div className="login-portal__signin">
+                    <Login type="crc" onLogin={() => {}} />
+                  </div>
+                </div>
               </div>
-              <Login type="crc" onLogin={() => {}} />
-            </div>
             )
           }
         />

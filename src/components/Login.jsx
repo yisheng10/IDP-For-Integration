@@ -159,35 +159,60 @@ export default function Login({ type, onLogin }) {
   }
 
   return (
-    <div className="login-card">
+    <div className="login-card login-card--auth">
       <div className="dashboard-kicker">{type === 'crc' ? 'CRC sign-in' : 'Patient access'}</div>
-      <h2 className="mt-0" style={{ marginBottom: '10px' }}>{type === 'crc' ? 'CRC Workspace Sign-in' : isReg ? 'Patient Sign Up' : 'Patient Login'}</h2>
-      <p className="section-note" style={{ marginBottom: '18px' }}>
+      <h2 className="mt-0 login-card__title">{type === 'crc' ? 'CRC Workspace Sign-in' : isReg ? 'Patient Sign Up' : 'Patient Login'}</h2>
+      <p className="section-note login-card__lead">
         {type === 'crc'
           ? 'Use your hospital email to enter the CRC workspace.'
           : 'Use the patient app account for questionnaires, side effects, appointments, and vitals.'}
       </p>
 
-      <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form onSubmit={handleAuth} className="login-form">
         {isReg && type === 'patient' ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <input type="text" placeholder="First name" value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
-              <input type="text" placeholder="Last name" value={lastName} onChange={(event) => setLastName(event.target.value)} required />
+            <div className="login-form__grid">
+              <div className="login-form__field">
+                <label>First name</label>
+                <input type="text" placeholder="First name" value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
+              </div>
+              <div className="login-form__field">
+                <label>Last name</label>
+                <input type="text" placeholder="Last name" value={lastName} onChange={(event) => setLastName(event.target.value)} required />
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <select value={gender} onChange={(event) => setGender(event.target.value)} required>
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-              <input type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />
+            <div className="login-form__grid">
+              <div className="login-form__field">
+                <label>Gender</label>
+                <select value={gender} onChange={(event) => setGender(event.target.value)} required>
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="login-form__field">
+                <label>Date of birth</label>
+                <input type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />
+              </div>
             </div>
           </>
         ) : null}
 
-        <input type="email" placeholder={type === 'crc' ? 'name@hospital.com' : 'patient@example.com'} value={email} onChange={(event) => setEmail(event.target.value)} required />
-        <input type="password" placeholder="Enter password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        <div className="login-form__field">
+          <label>Email address</label>
+          <input
+            type="email"
+            placeholder={type === 'crc' ? 'name@hospital.com' : 'patient@example.com'}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="login-form__field">
+          <label>Password</label>
+          <input type="password" placeholder="Enter password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        </div>
 
         <button className={`btn ${type === 'crc' ? 'btn-primary' : 'btn-success'}`}>
           {isReg ? 'Create account' : 'Continue'}
@@ -210,7 +235,11 @@ export default function Login({ type, onLogin }) {
         >
           {isReg ? 'Already registered? Log in instead' : 'New here? Create a patient account'}
         </p>
-      ) : null}
+      ) : (
+        <div className="section-note login-card__footnote">
+          Use your approved study email. Patient sign-in belongs in the patient mobile app, not this CRC website.
+        </div>
+      )}
     </div>
   );
 }
