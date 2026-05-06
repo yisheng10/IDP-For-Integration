@@ -3750,3 +3750,268 @@ eady calculation.
     - `src/components/PatientList.jsx`
     - `src/pages/CRCHome.jsx`
   - full-repo `npm run lint` still reports unrelated errors from virtualenvs, generated assets, and subtrees outside the CRC refinement scope
+
+## 2026-05-04 - CRC precision intelligence second-pass density and login refinement
+
+- Continued the CRC-only `Precision Intelligence Workspace` refinement to address remaining layout-density issues reported after manual browser review.
+- Reworked the CRC login experience to align more closely with direction 3:
+  - kept a CRC-only desktop portal layout
+  - tightened the split portal structure so the brand/illustration panel and sign-in panel feel like one framed workspace
+  - changed the CRC sign-in copy to `Welcome back`
+  - added a real `Remember me` toggle using Firebase local vs session persistence
+  - added CRC `Forgot password?` email reset support through Firebase Auth
+- Reworked `Patients` to reduce horizontal crowding:
+  - narrowed the analytical roster into four stable columns
+  - moved subject mapping into the subject column instead of keeping a fifth wide status column
+  - reduced the chance of the roster/workspace composition forcing horizontal overflow on desktop
+- Rebuilt `Patient workspace / Study Coordination` into a single right-side workspace instead of multiple competing wide grids:
+  - kept one patient workspace shell with `Overview` and `Study Coordination`
+  - moved study coordination into one composed layout:
+    - main configuration panel
+    - assigned-trial summary aside
+    - recent vitals aside
+    - appointments aside
+  - reduced verbose copy so the workspace reads more like a clinical operations surface and less like a documentation page
+- Densified `PatientEditMenu` itself:
+  - grouped fields into `Identity`, `CRC ownership`, and `Trial assignment`
+  - kept only existing real fields and no mockup-only fake controls
+- Explicitly still did not add unsupported direction-3-looking features:
+  - no true global multi-source search
+  - no `Documents / Notes / Tasks`
+  - no risk/status taxonomy columns that TrialLight does not currently own
+  - no expanded resource library backend
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for:
+    - `src/App.jsx`
+    - `src/components/Login.jsx`
+    - `src/components/PatientList.jsx`
+    - `src/components/PatientEditMenu.jsx`
+    - `src/pages/CRCHome.jsx`
+
+## 2026-05-04 - CRC direction 3 completion pass (Patients / Guidance / Notes / Tasks / branding)
+
+- Continued the CRC-only UI/UX refinement toward `CRC_UI_DIRECTION_MOCKUPS_SPEC.md` direction 3 `Precision Intelligence Workspace`.
+- Kept the locked boundary:
+  - CRC web only
+  - patient app untouched
+  - no patient-facing disengagement exposure
+  - no new unbounded Firebase queries
+- Added CRC website brand assets:
+  - introduced a dedicated SVG `TrialLight CRC` brand mark / wordmark for the CRC website shell and login portal
+  - added a dedicated CRC favicon and wired it into:
+    - `index.html`
+    - `src/config.js`
+    - `public/notification-sw.js`
+- Rebuilt the CRC login portal closer to direction 3:
+  - split intro/auth layout retained and tightened
+  - login left panel now uses CRC-specific brand assets and a dedicated clinical-research illustration
+  - kept `Welcome back`, `Remember me`, and real CRC `Forgot password?`
+- Removed the low-value top-header pills from the CRC website shell:
+  - `CRC-only surface`
+  - `Patient safety first`
+  - `Study-bound data`
+- Reworked shell ratio and desktop space usage:
+  - compressed the top workspace bar
+  - reduced shell chrome overhead
+  - increased the visible working area for main CRC tasks
+  - kept desktop layouts focused on `1366 / 1536 / 1920`
+- Rebuilt `Patients` into a direction-3-style master-detail workspace:
+  - left side = dense patient roster
+  - right side = pinned patient workspace
+  - selecting a patient no longer requires scrolling to the bottom of the page to see patient detail
+- Kept `risk` out of the `Patients` page and left it only in `Patient Disengagement Prediction`.
+- Added front-end-derived patient workflow indicators without changing Firestore schema:
+  - `Workflow Status`
+  - `Next Task`
+  - derived from existing incidents, ePRO, subject mapping, protocol assignment, and CRC ownership only
+- Expanded the patient workspace tabs to:
+  - `Overview`
+  - `Vitals`
+  - `Safety`
+  - `ePRO`
+  - `Notes`
+  - `Tasks`
+  - `Study Coordination`
+- Added real CRC-only `Notes` functionality:
+  - Firestore collection: `users/{uid}/crc_notes/{noteId}`
+  - supports create / edit / delete with confirmation
+  - not exposed to the patient app
+- Added real CRC-only `Tasks` functionality:
+  - Firestore collection: `users/{uid}/crc_tasks/{taskId}`
+  - supports create / mark done / reopen / delete with confirmation
+  - not exposed to the patient app
+- Reworked `Study Coordination` into a clearer operational layout:
+  - main patient configuration area
+  - separate aside for assigned trial summary, recent vitals, and appointments
+  - removed the prior oversized competing card layout that wasted space
+- Reworked `Side Effect Guidance` into a fixed two-column CRC workspace:
+  - left = docked conversation area
+  - right = pinned patient / protocol / CTCAE / recent safety context
+  - the input area remains visible without scrolling down the full page first
+- Cleaned visible text issues that were degrading the perceived UI quality:
+  - replaced corrupted separator glyphs in roster/guidance-related UI strings
+  - removed no-longer-used context-pill rendering from the shell/topbar path
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for:
+    - `src/App.jsx`
+    - `src/components/CRCWorkspaceShell.jsx`
+    - `src/components/Login.jsx`
+    - `src/components/PatientEditMenu.jsx`
+    - `src/components/PatientList.jsx`
+    - `src/components/PatientNotesPanel.jsx`
+    - `src/components/PatientTasksPanel.jsx`
+    - `src/components/TopNavbar.jsx`
+    - `src/components/TrialLightCrcBrand.jsx`
+    - `src/components/TrialLightCrcIllustration.jsx`
+  - `src/components/GeminiChatbot.jsx`
+  - `src/pages/CRCHome.jsx`
+
+## 2026-05-04 - CRC direction 3 corrective pass (roster-first patients workspace)
+
+- Corrected the CRC web `Patients` interaction model after the prior split-view pass proved too cramped and visually unstable.
+- Locked `Patients` into a roster-first flow:
+  - opening `Patients` now shows the roster as the primary view
+  - selecting a patient now switches the full main workspace into `Patient Workspace`
+  - the UI no longer relies on keeping roster and workspace visible at the same time
+- Tightened the CRC shell ratio again:
+  - reduced top workspace-bar height
+  - returned more vertical space to the actual task surfaces
+  - kept desktop-only direction 3 framing
+- Refined patient workspace behavior:
+  - `Patient Workspace` now uses a dedicated full-width shell once a patient is selected
+  - `Back to roster` explicitly clears the selected patient route state
+  - patient tab switches now preserve the selected patient in the URL instead of silently dropping the patient context
+- Reduced clutter in the patient workspace:
+  - removed the visible `Delete patient` action from the configuration surface
+  - kept the configuration focused on real CRC coordination fields only
+- Simplified the roster row treatment:
+  - clicking a roster row always opens the patient workspace
+  - removed the extra `Open workspace` pill from the roster action column
+  - kept `Workflow Status` and `Next Task` as front-end-derived fields based only on existing data
+- Further compressed the docked `Side Effect Guidance` workspace so the message area and composer fit the first screen more predictably on desktop.
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for:
+    - `src/pages/CRCHome.jsx`
+    - `src/components/PatientList.jsx`
+    - `src/components/PatientEditMenu.jsx`
+    - `src/components/TopNavbar.jsx`
+- 2026-05-04: Applied a direction-3 density pass for CRC web only. Tightened the shell ratio, removed sidebar outer spacing and rounded edges, reduced header height, compressed Today card spacing, made Patients roster denser, kept Patients roster-first with full Patient Workspace after selection, pushed Patient Workspace tabs toward direction-3 card composition, compressed Side Effect Guidance to prioritize first-screen input, and forced ePRO summary metrics into a single-row desktop layout.
+
+## 2026-05-04 - CRC direction 3 corrective pass (sidebar collapse, header spacing, login emphasis)
+
+- Removed the redundant `Today` section subheader so the page no longer repeats the same introduction under the main top bar.
+- Tightened the CRC shell again to reduce the gap between the page header and the first actionable content block.
+- Added a final corrective CSS pass for the sidebar:
+  - compressed the expanded sidebar so all sections can fit on a normal desktop height without scrolling down to `Resources`
+  - fixed the collapsed sidebar layout so the retract state no longer leaves the navigation visually broken
+  - restored icon contrast so active/collapsed sidebar icons do not wash out into all-white marks
+- Updated the CRC login experience to emphasize the two core intelligence surfaces:
+  - `Side Effect Guidance`
+  - `Patient Disengagement Prediction`
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for:
+    - `src/App.jsx`
+    - `src/components/Login.jsx`
+  - `src/pages/CRCHome.jsx`
+  - `src/components/CRCWorkspaceShell.jsx`
+  - `src/components/TopNavbar.jsx`
+
+## 2026-05-05 - CRC direction 3 corrective pass (sidebar fit, WhatsApp-style guidance timestamps, tighter shell)
+
+- Continued the CRC-only `Direction 3` refinement with a stricter desktop-density pass instead of adding new product scope.
+- Cleaned the CRC sidebar source structure:
+  - kept only one visible navigation group
+  - ensured the visible sequence is now `Today / Patients / Safety / Side Effect Guidance / Patient Disengagement Prediction / ePRO / Protocols / Resources`
+  - removed extra badge/description noise from the sidebar data layer
+- Tightened the sidebar visual fit so the full navigation can be scanned without scrolling to reach `Resources` on a normal desktop viewport:
+  - reduced top spacing above `WORKSPACE`
+  - reduced nav row height
+  - removed the last remaining extra shell padding
+  - corrected collapsed-state spacing and icon alignment
+- Fixed the icon contrast issue for:
+  - `Side Effect Guidance`
+  - `Patient Disengagement Prediction`
+  so they no longer default to all-white inactive icons and instead match the rest of the navigation system.
+- Tightened page shell spacing again:
+  - reduced the gap between the sticky page header and the first content block
+  - compressed top bar typography and control heights
+  - reduced section-to-section spacing across the main CRC workspace
+- Reduced oversized desktop typography on the `Protocols` summary cards so long values like `None selected` and `Not assigned` no longer dominate the section.
+- Forced the `ePRO` top metrics into a single desktop row:
+  - `Pending trials`
+  - `Pending patient drafts`
+  - `Released today`
+  - `Customized drafts`
+- Added WhatsApp-like time markers inside `Side Effect Guidance`:
+  - each user/model chat bubble now shows a message timestamp
+  - daily separator chips now appear above grouped messages
+  - the last 3 days use weekday labels
+  - anything older switches to `DD/MM/YYYY`
+- Kept the guidance implementation inside the existing loaded message history only:
+  - no new Firestore listeners
+  - no new cross-collection reads
+  - no patient-app exposure changes
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for:
+    - `src/pages/CRCHome.jsx`
+    - `src/components/GeminiChatbot.jsx`
+    - `src/components/CRCWorkspaceShell.jsx`
+    - `src/components/EproReviewWorkspace.jsx`
+    - `src/components/ProtocolManager.jsx`
+
+## 2026-05-05 - CRC hosting release prep
+
+- Prioritized supervisor-demo readiness over additional UI refinement.
+- Rebuilt the CRC web bundle from the current root workspace state before release.
+- Kept the deployment scope limited to CRC Hosting only:
+  - no patient app changes
+  - no patient Hosting deployment
+  - no additional remote data migration in this step
+- Known demo-state caveats intentionally left visible for now:
+  - `Patient Disengagement Prediction` may still depend on current Firestore summary visibility
+  - `ePRO` review queue and mirrored record visibility may still be partially degraded
+
+## 2026-05-05 - CRC workspace startup hotfix
+
+- Fixed a CRC website startup crash after sign-in:
+  - `CRCHome.jsx` was still calling `orderBy(...)`
+  - but the Firestore import list no longer included `orderBy`
+- Result:
+  - the CRC workspace can boot again after successful login instead of failing with `Runtime error: orderBy is not defined`
+- Follow-up:
+  - rebuild CRC bundle
+  - redeploy CRC Hosting so the hotfix reaches the live supervisor demo site
+
+## 2026-05-06 - CRC and patient web stabilization (local only)
+
+- Fixed the CRC `Patient Disengagement Prediction` fallback query so it no longer crashes when the Firestore mirror is empty:
+  - removed the invalid `collectionGroup(... where(documentId(), '==', 'current'))` query
+  - kept the query bounded with `limit()`
+  - now filters `doc.id === 'current'` on the client after the bounded snapshot returns
+- Hardened the CRC `ePRO` workspace for degraded backend states:
+  - summary metrics now fall back to `0` instead of corrupted placeholder characters
+  - queue-service failures now render a friendly unavailable state instead of surfacing raw backend text
+  - cleaned malformed separators inside review metadata rows
+- Updated the dropout GitHub Actions workflow locally:
+  - daily schedule changed to `19:00 UTC`, which is `03:00 Asia/Kuala_Lumpur`
+  - added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`
+  - added explicit checkout of `yisheng10/Patient-Dropout-Prediction` using `DROPOUT_REPO_PAT`
+  - added `DROPOUT_REPO_PAT` to required secret validation
+- Verified the patient web build chain locally without deploying:
+  - `expo export --platform web --output-dir web-build` succeeds when run outside the sandbox restriction
+  - fixed `MyClinicalApp2/src/firebase.js` so Expo web now receives build-time inlined `EXPO_PUBLIC_FIREBASE_*` values instead of trying to read dynamic `process.env[name]` at runtime
+  - verified the exported `web-build` bundle now contains the concrete Firebase config values instead of an unresolved runtime env lookup
+  - this confirms the patient blank-screen root cause is the old deployed bundle plus the previous dynamic-env web boot bug, not the patient login flow itself
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for:
+    - `src/services/dropoutService.js`
+    - `src/components/EproReviewWorkspace.jsx`
+    - `src/services/eproReviewService.js`
+  - patient local web export passed:
+    - `npm.cmd --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web`

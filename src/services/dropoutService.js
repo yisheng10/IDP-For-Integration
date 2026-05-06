@@ -1,4 +1,4 @@
-import { collectionGroup, doc, documentId, getDoc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collectionGroup, doc, getDoc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import { DROPOUT_RUNTIME } from '../config';
 import { supabase } from '../supabaseClient';
@@ -244,21 +244,22 @@ export function subscribeToAllDropoutPredictionSnapshots(onUpdate, onError, opti
   );
   const snapshotQuery = query(
     collectionGroup(db, 'dropout_predictions'),
-    where(documentId(), '==', 'current'),
     orderBy('published_at', 'desc'),
     limit(safeLimit)
   );
   return onSnapshot(
     snapshotQuery,
     (snapshot) => {
-      const rows = snapshot.docs.map((entry) => {
-        const userDoc = entry.ref.parent.parent;
-        return {
-          id: entry.id,
-          userId: userDoc?.id || '',
-          ...entry.data(),
-        };
-      });
+      const rows = snapshot.docs
+        .filter((entry) => entry.id === 'current')
+        .map((entry) => {
+          const userDoc = entry.ref.parent.parent;
+          return {
+            id: entry.id,
+            userId: userDoc?.id || '',
+            ...entry.data(),
+          };
+        });
       onUpdate(rows);
     },
     onError
