@@ -1733,3 +1733,15 @@
 - Existing warning retained:
   - the CRC bundle still emits the non-blocking large chunk warning during build
 
+## 2026-05-06 - Dropout precompute workflow schedule and checkout fix
+
+- Updated `.github/workflows/dropout-precompute.yml` on `main` so the daily dropout publish workflow can run from the default branch.
+- The workflow now:
+  - runs at `03:00` Asia/Kuala_Lumpur via cron `0 19 * * *` in GitHub Actions UTC time
+  - explicitly checks out the private `Patient-Dropout-Prediction` repository into `Patient-Dropout-Prediction/`
+  - requires the `DROPOUT_REPO_PAT` secret in addition to the existing Supabase and Firebase secrets
+  - upgrades to `actions/checkout@v5` and `actions/setup-python@v6`
+  - verifies the dropout workspace files before installing dependencies
+  - uses `deploy_assets/checkpoints_honest_v3` as the checkpoints directory
+- This change only updates the GitHub Actions automation path and does not deploy Firebase Hosting or Supabase functions.
+
