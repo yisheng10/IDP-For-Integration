@@ -4015,3 +4015,86 @@ eady calculation.
     - `src/services/eproReviewService.js`
   - patient local web export passed:
     - `npm.cmd --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web`
+
+## 2026-05-06 - Dropout workflow and patient web stabilization follow-up (local only)
+
+- Hardened the scheduled dropout GitHub Actions workflow without changing any model logic:
+  - kept the schedule at `0 19 * * *` so the job runs at `03:00 AM` Asia/Kuala_Lumpur
+  - corrected workflow env paths to use the checked-out dropout repo root:
+    - `deploy_assets/data/triallight_dropout_testing_v35subjectid.csv`
+    - `deploy_assets/checkpoints_honest_v3`
+  - upgraded the file preflight to fail early with explicit missing-path output instead of a later pandas `FileNotFoundError`
+- Tightened the CRC `Patient Disengagement Prediction` empty-state behavior:
+  - if no published summary and no bounded fallback rows are available, the panel now renders a product-facing empty state instead of surfacing engineering recovery instructions
+  - removed the "run the workflow" style copy from the visible CRC panel
+- Cleaned protocol upload messaging in the CRC web app:
+  - successful upload now reports `Added to Trial Library. Guidance indexing will continue in the background.`
+  - dropout static-context extraction failures are shown only as a secondary warning
+  - added a short UI note explaining that the guidance index is used by `Side Effect Guidance` for fast protocol search
+- Improved patient web login visibility without changing patient app business logic:
+  - patient login now has inline web-visible `error` and `info` messages
+  - sign-in and forgot-password actions now show loading/disabled states
+  - web no longer depends only on `Alert.alert(...)` for auth feedback
+- Added a patient workspace error boundary for the web surface:
+  - login success + patient-home crash now shows a visible `Patient workspace error`
+  - includes `Back to sign-in` and `Reload workspace`
+- Hardened `PatientHome` startup subscriptions:
+  - added explicit error callbacks for profile, vitals, appointments, alerts, ePRO, side-effect reports, and assigned trial template subscriptions where supported
+  - failed patient-home data streams now degrade to empty state plus a visible notice instead of silently risking a full-page crash
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for the edited CRC and patient JS files (the Expo `app/index.tsx` path is ignored by the current root ESLint config, but the patient web export below compiled it successfully)
+  - `npm.cmd --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web` passed after allowing local Metro child-process spawning outside the sandbox
+
+## 2026-05-07 - Read-safe CRC and patient fallback stabilization (local only)
+
+- Reduced CRC read pressure by tightening global listener windows and gating the remaining cross-patient feeds by active section:
+  - lowered the CRC roster cap to `60`
+  - lowered global alert, mirrored ePRO, and incident windows to `30`
+  - kept heavy listeners off sections that do not need them
+- Unified the CRC top-right `Urgent` button with the same serious-incident signal used by `Safety`:
+  - the badge now reflects open `incident_records` with `severity == serious`
+  - the Today urgent panel now opens serious incidents instead of treating unread alert threads as the primary urgent source
+- Clarified patient-to-disengagement mapping language in the CRC workspace:
+  - `mapped subject ID` now explicitly states that it is only the canonical subject mapping used by CRC-only disengagement prediction
+  - the helper copy now states that it does not affect patient login or general CRC profile management
+- Hardened patient side-effect fallback severity handling:
+  - expanded respiratory emergency keywords to include `breathing difficulty`, `difficulty in breathing`, and `breathless`
+  - fallback triage is now more conservative when AI guidance is unavailable
+- Softened disengagement empty states so missing or unreadable snapshots no longer surface engineering-heavy recovery copy inside the CRC panel
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - targeted `eslint` passed for:
+    - `src/pages/CRCHome.jsx`
+    - `src/services/incidentService.js`
+    - `src/services/appointmentService.js`
+    - `src/components/PatientEditMenu.jsx`
+    - `src/components/DropoutRiskPanel.jsx`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/appointmentService.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/firebaseFunctionHttp.js`
+  - `npm.cmd --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web` passed after allowing local Metro child-process spawning outside the sandbox
+
+## 2026-05-07 18:41:52
+
+- Restored local data visibility after the previous read-safe tightening hid legacy records:
+  - CRC `users` subscriptions no longer require `role == patient/crc` at query time
+  - legacy user records now fall back to hospital-email heuristics when `role` is missing
+  - legacy profile field aliases are normalized back into `protocolId`, `protocolName`, `primary_crc_id`, and `subject_id`
+- Relaxed CRC incident loading so legacy incidents without `updated_at` are not excluded:
+  - `incident_records` now load through a bounded `limit(...)` query
+  - records are sorted client-side by `updated_at || created_at`
+- Hardened assigned-trial fallback on both CRC and patient paths:
+  - if a stored `protocolId` no longer resolves, the app now falls back to `protocolName`
+  - snake_case protocol field aliases are also accepted in the patient web template loader
+- Restored patient home profile compatibility:
+  - patient web now accepts `protocol_id`, `protocol_name`, and `protocol_url` legacy profile fields when present
+- Verification:
+  - `npm.cmd run build:crc` passed
+  - `npm.cmd --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web` passed
+  - targeted `eslint` passed for:
+    - `src/pages/CRCHome.jsx`
+    - `src/services/incidentService.js`
+    - `src/services/trialTemplateService.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/trialTemplateService.js`

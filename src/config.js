@@ -1,5 +1,5 @@
 export const APP_NAME = 'TrialLight';
-export const APP_ICON = 'icon.png';
+export const APP_ICON = 'triallight-crc-favicon.svg';
 export const APP_BACKGROUND_IMAGE = 'Background.jpg';
 
 export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';

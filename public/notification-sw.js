@@ -12,8 +12,8 @@ self.addEventListener('push', (event) => {
   const options = {
     body: payload.body || 'A new CRC incident requires attention.',
     data: payload.data || {},
-    icon: '/icon.png',
-    badge: '/icon.png',
+    icon: '/triallight-crc-favicon.svg',
+    badge: '/triallight-crc-favicon.svg',
   };
 
   event.waitUntil(self.registration.showNotification(title, options));

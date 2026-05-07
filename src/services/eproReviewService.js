@@ -17,6 +17,16 @@ async function getFirebaseIdToken() {
   return currentUser.getIdToken();
 }
 
+function normalizeEdgeFunctionError(message) {
+  const raw = String(message || '').trim();
+
+  if (raw.includes('unexpected "iss" claim value')) {
+    return 'The live CRC ePRO review service is temporarily unavailable.';
+  }
+
+  return raw || 'Unable to reach the ePRO review service.';
+}
+
 async function callEdgeFunction(path, body) {
   const token = await getFirebaseIdToken();
   let response;
@@ -34,14 +44,14 @@ async function callEdgeFunction(path, body) {
   } catch (error) {
     const message = String(error?.message || error || '');
     if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
-      throw new Error('Unable to reach the ePRO review service from this local CRC preview. The deployed Supabase function must allow this local preview origin.');
+      throw new Error('The live CRC ePRO review service is temporarily unavailable.');
     }
     throw error;
   }
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || 'Unable to reach the ePRO review service.');
+    throw new Error(normalizeEdgeFunctionError(payload.error));
   }
   return payload;
 }

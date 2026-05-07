@@ -22,7 +22,6 @@ export default function TopNavbar({
   alertButtonUrgent = false,
   title,
   description,
-  contextPills = [],
   searchValue = '',
   onSearchChange,
   searchPlaceholder = 'Search loaded patients',
@@ -98,15 +97,6 @@ export default function TopNavbar({
             <h1 className="topnav__title">{title}</h1>
             <p className="topnav__description">{description}</p>
           </div>
-          {contextPills.length ? (
-            <div className="topnav__contextRow">
-              {contextPills.map((pill) => (
-                <span key={pill} className="topnav__contextPill">
-                  {pill}
-                </span>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         <div className="topnav__searchWrap" ref={searchRef}>
@@ -139,7 +129,7 @@ export default function TopNavbar({
                   >
                     <div className="topnav__searchResultTitle">{result.nickname || result.email || 'Unnamed patient'}</div>
                     <div className="topnav__searchResultMeta">
-                      {result.subject_id || result.subjectId || 'No subject ID'} · {result.primary_crc_name || 'Unassigned CRC'}
+                      {(result.subject_id || result.subjectId || 'No subject ID') + ' • ' + (result.primary_crc_name || 'Unassigned CRC')}
                     </div>
                   </button>
                 ))

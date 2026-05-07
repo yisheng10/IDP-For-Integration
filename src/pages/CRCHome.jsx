@@ -1,17 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   collection,
   collectionGroup,
-  deleteDoc,
   doc,
-  documentId,
   getDoc,
   limit,
   onSnapshot,
   orderBy,
   query,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
@@ -22,6 +19,8 @@ import IncidentDetailModal from '../components/IncidentDetailModal';
 import ProtocolManager from '../components/ProtocolManager';
 import PatientList from '../components/PatientList';
 import PatientEditMenu from '../components/PatientEditMenu';
+import PatientNotesPanel from '../components/PatientNotesPanel';
+import PatientTasksPanel from '../components/PatientTasksPanel';
 import EproReviewWorkspace from '../components/EproReviewWorkspace';
 import DropoutRiskPanel from '../components/DropoutRiskPanel';
 import SafetyInboxPanel from '../components/SafetyInboxPanel';
@@ -55,12 +54,20 @@ import {
 } from '../services/trialTemplateService';
 
 const AI_SUGGESTION_TITLE = 'AI Scheduler';
-const MAX_PATIENT_ROSTER_LIMIT = 200;
+const MAX_PATIENT_ROSTER_LIMIT = 60;
 const CRC_ROSTER_LIMIT = 80;
-const MAX_GLOBAL_ALERT_LIMIT = 200;
-const MAX_GLOBAL_EPRO_LIMIT = 200;
-const MAX_GLOBAL_INCIDENT_LIMIT = 200;
+const MAX_GLOBAL_ALERT_LIMIT = 30;
+const MAX_GLOBAL_EPRO_LIMIT = 30;
+const MAX_GLOBAL_INCIDENT_LIMIT = 30;
 const DEFAULT_WINDOW_PAGE_SIZE = 30;
+const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'notes', 'tasks', 'coordination'];
+
+function isHospitalEmailAddress(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .endsWith('@hospital.com');
+}
 
 const HOME_SECTIONS = {
   today: {
@@ -118,6 +125,11 @@ const LEGACY_HOME_SECTIONS = {
   'safety-inbox': 'safety',
   'protocol-library': 'protocols',
 };
+
+const PATIENT_SEARCH_SECTIONS = ['today', 'patients', 'side-effect-guidance', 'patient-disengagement', 'epro'];
+const PROTOCOL_CONTEXT_SECTIONS = ['patients', 'side-effect-guidance', 'protocols', 'resources'];
+const INCIDENT_MONITOR_SECTIONS = ['today', 'patients', 'safety', 'side-effect-guidance'];
+const EPRO_WINDOW_SECTIONS = ['today', 'patients', 'side-effect-guidance', 'epro'];
 
 export default function CRCHome({ user, onLogout }) {
   const location = useLocation();
@@ -186,6 +198,43 @@ export default function CRCHome({ user, onLogout }) {
     MAX_GLOBAL_INCIDENT_LIMIT + 1
   );
 
+  const activeHomeSection = useMemo(() => {
+    const sectionId = searchParams.get('section') || 'today';
+    return HOME_SECTIONS[sectionId] ? sectionId : 'today';
+  }, [searchParams]);
+  const activePatientId = useMemo(() => {
+    if (activeHomeSection !== 'patients') return '';
+    return searchParams.get('patient') || '';
+  }, [activeHomeSection, searchParams]);
+  const activePatientTab = useMemo(() => {
+    if (activeHomeSection !== 'patients') return 'overview';
+    const rawTab = searchParams.get('tab') || 'overview';
+    return PATIENT_WORKSPACE_TABS.includes(rawTab) ? rawTab : 'overview';
+  }, [activeHomeSection, searchParams]);
+  const activeSafetyTab = useMemo(() => {
+    if (activeHomeSection !== 'safety') return 'open';
+    const tabId = searchParams.get('tab');
+    return ['open', 'resolved', 'history'].includes(tabId) ? tabId : 'open';
+  }, [activeHomeSection, searchParams]);
+  const activeNavId = activeHomeSection;
+  const isPatientWorkspaceOpen = activeHomeSection === 'patients' && Boolean(selPatient);
+
+  const shouldLoadPatientRoster = PATIENT_SEARCH_SECTIONS.includes(activeHomeSection) || Boolean(activePatientId);
+  const shouldLoadCrcUsers = activeHomeSection === 'patients';
+  const shouldLoadProtocols = PROTOCOL_CONTEXT_SECTIONS.includes(activeHomeSection);
+  const shouldLoadPatientRosterSummary = ['today', 'patients'].includes(activeHomeSection);
+  const shouldLoadDisengagementSummary = ['today', 'patient-disengagement'].includes(activeHomeSection);
+  const shouldLoadSelectedPatientSummaries =
+    Boolean(selPatient?.id) && ['patients', 'side-effect-guidance'].includes(activeHomeSection);
+  const shouldLoadDropoutTestingSubjects =
+    activeHomeSection === 'patients' && activePatientTab === 'coordination' && Boolean(selPatient);
+  const shouldLoadUrgentAlertThreads = activeHomeSection === 'side-effect-guidance' || isAlertWidgetOpen;
+  const shouldLoadGlobalAlertHistory = activeHomeSection === 'safety';
+  const shouldLoadGlobalEproWindow = EPRO_WINDOW_SECTIONS.includes(activeHomeSection);
+  const shouldLoadIncidentWindow = INCIDENT_MONITOR_SECTIONS.includes(activeHomeSection);
+  const shouldLoadSelectedPatientDetail =
+    Boolean(selectedPatientId) && ['patients', 'side-effect-guidance'].includes(activeHomeSection);
+
   const prevAlertCountRef = useRef(0);
   const isFirstLoadRef = useRef(true);
   const foregroundNotificationRef = useRef(new Set());
@@ -199,6 +248,10 @@ export default function CRCHome({ user, onLogout }) {
   }, [user]);
 
   useEffect(() => {
+    if (!shouldLoadPatientRosterSummary) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     async function loadRosterSummary() {
@@ -219,9 +272,13 @@ export default function CRCHome({ user, onLogout }) {
     return () => {
       cancelled = true;
     };
-  }, [user.uid]);
+  }, [shouldLoadPatientRosterSummary, user.uid]);
 
   useEffect(() => {
+    if (!shouldLoadPatientRosterSummary) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     async function loadGlobalSummaries() {
@@ -247,9 +304,13 @@ export default function CRCHome({ user, onLogout }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [shouldLoadPatientRosterSummary]);
 
   useEffect(() => {
+    if (!shouldLoadDisengagementSummary) {
+      return undefined;
+    }
+
     let cancelled = false;
 
     async function loadDisengagementSummary() {
@@ -270,10 +331,10 @@ export default function CRCHome({ user, onLogout }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [shouldLoadDisengagementSummary]);
 
   useEffect(() => {
-    if (!selPatient?.id) {
+    if (!shouldLoadSelectedPatientSummaries || !selPatient?.id) {
       setSelectedAlertSummary(null);
       setSelectedIncidentSummary(null);
       return;
@@ -304,54 +365,102 @@ export default function CRCHome({ user, onLogout }) {
     return () => {
       cancelled = true;
     };
-  }, [selPatient?.id]);
+  }, [selPatient?.id, shouldLoadSelectedPatientSummaries]);
 
   useEffect(() => {
-    const patientsQuery = query(
-      collection(db, 'users'),
-      where('role', '==', 'patient'),
-      orderBy(documentId()),
-      limit(patientRosterLimit)
+    if (!shouldLoadPatientRoster) {
+      return undefined;
+    }
+
+    const patientsQuery = query(collection(db, 'users'), limit(patientRosterLimit));
+    const unsubscribe = onSnapshot(
+      patientsQuery,
+      (snapshot) => {
+        const rows = snapshot.docs
+          .map((entry) => {
+            const data = entry.data();
+            return {
+              id: entry.id,
+              ...data,
+              protocolId: data.protocolId || data.protocol_id || null,
+              protocolName: data.protocolName || data.protocol_name || data.protocol || null,
+              primary_crc_id: data.primary_crc_id || data.primaryCrcId || null,
+              primaryCrcId: data.primaryCrcId || data.primary_crc_id || null,
+              study_emergency_phone: data.study_emergency_phone || data.studyEmergencyPhone || null,
+              subject_id: data.subject_id || data.subjectId || null,
+            };
+          })
+          .filter((entry) => {
+            const role = String(entry.role || '').trim().toLowerCase();
+            if (role === 'patient') return true;
+            if (role === 'crc') return false;
+            return !isHospitalEmailAddress(entry.email);
+          })
+          .sort((left, right) => {
+            const leftLabel = String(left.nickname || left.email || left.id || '').toLowerCase();
+            const rightLabel = String(right.nickname || right.email || right.id || '').toLowerCase();
+            return leftLabel.localeCompare(rightLabel);
+          });
+        setPatients(rows);
+      },
+      (error) => {
+        console.error('Patient roster subscription failed:', error);
+        setPatients([]);
+      }
     );
-    const unsubscribe = onSnapshot(patientsQuery, (snapshot) => {
-      const rows = snapshot.docs
-        .map((entry) => ({ id: entry.id, ...entry.data() }))
-        .sort((left, right) => {
-          const leftLabel = String(left.nickname || left.email || left.id || '').toLowerCase();
-          const rightLabel = String(right.nickname || right.email || right.id || '').toLowerCase();
-          return leftLabel.localeCompare(rightLabel);
-        });
-      setPatients(rows);
-    });
     return () => unsubscribe();
-  }, [patientRosterLimit]);
+  }, [patientRosterLimit, shouldLoadPatientRoster]);
 
   useEffect(() => {
-    const crcQuery = query(
-      collection(db, 'users'),
-      where('role', '==', 'crc'),
-      orderBy(documentId()),
-      limit(CRC_ROSTER_LIMIT)
+    if (!shouldLoadCrcUsers) {
+      return undefined;
+    }
+
+    const crcQuery = query(collection(db, 'users'), limit(CRC_ROSTER_LIMIT));
+    const unsubscribe = onSnapshot(
+      crcQuery,
+      (snapshot) => {
+        const rows = snapshot.docs
+          .map((entry) => {
+            const data = entry.data();
+            return {
+              id: entry.id,
+              ...data,
+              primary_crc_id: data.primary_crc_id || data.primaryCrcId || null,
+              primaryCrcId: data.primaryCrcId || data.primary_crc_id || null,
+            };
+          })
+          .filter((entry) => {
+            const role = String(entry.role || '').trim().toLowerCase();
+            if (role === 'crc') return true;
+            if (role === 'patient') return false;
+            return isHospitalEmailAddress(entry.email);
+          })
+          .sort((left, right) => {
+            const leftLabel = String(left.nickname || left.email || left.id || '').toLowerCase();
+            const rightLabel = String(right.nickname || right.email || right.id || '').toLowerCase();
+            return leftLabel.localeCompare(rightLabel);
+          });
+        setCrcUsers(rows);
+      },
+      (error) => {
+        console.error('CRC roster subscription failed:', error);
+        setCrcUsers([]);
+      }
     );
-    const unsubscribe = onSnapshot(crcQuery, (snapshot) => {
-      const rows = snapshot.docs
-        .map((entry) => ({ id: entry.id, ...entry.data() }))
-        .sort((left, right) => {
-          const leftLabel = String(left.nickname || left.email || left.id || '').toLowerCase();
-          const rightLabel = String(right.nickname || right.email || right.id || '').toLowerCase();
-          return leftLabel.localeCompare(rightLabel);
-        });
-      setCrcUsers(rows);
-    });
     return () => unsubscribe();
-  }, []);
+  }, [shouldLoadCrcUsers]);
 
   useEffect(() => {
+    if (!shouldLoadProtocols) {
+      return undefined;
+    }
+
     const unsubscribe = subscribeToTrialTemplates((rows) => {
       setProtocolTemplates(rows);
     });
     return () => unsubscribe();
-  }, []);
+  }, [shouldLoadProtocols]);
 
   useEffect(() => {
     setPushState(getBrowserPushState());
@@ -386,7 +495,7 @@ export default function CRCHome({ user, onLogout }) {
     let cancelled = false;
 
     async function loadTestingSubjects() {
-      if (!selPatient) {
+      if (!shouldLoadDropoutTestingSubjects || !selPatient) {
         setDropoutTestingSubjects([]);
         return;
       }
@@ -411,9 +520,13 @@ export default function CRCHome({ user, onLogout }) {
     return () => {
       cancelled = true;
     };
-  }, [editingProtocolTemplate, selPatient, selectedProtocolTemplate]);
+  }, [editingProtocolTemplate, selPatient, selectedProtocolTemplate, shouldLoadDropoutTestingSubjects]);
 
   useEffect(() => {
+    if (!shouldLoadUrgentAlertThreads) {
+      return undefined;
+    }
+
     const unsubscribeActive = subscribeToUnresolvedAlerts((entries) => {
       setUrgentAlerts(entries);
       if (!isFirstLoadRef.current && entries.length > prevAlertCountRef.current) {
@@ -425,58 +538,81 @@ export default function CRCHome({ user, onLogout }) {
       }
       prevAlertCountRef.current = entries.length;
       isFirstLoadRef.current = false;
+    }, (error) => {
+      console.error('Urgent alert subscription failed:', error);
+      setUrgentAlerts([]);
     });
+
+    return () => {
+      unsubscribeActive();
+    };
+  }, [shouldLoadUrgentAlertThreads]);
+
+  useEffect(() => {
+    if (!shouldLoadGlobalAlertHistory) {
+      return undefined;
+    }
 
     const unsubscribeGlobal = subscribeToRecentAlertsGlobal((rows) => {
       setGlobalAlerts(rows);
     }, globalAlertLimit);
 
     return () => {
-      unsubscribeActive();
       unsubscribeGlobal();
     };
-  }, [globalAlertLimit]);
+  }, [globalAlertLimit, shouldLoadGlobalAlertHistory]);
 
   useEffect(() => {
+    if (!shouldLoadGlobalEproWindow) {
+      return undefined;
+    }
+
     const eproQuery = query(
       collectionGroup(db, 'epro_submissions'),
-      orderBy('updated_at', 'desc'),
       limit(globalEproLimit)
     );
-    const unsubscribe = onSnapshot(eproQuery, (snapshot) => {
-      const records = snapshot.docs
-        .map((entry) => {
-          const parentDoc = entry.ref.parent.parent;
-          const uid = parentDoc ? parentDoc.id : 'unknown';
-          return { id: entry.id, uid, ...entry.data() };
-        })
-        .sort((left, right) => {
-          const leftTime = new Date(left.submitted_at || left.updated_at || left.assigned_at || 0).getTime();
-          const rightTime = new Date(right.submitted_at || right.updated_at || right.assigned_at || 0).getTime();
-          return rightTime - leftTime;
-        });
-      setEproEntries(records);
-    });
+    const unsubscribe = onSnapshot(
+      eproQuery,
+      (snapshot) => {
+        const records = snapshot.docs
+          .map((entry) => {
+            const parentDoc = entry.ref.parent.parent;
+            const uid = parentDoc ? parentDoc.id : 'unknown';
+            return { id: entry.id, uid, ...entry.data() };
+          })
+          .sort((left, right) => {
+            const leftTime = new Date(left.submitted_at || left.updated_at || left.assigned_at || 0).getTime();
+            const rightTime = new Date(right.submitted_at || right.updated_at || right.assigned_at || 0).getTime();
+            return rightTime - leftTime;
+          });
+        setEproEntries(records);
+      },
+      (error) => {
+        console.error('Mirrored ePRO subscription failed:', error);
+        setEproEntries([]);
+      }
+    );
     return () => unsubscribe();
-  }, [globalEproLimit]);
+  }, [globalEproLimit, shouldLoadGlobalEproWindow]);
 
   useEffect(() => {
+    if (!shouldLoadIncidentWindow) {
+      return undefined;
+    }
+
     let isFirstIncidentLoad = true;
     const requestedIncidentId = searchParams.get('incident');
     const unsubscribe = subscribeToIncidentRecords(
       (records) => {
-        const visibleRecords = records.filter(
-          (incident) => !incident.primary_crc_id || incident.primary_crc_id === user.uid
-        );
-        setIncidents(visibleRecords);
+        setIncidents(records);
 
         if (isFirstIncidentLoad) {
-          visibleRecords.forEach((incident) => {
+          records.forEach((incident) => {
             foregroundNotificationRef.current.add(`${incident.id}:${incident.updated_at}`);
           });
           isFirstIncidentLoad = false;
         } else {
-          visibleRecords.forEach((incident) => {
+          records.forEach((incident) => {
             const signature = `${incident.id}:${incident.updated_at}`;
             const shouldNotify =
               !foregroundNotificationRef.current.has(signature) &&
@@ -489,7 +625,7 @@ export default function CRCHome({ user, onLogout }) {
         }
 
         if (requestedIncidentId) {
-          const matched = visibleRecords.find((incident) => incident.id === requestedIncidentId);
+          const matched = records.find((incident) => incident.id === requestedIncidentId);
           if (matched) setActiveIncident(matched);
         }
       },
@@ -497,10 +633,10 @@ export default function CRCHome({ user, onLogout }) {
       { limitCount: incidentWindowLimit }
     );
     return () => unsubscribe();
-  }, [incidentWindowLimit, searchParams, user.uid]);
+  }, [incidentWindowLimit, searchParams, shouldLoadIncidentWindow, user.uid]);
 
   useEffect(() => {
-    if (!selectedPatientId) {
+    if (!shouldLoadSelectedPatientDetail || !selectedPatientId) {
       setSelPatient(null);
       setPVitals([]);
       setPAppts([]);
@@ -526,11 +662,12 @@ export default function CRCHome({ user, onLogout }) {
       unsubscribeAppointments();
       unsubscribeAlerts();
     };
-  }, [globalAlertLimit, selectedPatientId]);
+  }, [globalAlertLimit, selectedPatientId, shouldLoadSelectedPatientDetail]);
 
-  const selectP = (patient) => {
+  const selectP = useCallback((patient) => {
     if (!patient) {
       setSelectedPatientId(null);
+      setSelPatient(null);
       setTempEmail('');
       setTempPrimaryCrcId('');
       setTempPrimaryCrcPhone('');
@@ -555,7 +692,7 @@ export default function CRCHome({ user, onLogout }) {
     setSuggestedReason('');
     setSuccessMsg('');
     purgeOldAppointments(patient.id);
-  };
+  }, [user.uid]);
 
   useEffect(() => {
     if (!selectedPatientId) return;
@@ -571,11 +708,6 @@ export default function CRCHome({ user, onLogout }) {
       window.alert('Patient loading...');
       setChatAlert(alert);
     }
-    setIsAlertWidgetOpen(true);
-  };
-
-  const handleOpenAlertWorkspace = () => {
-    setChatAlert(null);
     setIsAlertWidgetOpen(true);
   };
 
@@ -694,22 +826,6 @@ export default function CRCHome({ user, onLogout }) {
     }
   };
 
-  const handleDeletePatient = async () => {
-    if (!selPatient) return;
-    const confirmation = window.prompt(
-      `Warning: this will permanently delete patient "${selPatient.nickname}". Type "CONFIRM" to continue.`
-    );
-    if (confirmation !== 'CONFIRM') return;
-
-    try {
-      await deleteDoc(doc(db, 'users', selPatient.id));
-      window.alert(`Patient "${selPatient.nickname}" has been deleted.`);
-      selectP(null);
-    } catch (error) {
-      window.alert(`Error deleting patient: ${error.message}`);
-    }
-  };
-
   const schedule = async () => {
     try {
       await createAppointment(selPatient.id, newDate);
@@ -742,12 +858,15 @@ export default function CRCHome({ user, onLogout }) {
     return enrichedGlobalAlerts;
   }, [enrichedGlobalAlerts, pAlerts, selPatient]);
 
+  const derivedAssignedPatientCount = patients.filter(
+    (patient) => (patient.primary_crc_id || patient.primaryCrcId || '') === user.uid
+  ).length;
   const totalPatientCount = Number.isFinite(Number(patientRosterSummary?.totalPatients))
-    ? Number(patientRosterSummary.totalPatients)
+    ? Math.max(Number(patientRosterSummary.totalPatients), patients.length)
     : patients.length;
   const assignedPatientCount = Number.isFinite(Number(patientRosterSummary?.assignedPatients))
-    ? Number(patientRosterSummary.assignedPatients)
-    : patients.filter((patient) => (patient.primary_crc_id || patient.primaryCrcId || '') === user.uid).length;
+    ? Math.max(Number(patientRosterSummary.assignedPatients), derivedAssignedPatientCount)
+    : derivedAssignedPatientCount;
   const activeHistorySummary = selPatient ? selectedAlertSummary : globalAlertSummary;
   const activeIncidentSummary = selPatient ? selectedIncidentSummary : globalIncidentSummary;
   const canGoToNextPatientRosterPage = totalPatientCount > patientRosterPage * patientRosterPageSize;
@@ -773,10 +892,10 @@ export default function CRCHome({ user, onLogout }) {
     [eproEntries]
   );
   const actionableDisengagementCount = Number.isFinite(Number(disengagementSummary?.actionable_count))
-    ? Number(disengagementSummary.actionable_count)
+    ? Math.max(Number(disengagementSummary.actionable_count), 0)
     : 0;
   const scoredDisengagementCount = Number.isFinite(Number(disengagementSummary?.scored_count))
-    ? Number(disengagementSummary.scored_count)
+    ? Math.max(Number(disengagementSummary.scored_count), 0)
     : 0;
 
   const getStatusStyle = (status) => {
@@ -818,6 +937,80 @@ export default function CRCHome({ user, onLogout }) {
       })
       .slice(0, 50);
   }, [incidents, selPatient?.id]);
+  const selectedPatientAlertCount = selectedAlertSummary?.activeAlerts ?? pAlerts.length;
+  const inheritedVitalsPreview = useMemo(
+    () => describeInheritedVitals(editingProtocolTemplate?.vital_templates),
+    [editingProtocolTemplate]
+  );
+  const selectedProtocolName = editingProtocolTemplate?.name || selPatient?.protocolName || 'Not assigned';
+  const coordinationVitalsPreview = useMemo(() => pVitals.slice(0, 5), [pVitals]);
+  const coordinationAppointmentsPreview = useMemo(() => pAppts.slice(0, 5), [pAppts]);
+  const currentCrcDisplayName = crcName || user.email || 'CRC';
+
+  const patientRosterRows = useMemo(() => {
+    const incidentCounts = new Map();
+    const pendingEproCounts = new Map();
+
+    incidents.forEach((incident) => {
+      const linkedIds = Array.isArray(incident.linked_patient_ids) ? incident.linked_patient_ids : [];
+      if (incident.status === 'resolved') return;
+      linkedIds.forEach((patientId) => {
+        incidentCounts.set(patientId, (incidentCounts.get(patientId) || 0) + 1);
+      });
+    });
+
+    eproEntries.forEach((entry) => {
+      if (!entry?.uid) return;
+      if (String(entry.status || '').toLowerCase() === 'submitted') return;
+      pendingEproCounts.set(entry.uid, (pendingEproCounts.get(entry.uid) || 0) + 1);
+    });
+
+    return patients.map((patient) => {
+      const patientId = patient.id;
+      const openIncidentCount = incidentCounts.get(patientId) || 0;
+      const pendingPatientEproCount = pendingEproCounts.get(patientId) || 0;
+      const hasSubjectMap = Boolean(String(patient.subject_id || patient.subjectId || '').trim());
+      const hasProtocol = Boolean(String(patient.protocolName || patient.protocolId || '').trim());
+      const hasAssignedCrc = Boolean(String(patient.primary_crc_id || patient.primaryCrcId || '').trim());
+
+      let workflowStatus = 'Stable';
+      let workflowTone = 'success';
+      let nextTask = 'No immediate action';
+
+      if (openIncidentCount > 0) {
+        workflowStatus = 'Safety review';
+        workflowTone = 'danger';
+        nextTask = openIncidentCount === 1 ? 'Review open incident' : `Review ${openIncidentCount} open incidents`;
+      } else if (pendingPatientEproCount > 0) {
+        workflowStatus = 'ePRO pending';
+        workflowTone = 'warning';
+        nextTask = pendingPatientEproCount === 1 ? 'Review patient ePRO' : `Review ${pendingPatientEproCount} ePRO items`;
+      } else if (!hasSubjectMap) {
+        workflowStatus = 'Subject mapping';
+        workflowTone = 'brand';
+        nextTask = 'Map subject ID';
+      } else if (!hasProtocol) {
+        workflowStatus = 'Protocol setup';
+        workflowTone = 'warning';
+        nextTask = 'Assign protocol';
+      } else if (!hasAssignedCrc) {
+        workflowStatus = 'CRC assignment';
+        workflowTone = 'brand';
+        nextTask = 'Assign primary CRC';
+      }
+
+      return {
+        ...patient,
+        workflowStatus,
+        workflowTone,
+        nextTask,
+      };
+    });
+  }, [eproEntries, incidents, patients]);
+  const selectedPatientRosterRow = useMemo(
+    () => patientRosterRows.find((patient) => patient.id === selPatient?.id) || null,
+    [patientRosterRows, selPatient?.id]
+  );
 
   useEffect(() => {
     if (!activeIncident) return;
@@ -852,7 +1045,7 @@ export default function CRCHome({ user, onLogout }) {
         changed = true;
       } else if (legacyHash === 'study-coordination') {
         nextParams.set('section', 'patients');
-        nextParams.set('panel', 'coordination');
+        nextParams.set('tab', 'coordination');
         changed = true;
       } else if (legacyHash === 'epro') {
         nextParams.set('section', 'epro');
@@ -874,7 +1067,7 @@ export default function CRCHome({ user, onLogout }) {
       normalizedSection = rawFocus === 'dropout' ? 'patient-disengagement' : 'side-effect-guidance';
     } else if (rawSection === 'study-coordination') {
       normalizedSection = 'patients';
-      nextParams.set('panel', 'coordination');
+      nextParams.set('tab', 'coordination');
     } else if (LEGACY_HOME_SECTIONS[rawSection]) {
       normalizedSection = LEGACY_HOME_SECTIONS[rawSection];
     }
@@ -891,16 +1084,20 @@ export default function CRCHome({ user, onLogout }) {
 
     if (normalizedSection === 'patients') {
       const panel = nextParams.get('panel');
-      if (panel && panel !== 'coordination') {
+      const tab = nextParams.get('tab');
+      if (panel === 'coordination' && tab !== 'coordination') {
+        nextParams.set('tab', 'coordination');
+        changed = true;
+      }
+      if (panel) {
         nextParams.delete('panel');
         changed = true;
       }
-    } else if (nextParams.has('panel')) {
-      nextParams.delete('panel');
-      changed = true;
-    }
-
-    if (normalizedSection === 'safety') {
+      if (!PATIENT_WORKSPACE_TABS.includes(tab || 'overview')) {
+        nextParams.set('tab', 'overview');
+        changed = true;
+      }
+    } else if (normalizedSection === 'safety') {
       const tab = nextParams.get('tab');
       if (!['open', 'resolved', 'history'].includes(tab)) {
         nextParams.set('tab', 'open');
@@ -915,34 +1112,59 @@ export default function CRCHome({ user, onLogout }) {
     setSearchParams(nextParams, { replace: true });
   }, [location.hash, searchParams, setSearchParams]);
 
-  const activeHomeSection = useMemo(() => {
-    const sectionId = searchParams.get('section') || 'today';
-    return HOME_SECTIONS[sectionId] ? sectionId : 'today';
-  }, [searchParams]);
-  const activePatientPanel = activeHomeSection === 'patients' && searchParams.get('panel') === 'coordination'
-    ? 'coordination'
-    : 'summary';
-  const activeSafetyTab = useMemo(() => {
-    const tabId = searchParams.get('tab');
-    return ['open', 'resolved', 'history'].includes(tabId) ? tabId : 'open';
-  }, [searchParams]);
-  const activeNavId = activeHomeSection;
+  const openIncidents = useMemo(
+    () => incidents.filter((incident) => String(incident.status || '').toLowerCase() !== 'resolved'),
+    [incidents]
+  );
+  const urgentIncidentRows = useMemo(
+    () => openIncidents.filter((incident) => String(incident.severity || '').toLowerCase() === 'serious'),
+    [openIncidents]
+  );
+  const urgentIncidentCards = useMemo(
+    () =>
+      urgentIncidentRows.map((incident) => {
+        const linkedPatientId = Array.isArray(incident.linked_patient_ids) ? incident.linked_patient_ids[0] : null;
+        const linkedPatient =
+          patients.find((patient) => patient.id === linkedPatientId) ||
+          (Array.isArray(incident.linked_patients) ? incident.linked_patients[0] : null);
 
+        return {
+          ...incident,
+          patientName:
+            linkedPatient?.nickname ||
+            linkedPatient?.patient_name ||
+            incident.patient_name ||
+            'Unknown patient',
+          summary:
+            incident.reason ||
+            incident.title ||
+            incident.protocol_rule_summary ||
+            'Serious safety incident requires CRC review.',
+          occurredAt: incident.updated_at || incident.created_at || incident.timestamp || '',
+        };
+      }),
+    [patients, urgentIncidentRows]
+  );
   const openIncidentCount = useMemo(
-    () => globalIncidentSummary?.openIncidents ?? incidents.filter((incident) => incident.status !== 'resolved').length,
-    [globalIncidentSummary, incidents]
+    () => Math.max(Number(globalIncidentSummary?.openIncidents ?? 0), openIncidents.length),
+    [globalIncidentSummary, openIncidents.length]
   );
   const selectedPatientIncidentCount = useMemo(() => {
     if (!selPatient) return 0;
     return selectedIncidentSummary?.totalIncidents ?? incidents.filter((incident) => (incident.linked_patient_ids || []).includes(selPatient.id)).length;
   }, [incidents, selPatient, selectedIncidentSummary]);
-  const seriousActiveAlertCount = globalAlertSummary?.activeUrgentAlerts ?? urgentAlerts.filter((alert) => alert.status === 'unread').length;
-
-  const currentHeaderSection = HOME_SECTIONS[activeHomeSection];
-  const headerContextPills = useMemo(
-    () => ['CRC-only surface', 'Patient safety first', 'Study-bound data'],
-    []
+  const urgentIncidentCount = useMemo(
+    () => Math.max(Number(globalIncidentSummary?.openSeriousIncidents ?? 0), urgentIncidentRows.length),
+    [globalIncidentSummary, urgentIncidentRows.length]
   );
+
+  const currentHeaderSection = isPatientWorkspaceOpen
+    ? {
+        ...HOME_SECTIONS.patients,
+        title: 'Patient Workspace',
+        description: 'Review patient context, follow-up, ePRO, safety, and study coordination from one focused CRC workspace.',
+      }
+    : HOME_SECTIONS[activeHomeSection];
 
   const headerSearchResults = useMemo(() => {
     const queryText = rosterSearchQuery.trim().toLowerCase();
@@ -965,19 +1187,45 @@ export default function CRCHome({ user, onLogout }) {
       .slice(0, 6);
   }, [patients, rosterSearchQuery]);
 
-  const openWorkspaceSection = (section, { panel, tab } = {}) => {
+  useEffect(() => {
+    if (activeHomeSection !== 'patients') return;
+
+    if (!activePatientId) {
+      if (selectedPatientId || selPatient) {
+        selectP(null);
+      }
+      return;
+    }
+
+    const matchedPatient = patients.find((patient) => patient.id === activePatientId);
+    if (matchedPatient && matchedPatient.id !== selectedPatientId) {
+      selectP(matchedPatient);
+    }
+  }, [activeHomeSection, activePatientId, patients, selectedPatientId, selPatient, selectP]);
+
+  const openWorkspaceSection = (section, { tab, patientId, preservePatient = false } = {}) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('section', section);
     nextParams.delete('focus');
     if (section === 'safety') {
+      nextParams.delete('patient');
       nextParams.set('tab', tab || 'open');
+    } else if (section === 'patients') {
+      const resolvedPatientId =
+        patientId === null
+          ? ''
+          : patientId || (preservePatient ? selectedPatientId || selPatient?.id || '' : '');
+
+      if (resolvedPatientId) {
+        nextParams.set('patient', resolvedPatientId);
+        nextParams.set('tab', PATIENT_WORKSPACE_TABS.includes(tab || 'overview') ? (tab || 'overview') : 'overview');
+      } else {
+        nextParams.delete('patient');
+        nextParams.delete('tab');
+      }
     } else {
+      nextParams.delete('patient');
       nextParams.delete('tab');
-    }
-    if (section === 'patients' && panel === 'coordination') {
-      nextParams.set('panel', 'coordination');
-    } else {
-      nextParams.delete('panel');
     }
     setSearchParams(nextParams);
   };
@@ -995,14 +1243,14 @@ export default function CRCHome({ user, onLogout }) {
     {
       id: 'guidance',
       label: 'Support symptom triage',
-      value: seriousActiveAlertCount,
+      value: urgentIncidentCount,
       note:
-        seriousActiveAlertCount > 0
-          ? `${seriousActiveAlertCount} urgent alert${seriousActiveAlertCount > 1 ? 's are' : ' is'} visible for immediate follow-up.`
+        urgentIncidentCount > 0
+          ? `${urgentIncidentCount} serious safety case${urgentIncidentCount > 1 ? 's are' : ' is'} waiting for immediate CRC follow-up.`
           : 'Guidance workspace is ready for patient-level symptom support.',
       actionLabel: 'Open Guidance',
       onClick: () => openWorkspaceSection('side-effect-guidance'),
-      tone: seriousActiveAlertCount > 0 ? 'danger' : 'default',
+      tone: urgentIncidentCount > 0 ? 'danger' : 'default',
     },
     {
       id: 'epro',
@@ -1036,20 +1284,28 @@ export default function CRCHome({ user, onLogout }) {
     }, 40);
 
     return () => window.clearTimeout(timer);
-  }, [activeHomeSection, activePatientPanel]);
+  }, [activeHomeSection, activePatientTab]);
 
-  const openDropoutPatientWorkspace = (patient, panel = 'summary') => {
+  const openDropoutPatientWorkspace = (patient, tab = 'overview') => {
     if (patient) {
       selectP(patient);
     }
     openWorkspaceSection('patients', {
-      panel: panel === 'coordination' ? 'coordination' : undefined,
+      tab,
+      patientId: patient?.id || selectedPatientId || selPatient?.id || '',
+      preservePatient: true,
     });
   };
 
   const handleHeaderSearchSelect = (patient) => {
     selectP(patient);
-    openWorkspaceSection('patients');
+    openWorkspaceSection('patients', { patientId: patient.id, tab: 'overview' });
+  };
+
+  const handleOpenPatientWorkspace = (patient, tab = 'overview') => {
+    if (!patient) return;
+    selectP(patient);
+    openWorkspaceSection('patients', { patientId: patient.id, tab });
   };
 
   const handleOpenClinicalResource = async (filePath, bucket = 'pdfs') => {
@@ -1080,24 +1336,27 @@ export default function CRCHome({ user, onLogout }) {
     {
       title: 'Workspace',
       items: [
-        { id: 'today', label: 'Today', description: 'Shift overview', icon: 'dashboard', path: HOME_SECTIONS.today.path },
-        { id: 'patients', label: 'Patients', description: 'Roster', icon: 'patients', path: HOME_SECTIONS.patients.path },
-        { id: 'safety', label: 'Safety', description: 'Incidents & history', icon: 'safety', path: HOME_SECTIONS.safety.path },
-        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Patient-grounded AI', icon: 'guidance', badge: 'AI', emphasis: 'guidance', path: HOME_SECTIONS['side-effect-guidance'].path },
-        { id: 'patient-disengagement', label: 'Patient Disengagement Prediction', description: 'CRC only', icon: 'dropout', badge: 'CRC only', emphasis: 'dropout', path: HOME_SECTIONS['patient-disengagement'].path },
-        { id: 'epro', label: 'ePRO', description: 'Review queue', icon: 'epro', path: HOME_SECTIONS.epro.path },
-        { id: 'protocols', label: 'Protocols', description: 'Templates & PDFs', icon: 'protocol', path: HOME_SECTIONS.protocols.path },
-      ],
-    },
-    {
-      title: 'Reference',
-      items: [
-        { id: 'resources', label: 'Resources', description: 'CTCAE', icon: 'resources', path: HOME_SECTIONS.resources.path },
+        { id: 'today', label: 'Today', icon: 'dashboard', path: HOME_SECTIONS.today.path },
+        {
+          id: 'patients',
+          label: 'Patients',
+          icon: 'patients',
+          onClick: () => {
+            selectP(null);
+            openWorkspaceSection('patients');
+          },
+        },
+        { id: 'safety', label: 'Safety', icon: 'safety', path: HOME_SECTIONS.safety.path },
+        { id: 'side-effect-guidance', label: 'Side Effect Guidance', icon: 'guidance', emphasis: 'guidance', path: HOME_SECTIONS['side-effect-guidance'].path },
+        { id: 'patient-disengagement', label: 'Patient Disengagement Prediction', icon: 'dropout', emphasis: 'dropout', path: HOME_SECTIONS['patient-disengagement'].path },
+        { id: 'epro', label: 'ePRO', icon: 'epro', path: HOME_SECTIONS.epro.path },
+        { id: 'protocols', label: 'Protocols', icon: 'protocol', path: HOME_SECTIONS.protocols.path },
+        { id: 'resources', label: 'Resources', icon: 'resources', path: HOME_SECTIONS.resources.path },
       ],
     },
   ];
 
-  const headerAlertButtonLabel = enrichedAlerts.length > 0 ? `Urgent (${enrichedAlerts.length})` : 'Urgent';
+  const headerAlertButtonLabel = urgentIncidentCount > 0 ? `Urgent (${urgentIncidentCount})` : 'Urgent';
 
   return (
     <>
@@ -1154,13 +1413,12 @@ export default function CRCHome({ user, onLogout }) {
         navSections={navigationSections}
         activeNavId={activeNavId}
         alerts={enrichedAlerts}
-        onAlertsClick={handleOpenAlertWorkspace}
+        onAlertsClick={() => openWorkspaceSection('safety', { tab: 'open' })}
         alertButtonLabel={headerAlertButtonLabel}
-        alertButtonUrgent={enrichedAlerts.length > 0}
+        alertButtonUrgent={urgentIncidentCount > 0}
         onHomeClick={() => selectP(null)}
         headerTitle={currentHeaderSection.title}
         headerDescription={currentHeaderSection.description}
-        headerContextPills={headerContextPills}
         searchValue={rosterSearchQuery}
         onSearchChange={setRosterSearchQuery}
         searchResults={headerSearchResults}
@@ -1169,15 +1427,6 @@ export default function CRCHome({ user, onLogout }) {
         <div className="dashboard-surface">
           {activeHomeSection === 'today' ? (
             <section id="today" className="dashboard-section">
-              <div className="dashboard-section__header">
-                <div>
-                  <div className="dashboard-kicker">Today</div>
-                  <h2 className="dashboard-section__title">Today&apos;s overview</h2>
-                  <p className="section-note">
-                    Triage urgent work first, then move into patient-specific coordination, ePRO, and intelligence workspaces.
-                  </p>
-                </div>
-              </div>
               <div className="overview-grid">
                 <div className="overview-card">
                   <span>Assigned patients</span>
@@ -1232,11 +1481,11 @@ export default function CRCHome({ user, onLogout }) {
                     ))}
                   </div>
 
-                  <div className="info-banner today-focusCard">
-                    <div className="section-header section-header--tight">
-                      <div>
-                        <strong>Current patient focus</strong>
-                        <div className="section-note section-note--spaced">
+                <div className="info-banner today-focusCard">
+                  <div className="section-header section-header--tight">
+                    <div>
+                      <strong>Current patient focus</strong>
+                      <div className="section-note section-note--spaced">
                           {selPatient
                             ? `Pinned patient: ${selPatient.nickname}. Keep this context visible while moving across guidance, protocols, and study coordination.`
                             : 'No patient is pinned yet. Open Patients to select a roster entry and keep their study context visible.'}
@@ -1266,7 +1515,7 @@ export default function CRCHome({ user, onLogout }) {
                         <div className="workspace-actionStrip">
                           <button
                             className="btn btn-secondary"
-                            onClick={() => openWorkspaceSection('patients', { panel: 'coordination' })}
+                            onClick={() => openWorkspaceSection('patients', { patientId: selPatient.id, tab: 'coordination' })}
                           >
                             Open Study Coordination
                           </button>
@@ -1282,32 +1531,32 @@ export default function CRCHome({ user, onLogout }) {
                   </div>
                 </div>
 
-                <div className={`card workspace-card ${urgentAlerts.length ? 'utility-card--danger' : 'utility-card--calm'}`}>
+                <div className={`card workspace-card ${urgentIncidentCards.length ? 'utility-card--danger' : 'utility-card--calm'}`}>
                   <div className="section-header">
                     <div>
                       <h3>Urgent safety</h3>
                       <div className="section-note">
-                        Keep serious patient alerts visible from the Today workspace while triaging next steps.
+                        Keep serious safety incidents visible from the Today workspace while triaging next steps.
                       </div>
                     </div>
                   </div>
-                  {urgentAlerts.length ? (
+                  {urgentIncidentCards.length ? (
                     <div className="utility-list">
-                      {enrichedAlerts.map((alert) => (
-                        <div key={alert.id} className="utility-alert">
+                      {urgentIncidentCards.map((incident) => (
+                        <div key={incident.id} className="utility-alert">
                           <div>
-                            <div className="utility-alert__title">{alert.patientName}</div>
-                            <div className="utility-alert__body">{alert.reason}</div>
-                            <div className="utility-alert__meta">{new Date(alert.timestamp).toLocaleString()}</div>
+                            <div className="utility-alert__title">{incident.patientName}</div>
+                            <div className="utility-alert__body">{incident.summary}</div>
+                            <div className="utility-alert__meta">{new Date(incident.occurredAt).toLocaleString()}</div>
                           </div>
-                          <button onClick={() => handleNavAlertClick(alert)} className="btn btn-primary btn-small">
+                          <button onClick={() => handleOpenIncident(incident)} className="btn btn-primary btn-small">
                             Open
                           </button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="empty-panel">No urgent safety alerts are active right now.</div>
+                    <div className="empty-panel">No serious safety incidents are active right now.</div>
                   )}
                 </div>
               </div>
@@ -1316,296 +1565,486 @@ export default function CRCHome({ user, onLogout }) {
 
           {activeHomeSection === 'patients' ? (
             <section id="patients" className="dashboard-section">
-              <div className="dashboard-mainGrid">
-                <PatientList
-                  patients={patients}
-                  selectedPatientId={selectedPatientId}
-                  onSelect={selectP}
-                  countLabel={`${patients.length} loaded`}
-                  summaryNote={patientRosterSummaryNote}
-                  searchQuery={rosterSearchQuery}
-                  onSearchQueryChange={setRosterSearchQuery}
-                  showSearchInput={false}
-                  currentPage={patientRosterPage}
-                  pageSize={patientRosterPageSize}
-                  onPageChange={setPatientRosterPage}
-                  onPageSizeChange={(value) => {
-                    setPatientRosterPageSize(value);
-                    setPatientRosterPage(1);
-                  }}
-                  canGoNextPage={canGoToNextPatientRosterPage}
-                  footerContent={
-                    canGoToNextPatientRosterPage
-                      ? 'More patients may exist beyond the current loaded roster window.'
-                      : 'All currently loaded patients fit inside the current roster page window.'
-                  }
-                />
-
-                <div className="dashboard-column">
-                  <div className="card workspace-card">
-                    <div className="section-header">
-                      <div>
-                        <h3>{selPatient ? 'Patient workspace' : 'Choose a patient'}</h3>
-                        <div className="section-note">
-                          {selPatient
-                            ? 'Keep patient context visible while switching between quick handoff and deeper study coordination.'
-                            : 'Select a patient from the roster to load CRC handoff, trial assignment, and scheduling context.'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="workspace-tabRow" role="tablist" aria-label="Patient workspace views">
-                      <button
-                        type="button"
-                        className={`workspace-tabButton ${activePatientPanel === 'summary' ? 'workspace-tabButton--active' : ''}`}
-                        onClick={() => openWorkspaceSection('patients')}
-                      >
-                        Overview
-                      </button>
-                      <button
-                        type="button"
-                        className={`workspace-tabButton ${activePatientPanel === 'coordination' ? 'workspace-tabButton--active' : ''}`}
-                        onClick={() => openWorkspaceSection('patients', { panel: 'coordination' })}
-                      >
-                        Study Coordination
-                      </button>
-                    </div>
-
-                    {selPatient ? (
-                      <>
-                        <div className="workspace-summary-grid workspace-summary-grid--compact">
-                          <div className="workspace-summary-item">
-                            <span>Subject ID</span>
-                            <strong>{selPatient.subject_id || selPatient.subjectId || 'Not set'}</strong>
-                          </div>
-                          <div className="workspace-summary-item">
-                            <span>Primary CRC</span>
-                            <strong>{selPatient.primary_crc_name || 'Unassigned'}</strong>
-                          </div>
-                          <div className="workspace-summary-item">
-                            <span>Protocol</span>
-                            <strong>{selPatient.protocolName || 'Not assigned'}</strong>
-                          </div>
-                          <div className="workspace-summary-item">
-                            <span>Linked incidents</span>
-                            <strong>{selectedPatientIncidentCount}</strong>
-                          </div>
-                        </div>
-
-                        {activePatientPanel === 'summary' ? (
-                          <>
-                            <div className="sidebar-patient-context">
-                              <div className="sidebar-patient-context__row">
-                                <span>Patient</span>
-                                <strong>{selPatient.nickname}</strong>
-                              </div>
-                              <div className="sidebar-patient-context__row">
-                                <span>Email</span>
-                                <strong>{selPatient.email || 'Not set'}</strong>
-                              </div>
-                              <div className="sidebar-patient-context__row">
-                                <span>Study emergency</span>
-                                <strong>{selPatient.study_emergency_phone || 'Not set'}</strong>
-                              </div>
-                              <div className="sidebar-patient-context__row">
-                                <span>Recent vitals</span>
-                                <strong>{pVitals.length}</strong>
-                              </div>
-                            </div>
-                            <div className="workspace-actionStrip">
-                              <button
-                                className="btn btn-secondary"
-                                onClick={() => openWorkspaceSection('patients', { panel: 'coordination' })}
-                              >
-                                Open Study Coordination
-                              </button>
-                              <button className="btn btn-primary" onClick={() => openWorkspaceSection('side-effect-guidance')}>
-                                Open Side Effect Guidance
-                              </button>
-                              <button className="btn btn-secondary" onClick={() => openWorkspaceSection('protocols')}>
-                                Open Protocols
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="info-banner">
-                            Study Coordination is active below. Patient context stays pinned here while you edit ownership,
-                            subject mapping, protocol assignment, recent vitals, and appointments.
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="empty-panel">Select a patient from the roster to open the patient workspace.</div>
-                    )}
+              <div className={`dashboard-mainGrid dashboard-mainGrid--patients ${selPatient ? 'dashboard-mainGrid--patientsWorkspace' : 'dashboard-mainGrid--patientsRoster'}`}>
+                {!selPatient ? (
+                  <div className="patient-rosterPage patient-rosterPage--full">
+                    <PatientList
+                      patients={patientRosterRows}
+                      selectedPatientId={selectedPatientId}
+                      onSelect={(patient) => handleOpenPatientWorkspace(patient, 'overview')}
+                      countLabel={`${patients.length} loaded`}
+                      summaryNote={patientRosterSummaryNote}
+                      searchQuery={rosterSearchQuery}
+                      onSearchQueryChange={setRosterSearchQuery}
+                      showSearchInput={false}
+                      currentPage={patientRosterPage}
+                      pageSize={patientRosterPageSize}
+                      onPageChange={setPatientRosterPage}
+                      onPageSizeChange={(value) => {
+                        setPatientRosterPageSize(value);
+                        setPatientRosterPage(1);
+                      }}
+                      canGoNextPage={canGoToNextPatientRosterPage}
+                      footerContent={
+                        canGoToNextPatientRosterPage
+                          ? 'More patients may exist beyond the current loaded roster window.'
+                          : 'All currently loaded patients fit inside the current roster page window.'
+                      }
+                    />
                   </div>
+                ) : (
+                  <div className="patient-workspace patient-workspace--full">
+                    <div className="card workspace-card patient-workspace__shell">
+                      <div className="section-header">
+                        <div>
+                          <h3>Patient workspace</h3>
+                          <div className="section-note">
+                            Keep patient context pinned while moving across workflow tabs, safety follow-up, ePRO, and study coordination.
+                          </div>
+                        </div>
+                        <button
+                          className="btn btn-secondary btn-small"
+                          onClick={() => {
+                            selectP(null);
+                            openWorkspaceSection('patients', { patientId: null });
+                          }}
+                        >
+                          Back to roster
+                        </button>
+                      </div>
 
-                  {activePatientPanel === 'coordination' ? (
-                    selPatient ? (
                       <>
-                        <div className="workspace-two-column">
-                          <PatientEditMenu
-                            patient={selPatient}
-                            email={tempEmail}
-                            setEmail={setTempEmail}
-                            primaryCrcId={tempPrimaryCrcId}
-                            setPrimaryCrcId={setTempPrimaryCrcId}
-                            primaryCrcPhone={tempPrimaryCrcPhone}
-                            setPrimaryCrcPhone={setTempPrimaryCrcPhone}
-                            studyEmergencyPhone={tempStudyEmergencyPhone}
-                            setStudyEmergencyPhone={setTempStudyEmergencyPhone}
-                            assignedProtocolId={tempProtocolId}
-                            setAssignedProtocolId={setTempProtocolId}
-                            protocolOptions={protocolTemplates}
-                            assignedProtocol={editingProtocolTemplate}
-                            subjectId={tempSubjectId}
-                            setSubjectId={setTempSubjectId}
-                            crcUsers={crcUsers}
-                            inheritedVitals={describeInheritedVitals(editingProtocolTemplate?.vital_templates)}
-                            dropoutOptions={dropoutTestingSubjects}
-                            onSave={handleSaveInfo}
-                            onDelete={handleDeletePatient}
-                            isSaving={isSaving}
-                            successMsg={successMsg}
-                            primaryCrcPhoneError={primaryCrcPhoneError}
-                            studyEmergencyPhoneError={studyEmergencyPhoneError}
-                            disableSave={hasPhoneValidationErrors}
-                          />
+                        <div className="patient-workspace__hero">
+                          <div className="patient-workspace__heroIdentity">
+                            <div className="patient-workspace__avatar">
+                              {(selPatient.nickname || selPatient.email || 'P')
+                                .split(' ')
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .map((part) => part[0]?.toUpperCase())
+                                .join('')}
+                            </div>
+                            <div>
+                              <div className="patient-workspace__heroName">{selPatient.nickname || 'Unnamed patient'}</div>
+                              <div className="patient-workspace__heroMeta">
+                                <span>{selPatient.subject_id || selPatient.subjectId || 'No subject ID'}</span>
+                                <span>{selectedProtocolName}</span>
+                                <span>{selPatient.primary_crc_name || 'Unassigned CRC'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="patient-workspace__heroSignals">
+                            <div className={`metric-pill metric-pill--${selectedPatientRosterRow?.workflowTone || 'default'}`}>
+                              {selectedPatientRosterRow?.workflowStatus || 'Stable'}
+                            </div>
+                            <div className="patient-workspace__heroNextTask">
+                              <span>Next task</span>
+                              <strong>{selectedPatientRosterRow?.nextTask || 'No immediate action'}</strong>
+                            </div>
+                          </div>
+                        </div>
 
-                          <div className="card workspace-card">
-                            <div className="section-header">
-                              <div>
-                                <h3>Assigned trial summary</h3>
-                                <div className="section-note">
-                                  Protocol editing now lives in Protocols. This panel keeps the selected patient&apos;s trial context visible.
+                        <div className="workspace-tabRow patient-workspace__tabRow" role="tablist" aria-label="Patient workspace views">
+                          {PATIENT_WORKSPACE_TABS.map((tabId) => (
+                            <button
+                              key={tabId}
+                              type="button"
+                              className={`workspace-tabButton ${activePatientTab === tabId ? 'workspace-tabButton--active' : ''}`}
+                              onClick={() => openWorkspaceSection('patients', { patientId: selPatient.id, tab: tabId })}
+                            >
+                              {tabId === 'coordination'
+                                ? 'Study Coordination'
+                                : tabId === 'epro'
+                                  ? 'ePRO'
+                                  : tabId.charAt(0).toUpperCase() + tabId.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="patient-workspace__viewport">
+                          {activePatientTab === 'overview' ? (
+                            <div className="patient-overview-grid">
+                              <div className="patient-workspace__card">
+                                <div className="section-header section-header--tight">
+                                  <div>
+                                    <h4>Next Tasks</h4>
+                                    <div className="section-note">Current CRC follow-up generated from active safety, ePRO, mapping, and assignment state.</div>
+                                  </div>
+                                </div>
+                                <div className="patient-overview__stack">
+                                  <div className="patient-overview__stackRow">
+                                    <span>Workflow status</span>
+                                    <strong>{selectedPatientRosterRow?.workflowStatus || 'Stable'}</strong>
+                                  </div>
+                                  <div className="patient-overview__stackRow">
+                                    <span>Next task</span>
+                                    <strong>{selectedPatientRosterRow?.nextTask || 'No immediate action'}</strong>
+                                  </div>
+                                  <div className="patient-overview__stackRow">
+                                    <span>Pending ePRO</span>
+                                    <strong>{selectedPatientEproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length}</strong>
+                                  </div>
                                 </div>
                               </div>
-                              <button className="btn btn-secondary btn-small" onClick={() => openWorkspaceSection('protocols')}>
-                                Open Protocols
-                              </button>
-                            </div>
 
-                            <div className="workspace-summary-grid workspace-summary-grid--compact">
-                              <div className="workspace-summary-item">
-                                <span>Assigned trial</span>
-                                <strong>{editingProtocolTemplate?.name || 'Not assigned'}</strong>
+                              <div className="patient-workspace__card">
+                                <div className="section-header section-header--tight">
+                                  <div>
+                                    <h4>Recent Vitals</h4>
+                                    <div className="section-note">Latest measurements kept visible without leaving the patient workspace.</div>
+                                  </div>
+                                </div>
+                                {coordinationVitalsPreview.length ? (
+                                  <div className="patient-overview__vitalsList">
+                                    {coordinationVitalsPreview.slice(0, 4).map((record) => (
+                                      <div key={record.id} className="patient-overview__vitalsMiniRow">
+                                        <span>{new Date(record.timestamp).toLocaleString()}</span>
+                                        <strong>
+                                          BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'} • SpO2 {record.spo2 ? `${record.spo2}%` : '-'} • Temp {record.temperature ? `${record.temperature} C` : '-'}
+                                        </strong>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="empty-panel">No vitals recorded for this patient yet.</div>
+                                )}
                               </div>
-                              <div className="workspace-summary-item">
-                                <span>Inherited vitals</span>
-                                <strong>{describeInheritedVitals(editingProtocolTemplate?.vital_templates).length || 0}</strong>
+
+                              <div className="patient-workspace__card">
+                                <div className="section-header section-header--tight">
+                                  <div>
+                                    <h4>Upcoming Appointments</h4>
+                                    <div className="section-note">Keep the next confirmed or pending visits visible while planning follow-up.</div>
+                                  </div>
+                                </div>
+                                {coordinationAppointmentsPreview.length ? (
+                                  <div className="patient-overview__stack">
+                                    {coordinationAppointmentsPreview.slice(0, 3).map((appointment) => (
+                                      <div key={appointment.id} className="patient-overview__stackRow">
+                                        <span>{new Date(appointment.datetime).toLocaleString()}</span>
+                                        <strong>{getStatusText(appointment.status)}</strong>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="empty-panel">No appointments recorded yet.</div>
+                                )}
+                              </div>
+
+                              <div className="patient-workspace__card">
+                                <div className="section-header section-header--tight">
+                                  <div>
+                                    <h4>Protocol Highlights</h4>
+                                    <div className="section-note">Assigned trial, mapped subject, and inherited monitoring context.</div>
+                                  </div>
+                                </div>
+                                <div className="patient-overview__stack">
+                                  <div className="patient-overview__stackRow">
+                                    <span>Assigned trial</span>
+                                    <strong>{selectedProtocolName}</strong>
+                                  </div>
+                                  <div className="patient-overview__stackRow">
+                                    <span>Mapped subject</span>
+                                    <strong>{selPatient.subject_id || selPatient.subjectId || 'Not set'}</strong>
+                                  </div>
+                                </div>
+                                <div className="patient-config__pillWrap">
+                                  {inheritedVitalsPreview.length ? (
+                                    inheritedVitalsPreview.map((label) => (
+                                      <span key={label} className="metric-pill">
+                                        {label}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <div className="section-note">No inherited monitored vitals are defined for the selected trial yet.</div>
+                                  )}
+                                </div>
                               </div>
                             </div>
+                          ) : null}
 
-                            <div className="patient-config__pillWrap">
-                              {describeInheritedVitals(editingProtocolTemplate?.vital_templates).length ? (
-                                describeInheritedVitals(editingProtocolTemplate?.vital_templates).map((label) => (
-                                  <span key={label} className="metric-pill">
-                                    {label}
-                                  </span>
-                                ))
+                          {activePatientTab === 'vitals' ? (
+                            <div className="patient-tabPanel">
+                              <div className="patient-tabPanel__header">
+                                <div>
+                                  <h4>Recent Vitals</h4>
+                                  <div className="section-note">Compact vital-sign history for the selected patient.</div>
+                                </div>
+                              </div>
+                              {coordinationVitalsPreview.length ? (
+                                <div className="patient-overview__vitalsTable">
+                                  {coordinationVitalsPreview.map((record) => (
+                                    <div key={record.id} className="patient-overview__vitalsRow">
+                                      <div>{new Date(record.timestamp).toLocaleString()}</div>
+                                      <div>BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'}</div>
+                                      <div>SpO2 {record.spo2 ? `${record.spo2}%` : '-'}</div>
+                                      <div>Temp {record.temperature ? `${record.temperature} C` : '-'}</div>
+                                    </div>
+                                  ))}
+                                </div>
                               ) : (
-                                <div className="section-note">Assign a trial template to preview inherited monitored vitals here.</div>
+                                <div className="empty-panel">No vitals recorded for this patient yet.</div>
                               )}
                             </div>
-                          </div>
-                        </div>
+                          ) : null}
 
-                        <div className="workspace-two-column">
-                          <div className="card workspace-card">
-                            <div className="section-header">
-                              <div>
-                                <h3>Recent vitals</h3>
-                                <div className="section-note">
-                                  Most recent patient measurements without leaving the selected patient workspace.
+                          {activePatientTab === 'safety' ? (
+                            <div className="patient-tabPanel">
+                              <div className="patient-tabPanel__header">
+                                <div>
+                                  <h4>Safety</h4>
+                                  <div className="section-note">Selected-patient safety activity without leaving the workspace.</div>
                                 </div>
-                              </div>
-                            </div>
-                            {pVitals.length ? (
-                              pVitals.slice(0, 5).map((record) => (
-                                <div key={record.id} className="data-list-row data-list-row--vitals">
-                                  <div>{new Date(record.timestamp).toLocaleString()}</div>
-                                  <div>BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'}</div>
-                                  <div>SpO2 {record.spo2 ? `${record.spo2}%` : '-'}</div>
-                                  <div>Temp {record.temperature ? `${record.temperature} C` : '-'}</div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="empty-panel">No vitals recorded for this patient yet.</div>
-                            )}
-                          </div>
-
-                          <div className="card workspace-card">
-                            <div className="section-header">
-                              <div>
-                                <h3>Appointments</h3>
-                                <div className="section-note">
-                                  Schedule, inspect AI date suggestions, and complete confirmed visits from one coordination panel.
-                                </div>
-                              </div>
-                            </div>
-                            <div className="inline-form-row">
-                              <input
-                                type="datetime-local"
-                                value={newDate}
-                                onChange={(event) => setNewDate(event.target.value)}
-                                style={{ flex: 1, minWidth: '240px' }}
-                              />
-                              <button onClick={schedule} className="btn btn-primary">
-                                Schedule
-                              </button>
-                            </div>
-                            <div className="info-banner">
-                              <div className="section-header section-header--tight">
-                                <strong>{AI_SUGGESTION_TITLE}</strong>
-                                <button onClick={handleSuggestDate} disabled={isSuggesting} className="btn btn-secondary btn-small">
-                                  {isSuggesting ? 'Thinking...' : 'Suggest date'}
+                                <button className="btn btn-secondary btn-small" onClick={() => openWorkspaceSection('safety', { tab: 'open' })}>
+                                  Open full Safety
                                 </button>
                               </div>
-                              {suggestedDate ? (
-                                <>
-                                  <div className="scheduler-suggestion">Suggested: {new Date(suggestedDate).toLocaleString()}</div>
-                                  <div className="section-note section-note--spaced">{suggestedReason}</div>
-                                </>
-                              ) : suggestedReason ? (
-                                <div className="section-note">{suggestedReason}</div>
-                              ) : (
-                                <div className="section-note">
-                                  Use the AI scheduler to propose the next visit based on the active protocol and current appointments.
+                              <div className="patient-overview__stack">
+                                <div className="patient-overview__stackRow">
+                                  <span>Active alerts</span>
+                                  <strong>{selectedPatientAlertCount}</strong>
                                 </div>
+                                <div className="patient-overview__stackRow">
+                                  <span>Linked incidents</span>
+                                  <strong>{selectedPatientIncidentCount}</strong>
+                                </div>
+                              </div>
+                              {selectedPatientIncidents.length ? (
+                                <div className="patient-safety__list">
+                                  {selectedPatientIncidents.slice(0, 6).map((incident) => (
+                                    <button
+                                      key={incident.id}
+                                      type="button"
+                                      className="incident-row"
+                                      onClick={() => handleOpenIncident(incident)}
+                                    >
+                                      <div className="incident-row__copy">
+                                        <div className="incident-row__top">
+                                          <strong>{incident.reason || incident.incident_type || 'Incident'}</strong>
+                                          <span className="incident-row__status">{incident.status || 'open'}</span>
+                                        </div>
+                                        <div className="incident-row__meta">
+                                          Severity: {incident.severity || 'Not set'} • {incident.protocol_snapshot?.protocol_name || selectedProtocolName}
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="empty-panel">No linked safety incidents are visible for this patient.</div>
                               )}
                             </div>
-                            {pAppts.length ? (
-                              pAppts.map((appointment) => (
-                                <div key={appointment.id} className="data-list-card">
-                                  <div>
-                                    <div className="data-list-card__title">{new Date(appointment.datetime).toLocaleString()}</div>
-                                    <div className="data-list-card__status" style={getStatusStyle(appointment.status)}>
-                                      {getStatusText(appointment.status)}
+                          ) : null}
+
+                          {activePatientTab === 'epro' ? (
+                            <div className="patient-tabPanel">
+                              <div className="patient-tabPanel__header">
+                                <div>
+                                  <h4>ePRO</h4>
+                                  <div className="section-note">Mirrored questionnaire activity for the selected patient.</div>
+                                </div>
+                                <button className="btn btn-secondary btn-small" onClick={() => openWorkspaceSection('epro')}>
+                                  Open full ePRO
+                                </button>
+                              </div>
+                              {selectedPatientEproEntries.length ? (
+                                <div className="patient-epro__list">
+                                  {selectedPatientEproEntries.slice(0, 8).map((entry) => (
+                                    <div key={entry.id} className="patient-epro__item">
+                                      <div>
+                                        <strong>{entry.form_name || entry.formType || entry.title || 'Questionnaire entry'}</strong>
+                                        <div className="section-note">
+                                          {entry.updated_at
+                                            ? `Updated ${new Date(entry.updated_at).toLocaleString()}`
+                                            : 'No update timestamp'}
+                                        </div>
+                                      </div>
+                                      <span className={`metric-pill metric-pill--${String(entry.status || '').toLowerCase() === 'submitted' ? 'success' : 'warning'}`}>
+                                        {String(entry.status || 'pending').toUpperCase()}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="empty-panel">No mirrored ePRO records are visible for this patient yet.</div>
+                              )}
+                            </div>
+                          ) : null}
+
+                          {activePatientTab === 'notes' ? (
+                            <PatientNotesPanel
+                              patientId={selPatient.id}
+                              currentUser={{ uid: user.uid, name: currentCrcDisplayName }}
+                            />
+                          ) : null}
+
+                          {activePatientTab === 'tasks' ? (
+                            <PatientTasksPanel
+                              patientId={selPatient.id}
+                              currentUser={{ uid: user.uid, name: currentCrcDisplayName }}
+                            />
+                          ) : null}
+
+                          {activePatientTab === 'coordination' ? (
+                            <div className="patient-coordination-layout">
+                              <div className="patient-coordination-layout__main">
+                                <PatientEditMenu
+                                  patient={selPatient}
+                                  email={tempEmail}
+                                  setEmail={setTempEmail}
+                                  primaryCrcId={tempPrimaryCrcId}
+                                  setPrimaryCrcId={setTempPrimaryCrcId}
+                                  primaryCrcPhone={tempPrimaryCrcPhone}
+                                  setPrimaryCrcPhone={setTempPrimaryCrcPhone}
+                                  studyEmergencyPhone={tempStudyEmergencyPhone}
+                                  setStudyEmergencyPhone={setTempStudyEmergencyPhone}
+                                  assignedProtocolId={tempProtocolId}
+                                  setAssignedProtocolId={setTempProtocolId}
+                                  protocolOptions={protocolTemplates}
+                                  assignedProtocol={editingProtocolTemplate}
+                                  subjectId={tempSubjectId}
+                                  setSubjectId={setTempSubjectId}
+                                  crcUsers={crcUsers}
+                                  inheritedVitals={inheritedVitalsPreview}
+                                  dropoutOptions={dropoutTestingSubjects}
+                                  onSave={handleSaveInfo}
+                                  isSaving={isSaving}
+                                  successMsg={successMsg}
+                                  primaryCrcPhoneError={primaryCrcPhoneError}
+                                  studyEmergencyPhoneError={studyEmergencyPhoneError}
+                                  disableSave={hasPhoneValidationErrors}
+                                />
+                              </div>
+
+                              <div className="patient-coordination-layout__aside">
+                                <div className="card workspace-card patient-workspace__card">
+                                  <div className="section-header">
+                                    <div>
+                                      <h4>Assigned trial summary</h4>
+                                      <div className="section-note">
+                                        Keep the selected patient&apos;s trial context visible while editing subject mapping, protocol assignment, and CRC ownership.
+                                      </div>
+                                    </div>
+                                    <button className="btn btn-secondary btn-small" onClick={() => openWorkspaceSection('protocols')}>
+                                      Open Protocols
+                                    </button>
+                                  </div>
+
+                                  <div className="patient-overview__grid">
+                                    <div className="patient-overview__item">
+                                      <span>Assigned trial</span>
+                                      <strong>{selectedProtocolName}</strong>
+                                    </div>
+                                    <div className="patient-overview__item">
+                                      <span>Mapped subject</span>
+                                      <strong>{selPatient.subject_id || selPatient.subjectId || 'Not set'}</strong>
                                     </div>
                                   </div>
-                                  {appointment.status === 'confirmed' ? (
-                                    <button onClick={() => handleMarkComplete(appointment.id)} className="btn btn-success btn-small">
-                                      Mark complete
-                                    </button>
-                                  ) : null}
+
+                                  <div className="patient-config__pillWrap">
+                                    {inheritedVitalsPreview.length ? (
+                                      inheritedVitalsPreview.map((label) => (
+                                        <span key={label} className="metric-pill">
+                                          {label}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <div className="section-note">Assign a trial template to preview inherited monitored vitals here.</div>
+                                    )}
+                                  </div>
                                 </div>
-                              ))
-                            ) : (
-                              <div className="empty-panel">No appointments recorded yet.</div>
-                            )}
-                          </div>
+
+                                <div className="card workspace-card patient-workspace__card">
+                                  <div className="section-header section-header--tight">
+                                    <div>
+                                      <h4>Recent vitals</h4>
+                                      <div className="section-note">Latest measurements remain visible while editing trial configuration.</div>
+                                    </div>
+                                  </div>
+                                  {coordinationVitalsPreview.length ? (
+                                    <div className="patient-overview__vitalsTable">
+                                      {coordinationVitalsPreview.map((record) => (
+                                        <div key={record.id} className="patient-overview__vitalsRow">
+                                          <div>{new Date(record.timestamp).toLocaleString()}</div>
+                                          <div>BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'}</div>
+                                          <div>SpO2 {record.spo2 ? `${record.spo2}%` : '-'}</div>
+                                          <div>Temp {record.temperature ? `${record.temperature} C` : '-'}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="empty-panel">No vitals recorded for this patient yet.</div>
+                                  )}
+                                </div>
+
+                                <div className="card workspace-card patient-workspace__card">
+                                  <div className="section-header">
+                                    <div>
+                                      <h4>Appointments</h4>
+                                      <div className="section-note">
+                                        Schedule, inspect AI date suggestions, and complete confirmed visits from one coordination surface.
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="inline-form-row">
+                                    <input
+                                      type="datetime-local"
+                                      value={newDate}
+                                      onChange={(event) => setNewDate(event.target.value)}
+                                      style={{ flex: 1, minWidth: '220px' }}
+                                    />
+                                    <button onClick={schedule} className="btn btn-primary">
+                                      Schedule
+                                    </button>
+                                  </div>
+                                  <div className="info-banner">
+                                    <div className="section-header section-header--tight">
+                                      <strong>{AI_SUGGESTION_TITLE}</strong>
+                                      <button onClick={handleSuggestDate} disabled={isSuggesting} className="btn btn-secondary btn-small">
+                                        {isSuggesting ? 'Thinking...' : 'Suggest date'}
+                                      </button>
+                                    </div>
+                                    {suggestedDate ? (
+                                      <>
+                                        <div className="scheduler-suggestion">Suggested: {new Date(suggestedDate).toLocaleString()}</div>
+                                        <div className="section-note section-note--spaced">{suggestedReason}</div>
+                                      </>
+                                    ) : suggestedReason ? (
+                                      <div className="section-note">{suggestedReason}</div>
+                                    ) : (
+                                      <div className="section-note">
+                                        Use the AI scheduler to propose the next visit based on the active protocol and current appointments.
+                                      </div>
+                                    )}
+                                  </div>
+                                  {coordinationAppointmentsPreview.length ? (
+                                    coordinationAppointmentsPreview.map((appointment) => (
+                                      <div key={appointment.id} className="data-list-card">
+                                        <div>
+                                          <div className="data-list-card__title">{new Date(appointment.datetime).toLocaleString()}</div>
+                                          <div className="data-list-card__status" style={getStatusStyle(appointment.status)}>
+                                            {getStatusText(appointment.status)}
+                                          </div>
+                                        </div>
+                                        {appointment.status === 'confirmed' ? (
+                                          <button onClick={() => handleMarkComplete(appointment.id)} className="btn btn-success btn-small">
+                                            Mark complete
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="empty-panel">No appointments recorded yet.</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       </>
-                    ) : (
-                      <div className="card workspace-card">
-                        <div className="dashboard-kicker">Patient workspace</div>
-                        <h2 className="workspace-card__title">Select a patient to begin</h2>
-                        <p className="section-note">
-                          Choose a patient in the roster to edit CRC assignment, subject mapping, recent vitals, and appointments.
-                        </p>
-                      </div>
-                    )
-                  ) : null}
-                </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           ) : null}
@@ -1642,28 +2081,123 @@ export default function CRCHome({ user, onLogout }) {
 
           {activeHomeSection === 'side-effect-guidance' ? (
             <section id="side-effect-guidance" className="dashboard-section">
-              <GeminiChatbot
-                role="crc"
-                userId={user.uid}
-                userNickname={crcName}
-                patientData={stablePatientData}
-                patientVitals={pVitals}
-                patientAppointments={pAppts}
-                patientAlerts={pAlerts}
-                patientEproEntries={selectedPatientEproEntries}
-                patientIncidents={selectedPatientIncidents}
-                activeProtocolId={selPatient?.protocolId || null}
-                protocolUrl={selPatient?.protocolUrl}
-                activeProtocolName={selPatient?.protocolName}
-                allPatients={patients}
-                workspaceAlerts={globalAlerts}
-                workspaceUrgentAlerts={urgentAlerts}
-                workspaceEproEntries={eproEntries}
-                workspaceIncidents={incidents}
-                presentation="docked"
-                titleOverride="Side Effect Guidance"
-                panelDescription="Review symptoms, protocol guidance, CTCAE context, and follow-up actions from one docked CRC workspace."
-              />
+              <div className="guidance-workspace">
+                <GeminiChatbot
+                  role="crc"
+                  userId={user.uid}
+                  userNickname={crcName}
+                  patientData={stablePatientData}
+                  patientVitals={pVitals}
+                  patientAppointments={pAppts}
+                  patientAlerts={pAlerts}
+                  patientEproEntries={selectedPatientEproEntries}
+                  patientIncidents={selectedPatientIncidents}
+                  activeProtocolId={selPatient?.protocolId || null}
+                  protocolUrl={selPatient?.protocolUrl}
+                  activeProtocolName={selPatient?.protocolName}
+                  allPatients={patients}
+                  workspaceAlerts={globalAlerts}
+                  workspaceUrgentAlerts={urgentAlerts}
+                  workspaceEproEntries={eproEntries}
+                  workspaceIncidents={incidents}
+                  presentation="docked"
+                  titleOverride="Side Effect Guidance"
+                  panelDescription="Review symptoms, protocol guidance, CTCAE context, and follow-up actions from one docked CRC workspace."
+                />
+
+                <div className="card workspace-card guidance-contextCard">
+                  <div className="section-header section-header--tight">
+                    <div>
+                      <h3>Patient context</h3>
+                      <div className="section-note">Pinned CRC context that stays visible while you ask questions.</div>
+                    </div>
+                    {selPatient ? (
+                      <button className="btn btn-secondary btn-small" onClick={() => openWorkspaceSection('patients', { patientId: selPatient.id, tab: 'overview' })}>
+                        Open patient
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {selPatient ? (
+                    <>
+                      <div className="guidance-contextCard__patient">
+                        <div className="guidance-contextCard__patientName">{selPatient.nickname || 'Unnamed patient'}</div>
+                        <div className="guidance-contextCard__patientMeta">
+                          <span>{selPatient.subject_id || selPatient.subjectId || 'No subject ID'}</span>
+                          <span>{selectedProtocolName}</span>
+                        </div>
+                      </div>
+
+                      <div className="guidance-contextCard__section">
+                        <strong>Protocol grounding</strong>
+                        <div className="section-note">{selectedProtocolName}</div>
+                        <div className="workspace-actionStrip">
+                          <button className="btn btn-secondary btn-small" onClick={() => handleOpenClinicalResource('CTCAE.pdf')}>
+                            Open CTCAE
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-small"
+                            onClick={() => handleOpenClinicalResource(selPatient.protocolUrl, 'protocol')}
+                            disabled={!selPatient.protocolUrl}
+                          >
+                            Open protocol
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="guidance-contextCard__section">
+                        <strong>Recent safety</strong>
+                        <div className="patient-overview__stack">
+                          <div className="patient-overview__stackRow">
+                            <span>Active alerts</span>
+                            <strong>{selectedPatientAlertCount}</strong>
+                          </div>
+                          <div className="patient-overview__stackRow">
+                            <span>Linked incidents</span>
+                            <strong>{selectedPatientIncidentCount}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="guidance-contextCard__section">
+                        <strong>Recent vitals</strong>
+                        {coordinationVitalsPreview.length ? (
+                          <div className="guidance-contextCard__miniList">
+                            {coordinationVitalsPreview.slice(0, 4).map((record) => (
+                              <div key={record.id} className="guidance-contextCard__miniRow">
+                                <span>{new Date(record.timestamp).toLocaleString()}</span>
+                                <strong>
+                                  BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'} • SpO2 {record.spo2 ? `${record.spo2}%` : '-'}
+                                </strong>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="section-note">No recent vitals are visible for this patient.</div>
+                        )}
+                      </div>
+
+                      <div className="guidance-contextCard__section">
+                        <strong>ePRO</strong>
+                        <div className="patient-overview__stack">
+                          <div className="patient-overview__stackRow">
+                            <span>Loaded entries</span>
+                            <strong>{selectedPatientEproEntries.length}</strong>
+                          </div>
+                          <div className="patient-overview__stackRow">
+                            <span>Pending</span>
+                            <strong>{selectedPatientEproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="empty-panel">
+                      Select a patient from the Patients workspace first. Then this right-hand panel will pin protocol, CTCAE, safety, vitals, and ePRO context beside the guidance conversation.
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
           ) : null}
 

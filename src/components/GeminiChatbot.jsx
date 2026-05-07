@@ -75,6 +75,88 @@ function sortByRecentTimestamp(entries = [], keys = []) {
   });
 }
 
+function coerceChatTimestamp(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value?.toDate === 'function') {
+    const converted = value.toDate();
+    return Number.isNaN(converted?.getTime?.()) ? null : converted;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildCalendarDateKey(date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function startOfCalendarDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function formatWhatsappStyleTime(date) {
+  return date
+    .toLocaleTimeString('en-GB', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+    .replace('AM', 'am')
+    .replace('PM', 'pm');
+}
+
+function formatWhatsappStyleDayLabel(date, now = new Date()) {
+  const messageDay = startOfCalendarDay(date);
+  const currentDay = startOfCalendarDay(now);
+  const diffInDays = Math.floor((currentDay.getTime() - messageDay.getTime()) / 86400000);
+
+  if (diffInDays <= 3) {
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function buildGuidanceTimeline(messages = []) {
+  const items = [];
+  let lastDayKey = null;
+  const now = new Date();
+
+  messages.forEach((message, index) => {
+    const timestamp = coerceChatTimestamp(message?.timestamp);
+    const dayKey = timestamp ? buildCalendarDateKey(timestamp) : null;
+
+    if (dayKey && dayKey !== lastDayKey) {
+      items.push({
+        type: 'date-separator',
+        key: `separator-${dayKey}`,
+        label: formatWhatsappStyleDayLabel(timestamp, now),
+      });
+      lastDayKey = dayKey;
+    }
+
+    items.push({
+      type: 'message',
+      key: message.id || `message-${index}`,
+      message,
+      timestamp,
+      timeLabel: timestamp ? formatWhatsappStyleTime(timestamp) : '',
+    });
+  });
+
+  return items;
+}
+
 function buildStableSystemPrompt(aiName) {
   return [
     `You are ${aiName}.`,
@@ -202,9 +284,10 @@ export default function GeminiChatbot({
         eproEntries: workspaceEproEntries,
         incidents: workspaceIncidents,
         selectedPatient: patientData,
-      }),
+    }),
     [allPatients, patientData, workspaceAlerts, workspaceEproEntries, workspaceIncidents, workspaceUrgentAlerts]
   );
+  const chatTimeline = useMemo(() => buildGuidanceTimeline(messages), [messages]);
 
   const saveMessage = useCallback(async (messageRole, text) => {
     if (!historyCollectionRef || !text) return;
@@ -657,54 +740,74 @@ export default function GeminiChatbot({
         onTouchStart={handleChatAreaManualInteraction}
         onPointerDown={handleChatAreaManualInteraction}
       >
-        {messages.map((message, index) => (
-          <div
-            key={message.id || index}
-            className={isDocked ? `guidance-panel__messageRow guidance-panel__messageRow--${message.role}` : ''}
-            style={
-              isDocked
-                ? undefined
-                : {
-                    ...styles.messageRow,
-                    justifyContent:
-                      message.role === 'user'
-                        ? 'flex-end'
-                        : message.role === 'system'
-                          ? 'center'
-                          : 'flex-start',
-                  }
-            }
-          >
-            {message.role === 'system' ? (
-              <small
-                className={isDocked ? 'guidance-panel__systemMessage' : ''}
-                style={isDocked ? undefined : styles.systemMessage}
-              >
-                <ReactMarkdown>{message.text}</ReactMarkdown>
-              </small>
-            ) : (
-              <div
-                className={
-                  isDocked
-                    ? `guidance-panel__bubble ${message.role === 'user' ? 'guidance-panel__bubble--user' : 'guidance-panel__bubble--model'}`
-                    : ''
-                }
-                style={
-                  isDocked
-                    ? undefined
-                    : {
-                        ...styles.bubble,
-                        backgroundColor: message.role === 'user' ? '#0f609b' : '#f8fbff',
-                        color: message.role === 'user' ? 'white' : '#243b53',
-                        border: message.role === 'user' ? 'none' : '1px solid #dbe5f0',
-                      }
-                }
-              >
-                {message.role === 'model' ? <ReactMarkdown>{message.text}</ReactMarkdown> : message.text}
+        {chatTimeline.map((entry, index) => {
+          if (entry.type === 'date-separator') {
+            return (
+              <div key={entry.key} className="guidance-panel__dateRow">
+                <span className="guidance-panel__dateBadge">{entry.label}</span>
               </div>
-            )}
-          </div>
-        ))}
+            );
+          }
+
+          const message = entry.message;
+          return (
+            <div
+              key={entry.key || index}
+              className={isDocked ? `guidance-panel__messageRow guidance-panel__messageRow--${message.role}` : ''}
+              style={
+                isDocked
+                  ? undefined
+                  : {
+                      ...styles.messageRow,
+                      justifyContent:
+                        message.role === 'user'
+                          ? 'flex-end'
+                          : message.role === 'system'
+                            ? 'center'
+                            : 'flex-start',
+                    }
+              }
+            >
+              {message.role === 'system' ? (
+                <small
+                  className={isDocked ? 'guidance-panel__systemMessage' : ''}
+                  style={isDocked ? undefined : styles.systemMessage}
+                >
+                  <ReactMarkdown>{message.text}</ReactMarkdown>
+                </small>
+              ) : (
+                <div
+                  className={
+                    isDocked
+                      ? `guidance-panel__bubble ${message.role === 'user' ? 'guidance-panel__bubble--user' : 'guidance-panel__bubble--model'}`
+                      : ''
+                  }
+                  style={
+                    isDocked
+                      ? undefined
+                      : {
+                          ...styles.bubble,
+                          backgroundColor: message.role === 'user' ? '#0f609b' : '#f8fbff',
+                          color: message.role === 'user' ? 'white' : '#243b53',
+                          border: message.role === 'user' ? 'none' : '1px solid #dbe5f0',
+                        }
+                  }
+                >
+                  <div className="guidance-panel__bubbleContent">
+                    {message.role === 'model' ? <ReactMarkdown>{message.text}</ReactMarkdown> : message.text}
+                  </div>
+                  {entry.timeLabel ? (
+                    <div
+                      className={`guidance-panel__bubbleTimestamp guidance-panel__bubbleTimestamp--${message.role}`}
+                    >
+                      {entry.timeLabel}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {isLoading ? (
           <div className={isDocked ? 'guidance-panel__loading' : ''} style={isDocked ? undefined : styles.loadingState}>
             <span className={isDocked ? 'guidance-panel__thinkingBadge' : ''} style={isDocked ? undefined : styles.thinkingBadge}>

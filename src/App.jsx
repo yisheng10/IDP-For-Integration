@@ -5,6 +5,8 @@ import { APP_ICON, APP_NAME } from './config';
 import Login from './components/Login';
 import { auth } from './firebase';
 import CRCHome from './pages/CRCHome';
+import { TrialLightCrcWordmark } from './components/TrialLightCrcBrand';
+import TrialLightCrcIllustration from './components/TrialLightCrcIllustration';
 
 class CRCWorkspaceErrorBoundary extends React.Component {
   constructor(props) {
@@ -166,33 +168,25 @@ export default function App() {
               <Navigate to="/home" replace />
             ) : (
               <div className="login-wrapper">
-                <div className="login-portal">
+                  <div className="login-portal login-portal--split">
                   <div className="login-card login-card--intro">
-                    <div className="dashboard-kicker">CRC operations workspace</div>
-                    <h1 className="dashboard-title login-portal__title">
-                      {APP_NAME} CRC Workspace
-                    </h1>
-                    <p className="dashboard-subtitle login-portal__subtitle">
-                      Safety review, ePRO visibility, patient coordination, side effect guidance, and patient
-                      disengagement prediction in one clinical operations workspace.
-                    </p>
-                    <div className="login-portal__infoGrid">
-                      <div className="login-portal__infoTile">
-                        <strong>CRC-only system</strong>
-                        <span>Separate from the patient mobile app to preserve role boundaries.</span>
-                      </div>
-                      <div className="login-portal__infoTile">
-                        <strong>Patient safety first</strong>
-                        <span>Structured monitoring, ePRO review, and safety triage in one desktop workflow.</span>
-                      </div>
-                      <div className="login-portal__infoTile">
-                        <strong>Study-bound data</strong>
-                        <span>Protocol-linked context, subject mapping, and CRC actions stay auditable.</span>
-                      </div>
+                      <TrialLightCrcWordmark className="login-portal__brandLockup" />
+                      <p className="login-portal__subtitle">
+                        A focused CRC workspace for symptom review, disengagement follow-up, and ePRO coordination.
+                      </p>
+                      <TrialLightCrcIllustration />
                     </div>
-                    <div className="info-banner login-portal__banner">
-                      <strong>V1 boundary:</strong> The website is reserved for CRC workflows. Patient access belongs in
-                      the patient mobile app.
+
+                  <div className="login-portal__authColumn">
+                    <Login type="crc" onLogin={() => {}} />
+                    <div className="login-card login-card--access">
+                      <div className="dashboard-kicker">CRC access only</div>
+                      <p className="section-note" style={{ margin: 0 }}>
+                        This system is for clinical research coordinators and authorized study staff only.
+                      </p>
+                    </div>
+                    <div className="login-portal__legal">
+                      By signing in, you agree to the TrialLight Terms of Use and Privacy Policy.
                     </div>
                     {authBootstrapWarning ? (
                       <div
@@ -208,10 +202,6 @@ export default function App() {
                         stabilize.
                       </div>
                     ) : null}
-                  </div>
-
-                  <div className="login-portal__signin">
-                    <Login type="crc" onLogin={() => {}} />
                   </div>
                 </div>
               </div>

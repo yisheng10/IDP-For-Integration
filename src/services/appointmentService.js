@@ -14,6 +14,25 @@ import {
 import { db } from '../firebase';
 import { callFunctionHttp } from './firebaseFunctionHttp';
 
+function normalizeAppointmentSuggestionError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+
+  if (
+    message.includes('403') ||
+    message.includes('forbidden') ||
+    message.includes('leaked') ||
+    message.includes('generativelanguage.googleapis.com')
+  ) {
+    return 'Appointment guidance is temporarily unavailable. Schedule the visit manually or try again later.';
+  }
+
+  if (message.includes('unauthenticated') || message.includes('sign in')) {
+    return 'Sign in again before requesting appointment guidance.';
+  }
+
+  return String(error?.message || error || 'Appointment guidance is temporarily unavailable.');
+}
+
 // --- APPOINTMENT SUBSCRIPTIONS ---
 
 export const subscribeToAppointments = (userId, onUpdate, onError) => {
@@ -44,10 +63,14 @@ export const updateAppointmentStatus = async (userId, appointmentId, newStatus) 
 
 export const suggestAppointmentDate = async (protocolUrl, appointmentHistory) => {
   if (!protocolUrl) throw new Error("No active protocol found.");
-  return callFunctionHttp('suggestAppointmentDateHttp', {
-    protocolUrl,
-    appointmentHistory,
-  });
+  try {
+    return await callFunctionHttp('suggestAppointmentDateHttp', {
+      protocolUrl,
+      appointmentHistory,
+    });
+  } catch (error) {
+    throw new Error(normalizeAppointmentSuggestionError(error));
+  }
 };
 
 // --- UTILS ---

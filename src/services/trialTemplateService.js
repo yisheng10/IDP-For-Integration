@@ -271,8 +271,11 @@ export function subscribeToTrialTemplates(onUpdate, onError) {
 }
 
 export async function loadAssignedTrialTemplate(profile = {}) {
-  if (profile?.protocolId) {
-    const templateSnapshot = await getDoc(doc(db, 'protocols', profile.protocolId));
+  const normalizedProtocolId = profile?.protocolId || profile?.protocol_id || null;
+  const normalizedProtocolName = profile?.protocolName || profile?.protocol_name || profile?.protocol || null;
+
+  if (normalizedProtocolId) {
+    const templateSnapshot = await getDoc(doc(db, 'protocols', normalizedProtocolId));
     if (templateSnapshot.exists()) {
       const data = templateSnapshot.data();
       return {
@@ -283,10 +286,10 @@ export async function loadAssignedTrialTemplate(profile = {}) {
     }
   }
 
-  if (profile?.protocolName) {
+  if (normalizedProtocolName) {
     const templateQuery = query(
       collection(db, 'protocols'),
-      where('name', '==', profile.protocolName),
+      where('name', '==', normalizedProtocolName),
       limit(1)
     );
     const templateSnapshot = await getDocs(templateQuery);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { APP_NAME } from '../config';
 import TopNavbar from './TopNavbar';
+import { TrialLightCrcMark, TrialLightCrcWordmark } from './TrialLightCrcBrand';
 
 const SIDEBAR_STORAGE_KEY = 'triallight_crc_sidebar_collapsed';
 
@@ -213,7 +213,6 @@ export default function CRCWorkspaceShell({
   onHomeClick,
   headerTitle,
   headerDescription,
-  headerContextPills = [],
   searchValue = '',
   onSearchChange,
   searchResults = [],
@@ -256,11 +255,11 @@ export default function CRCWorkspaceShell({
               onHomeClick?.();
             }}
           >
-            <span className="crc-sidebar__brandMark">TL</span>
-            <span className="crc-sidebar__brandText">
-              <span className="crc-sidebar__brandEyebrow">CRC workspace</span>
-              <span className="crc-sidebar__brandName">{APP_NAME}</span>
-            </span>
+            {isCollapsed ? (
+              <TrialLightCrcMark size={50} />
+            ) : (
+              <TrialLightCrcWordmark className="crc-sidebar__brandLockup" subline="CRC Workspace" />
+            )}
           </button>
 
           <button
@@ -322,7 +321,6 @@ export default function CRCWorkspaceShell({
         alertButtonUrgent={alertButtonUrgent}
         title={headerTitle}
         description={headerDescription}
-        contextPills={headerContextPills}
         searchValue={searchValue}
         onSearchChange={onSearchChange}
         searchResults={searchResults}

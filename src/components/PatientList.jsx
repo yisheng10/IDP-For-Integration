@@ -80,7 +80,7 @@ export default function PatientList({
       {showSearchInput ? (
         <input
           type="text"
-          placeholder="Search name, subject ID, or assigned CRC"
+          placeholder="Search by subject ID, patient name, protocol, or CRC"
           value={effectiveQuery}
           onChange={(event) => handleSearchChange(event.target.value)}
         />
@@ -102,11 +102,12 @@ export default function PatientList({
       </div>
 
       <div className="patient-roster__tableHeader">
-        <span>Patient</span>
         <span>Subject ID</span>
+        <span>Name</span>
         <span>Protocol</span>
         <span>Primary CRC</span>
-        <span>Mapping</span>
+        <span>Status</span>
+        <span>Next task</span>
       </div>
 
       <div className="patient-roster__list patient-roster__list--dense">
@@ -114,31 +115,38 @@ export default function PatientList({
           <div className="empty-panel">No patients match the current filters.</div>
         ) : (
           visiblePatients.map((patient) => {
-            const isSelected = selectedPatientId === patient.id;
             const subjectId = patient.subject_id || patient.subjectId || 'Not set';
             const protocolName = patient.protocolName || 'Not assigned';
             const primaryCrc = patient.primary_crc_name || 'Unassigned';
             const isMapped = subjectId !== 'Not set';
+            const workflowStatus = patient.workflowStatus || 'Stable';
+            const workflowTone = patient.workflowTone || 'default';
+            const nextTask = patient.nextTask || 'No immediate action';
 
             return (
               <button
                 key={patient.id}
                 type="button"
-                onClick={() => onSelect(isSelected ? null : patient)}
-                className={`patient-roster__item patient-roster__item--grid ${isSelected ? 'patient-roster__item--selected' : ''}`}
+                onClick={() => onSelect(patient)}
+                className={`patient-roster__item patient-roster__item--grid ${selectedPatientId === patient.id ? 'patient-roster__item--selected' : ''}`}
               >
+                <div className="patient-roster__cell patient-roster__cell--subject">
+                  <div className="patient-roster__subjectValue">{subjectId}</div>
+                  <span className={`metric-pill ${isMapped ? 'metric-pill--selected' : 'metric-pill--warning'}`}>
+                    {isMapped ? 'Mapped' : 'Unmapped'}
+                  </span>
+                </div>
                 <div className="patient-roster__cell patient-roster__cell--identity">
                   <div className="patient-roster__name">{patient.nickname || 'Unnamed patient'}</div>
                   <div className="patient-roster__email">{patient.email || 'No email recorded'}</div>
                 </div>
-                <div className="patient-roster__cell patient-roster__cell--mono">{subjectId}</div>
                 <div className="patient-roster__cell">{protocolName}</div>
                 <div className="patient-roster__cell">{primaryCrc}</div>
                 <div className="patient-roster__cell patient-roster__cell--status">
-                  <span className={`metric-pill ${isMapped ? 'metric-pill--selected' : ''}`}>
-                    {isMapped ? 'Mapped' : 'Unmapped'}
-                  </span>
-                  {isSelected ? <span className="metric-pill metric-pill--selected">Selected</span> : null}
+                  <span className={`metric-pill metric-pill--${workflowTone}`}>{workflowStatus}</span>
+                </div>
+                <div className="patient-roster__cell patient-roster__cell--task">
+                  <span>{nextTask}</span>
                 </div>
               </button>
             );

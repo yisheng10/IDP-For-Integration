@@ -260,8 +260,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
       const fileName = file.name;
       const storagePath = fileName;
       const uploadedAt = new Date().toISOString();
-      let extractionWarning = '';
-      let guidanceWarning = '';
+      const uploadWarnings = [];
 
       const { error: uploadError } = await supabase.storage.from('protocol').upload(storagePath, file, { upsert: true });
       if (uploadError) throw uploadError;
@@ -308,7 +307,9 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
         });
       } catch (extractionError) {
         console.error('Protocol dropout static-context extraction failed:', extractionError);
-        extractionWarning = ` Disengagement static context extraction failed: ${extractionError.message}`;
+        uploadWarnings.push(
+          'Disengagement static context extraction is still unavailable for this protocol. Side Effect Guidance indexing can still continue.'
+        );
       }
 
       try {
@@ -326,11 +327,14 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
         });
       } catch (guidanceError) {
         console.error('Protocol guidance indexing trigger failed:', guidanceError);
-        guidanceWarning = ` Guidance indexing trigger failed: ${guidanceError.message}`;
       }
 
       setFile(null);
-      window.alert(`Success: Added to Trial Library.${extractionWarning}${guidanceWarning}`);
+      window.alert(
+        uploadWarnings.length
+          ? `Added to Trial Library. Guidance indexing will continue in the background.\n\nWarning: ${uploadWarnings.join(' ')}`
+          : 'Added to Trial Library. Guidance indexing will continue in the background.'
+      );
     } catch (error) {
       console.error(error);
       window.alert(`Upload failed: ${error.message}`);
@@ -680,6 +684,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                       Uploaded {protocol.uploadedAt ? new Date(protocol.uploadedAt).toLocaleString() : 'Unknown time'}
                     </div>
                     <div className="section-note section-note--spaced">{formatGuidanceIndexStatus(protocol)}</div>
+                    <div className="section-note">This index lets Side Effect Guidance search protocol content quickly.</div>
                   </div>
 
                   <div className="protocol-library__cardActions">

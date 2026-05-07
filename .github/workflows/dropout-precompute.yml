@@ -17,8 +17,8 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       DROPOUT_REPO_PAT: ${{ secrets.DROPOUT_REPO_PAT }}
-      DROPOUT_DATA_PATH: Patient-Dropout-Prediction/deploy_assets/data/triallight_dropout_testing_v35subjectid.csv
-      DROPOUT_CHECKPOINTS_DIR: Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3
+      DROPOUT_DATA_PATH: deploy_assets/data/triallight_dropout_testing_v35subjectid.csv
+      DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_honest_v3
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -71,8 +71,23 @@ jobs:
           pwd
           ls -la
           ls -la "Patient-Dropout-Prediction"
-          test -f "Patient-Dropout-Prediction/requirements.txt"
-          test -f "Patient-Dropout-Prediction/src/publish_dropout_snapshots.py"
+          required_files=(
+            "Patient-Dropout-Prediction/requirements.txt"
+            "Patient-Dropout-Prediction/src/publish_dropout_snapshots.py"
+            "Patient-Dropout-Prediction/deploy_assets/data/triallight_dropout_testing_v35subjectid.csv"
+          )
+
+          for target in "${required_files[@]}"; do
+            if [ ! -f "$target" ]; then
+              echo "Missing required file: $target"
+              exit 1
+            fi
+          done
+
+          if [ ! -d "Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3" ]; then
+            echo "Missing required directory: Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3"
+            exit 1
+          fi
 
       - name: Install dependencies
         shell: bash

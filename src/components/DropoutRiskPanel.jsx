@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import WindowPaginationControls from './WindowPaginationControls';
 import {
   fetchDropoutDashboardSummary,
+  subscribeToAllDropoutPredictionSnapshots,
   subscribeToDropoutPredictionSnapshotsForUsers,
 } from '../services/dropoutService';
 
@@ -68,6 +69,25 @@ function buildSignalLines(value) {
   return [];
 }
 
+function decorateSnapshotRows(rows = [], patients = []) {
+  const patientMap = new Map((Array.isArray(patients) ? patients : []).map((patient) => [patient.id, patient]));
+  return (Array.isArray(rows) ? rows : [])
+    .map((snapshot) => {
+      const patient = patientMap.get(snapshot.userId) || null;
+      return {
+        ...snapshot,
+        patient,
+        userId: snapshot.userId,
+        patientName: patient?.nickname || patient?.email || snapshot.subject_id || snapshot.userId || 'Unknown patient',
+        patientEmail: patient?.email || '',
+        subjectId: snapshot.subject_id || patient?.subject_id || patient?.subjectId || 'Not set',
+        primaryCrcName: patient?.primary_crc_name || 'Unassigned',
+        isActionable: isActionableSnapshot(snapshot),
+      };
+    })
+    .sort(sortDropoutRows);
+}
+
 function sortDropoutRows(left, right) {
   const leftProbability = getProbabilityNumber(left.dropout_probability) ?? -1;
   const rightProbability = getProbabilityNumber(right.dropout_probability) ?? -1;
@@ -123,6 +143,7 @@ export default function DropoutRiskPanel({
   onOpenPatients,
 }) {
   const [snapshotRows, setSnapshotRows] = useState([]);
+  const [fallbackSnapshotRows, setFallbackSnapshotRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [error, setError] = useState('');
@@ -147,6 +168,26 @@ export default function DropoutRiskPanel({
       }
     );
   }, [loadedUserIds, loadedUserSignature]);
+
+  const joinedRows = useMemo(() => decorateSnapshotRows(snapshotRows, patients), [patients, snapshotRows]);
+
+  useEffect(() => {
+    if (joinedRows.length || error) {
+      setFallbackSnapshotRows([]);
+      return undefined;
+    }
+
+    return subscribeToAllDropoutPredictionSnapshots(
+      (rows) => {
+        setFallbackSnapshotRows(rows);
+      },
+      (nextError) => {
+        console.error('Unable to load global disengagement fallback snapshots:', nextError);
+        setFallbackSnapshotRows([]);
+      },
+      { limitCount: 60 }
+    );
+  }, [error, joinedRows.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,36 +216,22 @@ export default function DropoutRiskPanel({
     };
   }, []);
 
-  const joinedRows = useMemo(() => {
-    const patientMap = new Map(patients.map((patient) => [patient.id, patient]));
-    return snapshotRows
-      .map((snapshot) => {
-        const patient = patientMap.get(snapshot.userId) || null;
-        return {
-          ...snapshot,
-          patient,
-          userId: snapshot.userId,
-          patientName: patient?.nickname || patient?.email || snapshot.subject_id || 'Unknown patient',
-          patientEmail: patient?.email || '',
-          subjectId: snapshot.subject_id || patient?.subject_id || patient?.subjectId || 'Not set',
-          primaryCrcName: patient?.primary_crc_name || 'Unassigned',
-          isActionable: isActionableSnapshot(snapshot),
-        };
-      })
-      .sort(sortDropoutRows);
-  }, [patients, snapshotRows]);
+  const fallbackJoinedRows = useMemo(() => decorateSnapshotRows(fallbackSnapshotRows, patients), [fallbackSnapshotRows, patients]);
+  const isUsingFallbackRows = !joinedRows.length && fallbackJoinedRows.length > 0;
+  const visibleSourceRows = isUsingFallbackRows ? fallbackJoinedRows : joinedRows;
+  const hasPublishedSnapshotData = Boolean(summary) || visibleSourceRows.length > 0;
 
   const filteredRows = useMemo(() => {
     const queryText = searchQuery.trim().toLowerCase();
-    if (!queryText) return joinedRows;
+    if (!queryText) return visibleSourceRows;
 
-    return joinedRows.filter((entry) => {
+    return visibleSourceRows.filter((entry) => {
       const haystack = [entry.patientName, entry.subjectId, entry.patientEmail]
         .map((value) => String(value || '').toLowerCase())
         .join(' ');
       return haystack.includes(queryText);
     });
-  }, [joinedRows, searchQuery]);
+  }, [searchQuery, visibleSourceRows]);
 
   const totalLoadedPages = Math.max(1, Math.ceil(filteredRows.length / snapshotPageSize));
   const effectiveSnapshotPage = Math.min(snapshotPage, totalLoadedPages);
@@ -259,18 +286,20 @@ export default function DropoutRiskPanel({
     if (error) {
       return (
         <div className="empty-panel">
-          Unable to load live disengagement snapshots right now.
-          <div className="section-note section-note--spaced">{error}</div>
+          Disengagement snapshots are temporarily unavailable.
+          <div className="section-note section-note--spaced">
+            CRC review will resume when the next published snapshot can be read successfully.
+          </div>
         </div>
       );
     }
 
-    if (!joinedRows.length) {
+    if (summaryReady && !hasPublishedSnapshotData) {
       return (
         <div className="empty-panel">
-          No published disengagement snapshots are available yet.
+          No published disengagement snapshot is available yet.
           <div className="section-note section-note--spaced">
-            Run the daily precompute workflow or publish snapshots before using this workspace.
+            The daily precompute workflow has not published a current snapshot for CRC review.
           </div>
         </div>
       );
@@ -278,19 +307,21 @@ export default function DropoutRiskPanel({
 
     return (
       <>
-        <div className="dropout-dashboard__metrics">
-          <MetricCard label="Scored patients" value={dashboardMetrics.scoredCount ?? 'N/A'} />
-          <MetricCard label="High-risk patients" value={dashboardMetrics.highRiskCount ?? 'N/A'} tone="warning" />
-          <MetricCard label="Actionable patients" value={dashboardMetrics.actionableCount ?? 'N/A'} tone="brand" />
-          <MetricCard
-            label="Average risk"
-            value={
-              dashboardMetrics.averageProbability == null
-                ? 'N/A'
-                : formatProbabilityPercent(dashboardMetrics.averageProbability)
-            }
-          />
-        </div>
+        {summary ? (
+          <div className="dropout-dashboard__metrics">
+            <MetricCard label="Scored patients" value={dashboardMetrics.scoredCount ?? 'N/A'} />
+            <MetricCard label="High-risk patients" value={dashboardMetrics.highRiskCount ?? 'N/A'} tone="warning" />
+            <MetricCard label="Actionable patients" value={dashboardMetrics.actionableCount ?? 'N/A'} tone="brand" />
+            <MetricCard
+              label="Average risk"
+              value={
+                dashboardMetrics.averageProbability == null
+                  ? 'N/A'
+                  : formatProbabilityPercent(dashboardMetrics.averageProbability)
+              }
+            />
+          </div>
+        ) : null}
 
         <div className="section-note section-note--spaced">
           {summary
@@ -298,9 +329,17 @@ export default function DropoutRiskPanel({
                 dashboardMetrics.publishedAt
                   ? ` from ${new Date(dashboardMetrics.publishedAt).toLocaleString()}`
                   : ''
-              }. The ranked list below remains paginated from the currently loaded patient window.`
+              }. ${
+                isUsingFallbackRows
+                  ? 'The ranked list below is temporarily showing the latest available current-snapshot rows while the loaded patient window catches up.'
+                  : 'The ranked list below remains paginated from the currently loaded patient window.'
+              }`
             : summaryReady
-              ? 'Full disengagement dashboard summary is not available yet. The ranked list below still works, but summary cards stay blank until the next published summary is available.'
+              ? `No published disengagement summary is available yet. ${
+                  isUsingFallbackRows
+                    ? 'The ranked list below is temporarily showing the latest available current-snapshot rows while the dashboard summary is still missing.'
+                    : 'This workspace will stay empty until the next published snapshot is available.'
+                }`
               : 'Loading the latest published disengagement dashboard summary...'}
         </div>
 
@@ -310,7 +349,7 @@ export default function DropoutRiskPanel({
               <div>
                 <h3 className="mt-0">Risk-ranked patients</h3>
                 <div className="section-note">
-                  Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk inside the loaded current snapshot window.
+                  Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk inside the current loaded snapshot feed.
                 </div>
                 <div className="section-note section-note--spaced">
                   Showing {visibleRows.length} visible patients from {filteredRows.length} loaded current snapshots. Full summary cards above are sourced separately from the latest published disengagement summary.
@@ -380,7 +419,11 @@ export default function DropoutRiskPanel({
                   );
                 })
               ) : (
-                <div className="empty-panel">No patients match the current search.</div>
+                <div className="empty-panel">
+                  {visibleSourceRows.length
+                    ? 'No patients match the current search.'
+                    : 'No current disengagement snapshots are mirrored into Firestore for this CRC workspace yet.'}
+                </div>
               )}
             </div>
           </div>
@@ -462,7 +505,7 @@ export default function DropoutRiskPanel({
         <div>
           <h3 className="mt-0">Patient Disengagement Prediction</h3>
           <div className="section-note">
-            Dedicated CRC-only workspace sourced from live Firestore current snapshots. Summary cards use the published full disengagement summary, while the ranked list stays paginated within the loaded patient window.
+            Dedicated CRC-only workspace sourced from live Firestore snapshots. Published summaries appear when available, and ranked rows stay paginated inside the loaded patient window.
           </div>
         </div>
         <span className="metric-pill">CRC only</span>
