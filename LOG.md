@@ -4098,3 +4098,119 @@ eady calculation.
     - `src/services/trialTemplateService.js`
     - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js`
     - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/trialTemplateService.js`
+
+## 2026-05-07 - Temporary SULAM booth assistant swap (local only)
+
+- Created a temporary patient-side `SULAM Booth Assistant` component for the secondary school activity:
+  - file: `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbotForSecondarySchool.js`
+  - this booth-mode assistant keeps chat in local UI state only and does not write chat history, side-effect reports, CRC alerts, or audit records
+- Swapped the current patient website guidance entry to the temporary booth assistant without editing the formal clinical chatbot implementation:
+  - `PatientHome.js` now imports `GeminiChatbotForSecondarySchool`
+  - the original `GeminiChatbot.js` was intentionally left unchanged for post-activity rollback
+- Activity-mode booth behavior:
+  - asks for sleep hours and Milo/Coffee in free chat
+  - uses the currently assigned booth account protocol as the source of truth
+  - warns booth staff to switch accounts if the student input conflicts with the active Milo/Coffee account
+  - attempts to read the assigned protocol PDF before generating the reply
+  - falls back to a friendly local booth answer if protocol retrieval or Gemini generation is unavailable
+- Follow-up activity-mode polish:
+  - `PatientHome.js` booth card copy now matches the school activity instead of the formal clinical guidance wording
+  - the dedicated `/side-effect` route now redirects users back to the patient home booth flow with school-activity copy
+  - patient home no longer subscribes to mirrored side-effect reports during booth mode, reducing unnecessary reads
+  - the temporary booth assistant now respects `openSignal`, so the home-screen button reliably opens it again after `Hide`
+- No deployment actions were taken in this step.
+
+## 2026-05-07 - SULAM booth assistant usability follow-up (local only)
+
+- Updated the temporary patient-side `SULAM Booth Assistant` so it no longer opens automatically on patient home entry:
+  - the booth panel now stays hidden until the user presses `Open SULAM Booth Assistant`
+  - after the user has opened it once, `Hide` collapses it and leaves a lightweight reopen pill
+- Added bilingual booth support for English and Bahasa Malaysia:
+  - Milo/Coffee detection now also understands `kopi`
+  - sleep-hour extraction now supports Malay phrasing such as `tidur 5 jam`
+  - missing-info prompts, account-conflict prompts, and fallback predictions now switch into Bahasa Malaysia when the student writes in Malay
+  - Gemini prompting now explicitly tells the model to reply in Bahasa Malaysia when the student uses Malay or mixed Malay-English
+- Hardened booth-account detection for tomorrow's school flow:
+  - account drink resolution now checks protocol name, protocol URL, patient nickname, and patient account email
+  - this reduces the chance of the booth assistant failing if the drink signal is stored in the account identity rather than only in the protocol name
+- Reworked the booth chat layout for local web use:
+  - the assistant panel is now a fixed bottom sheet on web
+  - the message list scrolls inside the panel while the input and send button stay pinned at the bottom
+  - the input placeholder now explicitly accepts both English and Bahasa Malaysia
+- Updated the patient home booth card copy to match the new behavior:
+  - the card now tells users the assistant supports English and Bahasa Malaysia
+  - the card also clarifies that the booth assistant only opens after pressing the button
+
+## 2026-05-07 - SULAM booth assistant answer-quality follow-up (local only)
+
+- Tightened the temporary `SULAM Booth Assistant` so it responds to the student's latest question instead of repeating the same baseline booth prediction:
+  - added explicit booth intent detection for overconsumption-style questions such as `too much` / `terlalu banyak`
+  - the assistant now distinguishes between a normal booth prediction and a direct follow-up question about drinking too much Milo or Coffee
+- Added stricter anti-hallucination guardrails for the temporary booth assistant:
+  - rejects replies that invent face/video analysis, hidden booth measurements, or unsupported "research says..." claims
+  - falls back to a safe local answer if Gemini returns an off-topic or exaggerated booth answer
+- Added direct local fallback answers for `too much Coffee` and `too much Milo` in both English and Bahasa Malaysia so the activity still works even if Gemini returns a weak answer
+- Preserved the temporary activity boundaries:
+  - no chat persistence
+  - no side-effect reports
+  - no CRC alert trigger
+  - no edits to the formal clinical `GeminiChatbot` implementation
+
+## 2026-05-07 - SULAM patient website hosting release
+
+- Deployed only the patient website hosting target for the school booth activity:
+  - target: `hosting:patient`
+  - site: `https://triallight-patient.web.app`
+- Confirmed the deployment rebuilt the current patient web export before release:
+  - activity entry remains the temporary `SULAM Booth Assistant`
+  - formal clinical `GeminiChatbot` file remains unchanged
+- No CRC hosting deployment was performed in this step.
+
+## 2026-05-08 - SULAM booth Gemini key-pool rotation (local only)
+
+- Updated the temporary `SULAM Booth Assistant` to support separate frontend Gemini key pools for the two booth accounts:
+  - `EXPO_PUBLIC_GEMINI_API_KEYS_COFFEE`
+  - `EXPO_PUBLIC_GEMINI_API_KEYS_MILO`
+- The activity assistant now routes each booth account to its own key pool:
+  - Coffee account uses only the Coffee pool
+  - Milo account uses only the Milo pool
+- Added sequential key rotation with per-account browser `sessionStorage` tracking so repeated prompts on the same laptop do not always start from the first key
+- Added retry-on-key-failure handling for temporary event-only Gemini failures:
+  - rotates on quota / rate-limit / 403 / empty-response style failures
+  - falls back to the local booth answer if the entire pool is unavailable
+- Updated `MyClinicalApp2/.env.example` with the temporary SULAM key-pool environment variable names and left the single-key variable as an optional local fallback only
+- No deploy, commit, or push was performed in this step.
+
+## 2026-05-08 - SULAM booth local Gemini key assignment (local only)
+
+- Added the temporary event key pools to the local patient-web `.env` file without committing them:
+  - `EXPO_PUBLIC_GEMINI_API_KEYS_COFFEE`
+  - `EXPO_PUBLIC_GEMINI_API_KEYS_MILO`
+- Split the currently provided temporary keys into separate Coffee and Milo pools so the two booth laptops do not rotate through the exact same frontend keys.
+- Kept a single `EXPO_PUBLIC_GEMINI_API_KEY` value as a last-resort fallback only.
+- Intentionally left one extra historical key unused because the user said only eight temporary keys should be active for the booth.
+- No deploy, commit, or push was performed in this step.
+
+## 2026-05-08 - SULAM booth visible key-label indicator (local only)
+
+- Updated the temporary patient-web booth config to support separate visible key-label lists:
+  - `EXPO_PUBLIC_GEMINI_KEY_LABELS_COFFEE`
+  - `EXPO_PUBLIC_GEMINI_KEY_LABELS_MILO`
+- Expanded the local SULAM booth `.env` assignment to use all 9 latest temporary keys:
+  - Coffee pool uses 5 labels/keys
+  - Milo pool uses 4 labels/keys
+- Updated `GeminiChatbotForSecondarySchool` so the assistant tracks the currently selected Gemini key label while rotating through the temporary frontend key pool.
+- Added a small footer status line inside the activity assistant input area to show the current key label (for example `mooonpie`, `23005048`, `jianhongtan72`) without exposing the actual API key value.
+- No deploy, commit, or push was performed in this step.
+
+## 2026-05-08 - SULAM patient website redeploy with visible key labels
+
+- Redeployed only the patient hosting target after wiring the visible temporary Gemini key-label indicator into the SULAM booth assistant.
+- Confirmed the exported patient web bundle includes:
+  - `EXPO_PUBLIC_GEMINI_KEY_LABELS_COFFEE`
+  - `EXPO_PUBLIC_GEMINI_KEY_LABELS_MILO`
+  - the separate Coffee/Milo frontend key pools
+- The live patient site now shows the current Gemini key label in the temporary SULAM assistant footer so booth staff can monitor which account's quota is currently in use.
+- Hosting URL:
+  - `https://triallight-patient.web.app`
+- No CRC hosting deployment was performed in this step.
