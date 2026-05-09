@@ -1745,3 +1745,14 @@
   - uses `deploy_assets/checkpoints_honest_v3` as the checkpoints directory
 - This change only updates the GitHub Actions automation path and does not deploy Firebase Hosting or Supabase functions.
 
+## 2026-05-09 - Dropout precompute workflow rescheduled and path-corrected on main
+
+- Updated `.github/workflows/dropout-precompute.yml` on `main` again to reduce scheduler congestion and fix the live asset path bug.
+- The workflow now:
+  - runs twice daily at `06:00` and `18:00` Asia/Kuala_Lumpur via cron `0 22 * * *` and `0 10 * * *`
+  - runs the verify / install / preflight / publish steps from the checked-out `Patient-Dropout-Prediction` working directory so `deploy_assets/...` paths resolve inside the dropout repository
+  - validates the required CSV and the official `Candidate 024` checkpoint directory before installing dependencies
+  - uses `deploy_assets/checkpoints_candidate_024` instead of the older `honest_v3` rollback checkpoint path
+  - writes a temporary `.gitmodules` file during CI so GitHub post-job cleanup no longer fails on missing submodule metadata for `Patient-Dropout-Prediction` and `MyClinicalApp2`
+- This change only updates the GitHub Actions automation path and does not deploy Firebase Hosting or Supabase functions.
+

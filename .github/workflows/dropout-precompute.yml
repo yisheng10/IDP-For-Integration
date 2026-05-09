@@ -3,8 +3,10 @@ name: TrialLight Dropout Precompute
 on:
   workflow_dispatch:
   schedule:
-    # 03:00 Asia/Kuala_Lumpur = 19:00 UTC on the previous day.
-    - cron: "0 19 * * *"
+    # 06:00 Asia/Kuala_Lumpur = 22:00 UTC on the previous day.
+    - cron: "0 22 * * *"
+    # 18:00 Asia/Kuala_Lumpur = 10:00 UTC on the same day.
+    - cron: "0 10 * * *"
 
 jobs:
   publish-dropout-snapshots:
@@ -17,11 +19,25 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       DROPOUT_REPO_PAT: ${{ secrets.DROPOUT_REPO_PAT }}
-      DROPOUT_DATA_PATH: Patient-Dropout-Prediction/deploy_assets/data/triallight_dropout_testing_v35subjectid.csv
-      DROPOUT_CHECKPOINTS_DIR: Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3
+      DROPOUT_DATA_PATH: deploy_assets/data/triallight_dropout_testing_v35subjectid.csv
+      DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_candidate_024
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          submodules: false
+
+      - name: Normalize submodule metadata for checkout cleanup
+        shell: bash
+        run: |
+          cat > .gitmodules <<'EOF'
+          [submodule "Patient-Dropout-Prediction"]
+          	path = Patient-Dropout-Prediction
+          	url = https://github.com/yisheng10/Patient-Dropout-Prediction.git
+          [submodule "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2"]
+          	path = MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2
+          	url = https://github.com/yisheng10/IDP_PatientApp.git
+          EOF
 
       - name: Checkout dropout workspace
         uses: actions/checkout@v5
@@ -66,26 +82,44 @@ jobs:
           python-version: "3.12"
 
       - name: Verify dropout workspace files
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
           pwd
           ls -la
-          ls -la "Patient-Dropout-Prediction"
-          test -f "Patient-Dropout-Prediction/requirements.txt"
-          test -f "Patient-Dropout-Prediction/src/publish_dropout_snapshots.py"
+          required_files=(
+            "requirements.txt"
+            "src/publish_dropout_snapshots.py"
+            "deploy_assets/data/triallight_dropout_testing_v35subjectid.csv"
+          )
+
+          for target in "${required_files[@]}"; do
+            if [ ! -f "$target" ]; then
+              echo "Missing required file: $target"
+              exit 1
+            fi
+          done
+
+          if [ ! -d "deploy_assets/checkpoints_candidate_024" ]; then
+            echo "Missing required directory: deploy_assets/checkpoints_candidate_024"
+            exit 1
+          fi
 
       - name: Install dependencies
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r "./Patient-Dropout-Prediction/requirements.txt"
+          python -m pip install -r "./requirements.txt"
 
       - name: Preflight live dropout assets and secrets
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
-          python "./Patient-Dropout-Prediction/src/publish_dropout_snapshots.py" --preflight-only --source-mode live --limit-patients 5
+          python "./src/publish_dropout_snapshots.py" --preflight-only --source-mode live --limit-patients 5
 
       - name: Publish Firestore mirrors and Supabase snapshots
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
-          python "./Patient-Dropout-Prediction/src/publish_dropout_snapshots.py" --source-mode live
+          python "./src/publish_dropout_snapshots.py" --source-mode live
