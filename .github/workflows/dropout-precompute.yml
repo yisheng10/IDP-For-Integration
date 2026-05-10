@@ -20,6 +20,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       DROPOUT_REPO_PAT: ${{ secrets.DROPOUT_REPO_PAT }}
+      DROPOUT_LIVE_DEBUG: "1"
       TRIALLIGHT_SUBJECT_CONTEXT_REGISTRY_PATH: deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv
       DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_candidate_024
       DROPOUT_PROGRESS_EVERY: "5"

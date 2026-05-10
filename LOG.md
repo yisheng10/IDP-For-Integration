@@ -1771,3 +1771,9 @@
 - The publisher now reports testing-subject sync start/completion plus scanned-patient counts, predictions-ready counts, missing mappings, score failures, static-context gaps, insufficient live-history skips, and elapsed seconds.
 - Updated the workflow environment to use unbuffered Python output and a default progress interval of `5` patients so those logs appear in GitHub Actions while the live publish is still running.
 
+## 2026-05-10 - Dropout live publish bounded-source and debug hotfix
+
+- Tightened the live dropout publisher so Firestore source reads no longer fall back to unbounded full-history scans when `protocolAssignedAt` is missing.
+- Added a capped `incident_records` query and source-start debug logging so GitHub Actions can identify which patient/source is slowing the live publish step.
+- Updated the main-branch workflow environment to enable live source debug output while keeping the existing `Candidate 024` asset bundle and progress heartbeat settings.
+
