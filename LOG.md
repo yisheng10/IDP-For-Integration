@@ -1765,3 +1765,9 @@
   - `deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl`
 - This keeps the workflow aligned with the `Candidate 024` live deployment bundle without trying to commit the untrackable `302MB` `triallight_dropout_testing_v35subjectid.csv` file to GitHub.
 
+## 2026-05-10 - Dropout live publish progress logging added
+
+- Added periodic progress logs to the live dropout publisher so GitHub Actions no longer appears frozen during long patient-by-patient live scans.
+- The publisher now reports testing-subject sync start/completion plus scanned-patient counts, predictions-ready counts, missing mappings, score failures, static-context gaps, insufficient live-history skips, and elapsed seconds.
+- Updated the workflow environment to use unbuffered Python output and a default progress interval of `5` patients so those logs appear in GitHub Actions while the live publish is still running.
+
