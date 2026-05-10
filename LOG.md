@@ -1756,3 +1756,12 @@
   - writes a temporary `.gitmodules` file during CI so GitHub post-job cleanup no longer fails on missing submodule metadata for `Patient-Dropout-Prediction` and `MyClinicalApp2`
 - This change only updates the GitHub Actions automation path and does not deploy Firebase Hosting or Supabase functions.
 
+## 2026-05-10 - Dropout workflow switched to live-safe deploy assets
+
+- Confirmed the latest GitHub Actions failure was caused by verifying a large frozen CSV that is not required for `source_mode=live`, not by scheduler drift or the user's local computer state.
+- Updated `.github/workflows/dropout-precompute.yml` so the main workflow now verifies only the live publish assets that must exist inside the checked-out dropout repository:
+  - `deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv`
+  - `deploy_assets/checkpoints_candidate_024/model_stage_3_29_single.pth`
+  - `deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl`
+- This keeps the workflow aligned with the `Candidate 024` live deployment bundle without trying to commit the untrackable `302MB` `triallight_dropout_testing_v35subjectid.csv` file to GitHub.
+
