@@ -2,6 +2,20 @@ name: TrialLight Dropout Precompute
 
 on:
   workflow_dispatch:
+    inputs:
+      limit_patients:
+        description: "Optional patient scan limit for debugging"
+        required: false
+        type: number
+      firebase_uids:
+        description: "Optional comma-separated Firebase UIDs to target"
+        required: false
+        type: string
+      skip_testing_subject_sync:
+        description: "Skip syncing dropout_testing_subjects during this run"
+        required: false
+        default: false
+        type: boolean
   schedule:
     # 06:00 Asia/Kuala_Lumpur = 22:00 UTC on the previous day.
     - cron: "0 22 * * *"
@@ -23,6 +37,8 @@ jobs:
       DROPOUT_LIVE_DEBUG: "1"
       TRIALLIGHT_SUBJECT_CONTEXT_REGISTRY_PATH: deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv
       DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_candidate_024
+      DROPOUT_LIVE_HISTORY_CONTEXT_DAYS: "30"
+      DROPOUT_LIVE_STALENESS_CAP_DAYS: "30"
       DROPOUT_PROGRESS_EVERY: "5"
     steps:
       - name: Checkout repository
@@ -121,10 +137,46 @@ jobs:
         working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
-          python "./src/publish_dropout_snapshots.py" --preflight-only --source-mode live --limit-patients 5
+          LIMIT_PATIENTS="${{ github.event.inputs.limit_patients || '' }}"
+          FIREBASE_UIDS="${{ github.event.inputs.firebase_uids || '' }}"
+          SKIP_SYNC="${{ github.event.inputs.skip_testing_subject_sync || 'false' }}"
+          args=(--preflight-only --source-mode live)
+
+          if [ -n "$LIMIT_PATIENTS" ]; then
+            args+=(--limit-patients "$LIMIT_PATIENTS")
+          elif [ -z "$FIREBASE_UIDS" ]; then
+            args+=(--limit-patients 5)
+          fi
+
+          if [ -n "$FIREBASE_UIDS" ]; then
+            args+=(--firebase-uids "$FIREBASE_UIDS")
+          fi
+
+          if [ "$SKIP_SYNC" = "true" ]; then
+            args+=(--skip-testing-subject-sync)
+          fi
+
+          python "./src/publish_dropout_snapshots.py" "${args[@]}"
 
       - name: Publish Firestore mirrors and Supabase snapshots
         working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
-          python "./src/publish_dropout_snapshots.py" --source-mode live
+          LIMIT_PATIENTS="${{ github.event.inputs.limit_patients || '' }}"
+          FIREBASE_UIDS="${{ github.event.inputs.firebase_uids || '' }}"
+          SKIP_SYNC="${{ github.event.inputs.skip_testing_subject_sync || 'false' }}"
+          args=(--source-mode live)
+
+          if [ -n "$LIMIT_PATIENTS" ]; then
+            args+=(--limit-patients "$LIMIT_PATIENTS")
+          fi
+
+          if [ -n "$FIREBASE_UIDS" ]; then
+            args+=(--firebase-uids "$FIREBASE_UIDS")
+          fi
+
+          if [ "$SKIP_SYNC" = "true" ]; then
+            args+=(--skip-testing-subject-sync)
+          fi
+
+          python "./src/publish_dropout_snapshots.py" "${args[@]}"

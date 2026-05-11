@@ -1777,3 +1777,16 @@
 - Added a capped `incident_records` query and source-start debug logging so GitHub Actions can identify which patient/source is slowing the live publish step.
 - Updated the main-branch workflow environment to enable live source debug output while keeping the existing `Candidate 024` asset bundle and progress heartbeat settings.
 
+## 2026-05-11 - Dropout workflow debugging inputs and recent-context runtime cap
+
+- Updated the `main` branch dropout workflow so manual runs can now pass:
+  - `limit_patients`
+  - `firebase_uids`
+  - `skip_testing_subject_sync`
+- Added live runtime env knobs on the workflow for:
+  - `DROPOUT_LIVE_HISTORY_CONTEXT_DAYS`
+  - `DROPOUT_LIVE_STALENESS_CAP_DAYS`
+- This keeps the scheduled `06:00 / 18:00 Asia/Kuala_Lumpur` runs unchanged while making targeted GitHub debugging much cheaper.
+- The dropout publisher on `main` now builds only a controlled recent context window for live scoring instead of replaying the entire day-by-day history from the original anchor date, while still preserving the real global `day_index` in published rows.
+- Added explicit per-patient `history_build_*` and `score_*` progress logs so future GitHub timeouts can be pinned to the exact slow phase.
+
