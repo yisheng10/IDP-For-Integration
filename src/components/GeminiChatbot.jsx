@@ -16,16 +16,22 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { db } from '../firebase';
 import {
+  CRC_GUIDANCE_TRACE_STREAM_ENABLED,
   SIDE_EFFECT_GUIDANCE_MODEL,
   SIDE_EFFECT_GUIDANCE_PROVIDER,
 } from '../config';
 import { SAFETY_INSTRUCTIONS } from '../safetyInstructions';
 import { routeGuidanceRequest } from '../services/guidanceRouterService';
-import { requestSideEffectGuidance } from '../services/sideEffectGuidanceService';
+import {
+  requestSideEffectGuidance,
+  requestSideEffectGuidanceTraceStream,
+} from '../services/sideEffectGuidanceService';
 
-const CRC_AI_NAME = 'Side Effect Guidance';
+const CRC_AI_NAME = 'Adverse Event Guidance';
 const CHAT_HISTORY_LIMIT = 100;
 const CONTEXT_WINDOW_LIMIT = 50;
+const TRACE_HISTORY_LIMIT = 20;
+const TRACE_EVENT_LIMIT = 100;
 
 function buildThinkingLabel(step, options = {}) {
   const ctcaeCount = Number(options.ctcaeCount) || 0;
@@ -58,7 +64,7 @@ function buildProviderUserMessage(error) {
     return error.message;
   }
 
-  return 'AI Error. Side Effect Guidance is unavailable right now.';
+  return 'AI Error. Adverse Event Guidance is unavailable right now.';
 }
 
 function serializeForPrompt(value) {
@@ -127,6 +133,23 @@ function formatWhatsappStyleDayLabel(date, now = new Date()) {
   return `${day}/${month}/${year}`;
 }
 
+function buildTraceHistoryOptionLabel(traceSummary = {}) {
+  const timestamp =
+    coerceChatTimestamp(traceSummary?.completedAt) || coerceChatTimestamp(traceSummary?.startedAt);
+  const timestampLabel = timestamp
+    ? `${formatWhatsappStyleDayLabel(timestamp)} · ${formatWhatsappStyleTime(timestamp)}`
+    : 'Saved trace';
+  const question = String(traceSummary?.questionText || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  const questionPreview = question
+    ? question.length > 78
+      ? `${question.slice(0, 75)}...`
+      : question
+    : 'Saved adverse event guidance turn';
+  return `${timestampLabel} — ${questionPreview}`;
+}
+
 function buildGuidanceTimeline(messages = []) {
   const items = [];
   let lastDayKey = null;
@@ -155,6 +178,99 @@ function buildGuidanceTimeline(messages = []) {
   });
 
   return items;
+}
+
+function buildTraceKey(patientUid, traceId) {
+  const safePatientUid = String(patientUid || '').trim();
+  const safeTraceId = String(traceId || '').trim();
+  if (!safePatientUid || !safeTraceId) return '';
+  return `${safePatientUid}:${safeTraceId}`;
+}
+
+function normalizeTraceDetailLines(details = []) {
+  if (!Array.isArray(details)) return [];
+  return details
+    .map((entry) => String(entry || '').trim())
+    .filter(Boolean);
+}
+
+function normalizeTraceSourceExcerpts(sourceExcerpts = []) {
+  if (!Array.isArray(sourceExcerpts)) return [];
+  return sourceExcerpts
+    .map((entry) => ({
+      sourceType: String(entry?.sourceType || '').trim() || 'source',
+      documentTitle: String(entry?.documentTitle || '').trim() || 'Source',
+      citationLabel: String(entry?.citationLabel || '').trim() || 'Source',
+      excerptText: String(entry?.excerptText || '').trim(),
+      relevanceReason: String(entry?.relevanceReason || '').trim(),
+    }))
+    .filter((entry) => entry.excerptText);
+}
+
+function normalizeTraceEvent(entry = {}) {
+  return {
+    type: String(entry?.type || '').trim(),
+    stepKey: String(entry?.stepKey || '').trim(),
+    title: String(entry?.title || '').trim() || 'Trace event',
+    summary: String(entry?.summary || '').trim() || 'No summary available.',
+    details: normalizeTraceDetailLines(entry?.details),
+    status: String(entry?.status || 'completed').trim(),
+    sourceExcerpts: normalizeTraceSourceExcerpts(entry?.sourceExcerpts),
+    meta: entry?.meta && typeof entry.meta === 'object' ? entry.meta : {},
+    seq: Number.isFinite(Number(entry?.seq)) ? Number(entry.seq) : 0,
+    timestamp: entry?.timestamp || null,
+  };
+}
+
+function normalizeTraceSummary(entry = {}) {
+  const explicitPersisted = entry?.persisted;
+  const isPendingTrace =
+    explicitPersisted == null &&
+    (entry?.loading === true || String(entry?.traceStatus || '').toLowerCase() === 'in_progress');
+
+  return {
+    traceId: String(entry?.traceId || '').trim() || null,
+    sessionId: String(entry?.sessionId || '').trim() || null,
+    patientUid: String(entry?.patientUid || '').trim() || null,
+    subjectId: String(entry?.subjectId || '').trim() || null,
+    questionText: String(entry?.questionText || '').trim() || '',
+    finalAnswerText: String(entry?.finalAnswerText || '').trim() || '',
+    provider: String(entry?.provider || '').trim() || '',
+    model: String(entry?.model || '').trim() || '',
+    sourceMask: String(entry?.sourceMask || '').trim() || 'none',
+    retrievalUsed: Boolean(entry?.retrievalUsed),
+    protocolId: String(entry?.protocolId || '').trim() || null,
+    protocolName: String(entry?.protocolName || '').trim() || null,
+    traceStatus: String(entry?.traceStatus || 'completed').trim() || 'completed',
+    displaySummary: String(entry?.displaySummary || '').trim() || '',
+    latestStepTitle: String(entry?.latestStepTitle || '').trim() || 'Trace',
+    completedAt: entry?.completedAt || null,
+    startedAt: entry?.startedAt || null,
+    traceRecordPath: String(entry?.traceRecordPath || '').trim() || null,
+    persisted: isPendingTrace
+      ? null
+      : explicitPersisted == null
+        ? Boolean(entry?.traceRecordPath)
+        : Boolean(explicitPersisted),
+  };
+}
+
+function buildTraceRef(summary = {}) {
+  const normalized = normalizeTraceSummary(summary);
+  if (!normalized.traceId || !normalized.patientUid) {
+    return null;
+  }
+
+  return {
+    traceId: normalized.traceId,
+    patientUid: normalized.patientUid,
+    subjectId: normalized.subjectId,
+    sourceMask: normalized.sourceMask,
+    displaySummary: normalized.displaySummary,
+    latestStepTitle: normalized.latestStepTitle,
+    traceRecordPath: normalized.traceRecordPath,
+    persisted: normalized.persisted,
+  };
 }
 
 function buildStableSystemPrompt(aiName) {
@@ -231,6 +347,7 @@ function buildWorkspaceContextText({
 export default function GeminiChatbot({
   role = 'crc',
   userId,
+  userNickname = '',
   patientData,
   patientVitals = [],
   patientAppointments = [],
@@ -262,6 +379,13 @@ export default function GeminiChatbot({
     provider: SIDE_EFFECT_GUIDANCE_PROVIDER,
     model: SIDE_EFFECT_GUIDANCE_MODEL,
   });
+  const [activeTrace, setActiveTrace] = useState(null);
+  const [expandedTraceKeys, setExpandedTraceKeys] = useState({});
+  const [traceDetailCache, setTraceDetailCache] = useState({});
+  const [traceHistory, setTraceHistory] = useState([]);
+  const [traceHistoryLoading, setTraceHistoryLoading] = useState(false);
+  const [selectedHistoryTraceKey, setSelectedHistoryTraceKey] = useState('');
+  const [historyRefreshToken, setHistoryRefreshToken] = useState(0);
 
   const chatAreaRef = useRef(null);
   const chatSessionRef = useRef(null);
@@ -270,11 +394,23 @@ export default function GeminiChatbot({
   const lastRetrievalRef = useRef(null);
   const lastRetrievalTurnIndexRef = useRef(0);
   const turnSequenceRef = useRef(0);
+  const chatSessionIdRef = useRef('');
 
   const isDocked = presentation === 'docked';
   const chatVisible = isDocked || isOpen;
   const currentAiName = titleOverride || CRC_AI_NAME;
-  const historyCollectionRef = userId ? collection(db, 'users', userId, 'ai_chat_history') : null;
+  const currentTracePatient = activeContextPatient || patientData || null;
+  const historyCollectionRef = useMemo(
+    () => (userId ? collection(db, 'users', userId, 'ai_chat_history') : null),
+    [userId]
+  );
+  const traceHistoryCollectionRef = useMemo(
+    () =>
+      currentTracePatient?.id
+        ? collection(db, 'users', currentTracePatient.id, 'guidance_traces')
+        : null,
+    [currentTracePatient?.id]
+  );
   const workspaceContextText = useMemo(
     () =>
       buildWorkspaceContextText({
@@ -289,7 +425,7 @@ export default function GeminiChatbot({
   );
   const chatTimeline = useMemo(() => buildGuidanceTimeline(messages), [messages]);
 
-  const saveMessage = useCallback(async (messageRole, text) => {
+  const saveMessage = useCallback(async (messageRole, text, extraPayload = {}) => {
     if (!historyCollectionRef || !text) return;
 
     try {
@@ -297,20 +433,96 @@ export default function GeminiChatbot({
         role: messageRole,
         text,
         timestamp: serverTimestamp(),
+        ...(extraPayload && typeof extraPayload === 'object' ? extraPayload : {}),
       });
     } catch (error) {
       console.error('Failed to save AI history:', error);
     }
   }, [historyCollectionRef]);
 
+  const loadTraceEvents = useCallback(async (traceRef) => {
+    const traceId = String(traceRef?.traceId || '').trim();
+    const patientUid = String(traceRef?.patientUid || '').trim();
+    if (!traceId || !patientUid) {
+      return null;
+    }
+
+    const traceKey = buildTraceKey(patientUid, traceId);
+    if (!traceKey) {
+      return null;
+    }
+
+    if (traceDetailCache[traceKey]) {
+      return traceDetailCache[traceKey];
+    }
+
+    const traceSummaryRef = doc(db, 'users', patientUid, 'guidance_traces', traceId);
+    const [traceSummarySnapshot, traceEventsSnapshot] = await Promise.all([
+      getDoc(traceSummaryRef),
+      getDocs(
+        query(
+          collection(db, 'users', patientUid, 'guidance_traces', traceId, 'events'),
+          orderBy('seq', 'asc'),
+          limit(TRACE_EVENT_LIMIT)
+        )
+      ),
+    ]);
+
+    const traceSummary = traceSummarySnapshot.exists()
+      ? normalizeTraceSummary({
+          traceId,
+          patientUid,
+          ...traceSummarySnapshot.data(),
+        })
+      : normalizeTraceSummary({
+          traceId,
+          patientUid,
+          ...traceRef,
+        });
+
+    const traceDetail = {
+      ...traceSummary,
+      events: traceEventsSnapshot.docs.map((entry) => normalizeTraceEvent(entry.data())),
+    };
+
+    setTraceDetailCache((previous) => ({
+      ...previous,
+      [traceKey]: traceDetail,
+    }));
+
+    return traceDetail;
+  }, [traceDetailCache]);
+
+  const toggleTraceExpanded = useCallback(async (traceRef) => {
+    const traceKey = buildTraceKey(traceRef?.patientUid, traceRef?.traceId);
+    if (!traceKey) return;
+
+    const isCurrentlyExpanded = Boolean(expandedTraceKeys[traceKey]);
+    setExpandedTraceKeys((previous) => ({
+      ...previous,
+      [traceKey]: !isCurrentlyExpanded,
+    }));
+
+    if (!isCurrentlyExpanded && traceRef?.persisted !== false) {
+      try {
+        await loadTraceEvents(traceRef);
+      } catch (error) {
+        console.error('Failed to load trace events:', error);
+      }
+    }
+  }, [expandedTraceKeys, loadTraceEvents]);
+
   const initializeGuidance = useCallback(async () => {
     try {
       if (role !== 'crc') {
-        throw new Error('Side Effect Guidance in the CRC website is restricted to CRC users.');
+      throw new Error('Adverse Event Guidance in the CRC website is restricted to CRC users.');
       }
 
       systemPromptRef.current = buildStableSystemPrompt(currentAiName);
       chatSessionRef.current = true;
+      if (!chatSessionIdRef.current) {
+        chatSessionIdRef.current = `crc-guidance-${userId || 'unknown'}-${Date.now()}`;
+      }
 
       if (messages.length === 0) {
         await saveMessage(
@@ -321,7 +533,7 @@ export default function GeminiChatbot({
     } catch (error) {
       console.error('AI initialization failed:', error);
     }
-  }, [currentAiName, messages.length, role, saveMessage]);
+  }, [currentAiName, messages.length, role, saveMessage, userId]);
 
   useEffect(() => {
     if (!historyCollectionRef) return undefined;
@@ -349,9 +561,17 @@ export default function GeminiChatbot({
   }, [patientData]);
 
   useEffect(() => {
+    setSelectedHistoryTraceKey('');
+  }, [currentTracePatient?.id]);
+
+  useEffect(() => {
     lastRetrievalRef.current = null;
     lastRetrievalTurnIndexRef.current = 0;
     turnSequenceRef.current = 0;
+    chatSessionIdRef.current = '';
+    setActiveTrace(null);
+    setTraceHistory([]);
+    setSelectedHistoryTraceKey('');
   }, [userId]);
 
   useEffect(() => {
@@ -359,6 +579,70 @@ export default function GeminiChatbot({
       initializeGuidance();
     }
   }, [activeProtocolId, activeProtocolName, chatVisible, initializeGuidance, isHistoryLoaded, protocolUrl, userId]);
+
+  useEffect(() => {
+    if (!activeTrace?.traceId || !activeTrace?.patientUid) {
+      return;
+    }
+
+    const matchingMessage = messages.find(
+      (message) =>
+        message?.guidanceTrace?.traceId === activeTrace.traceId &&
+        message?.guidanceTrace?.patientUid === activeTrace.patientUid
+    );
+
+    if (matchingMessage) {
+      setActiveTrace(null);
+    }
+  }, [activeTrace, messages]);
+
+  useEffect(() => {
+    if (!chatVisible || !traceHistoryCollectionRef) {
+      if (!traceHistoryCollectionRef) {
+        setTraceHistory([]);
+        setSelectedHistoryTraceKey('');
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const loadHistory = async () => {
+      setTraceHistoryLoading(true);
+      try {
+        const snapshot = await getDocs(
+          query(traceHistoryCollectionRef, orderBy('completedAt', 'desc'), limit(TRACE_HISTORY_LIMIT))
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        const nextHistory = snapshot.docs.map((entry) =>
+          normalizeTraceSummary({
+            traceId: entry.id,
+            patientUid: currentTracePatient?.id || null,
+            ...entry.data(),
+          })
+        );
+
+        setTraceHistory(nextHistory);
+      } catch (error) {
+        console.error('Failed to load patient guidance trace history:', error);
+        if (!cancelled) {
+          setTraceHistory([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setTraceHistoryLoading(false);
+        }
+      }
+    };
+
+    loadHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatVisible, currentTracePatient?.id, historyRefreshToken, traceHistoryCollectionRef]);
 
   useEffect(() => {
     if (!chatVisible || !pendingOutputAutoScrollRef.current || !chatAreaRef.current) {
@@ -455,6 +739,7 @@ export default function GeminiChatbot({
       return {
         patientId: null,
         patientName: 'No active patient',
+        subjectId: null,
         protocolId: null,
         protocolName: null,
         promptText: 'No single patient is selected. Use the CRC workspace context for workspace-level questions.',
@@ -474,6 +759,7 @@ export default function GeminiChatbot({
       return {
         patientId: patientData?.id || targetPatient.id,
         patientName: patientData?.nickname || targetPatient.nickname || targetPatient.id,
+        subjectId: patientData?.subject_id || patientData?.subjectId || targetPatient.id,
         protocolId: protocol.protocolId,
         protocolName: protocol.protocolName,
         promptText: buildPatientContextText({
@@ -549,6 +835,7 @@ export default function GeminiChatbot({
     return {
       patientId: profile.id || targetPatient.id,
       patientName: profile.nickname || targetPatient.nickname || targetPatient.id,
+      subjectId: profile.subject_id || profile.subjectId || profile.id || targetPatient.id,
       protocolId: protocol.protocolId,
       protocolName: protocol.protocolName,
       promptText: buildPatientContextText({
@@ -579,6 +866,7 @@ export default function GeminiChatbot({
     setIsLoading(true);
     setThinkingLabel(buildThinkingLabel('context'));
     pendingOutputAutoScrollRef.current = true;
+    setActiveTrace(null);
     await saveMessage('user', userText);
 
     try {
@@ -622,25 +910,241 @@ export default function GeminiChatbot({
           role: message.role === 'model' ? 'assistant' : 'user',
           content: message.text,
         }));
+      let finalAnswerText = '';
+      let finalAnswerProvider = SIDE_EFFECT_GUIDANCE_PROVIDER;
+      let finalAnswerModel = SIDE_EFFECT_GUIDANCE_MODEL;
+      let finalTraceSummary = null;
+      let streamedTraceEventCount = 0;
+      let streamedTraceEvents = [];
 
-      const { text, provider, model } = await requestSideEffectGuidance({
-        provider: SIDE_EFFECT_GUIDANCE_PROVIDER,
+      const sharedTracePayload = {
+        sessionId:
+          chatSessionIdRef.current || `crc-guidance-${userId || 'unknown'}-${Date.now()}`,
         systemPrompt: systemPromptRef.current,
         messages: conversation,
-        userMessage: routedGuidance.prompt,
-      });
+        originalUserText: userText,
+        routedPrompt: routedGuidance.prompt,
+        routeDecision: routedGuidance.routeDecision,
+        routeReason: routedGuidance.routeReason,
+        sourceMask: routedGuidance.sourceMask || 'none',
+        usedCache: routedGuidance.usedCache,
+        ctcaeChunks: routedGuidance.ctcaeChunks,
+        protocolChunks: routedGuidance.protocolChunks,
+        patientUid: patientContext.patientId,
+        patientName: patientContext.patientName,
+        subjectId: patientContext.subjectId,
+        protocolId: patientContext.protocolId,
+        protocolName: patientContext.protocolName,
+        crcDisplayName: userNickname || '',
+      };
 
-      setRuntimeMeta({
-        provider: provider || SIDE_EFFECT_GUIDANCE_PROVIDER,
-        model: model || SIDE_EFFECT_GUIDANCE_MODEL,
-      });
+      const startTraceState = () => {
+        const pendingTraceId = `${sharedTracePayload.sessionId}-pending`;
+        const pendingPatientUid = patientContext.patientId || 'ephemeral';
+        setExpandedTraceKeys((previous) => ({
+          ...previous,
+          [buildTraceKey(pendingPatientUid, pendingTraceId)]: true,
+        }));
+        setActiveTrace({
+          traceId: pendingTraceId,
+          sessionId: sharedTracePayload.sessionId,
+          patientUid: pendingPatientUid,
+          patientName: patientContext.patientName,
+          subjectId: patientContext.subjectId,
+          sourceMask: sharedTracePayload.sourceMask,
+          events: [],
+          finalAnswerText: '',
+          displaySummary: '',
+          latestStepTitle: 'Thinking',
+          persisted: null,
+          traceRecordPath: null,
+          error: '',
+          loading: true,
+        });
+      };
 
-      const emergencyMatch = text.match(/\*\*\*EMERGENCY: (.*?)\*\*\*/);
+      const applyTraceEvent = (traceEvent) => {
+        const normalizedTraceEvent = normalizeTraceEvent(traceEvent);
+        streamedTraceEventCount += 1;
+        const liveTraceKey = buildTraceKey(
+          traceEvent?.patientUid || patientContext.patientId || 'ephemeral',
+          traceEvent?.traceId || `${sharedTracePayload.sessionId}-pending`
+        );
+        if (liveTraceKey) {
+          setExpandedTraceKeys((previous) => ({
+            ...previous,
+            [liveTraceKey]: true,
+          }));
+        }
+        setThinkingLabel(normalizedTraceEvent.summary || normalizedTraceEvent.title || 'Thinking');
+        streamedTraceEvents = [...streamedTraceEvents, normalizedTraceEvent];
+        setActiveTrace((previous) => {
+          const nextEvents = [...(previous?.events || []), normalizedTraceEvent];
+          return {
+            ...(previous || {}),
+            traceId: traceEvent?.traceId || previous?.traceId || null,
+            sessionId: traceEvent?.sessionId || previous?.sessionId || sharedTracePayload.sessionId,
+            patientUid: traceEvent?.patientUid || previous?.patientUid || patientContext.patientId,
+            subjectId: traceEvent?.subjectId || previous?.subjectId || patientContext.subjectId,
+            sourceMask: traceEvent?.meta?.sourceMask || previous?.sourceMask || sharedTracePayload.sourceMask,
+            events: nextEvents,
+            latestStepTitle: normalizedTraceEvent.title,
+            displaySummary: normalizedTraceEvent.summary || previous?.displaySummary || '',
+            loading: normalizedTraceEvent.stepKey !== 'trace_failed',
+          };
+        });
+      };
+
+      const saveStreamedModelMessage = async () => {
+        const traceRef = buildTraceRef(finalTraceSummary || {});
+        const shouldAttachPersistedTrace = Boolean(traceRef?.traceId && traceRef?.patientUid && traceRef?.persisted);
+
+        if (shouldAttachPersistedTrace) {
+          const traceKey = buildTraceKey(traceRef.patientUid, traceRef.traceId);
+          if (traceKey) {
+            setTraceDetailCache((previous) => ({
+              ...previous,
+              [traceKey]: {
+                ...normalizeTraceSummary({
+                  ...(finalTraceSummary || {}),
+                  traceId: traceRef.traceId,
+                  patientUid: traceRef.patientUid,
+                }),
+                events: streamedTraceEvents,
+              },
+            }));
+          }
+        }
+
+        await saveMessage(
+          'model',
+          finalAnswerText,
+          shouldAttachPersistedTrace ? { guidanceTrace: traceRef } : {}
+        );
+
+        if (!shouldAttachPersistedTrace) {
+          setActiveTrace((previous) =>
+            previous
+              ? {
+                  ...previous,
+                  finalAnswerText: '',
+                  loading: false,
+                }
+              : previous
+          );
+        }
+      };
+
+      if (CRC_GUIDANCE_TRACE_STREAM_ENABLED) {
+        startTraceState();
+
+        try {
+          await requestSideEffectGuidanceTraceStream(sharedTracePayload, {
+            onTraceEvent: (traceEvent) => {
+              applyTraceEvent(traceEvent);
+            },
+            onFinalAnswer: (finalAnswerEvent) => {
+              finalAnswerText = String(finalAnswerEvent?.text || '').trim();
+              finalAnswerProvider = finalAnswerEvent?.provider || SIDE_EFFECT_GUIDANCE_PROVIDER;
+              finalAnswerModel = finalAnswerEvent?.model || SIDE_EFFECT_GUIDANCE_MODEL;
+              setRuntimeMeta({
+                provider: finalAnswerProvider,
+                model: finalAnswerModel,
+              });
+              setActiveTrace((previous) => ({
+                ...(previous || {}),
+                traceId: finalAnswerEvent?.traceId || previous?.traceId || null,
+                finalAnswerText,
+              }));
+            },
+            onTraceComplete: (traceCompleteEvent) => {
+              finalTraceSummary = normalizeTraceSummary(traceCompleteEvent?.traceSummary || {});
+              const completedTraceKey = buildTraceKey(
+                finalTraceSummary.patientUid || patientContext.patientId,
+                finalTraceSummary.traceId
+              );
+              if (completedTraceKey) {
+                setExpandedTraceKeys((previous) => ({
+                  ...previous,
+                  [completedTraceKey]: true,
+                }));
+              }
+              setActiveTrace((previous) => ({
+                ...(previous || {}),
+                traceId: finalTraceSummary.traceId || previous?.traceId || null,
+                sessionId: finalTraceSummary.sessionId || previous?.sessionId || sharedTracePayload.sessionId,
+                patientUid: finalTraceSummary.patientUid || previous?.patientUid || patientContext.patientId,
+                subjectId: finalTraceSummary.subjectId || previous?.subjectId || patientContext.subjectId,
+                displaySummary:
+                  finalTraceSummary.displaySummary || previous?.displaySummary || '',
+                latestStepTitle:
+                  finalTraceSummary.latestStepTitle || previous?.latestStepTitle || 'Trace',
+                persisted: Boolean(traceCompleteEvent?.persisted),
+                traceRecordPath: finalTraceSummary.traceRecordPath || null,
+                loading: false,
+              }));
+            },
+            onTraceError: (traceErrorEvent) => {
+              setActiveTrace((previous) => ({
+                ...(previous || {}),
+                traceId: traceErrorEvent?.traceId || previous?.traceId || null,
+                error: String(traceErrorEvent?.message || '').trim(),
+                loading: false,
+              }));
+            },
+          });
+        } catch (streamError) {
+          if (streamedTraceEventCount > 0) {
+            throw streamError;
+          }
+
+          const fallbackResponse = await requestSideEffectGuidance({
+            provider: SIDE_EFFECT_GUIDANCE_PROVIDER,
+            systemPrompt: systemPromptRef.current,
+            messages: conversation,
+            userMessage: routedGuidance.prompt,
+          });
+
+          finalAnswerText = fallbackResponse.text;
+          finalAnswerProvider = fallbackResponse.provider || SIDE_EFFECT_GUIDANCE_PROVIDER;
+          finalAnswerModel = fallbackResponse.model || SIDE_EFFECT_GUIDANCE_MODEL;
+          setRuntimeMeta({
+            provider: finalAnswerProvider,
+            model: finalAnswerModel,
+          });
+          setActiveTrace(null);
+        }
+      } else {
+        const fallbackResponse = await requestSideEffectGuidance({
+          provider: SIDE_EFFECT_GUIDANCE_PROVIDER,
+          systemPrompt: systemPromptRef.current,
+          messages: conversation,
+          userMessage: routedGuidance.prompt,
+        });
+
+        finalAnswerText = fallbackResponse.text;
+        finalAnswerProvider = fallbackResponse.provider || SIDE_EFFECT_GUIDANCE_PROVIDER;
+        finalAnswerModel = fallbackResponse.model || SIDE_EFFECT_GUIDANCE_MODEL;
+        setRuntimeMeta({
+          provider: finalAnswerProvider,
+          model: finalAnswerModel,
+        });
+      }
+
+      if (!finalAnswerText) {
+      throw new Error('AI Error. Adverse Event Guidance did not return a final answer.');
+      }
+
+      const emergencyMatch = finalAnswerText.match(/\*\*\*EMERGENCY: (.*?)\*\*\*/);
       if (emergencyMatch && onEmergencyTrigger) {
         onEmergencyTrigger(emergencyMatch[1].trim());
       }
 
-      await saveMessage('model', text);
+      await saveStreamedModelMessage();
+
+      if (finalTraceSummary?.patientUid) {
+        setHistoryRefreshToken((previous) => previous + 1);
+      }
 
       if (routedGuidance.routeDecision === 'retrieve' && routedGuidance.nextRetrievalCache) {
         lastRetrievalRef.current = routedGuidance.nextRetrievalCache;
@@ -682,6 +1186,291 @@ export default function GeminiChatbot({
     pendingOutputAutoScrollRef.current = false;
     setShowJumpToBottom(false);
   };
+
+  const handleHistoryTraceSelect = async (traceSummary) => {
+    const traceRef = buildTraceRef(traceSummary);
+    const traceKey = buildTraceKey(traceRef?.patientUid, traceRef?.traceId);
+    if (!traceKey) return;
+
+    setSelectedHistoryTraceKey(traceKey);
+
+    if (traceRef && traceRef.persisted !== false) {
+      try {
+        await loadTraceEvents(traceRef);
+      } catch (error) {
+        console.error('Failed to load historical trace detail:', error);
+      }
+    }
+  };
+
+  const handleHistoryTraceChange = useCallback(async (event) => {
+    const nextTraceKey = String(event.target.value || '');
+    if (!nextTraceKey) {
+      setSelectedHistoryTraceKey('');
+      return;
+    }
+
+    const nextTrace = traceHistory.find((traceSummary) => {
+      const traceRef = buildTraceRef(traceSummary);
+      return buildTraceKey(traceRef?.patientUid, traceRef?.traceId) === nextTraceKey;
+    });
+
+    if (!nextTrace) {
+      setSelectedHistoryTraceKey('');
+      return;
+    }
+
+    await handleHistoryTraceSelect(nextTrace);
+  }, [traceHistory, handleHistoryTraceSelect]);
+
+  const renderTraceEventCard = (traceEvent, eventIndex) => (
+    <div key={`${traceEvent.stepKey}-${traceEvent.seq}-${eventIndex}`} style={styles.traceEventCard}>
+      <div style={styles.traceEventHeader}>
+        <div>
+          <div style={styles.traceEventTitle}>{traceEvent.title}</div>
+          <div style={styles.traceEventSummary}>{traceEvent.summary}</div>
+        </div>
+        <span style={styles.traceEventStatus}>
+          {traceEvent.status === 'started' ? 'Live' : 'Done'}
+        </span>
+      </div>
+      {traceEvent.details.length ? (
+        <ul style={styles.traceDetailList}>
+          {traceEvent.details.map((detail, detailIndex) => (
+            <li key={`${traceEvent.seq}-detail-${detailIndex}`}>{detail}</li>
+          ))}
+        </ul>
+      ) : null}
+      {traceEvent.sourceExcerpts.length ? (
+        <div style={styles.traceExcerptList}>
+          {traceEvent.sourceExcerpts.map((excerpt, excerptIndex) => (
+            <div key={`${traceEvent.seq}-excerpt-${excerptIndex}`} style={styles.traceExcerptCard}>
+              <div style={styles.traceExcerptHeader}>
+                <span style={styles.traceExcerptChip}>{excerpt.sourceType.toUpperCase()}</span>
+                <span style={styles.traceExcerptCitation}>{excerpt.citationLabel}</span>
+              </div>
+              <div style={styles.traceExcerptText}>{excerpt.excerptText}</div>
+              {excerpt.relevanceReason ? (
+                <div style={styles.traceExcerptReason}>{excerpt.relevanceReason}</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const renderTracePanel = (traceRef, { label = 'Detailed reasoning trace' } = {}) => {
+    const traceKey = buildTraceKey(traceRef?.patientUid, traceRef?.traceId);
+    if (!traceKey) return null;
+
+    const isExpanded = Boolean(expandedTraceKeys[traceKey]);
+    const cachedTraceDetail = traceDetailCache[traceKey];
+    const traceEvents = cachedTraceDetail?.events || traceRef?.events || [];
+    const traceSummary = normalizeTraceSummary({
+      ...traceRef,
+      ...(cachedTraceDetail || {}),
+    });
+    const saveStatusLabel =
+      traceSummary.persisted == null
+        ? 'Save status pending'
+        : traceSummary.persisted
+          ? 'Saved'
+          : 'Not saved';
+
+    return (
+      <div style={styles.tracePanel}>
+        <button
+          type="button"
+          style={styles.traceToggleButton}
+          onClick={() => toggleTraceExpanded(traceRef)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
+            <span style={styles.traceToggleTitle}>{label}</span>
+            <span style={styles.traceToggleSummary}>
+              {traceSummary.displaySummary || traceSummary.latestStepTitle || 'Open trace'}
+            </span>
+          </div>
+          <span style={styles.traceToggleCaret}>{isExpanded ? 'Hide' : 'Show'}</span>
+        </button>
+        {isExpanded ? (
+          <div style={styles.tracePanelBody}>
+            <div style={styles.traceMetaRow}>
+              <span>Source mask: {traceSummary.sourceMask || 'none'}</span>
+              <span>{saveStatusLabel}</span>
+            </div>
+            {traceEvents.length ? (
+              <div style={styles.traceEventList}>
+                {traceEvents
+                  .filter((traceEvent) => traceEvent.type === 'trace_event')
+                  .map((traceEvent, eventIndex) => renderTraceEventCard(traceEvent, eventIndex))}
+              </div>
+            ) : (
+              <div style={styles.traceEmptyState}>
+                {traceSummary.persisted == null
+                  ? 'The reasoning trace is still running. Save status will be shown after completion.'
+                  : traceSummary.persisted === false
+                  ? 'This answer did not save a patient-linked trace.'
+                  : 'Trace details are loading or were not available.'}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const currentHistoryTraceDetail = selectedHistoryTraceKey
+    ? traceDetailCache[selectedHistoryTraceKey] || null
+    : null;
+
+  const historyPanel = isDocked ? (
+    <section style={styles.traceHistorySection}>
+      <div style={styles.traceHistoryHeader}>
+        <div>
+          <div style={styles.traceHistoryTitle}>Patient AI Adverse Event History</div>
+        </div>
+        <span style={styles.traceHistoryBadge}>
+          {currentTracePatient?.nickname || 'No patient selected'}
+        </span>
+      </div>
+      {!currentTracePatient?.id ? (
+        <div style={styles.traceEmptyState}>
+          Select or mention a patient to review patient-linked adverse event guidance traces.
+        </div>
+      ) : traceHistoryLoading ? (
+        <div style={styles.traceEmptyState}>Loading saved guidance traces…</div>
+      ) : !traceHistory.length ? (
+        <div style={styles.traceEmptyState}>
+          No saved patient-linked adverse event guidance turns were found for this patient yet.
+        </div>
+      ) : (
+        <>
+        <div style={styles.traceHistoryControls}>
+          <label style={styles.traceHistorySelectField}>
+            <select
+              value={selectedHistoryTraceKey}
+              onChange={handleHistoryTraceChange}
+                style={styles.traceHistorySelect}
+              >
+                <option value="">Select a saved adverse event guidance turn...</option>
+                {traceHistory.map((traceSummary) => {
+                  const traceRef = buildTraceRef(traceSummary);
+                  const traceKey = buildTraceKey(traceRef?.patientUid, traceRef?.traceId);
+
+                  return (
+                    <option key={traceKey} value={traceKey}>
+                      {buildTraceHistoryOptionLabel(traceSummary)}
+                    </option>
+                  );
+                })}
+            </select>
+          </label>
+          <div style={styles.traceHistoryCountBadge}>
+              {traceHistory.length} turn{traceHistory.length === 1 ? '' : 's'}
+          </div>
+        </div>
+
+          {currentHistoryTraceDetail ? (
+            <div style={styles.traceHistoryDetail}>
+              <div style={styles.traceHistoryDetailHeader}>
+                <div style={styles.traceHistoryDetailTitle}>
+                  {currentHistoryTraceDetail.displaySummary || 'Saved adverse event reasoning trace'}
+                </div>
+                <div style={styles.traceHistoryDetailMeta}>
+                  Subject: {currentHistoryTraceDetail.subjectId || 'Unknown'} | Source mask:{' '}
+                  {currentHistoryTraceDetail.sourceMask || 'none'}
+                </div>
+              </div>
+              {currentHistoryTraceDetail.finalAnswerText ? (
+                <div style={styles.traceHistoryAnswerCard}>
+                  <ReactMarkdown>{currentHistoryTraceDetail.finalAnswerText}</ReactMarkdown>
+                </div>
+              ) : null}
+              <div style={styles.traceEventList}>
+                {currentHistoryTraceDetail.events
+                  .filter((traceEvent) => traceEvent.type === 'trace_event')
+                  .map((traceEvent, eventIndex) => renderTraceEventCard(traceEvent, eventIndex))}
+              </div>
+            </div>
+          ) : selectedHistoryTraceKey ? (
+            <div style={styles.traceEmptyState}>Loading the saved reasoning trace...</div>
+          ) : null}
+
+          {false ? (
+        <div style={styles.traceHistoryBody}>
+          <div style={styles.traceHistoryList}>
+            {traceHistory.map((traceSummary) => {
+              const traceRef = buildTraceRef(traceSummary);
+              const traceKey = buildTraceKey(traceRef?.patientUid, traceRef?.traceId);
+              const isSelected = selectedHistoryTraceKey === traceKey;
+
+              return (
+                <button
+                  key={traceKey}
+                  type="button"
+                  style={{
+                    ...styles.traceHistoryRow,
+                    ...(isSelected ? styles.traceHistoryRowActive : {}),
+                  }}
+                  onClick={() => handleHistoryTraceSelect(traceSummary)}
+                >
+                  <div style={styles.traceHistoryRowTop}>
+                    <span style={styles.traceHistoryRowTime}>
+                      {traceSummary.completedAt
+                        ? formatWhatsappStyleDayLabel(new Date(traceSummary.completedAt))
+                        : 'No date'}
+                    </span>
+                    <span style={styles.traceHistoryRowMask}>{traceSummary.sourceMask || 'none'}</span>
+                  </div>
+                  <div style={styles.traceHistoryRowQuestion}>
+                    {traceSummary.questionText || 'No question text saved.'}
+                  </div>
+                  <div style={styles.traceHistoryRowSummary}>
+                    {traceSummary.displaySummary || traceSummary.latestStepTitle || 'Trace saved.'}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={styles.traceHistoryDetail}>
+            {currentHistoryTraceDetail ? (
+              <>
+                <div style={styles.traceHistoryDetailHeader}>
+                  <div style={styles.traceHistoryDetailTitle}>
+                    {currentHistoryTraceDetail.displaySummary || 'Saved reasoning trace'}
+                  </div>
+                  <div style={styles.traceHistoryDetailMeta}>
+                    Subject: {currentHistoryTraceDetail.subjectId || 'Unknown'} | Source mask:{' '}
+                    {currentHistoryTraceDetail.sourceMask || 'none'}
+                  </div>
+                </div>
+                {currentHistoryTraceDetail.finalAnswerText ? (
+                  <div style={styles.traceHistoryAnswerCard}>
+                    <ReactMarkdown>{currentHistoryTraceDetail.finalAnswerText}</ReactMarkdown>
+                  </div>
+                ) : null}
+                <div style={styles.traceEventList}>
+                  {currentHistoryTraceDetail.events
+                    .filter((traceEvent) => traceEvent.type === 'trace_event')
+                    .map((traceEvent, eventIndex) => renderTraceEventCard(traceEvent, eventIndex))}
+                </div>
+              </>
+            ) : selectedHistoryTraceKey ? (
+              <div style={styles.traceEmptyState}>Loading the saved reasoning trace…</div>
+            ) : (
+              <div style={styles.traceEmptyState}>
+                Select a saved trace to review the full CRC reasoning record.
+              </div>
+            )}
+          </div>
+        </div>
+          ) : null}
+        </>
+      )}
+    </section>
+  ) : null;
 
   if (!chatVisible) {
     return (
@@ -750,6 +1539,7 @@ export default function GeminiChatbot({
           }
 
           const message = entry.message;
+          const messageTraceRef = buildTraceRef(message?.guidanceTrace || {});
           return (
             <div
               key={entry.key || index}
@@ -796,6 +1586,7 @@ export default function GeminiChatbot({
                   <div className="guidance-panel__bubbleContent">
                     {message.role === 'model' ? <ReactMarkdown>{message.text}</ReactMarkdown> : message.text}
                   </div>
+                  {message.role === 'model' && messageTraceRef ? renderTracePanel(messageTraceRef) : null}
                   {entry.timeLabel ? (
                     <div
                       className={`guidance-panel__bubbleTimestamp guidance-panel__bubbleTimestamp--${message.role}`}
@@ -808,6 +1599,58 @@ export default function GeminiChatbot({
             </div>
           );
         })}
+        {activeTrace ? (
+          <div
+            className={isDocked ? 'guidance-panel__messageRow guidance-panel__messageRow--model' : ''}
+            style={
+              isDocked
+                ? undefined
+                : {
+                    ...styles.messageRow,
+                    justifyContent: 'flex-start',
+                  }
+            }
+          >
+            <div
+              className={isDocked ? 'guidance-panel__bubble guidance-panel__bubble--model' : ''}
+              style={
+                isDocked
+                  ? undefined
+                  : {
+                      ...styles.bubble,
+                      backgroundColor: '#f8fbff',
+                      color: '#243b53',
+                      border: '1px solid #dbe5f0',
+                    }
+              }
+            >
+              {!activeTrace.loading && activeTrace.finalAnswerText ? (
+                <div className="guidance-panel__bubbleContent">
+                  <ReactMarkdown>{activeTrace.finalAnswerText}</ReactMarkdown>
+                </div>
+              ) : null}
+              {renderTracePanel(
+                {
+                  traceId: activeTrace.traceId,
+                  patientUid: activeTrace.patientUid,
+                  subjectId: activeTrace.subjectId,
+                  sourceMask: activeTrace.sourceMask,
+                  displaySummary: activeTrace.displaySummary,
+                  latestStepTitle: activeTrace.latestStepTitle,
+                  traceRecordPath: activeTrace.traceRecordPath,
+                  persisted: activeTrace.persisted,
+                  events: activeTrace.events,
+                },
+                {
+                  label: activeTrace.loading ? 'Live reasoning trace' : 'Latest reasoning trace',
+                }
+              )}
+              {activeTrace.error ? (
+                <div style={styles.traceErrorText}>{activeTrace.error}</div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         {isLoading ? (
           <div className={isDocked ? 'guidance-panel__loading' : ''} style={isDocked ? undefined : styles.loadingState}>
             <span className={isDocked ? 'guidance-panel__thinkingBadge' : ''} style={isDocked ? undefined : styles.thinkingBadge}>
@@ -838,6 +1681,13 @@ export default function GeminiChatbot({
     </div>
   );
 
+  const dockedBodyBlock = isDocked ? (
+    <div style={styles.traceWorkspaceBody}>
+      {historyPanel}
+      <div style={styles.traceWorkspaceChatSlot}>{messagesBlock}</div>
+    </div>
+  ) : null;
+
   const inputBlock = (
     <form
       onSubmit={handleSend}
@@ -850,7 +1700,7 @@ export default function GeminiChatbot({
         style={isDocked ? undefined : styles.input}
         value={input}
         onChange={(event) => setInput(event.target.value)}
-        placeholder="Describe a side effect, protocol rule, vitals concern, or follow-up action..."
+        placeholder="Describe an adverse event, protocol rule, vitals concern, or follow-up action..."
       />
       <button
         type="submit"
@@ -867,7 +1717,7 @@ export default function GeminiChatbot({
     return (
       <section className="card workspace-card intelligence-card intelligence-card--guidance">
         {headerBlock}
-        {messagesBlock}
+        {dockedBodyBlock}
         {inputBlock}
       </section>
     );
@@ -1055,5 +1905,356 @@ const styles = {
     cursor: 'pointer',
     fontWeight: '700',
     padding: '0 18px',
+  },
+  tracePanel: {
+    marginTop: '12px',
+    borderTop: '1px solid #e5edf6',
+    paddingTop: '12px',
+  },
+  traceToggleButton: {
+    width: '100%',
+    border: '1px solid #d7e3f0',
+    background: '#f8fbff',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px',
+    cursor: 'pointer',
+  },
+  traceToggleTitle: {
+    fontSize: '12px',
+    fontWeight: '800',
+    letterSpacing: '0.02em',
+    textTransform: 'uppercase',
+    color: '#0f609b',
+  },
+  traceToggleSummary: {
+    fontSize: '13px',
+    color: '#35526b',
+    lineHeight: 1.5,
+  },
+  traceToggleCaret: {
+    color: '#0f609b',
+    fontWeight: '700',
+    whiteSpace: 'nowrap',
+  },
+  tracePanelBody: {
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  traceMetaRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    fontSize: '12px',
+    color: '#64748b',
+  },
+  traceEventList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  traceEventCard: {
+    border: '1px solid #dbe7f2',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    background: '#ffffff',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  traceEventHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '12px',
+  },
+  traceEventTitle: {
+    fontSize: '13px',
+    fontWeight: '800',
+    color: '#153551',
+  },
+  traceEventSummary: {
+    marginTop: '4px',
+    fontSize: '13px',
+    color: '#35526b',
+    lineHeight: 1.55,
+  },
+  traceEventStatus: {
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#0f609b',
+    background: '#e8f1fb',
+    borderRadius: '999px',
+    padding: '5px 9px',
+    whiteSpace: 'nowrap',
+  },
+  traceDetailList: {
+    margin: 0,
+    paddingLeft: '18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    color: '#35526b',
+    fontSize: '13px',
+    lineHeight: 1.55,
+  },
+  traceExcerptList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  traceExcerptCard: {
+    background: '#f8fbff',
+    border: '1px solid #dbe7f2',
+    borderRadius: '12px',
+    padding: '10px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  traceExcerptHeader: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  traceExcerptChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '58px',
+    height: '24px',
+    borderRadius: '999px',
+    background: '#dfeefb',
+    color: '#0f609b',
+    fontSize: '11px',
+    fontWeight: '800',
+    letterSpacing: '0.02em',
+  },
+  traceExcerptCitation: {
+    fontSize: '12px',
+    color: '#4a647e',
+    fontWeight: '600',
+  },
+  traceExcerptText: {
+    fontSize: '13px',
+    color: '#243b53',
+    lineHeight: 1.55,
+  },
+  traceExcerptReason: {
+    fontSize: '12px',
+    color: '#52606d',
+    lineHeight: 1.5,
+  },
+  traceEmptyState: {
+    border: '1px dashed #c6d6e6',
+    borderRadius: '14px',
+    padding: '14px',
+    color: '#64748b',
+    fontSize: '13px',
+    lineHeight: 1.55,
+    background: '#fbfdff',
+  },
+  traceErrorText: {
+    marginTop: '10px',
+    color: '#a61b1b',
+    fontSize: '13px',
+    lineHeight: 1.5,
+  },
+  traceHistorySection: {
+    borderBottom: '1px solid #e5edf6',
+    padding: '14px 20px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    background: 'linear-gradient(180deg, #fcfeff 0%, #f8fbff 100%)',
+  },
+  traceHistoryHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '12px',
+    alignItems: 'flex-start',
+  },
+  traceHistoryTitle: {
+    fontSize: '14px',
+    fontWeight: '800',
+    color: '#153551',
+  },
+  traceHistorySubtitle: {
+    marginTop: '4px',
+    fontSize: '12px',
+    color: '#64748b',
+    lineHeight: 1.5,
+  },
+  traceHistoryBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '999px',
+    padding: '6px 10px',
+    background: '#edf5fb',
+    color: '#0f609b',
+    fontSize: '12px',
+    fontWeight: '700',
+    whiteSpace: 'nowrap',
+  },
+  traceHistoryControls: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'end',
+    gap: '12px',
+  },
+  traceHistorySelectField: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    flex: '1 1 360px',
+  },
+  traceHistoryFieldLabel: {
+    fontSize: '11px',
+    fontWeight: '800',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: '#4a647e',
+  },
+  traceHistorySelect: {
+    width: '100%',
+    minHeight: '44px',
+    borderRadius: '14px',
+    border: '1px solid #c7d4e2',
+    background: '#ffffff',
+    color: '#153551',
+    fontSize: '13px',
+    padding: '0 14px',
+    outline: 'none',
+    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.04)',
+  },
+  traceHistoryCountBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '44px',
+    padding: '0 12px',
+    borderRadius: '14px',
+    background: '#edf5fb',
+    color: '#0f609b',
+    fontSize: '12px',
+    fontWeight: '800',
+    whiteSpace: 'nowrap',
+  },
+  traceHistoryBody: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(260px, 320px) minmax(0, 1fr)',
+    gap: '12px',
+    alignItems: 'start',
+  },
+  traceHistoryList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    maxHeight: '280px',
+    overflowY: 'auto',
+    paddingRight: '4px',
+  },
+  traceHistoryRow: {
+    border: '1px solid #dbe7f2',
+    borderRadius: '14px',
+    background: '#ffffff',
+    padding: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+  traceHistoryRowActive: {
+    borderColor: '#0f609b',
+    boxShadow: '0 0 0 1px rgba(15, 96, 155, 0.15)',
+    background: '#f8fbff',
+  },
+  traceHistoryRowTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  traceHistoryRowTime: {
+    fontSize: '11px',
+    color: '#64748b',
+    fontWeight: '700',
+  },
+  traceHistoryRowMask: {
+    fontSize: '11px',
+    color: '#0f609b',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  traceHistoryRowQuestion: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#153551',
+    lineHeight: 1.45,
+  },
+  traceHistoryRowSummary: {
+    fontSize: '12px',
+    color: '#52606d',
+    lineHeight: 1.5,
+  },
+  traceHistoryDetail: {
+    minHeight: '220px',
+    border: '1px solid #dbe7f2',
+    borderRadius: '16px',
+    padding: '14px',
+    background: '#ffffff',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  traceHistoryDetailHeader: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  traceHistoryDetailTitle: {
+    fontSize: '14px',
+    fontWeight: '800',
+    color: '#153551',
+  },
+  traceHistoryDetailMeta: {
+    fontSize: '12px',
+    color: '#64748b',
+    lineHeight: 1.5,
+  },
+  traceHistoryAnswerCard: {
+    border: '1px solid #dbe7f2',
+    borderRadius: '14px',
+    padding: '12px 14px',
+    background: '#f8fbff',
+    color: '#243b53',
+    lineHeight: 1.6,
+  },
+  traceHistoryHintCard: {
+    border: '1px dashed #c6d6e6',
+    borderRadius: '14px',
+    padding: '14px',
+    color: '#64748b',
+    fontSize: '13px',
+    lineHeight: 1.55,
+    background: '#fbfdff',
+  },
+  traceWorkspaceBody: {
+    minHeight: 0,
+    display: 'grid',
+    gridTemplateRows: 'auto minmax(0, 1fr)',
+    overflow: 'hidden',
+  },
+  traceWorkspaceChatSlot: {
+    minHeight: 0,
+    overflow: 'hidden',
   },
 };

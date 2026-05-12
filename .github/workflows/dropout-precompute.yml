@@ -2,9 +2,25 @@ name: TrialLight Dropout Precompute
 
 on:
   workflow_dispatch:
+    inputs:
+      limit_patients:
+        description: "Optional patient scan limit for debugging"
+        required: false
+        type: number
+      firebase_uids:
+        description: "Optional comma-separated Firebase UIDs to target"
+        required: false
+        type: string
+      skip_testing_subject_sync:
+        description: "Skip syncing dropout_testing_subjects during this run"
+        required: false
+        default: false
+        type: boolean
   schedule:
-    # 03:00 Asia/Kuala_Lumpur = 19:00 UTC on the previous day.
-    - cron: "0 19 * * *"
+    # 06:00 Asia/Kuala_Lumpur = 22:00 UTC on the previous day.
+    - cron: "0 22 * * *"
+    # 18:00 Asia/Kuala_Lumpur = 10:00 UTC on the same day.
+    - cron: "0 10 * * *"
 
 jobs:
   publish-dropout-snapshots:
@@ -13,15 +29,34 @@ jobs:
       contents: read
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      PYTHONUNBUFFERED: "1"
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       DROPOUT_REPO_PAT: ${{ secrets.DROPOUT_REPO_PAT }}
-      DROPOUT_DATA_PATH: deploy_assets/data/triallight_dropout_testing_v35subjectid.csv
-      DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_honest_v3
+      DROPOUT_LIVE_DEBUG: "1"
+      TRIALLIGHT_SUBJECT_CONTEXT_REGISTRY_PATH: deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv
+      DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_candidate_024
+      DROPOUT_LIVE_HISTORY_CONTEXT_DAYS: "30"
+      DROPOUT_LIVE_STALENESS_CAP_DAYS: "30"
+      DROPOUT_PROGRESS_EVERY: "5"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          submodules: false
+
+      - name: Normalize submodule metadata for checkout cleanup
+        shell: bash
+        run: |
+          cat > .gitmodules <<'EOF'
+          [submodule "Patient-Dropout-Prediction"]
+          	path = Patient-Dropout-Prediction
+          	url = https://github.com/yisheng10/Patient-Dropout-Prediction.git
+          [submodule "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2"]
+          	path = MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2
+          	url = https://github.com/yisheng10/IDP_PatientApp.git
+          EOF
 
       - name: Checkout dropout workspace
         uses: actions/checkout@v5
@@ -66,15 +101,17 @@ jobs:
           python-version: "3.12"
 
       - name: Verify dropout workspace files
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
           pwd
           ls -la
-          ls -la "Patient-Dropout-Prediction"
           required_files=(
-            "Patient-Dropout-Prediction/requirements.txt"
-            "Patient-Dropout-Prediction/src/publish_dropout_snapshots.py"
-            "Patient-Dropout-Prediction/deploy_assets/data/triallight_dropout_testing_v35subjectid.csv"
+            "requirements.txt"
+            "src/publish_dropout_snapshots.py"
+            "deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv"
+            "deploy_assets/checkpoints_candidate_024/model_stage_3_29_single.pth"
+            "deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl"
           )
 
           for target in "${required_files[@]}"; do
@@ -84,23 +121,62 @@ jobs:
             fi
           done
 
-          if [ ! -d "Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3" ]; then
-            echo "Missing required directory: Patient-Dropout-Prediction/deploy_assets/checkpoints_honest_v3"
+          if [ ! -d "deploy_assets/checkpoints_candidate_024" ]; then
+            echo "Missing required directory: deploy_assets/checkpoints_candidate_024"
             exit 1
           fi
 
       - name: Install dependencies
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r "./Patient-Dropout-Prediction/requirements.txt"
+          python -m pip install -r "./requirements.txt"
 
       - name: Preflight live dropout assets and secrets
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
-          python "./Patient-Dropout-Prediction/src/publish_dropout_snapshots.py" --preflight-only --source-mode live --limit-patients 5
+          LIMIT_PATIENTS="${{ github.event.inputs.limit_patients || '' }}"
+          FIREBASE_UIDS="${{ github.event.inputs.firebase_uids || '' }}"
+          SKIP_SYNC="${{ github.event.inputs.skip_testing_subject_sync || 'false' }}"
+          args=(--preflight-only --source-mode live)
+
+          if [ -n "$LIMIT_PATIENTS" ]; then
+            args+=(--limit-patients "$LIMIT_PATIENTS")
+          elif [ -z "$FIREBASE_UIDS" ]; then
+            args+=(--limit-patients 5)
+          fi
+
+          if [ -n "$FIREBASE_UIDS" ]; then
+            args+=(--firebase-uids "$FIREBASE_UIDS")
+          fi
+
+          if [ "$SKIP_SYNC" = "true" ]; then
+            args+=(--skip-testing-subject-sync)
+          fi
+
+          python "./src/publish_dropout_snapshots.py" "${args[@]}"
 
       - name: Publish Firestore mirrors and Supabase snapshots
+        working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
-          python "./Patient-Dropout-Prediction/src/publish_dropout_snapshots.py" --source-mode live
+          LIMIT_PATIENTS="${{ github.event.inputs.limit_patients || '' }}"
+          FIREBASE_UIDS="${{ github.event.inputs.firebase_uids || '' }}"
+          SKIP_SYNC="${{ github.event.inputs.skip_testing_subject_sync || 'false' }}"
+          args=(--source-mode live)
+
+          if [ -n "$LIMIT_PATIENTS" ]; then
+            args+=(--limit-patients "$LIMIT_PATIENTS")
+          fi
+
+          if [ -n "$FIREBASE_UIDS" ]; then
+            args+=(--firebase-uids "$FIREBASE_UIDS")
+          fi
+
+          if [ "$SKIP_SYNC" = "true" ]; then
+            args+=(--skip-testing-subject-sync)
+          fi
+
+          python "./src/publish_dropout_snapshots.py" "${args[@]}"

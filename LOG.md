@@ -1,7 +1,7 @@
 # TrialLight Project Log
 
 ## Last Updated
-- Date: 2026-03-29
+- Date: 2026-05-12
 - Workspace: `D:\IDP For Integration`
 
 ## Current Objective
@@ -16,6 +16,189 @@
 - Production cloud functions: partially blocked by Firebase plan limitations.
 
 ## Completed Work
+### ePRO Protocol Questionnaire Anchor Recovery
+- Confirmed the live dropout prediction adapter currently consumes `pain_score` and `anxiety_score` from ePRO submissions, while `stress` is not yet a formal dropout feature.
+- Confirmed protocol-specific baseline generation was working, but shared anchor questions were no longer guaranteed once Gemini generated protocol-specific questionnaires.
+- Added a shared ePRO anchor-question post-processing step in `supabase/functions/_shared/eproShared.ts` so every protocol-specific baseline now preserves:
+  - `How would you rate your pain today? (0-10)`
+  - `How would you rate your anxiety today? (0-10)`
+  - `How would you rate your stress today? (0-10)`
+- Implemented the anchor insertion at the shared runtime layer instead of the patient UI, so:
+  - trial-level review rows
+  - patient-level review rows
+  - daily survey delivery
+  - submission-time answer summarization
+  all stay on the same questionnaire shape.
+- Deployed the updated shared ePRO runtime to Supabase project `fygkqituefwldmglijvy`:
+  - `epro-daily-survey`
+  - `epro-submit`
+  - `epro-review-queue`
+  - `epro-review-action`
+
+### Patient Disengagement Prediction Final Hardening
+- Split strict disengagement upload into two separate layers:
+  - phase parsing still recognizes raw labels such as `3`, `Phase 3`, and `Phase III`
+  - phase admission now enforces the whitelist `early phase 1`, `phase 1`, and `phase 2`
+- Tightened strict upload policy so `phase 3` and `phase 4` are rejected by default unless a one-time audited override is explicitly supplied.
+- Replaced the old visible manual override selector with a hidden `Advanced exception` path:
+  - normal upload keeps no visible override control
+  - exception upload is one-time only
+  - exception targets are limited to `phase 0`, `phase 1`, and `phase 2`
+  - the operator must type `ALLOW EXCEPTION` before the upload is allowed
+- Kept backend override audit data in Firestore while removing all manual override disclosure from the normal CRC UI:
+  - no visible `Manual phase override` pill
+  - no visible extracted-vs-resolved phase explanation
+- Added automatic disengagement dataset-trial binding after strict upload:
+  - the server scans extracted PDF text for `NCT...` identifiers
+  - it auto-configures `dropout_trial_id` only when exactly one supported trial is found
+  - zero-match and multi-match cases now remain unbound with explicit status metadata
+- Added a callable migration path for already-uploaded protocols:
+  - `Save template` now re-runs strict dataset-trial auto-binding from the stored PDF when the protocol has ready static context but no saved disengagement trial ID yet
+  - this prevents previously uploaded strict-ready protocols from staying permanently stuck in a generic unconfigured state
+- Reworked protocol template status presentation so disengagement setup is no longer collapsed into a vague `Not configured` state.
+- Tightened protocol-to-patient assignment rules so `Assign to selected patient` is disabled unless the protocol is fully configured for disengagement:
+  - strict static context ready
+  - supported dataset trial ID configured
+  - canonical subject pool verified
+- Added stale mapping cleanup so trial-pool changes now automatically clear old patient `Subject ID` values instead of keeping invalid cross-trial mappings.
+- Applied the same stale `Subject ID` cleanup in backend protocol-to-patient sync, so protocol trial binding changes do not leave old subject mappings behind.
+- Deleting a protocol assignment now also clears patient `Subject ID` values instead of leaving stale mappings after the template disappears.
+- Separated guidance indexing failures from disengagement upload success messaging so a guidance retry problem no longer looks like a dropout static-context failure.
+
+### Patient Disengagement Prediction Strict-Mode Repair
+- Fixed the CRC `Patient Disengagement Prediction` runtime crash caused by stale detail-panel variables still referencing:
+  - `explanationSignals`
+  - `missingInputs`
+  - `dataQualityFlags`
+  The panel now uses the current explainability data structure and no longer crashes on page load.
+- Replaced the old browser-side disengagement static-context extraction path with a strict server-side callable flow:
+  - `functions/protocolStaticContextRuntime.js`
+  - `src/services/protocolStaticContextService.js`
+- The new strict upload flow now works as:
+  - browser uploads the PDF into a temporary staging path
+  - Firebase Function downloads the PDF bytes server-side
+  - server extracts PDF text
+  - server calls Gemini
+  - server validates a complete `dropout_static_context`
+  - only then does the server create or update the `protocols/{id}` document
+- Removed the old degraded behavior where protocol upload could succeed with a disengagement warning even when static-context extraction had fallen back or failed.
+- Added strict protocol static-context state handling so the frontend now treats:
+  - `ready` as usable
+  - `extracting` / `pending` as not ready
+  - `error` and legacy `fallback_only` as failed and ineligible for disengagement prediction
+- Tightened protocol-template trial binding so `Optional disengagement dataset trial ID` can still stay visible and editable, but save is now blocked whenever:
+  - strict protocol static context is not `ready`
+  - the trial ID is unsupported
+  - the canonical subject pool is unavailable
+- Tightened patient `Subject ID` behavior so the field remains visible, but selection is now disabled whenever the assigned protocol has not finished strict server-side static-context extraction.
+- Updated the patient coordination workspace so the mapping note now explicitly reflects strict protocol readiness rather than only trial-ID support.
+- Tightened the Firebase Functions protocol-trial binding runtime so backend validation now also blocks disengagement trial binding unless protocol `extraction_status === "ready"`.
+- Tightened the live dropout publish chain so protocols whose extraction status is not `ready` are now treated as missing required protocol static context and skipped from publish eligibility.
+- Converted the existing protocol static-context backfill script to strict mode only:
+  - it no longer writes `fallback_only`
+  - successful re-extraction writes `ready`
+  - failed re-extraction writes `error`
+- Local validation passed after the strict-mode changes:
+  - `npm.cmd run build:crc`
+  - `node --check functions/protocolStaticContextRuntime.js`
+  - `node --check functions/index.js`
+  - `node --check functions/dropoutRegistryRuntime.js`
+  - `python -m py_compile Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+  - `python -m py_compile Patient-Dropout-Prediction/src/live_data_adapter.py`
+
+### Patient Disengagement Prediction Rebuild
+- Reworked disengagement trial binding so CRC can still see and edit:
+  - patient `Subject ID`
+  - protocol `Optional disengagement dataset trial ID`
+  while removing the old dependency on manual trial-ID guessing and manual GitHub Action subject-pool recovery.
+- Added a generated supported-trial seed and frontend metadata layer:
+  - `functions/generated/dropoutTrialRegistrySeed.json`
+  - `src/generated/dropoutTrialSupportMetadata.json`
+  - `scripts/generate_dropout_trial_registry.py`
+- Added a backend-owned dropout trial registry runtime:
+  - `functions/dropoutRegistryRuntime.js`
+  - `functions/index.js`
+- Added Firebase Functions to:
+  - verify a supported disengagement trial ID
+  - sync its canonical `TL-SXXXXX` subject pool into Firestore
+  - bind a protocol template to a verified trial
+  - refresh configured trial registries on a schedule
+- Rebuilt the CRC protocol-template flow so `Optional disengagement dataset trial ID` now:
+  - stays visible and editable
+  - shows inline configuration state
+  - shows helper metadata such as pool size, model version, and verification time
+  - blocks save inline when the trial ID is unknown, unsupported, or not ready
+- Rebuilt the CRC patient mapping flow so `Subject ID` now:
+  - stays visible and editable
+  - only loads options from the verified current-trial registry pool
+  - auto-hydrates missing registry data through Firebase Functions
+  - no longer depends on the mirrored Supabase subject pool being manually refreshed first
+- Updated disengagement mapping validation to enforce:
+  - same-trial subject selection only
+  - unique subject assignment across patients
+  - explicit inline errors for duplicate, cross-trial, unsupported-trial, and not-configured states
+- Reworked live dropout publish so the publisher now:
+  - self-heals configured Firestore `dropout_trial_registry` entries before publish
+  - syncs only the currently configured trial pools instead of blindly depending on manual subject-pool recovery
+  - reports unsupported trial IDs explicitly in mapping diagnostics
+  - treats `no eligible mapped patients` as a configuration skip instead of a hard runtime crash
+- Reframed early disengagement output in CRC so day 1-2 patients now read as:
+  - `Collecting data`
+  - `Data not sufficient yet`
+  instead of looking like broken or fake low-risk predictions
+- Verified locally that the rebuilt path is syntactically sound:
+  - `npm.cmd run build:crc`
+  - `node --check functions/dropoutRegistryRuntime.js`
+  - `python -m py_compile Patient-Dropout-Prediction/src/publish_dropout_snapshots.py`
+
+### Subject ID Governance And Dropout Publish Integrity
+- Tightened CRC subject mapping behavior so `Subject ID` is now treated as a controlled canonical bridge instead of a free-form selection.
+- Updated the CRC patient configuration panel to surface:
+  - current protocol name
+  - current `dropout_trial_id`
+  - mapping status: `Mapped`, `Unmapped`, or `Invalid mapping`
+- Clarified the UI helper copy so CRC users now see that:
+  - `TL-SXXXXX` values come from the canonical dropout subject registry
+  - they are not random IDs
+  - they do not affect patient login or general profile management
+- Added an explicit empty-subject-pool warning in CRC patient configuration so the Subject ID field now explains whether:
+  - the current protocol is missing `dropout_trial_id`, or
+  - the selected trial currently has no mirrored canonical subject pool
+- Stopped loading the entire canonical subject pool when the selected protocol has no configured `dropout_trial_id`; the Subject ID dropdown now only loads the current trial pool.
+- Added active-patient mapping validation in CRC coordination mode so duplicate, cross-trial, or missing-trial mappings are surfaced immediately as invalid configuration.
+- Persisted `dropout_trial_id` onto the patient record when CRC saves a protocol assignment, so downstream dropout publishing can resolve trial-aligned mapping more reliably.
+- Updated live dropout publish integrity rules so the publisher now:
+  - excludes duplicate subject mappings from scoring eligibility
+  - excludes cross-trial subject mappings from scoring eligibility
+  - excludes mappings that have no resolved protocol `dropout_trial_id`
+  - tracks `eligible_mapped_patient_count` explicitly in publish diagnostics
+- Changed dropout publish gates so required success-rate gates now use only the eligible mapped population as the denominator instead of all scanned patient docs.
+- Added a separate warning-only `mapped_subject_coverage_rate` gate so missing or invalid mappings are still visible without automatically blocking valid mapped patients from publishing.
+
+### CRC Safety And Patient Deletion Cleanup
+- Replaced the CRC `Delete patient` flow with a server-side hard purge path instead of a browser-side single-doc delete.
+- Added privileged Firebase Functions admin actions for:
+  - global CRC urgent-incident counting
+  - patient hard purge with shared `incident_records` cleanup
+- Locked the hard purge behavior to:
+  - recursively remove the patient `users/{uid}` tree
+  - scrub or delete linked `incident_records` depending on whether the incident is shared with other patients
+  - attempt Firebase Auth user deletion after Firestore purge
+- Updated the CRC client delete flow so the UI:
+  - still requires typing `DELETE`
+  - now warns that roster, safety, guidance, ePRO, prediction, and related runtime data will be purged
+  - surfaces backend warnings if Auth cleanup partially fails
+- Removed extra `Trial assignment` explanatory copy in `Patient configuration` without changing assignment logic.
+- Kept `Safety` split into `Open`, `Resolved`, and `History`.
+- Changed the top-right `Urgent` button so its count is now based on a dedicated global CRC urgent-summary backend path instead of the current-CRC-only client filter.
+- Kept the `Urgent` click behavior unchanged:
+  - it still routes to `Safety > Open`
+  - it does not apply an urgent-only filter on entry
+- Deployed the new live Firebase Functions to `traillight-4750b`:
+  - `purgePatientRecord`
+  - `fetchCrcUrgentIncidentSummary`
+- Fixed the first live `purgePatientRecord` runtime failure caused by using the Firestore Admin `DocumentSnapshot.exists` property as a function, then redeployed the corrected function.
+
 ### Dropout Extreme Audit And Deploy Hardening
 - Upgraded the dropout training path so future candidate runs retain mandatory training-dynamics artifacts:
   - `training_summary.json`
@@ -157,6 +340,63 @@
 - Local CRC `Side Effect Guidance` was cut over from local Ollama dependency to a Firebase callable flow designed for Gemini.
 - Local emulator testing confirmed CRC guidance can return Gemini output in local development.
 - Provider abstraction direction is in place so qwen can be restored later without redesigning the CRC UI.
+- Added patient-side detailed reasoning trace support by switching the patient app's primary Side Effect Guidance path from browser-direct Gemini to the shared Firebase Functions streaming contract.
+- Extended the active guidance runtime so `sideEffectGuidanceTraceStreamHttp` now supports patient-scoped authenticated streaming with `traceAudience: "patient"` and patient-safe trace wording.
+- Added patient-side NDJSON streaming support and a dedicated guidance service adapter:
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/firebaseFunctionHttp.js`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/sideEffectGuidanceService.js`
+- Upgraded patient `GeminiChatbot.js` so patient guidance now:
+  - shows live expandable reasoning trace before the final answer
+  - attaches persisted trace references to saved AI answer bubbles
+  - keeps the old browser path only as fallback behind config
+- Patient trace persistence now reuses the patient-linked audit structure under:
+  - `users/{patientUid}/guidance_traces/{traceId}`
+  - `users/{patientUid}/guidance_traces/{traceId}/events/{eventId}`
+  with patient-specific audience/origin metadata instead of CRC-only records.
+- Updated the patient app config defaults to prefer backend guidance streaming:
+  - `EXPO_PUBLIC_SIDE_EFFECT_GUIDANCE_PROVIDER=firebase-callable`
+  - `EXPO_PUBLIC_PATIENT_GUIDANCE_TRACE_STREAM=true`
+- Local validation completed for the patient trace implementation:
+  - `node --check functions/guidanceRuntime.js`
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js`
+  - `npm --prefix MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2 run export:web`
+- No patient-side live deploy was executed in this step; remote Functions/Hosting rollout remains a separate dangerous operation.
+- Deployed the updated shared streaming function to Firebase production:
+  - `functions:sideEffectGuidanceTraceStreamHttp`
+  - project: `traillight-4750b`
+- Deferred patient Hosting deploy on purpose so the patient-side trace can be reviewed before public rollout.
+- Completed a patient web smoke check at the build/output level after the function deploy:
+  - confirmed patient web export still succeeds
+  - confirmed the exported bundle contains the patient trace UI strings:
+    - `Live reasoning trace`
+    - `Detailed reasoning trace`
+    - `Save status pending`
+  - confirmed the exported bundle calls the shared streaming endpoint:
+    - `sideEffectGuidanceTraceStreamHttp`
+- Browser-driven local smoke interaction was not completed inside Codex because the local page-opening step hit the current app execution limit; bundle-level verification was used as the safe fallback in this session.
+- Fixed a patient-side trace auth alignment bug in `GeminiChatbot.js`:
+  - patient streaming requests now prefer `auth.currentUser.uid` over only trusting the `PatientHome` prop value
+  - this reduces false `permission-denied` failures where the patient trace request UID and the live Firebase auth UID could diverge
+- Re-ran patient web export after the auth UID alignment patch and confirmed the bundle still builds successfully.
+- Hardened the backend patient trace auth path in `functions/guidanceRuntime.js`:
+  - patient trace requests no longer fail immediately when the client-supplied `patientUid` differs from the authenticated token uid
+  - the backend now treats the authenticated Firebase uid as canonical for patient trace persistence and patient-scoped trace reads
+- Re-deployed `functions:sideEffectGuidanceTraceStreamHttp` after the patient auth hardening patch so the remote streaming path now uses the canonical authenticated patient uid.
+- Further relaxed patient trace auth fallback handling in `functions/guidanceRuntime.js`:
+  - patient trace now falls back to a token-derived patient profile if the Firestore profile is missing or temporarily unreadable
+  - patient path no longer hard-fails only because the stored `role` field is inconsistent with the authenticated patient session
+- Added WhatsApp-style message timestamps to the patient `GeminiChatbot.js` message bubbles using the same time-formatting rule as the CRC Side Effect Guidance panel.
+- Re-ran:
+  - `node --check functions/guidanceRuntime.js`
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js`
+  - `npm --prefix MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2 run export:web`
+- Re-deployed `functions:sideEffectGuidanceTraceStreamHttp` again after the patient auth fallback hardening so the latest remote patient streaming path includes the relaxed profile handling.
+- Improved CRC-side trace UX in `src/components/GeminiChatbot.jsx`:
+  - persisted CRC guidance messages now pre-hydrate the just-streamed trace events into the local trace detail cache
+  - this avoids the immediate post-answer state where the saved trace showed `Saved` but still rendered `Trace details are loading or were not available`
+- Rebuilt the CRC web app after the trace cache hydration patch:
+  - `npm run build:crc`
+  - build passed successfully
 
 ### Dropout Backend
 - Standardized local runtime around Python 3.12.
@@ -4214,3 +4454,690 @@ eady calculation.
 - Hosting URL:
   - `https://triallight-patient.web.app`
 - No CRC hosting deployment was performed in this step.
+
+## 2026-05-09 - SULAM activity rollback staged locally
+
+- Restored the patient home guidance entry back to the formal `GeminiChatbot` component without modifying the formal chatbot file itself.
+- Removed the temporary SULAM booth assistant card and button from the active patient home workflow.
+- Restored the `/side-effect` patient page back to the post-booth clinical wording that directs users to the formal AI guidance flow.
+- Reconnected patient-side effect report visibility on the patient home screen by re-enabling the mirrored side-effect report subscription in `PatientHome.js`.
+- Left `GeminiChatbotForSecondarySchool.js` and the temporary booth key-pool config in the repo, but they are no longer referenced by the active patient pages.
+- No commit, push, or deploy was performed in this step.
+
+## 2026-05-09 - CRC disengagement explainability v1 wired locally
+
+- Added a dedicated CRC-facing explainability mirror contract for disengagement predictions:
+  - new mirror path: `users/{uid}/dropout_predictions_explainability/current`
+  - contract version: `dropout_explainability_crc_v1`
+- Added a lightweight explainability summary assembler in the dropout backend:
+  - converts existing `explanation_signals`, `missing_inputs_summary`, and `data_quality_flags` into CRC-readable sections
+  - publishes:
+    - `why_flagged`
+    - `missing_or_weak_inputs`
+    - `what_could_reduce_risk`
+    - `model_agreement`
+    - `confidence_and_stability`
+- Kept the explainability mirror failure-safe:
+  - main `dropout_predictions/current` publish is not blocked if explainability assembly fails
+  - preview payloads now include explainability mirror updates separately from the main current snapshot updates
+- Added CRC frontend support for on-demand explainability reads only for the active patient:
+  - no explainability collection-group listener was added
+  - active patient detail now subscribes only to `users/{uid}/dropout_predictions_explainability/current`
+- Upgraded the CRC `DropoutRiskPanel` UI with a dedicated explainability area:
+  - `Why this patient is flagged`
+  - `Data gaps affecting confidence`
+  - `What might reduce disengagement risk`
+  - `Model agreement`
+  - `Confidence and stability`
+- Preserved graceful fallback behavior:
+  - explainability mirror first
+  - legacy current-snapshot explanation fields second
+  - productized empty state last
+- Local verification completed:
+  - Python explainability files compiled successfully
+  - CRC production build completed successfully
+  - targeted eslint passed for the modified CRC frontend files
+
+## 2026-05-09 - Dropout workflow schedule and path hardening updated locally
+
+- Updated `TrialLight Dropout Precompute` to run twice daily at `06:00` and `18:00` Asia/Kuala_Lumpur (`22:00` and `10:00` UTC).
+- Switched the workflow's dropout verification, dependency install, preflight, and publish steps to run from the checked-out `Patient-Dropout-Prediction` working directory so `deploy_assets/...` paths resolve inside the dropout repository rather than the root integration workspace.
+- Added a workflow submodule metadata normalization step so GitHub Actions post-job cleanup has explicit `.gitmodules` URLs for both `Patient-Dropout-Prediction` and `MyClinicalApp2`.
+- Realigned the workflow checkpoint runtime override to the official `Candidate 024` bundle (`deploy_assets/checkpoints_candidate_024`) instead of the older `honest_v3` rollback directory.
+
+## 2026-05-09 - Explainability-only publish gate path enabled locally
+
+- Upgraded the dropout publisher so challenger/stability audit evidence now feeds the CRC explainability mirror through deployment-level context:
+  - `model_agreement` now falls back to the official Transformer-vs-XGBoost challenger audit when patient-level challenger summaries are absent.
+  - `confidence_and_stability` now falls back to the official deployment audit bundle instead of showing `unavailable` by default.
+  - `what_could_reduce_risk` now reuses counterfactual source hints from the official audit bundle when patient-level suggestions are sparse.
+- Added a limited-coverage publish path:
+  - when live publish gates block the main `dropout_predictions/current` snapshot, the publisher may still write `users/{uid}/dropout_predictions_explainability/current`
+  - this keeps the main risk snapshot strict while allowing CRC-facing explainability docs to ship under partial live coverage.
+- Executed one real local live publish with the new gate behavior:
+  - preflight passed with the Candidate 024 bundle
+  - live gate still blocked the main snapshot because `score_generation_success_rate` was `0.6957` against a `0.7000` threshold and `usable_static_context_rate` was `0.7826` against a `0.9500` threshold
+  - despite that, the explainability-only path successfully wrote `16` Firestore explainability mirror docs
+
+## 2026-05-10 - CRC redeploy for invalid dropout query fix
+
+- Confirmed the local CRC frontend no longer uses the invalid `collectionGroup(...)+documentId() == "current"` query shape for disengagement snapshots.
+- Rebuilt the CRC web bundle successfully before rollout.
+- Redeployed the CRC website so `Patient Disengagement Prediction` uses the fixed single-doc / bounded-query dropout readers instead of the stale crashing build.
+
+## 2026-05-10 - Dropout explainability null-guard hotfix
+
+- Fixed a CRC disengagement detail crash where the explainability fallback helpers accepted `undefined` but still crashed on `null` during the active-patient handoff.
+- Hardened the legacy explainability fallback path so `Patient Disengagement Prediction` can safely render while the selected row or explainability mirror is still settling.
+
+## 2026-05-10 - Dropout workflow switched to live-safe deploy assets
+
+- Confirmed the GitHub Actions failure was no longer a cron issue or a local-computer issue; the live workflow was still verifying a large frozen CSV that is not required for live preflight.
+- Updated the main-branch workflow plan to verify only the live publish assets that are actually required on GitHub:
+  - `deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv`
+  - `deploy_assets/checkpoints_candidate_024/model_stage_3_29_single.pth`
+  - `deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl`
+- Kept the dropout explainability / publish path aligned with the `Candidate 024` deployment bundle instead of trying to upload the untrackable `302MB` testing CSV into GitHub.
+
+## 2026-05-10 - Dropout main source chain synced for live precompute
+
+- Confirmed the latest GitHub Actions failure moved past asset verification and was now caused by the dropout default branch missing the live publish source chain (`live_data_adapter.py` and matching helper modules).
+- Synced the active dropout `src` modules used by `publish_dropout_snapshots.py` into the dropout `main` worktree so the live precompute path matches the locally working publisher.
+- Re-ran `publish_dropout_snapshots.py --preflight-only --source-mode live --limit-patients 5` against the dropout `main` worktree with the live registry/checkpoint bundle and confirmed the preflight now reports `ready=True`.
+
+## 2026-05-10 - Dropout live publish progress logging added
+
+- Added periodic progress logs to the live dropout publisher so GitHub Actions no longer looks stuck during long patient-by-patient scans.
+- The publisher now logs:
+  - testing-subject sync start/completion
+  - scanned patient count
+  - predictions ready
+  - mapping failures
+  - score failures
+  - missing static context
+  - insufficient live history
+  - elapsed seconds
+- Updated the GitHub workflow plan to run Python in unbuffered mode and emit progress every `5` patients by default.
+
+## 2026-05-10 - Dropout publish progress import hotfix
+
+- Fixed the GitHub Actions live publish regression caused by the `.dropout-main-worktree` version of `publish_dropout_snapshots.py` missing `import time` after heartbeat logging was added.
+- Kept the remote dropout `main` hotfix minimal so the next `TrialLight Dropout Precompute` rerun can continue past publish startup and show real progress output.
+
+## 2026-05-10 - Dropout live publish bounded-source hotfix
+
+- Tightened the live dropout publisher so Firestore sources no longer fall back to unbounded full-history reads when `protocolAssignedAt` is missing.
+- Added a capped `incident_records` query plus source-start debug logs so GitHub Actions can show which patient/source is slowing live publish.
+- Enabled source-level live debug output in the workflow and aligned the local root workflow copy with the main-branch workflow version.
+
+## 2026-05-10 - CRC detailed reasoning trace streaming V1 implemented locally
+
+- Added a new Firebase Functions v2 HTTP streaming endpoint for CRC side-effect guidance:
+  - `sideEffectGuidanceTraceStreamHttp`
+  - transport: authenticated POST + NDJSON stream
+  - runtime file: `functions/guidanceRuntime.js`
+- The new trace stream now emits structured CRC-facing reasoning events instead of raw private chain-of-thought:
+  - observed signals
+  - retrieval decision
+  - CTCAE evidence
+  - protocol evidence
+  - risk interpretation
+  - why this action
+  - what would change the recommendation
+  - final answer / completion / error events
+- Added patient-linked trace persistence for patient-scoped CRC guidance answers:
+  - summary doc: `users/{patientUid}/guidance_traces/{traceId}`
+  - full event log: `users/{patientUid}/guidance_traces/{traceId}/events/{seq}`
+- Added a CRC-side streaming HTTP helper and guidance service wrapper:
+  - `src/services/firebaseFunctionHttp.js`
+  - `src/services/sideEffectGuidanceService.js`
+- Added CRC frontend feature-flag support:
+  - `VITE_CRC_GUIDANCE_TRACE_STREAM`
+  - default behavior is enabled unless explicitly set to `false`
+- Upgraded `src/components/GeminiChatbot.jsx` to support:
+  - live collapsed `Thinking...` status driven by streamed events
+  - expandable detailed reasoning trace panels on model answers
+  - a docked `Patient AI Guidance History` review panel for saved patient-linked traces
+  - bounded trace-history reads and on-demand event loading to avoid Firestore read storms
+  - final-answer display gating so the visible grounded answer is only released after the trace reaches a terminal completion state
+- Hardened the new trace path against repeated listener churn:
+  - memoized the chat-history and trace-history collection refs so React does not rebuild Firestore subscriptions/queries every render
+  - kept all new trace history reads bounded (`limit(20)` for trace summaries, `limit(100)` for event detail)
+- Added a teammate-facing implementation note:
+  - `CRC_GUIDANCE_TRACE_STREAM_V1.md`
+- Current known limitation:
+  - the CRC browser currently reads saved trace history directly from Firestore; if remote Firestore rules block `guidance_traces/*`, the safer fallback will be dedicated backend list/detail trace endpoints rather than broader browser reads.
+- Follow-up UI hardening:
+  - restructured the docked guidance layout so `Patient AI Guidance History` no longer competes with the fixed 3-row guidance card grid
+  - changed live trace save-state rendering so in-progress traces show `Save status pending` instead of the misleading early `Not saved` state
+- Follow-up deploy fix:
+  - discovered that `functions/index.js` had not re-exported `sideEffectGuidanceTraceStreamHttp`, so the first targeted Firebase deploy could not actually publish the new streaming endpoint
+  - patched the root functions entrypoint to import/export the new streaming function before redeploy
+  - redeployed `functions:sideEffectGuidanceTraceStreamHttp` successfully to `traillight-4750b`
+  - verified the remote function update path returned a live HTTPS endpoint for the CRC reasoning trace stream
+- Runtime hotfix after first live smoke test:
+  - traced the CRC-side streaming failure to `guidanceRuntime.js` calling `buildSourceMask(...)` without defining that helper on the server side
+  - added the missing backend `buildSourceMask` helper so the live reasoning trace path can resolve `sourceMask` without crashing before the final answer
+- Guidance key rotation / redeploy follow-up:
+  - confirmed the local CRC guidance path is configured for `firebase-callable` instead of browser-first direct Gemini fallback
+  - confirmed the root `functions/.env` now points at a replacement Gemini API key after the previous key was rejected as leaked by Google
+  - redeployed the CRC side-effect guidance backend functions to `traillight-4750b` so the rotated key is active in the live runtime:
+    - `sideEffectGuidanceTraceStreamHttp`
+    - `sideEffectGuidanceChat`
+    - `sideEffectGuidanceChatHttp`
+    - `classifyGuidanceRoute`
+    - `classifyGuidanceRouteHttp`
+  - deploy completed successfully, so the previous `403 Forbidden` leaked-key failure should no longer come from stale remote function configuration
+- CRC Side Effect Guidance split-pane implementation:
+  - added a new left-pane mixed timeline component:
+    - `src/components/PatientConversationTimeline.jsx`
+  - reworked the CRC `side-effect-guidance` workspace layout in `src/pages/CRCHome.jsx` into a stable two-pane grid:
+    - left pane = patient / AI / CRC mixed timeline
+    - right pane = existing CRC guidance runtime and trace surface
+  - removed the external `Patient context` card from the active split-pane surface by disabling that legacy panel path in `CRCHome.jsx`
+  - kept the existing right-pane `GeminiChatbot` behavior intact:
+    - CRC detailed reasoning trace
+    - `Patient AI Guidance History`
+    - existing CRC guidance input / output flow
+- Conversation timeline mirror layer:
+  - added root conversation timeline service helpers:
+    - `src/services/conversationTimelineService.js`
+  - added patient-app conversation timeline service helpers:
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/conversationTimelineService.js`
+  - introduced the derived Firestore collection:
+    - `users/{patientUid}/conversation_timeline/*`
+  - timeline events now normalize:
+    - `actorType`
+    - `channelType`
+    - `threadType`
+    - `alertId`
+    - `sourcePath`
+    - `messageText`
+    - `timestamp`
+    - `displayName`
+    - optional `guidanceTrace` summary
+- CRC/patient human chat mirror writes:
+  - upgraded both root and patient `alertService.js` files to mirror message writes into `conversation_timeline`
+  - applied batch-style writes so source-of-truth chat writes and derived timeline writes commit together where possible
+  - direct-message sends now mirror as `threadType=direct_message`
+  - urgent alert thread messages now mirror as `threadType=urgent_alert`
+- Patient AI guidance mirror writes:
+  - upgraded patient `GeminiChatbot.js` so patient-side `ai_chat_history` writes also mirror into `conversation_timeline`
+  - mirrored message types include:
+    - patient -> AI prompt
+    - AI -> patient final answer
+    - patient-side audit/system note
+  - intentionally excluded the one-time introductory AI greeting from the mixed timeline to avoid left-pane noise
+  - patient AI timeline entries now attach persisted `guidanceTrace` summaries when available so CRC can expand patient-safe reasoning trace directly from the left pane
+- Read-storm safety:
+  - left-pane mixed timeline uses one bounded realtime listener only:
+    - `orderBy('timestamp', 'desc')`
+    - `limit(100)`
+  - older history uses explicit manual paging instead of opening more live listeners
+  - no old-message backfill was added in this wave; the new timeline only mirrors messages written after this implementation
+- Verification:
+  - `npm run build:crc` passed after the split-pane and mixed timeline changes
+  - `npm --prefix "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" run export:web` passed after the patient-side timeline mirror changes
+- Current caveat:
+  - this workspace still does not contain a repo-managed Firestore rules file or `firebase.json` Firestore rules target, so `conversation_timeline` remote read/write authorization still depends on the currently active remote Firebase rules rather than a newly committed rules file in this repo
+- CRC Adverse Event Guidance UI refresh:
+  - renamed the CRC-facing `Side Effect Guidance` surface to `Adverse Event Guidance` across the active CRC workspace UI:
+    - sidebar label
+    - workspace title
+    - open-workspace action copy
+    - docked guidance panel title and placeholder/error text
+  - cleaned up additional CRC web copy so visible supervisor-facing `side effect` wording now reads `adverse event` in:
+    - guidance service error copy
+    - history page label
+    - protocol manager guidance/indexing notes
+    - incident detail empty state
+    - CRC login helper copy for patient account usage
+  - converted the large `Patient AI Guidance History` side block into a compact dropdown-driven review surface:
+    - new title `Patient AI Adverse Event History`
+    - dropdown selection of saved turns
+    - detail trace only expands below the selector when one saved turn is chosen
+  - upgraded the CRC split-pane workspace so the left mixed timeline and right adverse event guidance pane can be resized by dragging a vertical divider
+  - persisted the CRC split-pane width locally so the chosen left/right pane balance survives page refreshes in the same browser
+  - tightened the mixed timeline copy so the left pane explicitly describes one time-ordered adverse event communication stream across patient / AI / CRC
+- Verification:
+  - `npm run build:crc` passed after the adverse event rename, dropdown history refactor, and resizable split-pane changes
+- CRC workspace follow-up cleanup:
+  - removed the extra helper copy under `Patient Mixed Timeline`
+  - removed the extra helper copy under `Patient AI Adverse Event History`
+  - simplified the history selector UI by removing the visible `Saved turns` label and the empty-state review hint copy
+  - kept the existing Adverse Event Guidance runtime and reasoning-trace behavior unchanged while tightening the visible UI copy only
+- Patient workspace cleanup:
+  - removed the `Tasks` tab from the active CRC patient workspace tab set
+  - removed the patient-workspace header explainer copy
+  - replaced the old compact patient meta row under the patient name with labeled fields:
+    - `Subject ID`
+    - `Email`
+    - `CRC`
+    - `Protocol`
+  - restored a guarded `Delete patient` action inside `Patient configuration`
+    - opens a modal dialog
+    - requires typing `DELETE` before the action becomes available
+    - current implementation removes the primary `users/{patientUid}` record from the live CRC roster/workspace path
+- Verification:
+  - `npm run build:crc` passed after the patient workspace cleanup and guarded delete-flow restore
+- CRC safety workspace and shell polish:
+  - updated the `Safety` filter controls from a single-column stack to a 2x2 layout that matches the requested order:
+    - `All due states`
+    - `All severities`
+    - `Filter by protocol`
+    - `All active statuses`
+  - narrowed the top-right `Urgent` counter so it now tracks only the latest unresolved items that still need direct CRC handling:
+    - abnormal vital incidents
+    - actionable adverse event incidents assigned to the current CRC
+  - stopped using the broader global serious-incident summary for that header button because it overstated urgency outside the requested scope
+  - fixed the collapsed CRC sidebar width regression so the sidebar no longer keeps expanded width and overlays the workspace content after collapse
+- Verification:
+  - `npm run build:crc` passed after the safety filter layout update, urgent-header filtering change, and collapsed-sidebar width fix
+- Live deploy:
+  - deployed the updated CRC website to Firebase Hosting target `triallight`
+  - deployed the updated patient website to Firebase Hosting target `triallight-patient`
+  - project id remained `traillight-4750b`
+- Verification:
+  - remote hosting deploy completed successfully for both sites
+  - CRC Hosting URL: `https://triallight.web.app`
+  - patient Hosting URL: `https://triallight-patient.web.app`
+
+## 2026-05-11 - Dropout live publish runtime capped to recent context window
+
+- Reworked the live dropout history builder so GitHub Actions no longer has to replay every day from protocol anchor to today for each patient.
+- The live adapter now:
+  - keeps only a controlled recent history context window (default `30` days)
+  - preserves the real global `day_index` for the published history rows
+  - clips stale `days_since_last_*` style features to a controlled ceiling instead of rebuilding unlimited day-by-day history
+- Added explicit publish progress logs around:
+  - `patient_history_build_started/completed`
+  - `patient_score_started/completed`
+- Added workflow env knobs and manual-dispatch inputs so GitHub debugging can target a small patient slice without rerunning the full batch:
+  - `DROPOUT_LIVE_HISTORY_CONTEXT_DAYS`
+  - `DROPOUT_LIVE_STALENESS_CAP_DAYS`
+  - `limit_patients`
+  - `firebase_uids`
+  - `skip_testing_subject_sync`
+
+## 2026-05-11 - Subject ID mapping hardened for CRC disengagement prediction
+
+- Hardened the CRC patient configuration save path for `Subject ID`.
+- Saving a mapped `Subject ID` now validates:
+  - the selected canonical subject belongs to the current protocol's `dropout_trial_id`
+  - the canonical subject is not already assigned to another patient record
+- Updated the patient configuration copy so CRC users see that:
+  - `Subject ID` is a CRC-only disengagement mapping bridge
+  - it does not affect patient login
+  - clearing it is allowed, but that patient will drop out of CRC-only disengagement scoring until remapped
+
+## 2026-05-11 - CRC disengagement explainability fallback copy cleaned up
+
+- Improved the CRC explainability fallback rendering so legacy snapshot fields no longer surface raw internal signals such as `attention_peak: ...` in the user-facing summary.
+- `Why this patient is flagged` now translates legacy internal signals into CRC-readable English bullets.
+- `Data gaps affecting confidence` no longer mixes in `confidence_high`; confidence state remains in the dedicated `Confidence and stability` block.
+
+## 2026-05-11 - CRC safety numbering and mixed-timeline direct-message repair
+
+- Added continuous visible numbering across the current filtered page windows for:
+  - `Safety > Open`
+  - `Safety > Resolved`
+  - `Safety > History`
+  - `Patients` roster
+- `Safety > Open` and `Safety > Resolved` now render a leading row number on each incident card using the active incident pagination window.
+- `Safety > History` now renders a leftmost `#` column using the active history pagination window.
+- `Patients` roster now renders a leading index column that stays continuous across roster pages and reflows with roster filters/search.
+- Replaced the CRC mixed-timeline direct-message send path with a backend callable:
+  - new callable: `sendCrcPatientDirectMessage`
+  - authenticates CRC server-side
+  - validates the patient workspace
+  - reuses the latest `type=MESSAGE` alert thread or creates one if missing
+  - writes the child message under `users/{patientUid}/alerts/{alertId}/messages/*`
+  - updates the parent alert metadata
+  - mirrors the outgoing CRC message into `users/{patientUid}/conversation_timeline/*`
+- Updated the CRC mixed timeline UI to call the backend send path instead of relying on browser-side direct writes into patient `alerts/*`.
+- Improved CRC mixed-timeline send failure handling:
+  - the composed message now stays in the input on failure
+  - a clearer inline error is shown near the composer instead of only far above in the timeline
+
+- Verification:
+  - `node --check functions/crcAdminRuntime.js` passed
+  - `node --check functions/index.js` passed
+  - `node --check src/services/crcDirectMessageService.js` passed
+  - `npm run build:crc` passed
+
+- Live deploy:
+  - deployed Firebase Function `sendCrcPatientDirectMessage` to project `traillight-4750b`
+  - remote update completed successfully for `sendCrcPatientDirectMessage(us-central1)`
+
+- Follow-up fix:
+  - removed the backend direct-message thread lookup dependency on the higher-risk Firestore compound query
+  - the callable now loads a bounded recent alert window ordered by timestamp and resolves the latest `MESSAGE` thread in server memory
+  - this reduces the chance of CRC direct-message sends failing because of a missing Firestore composite index on the patient `alerts` subcollection
+- Verification:
+  - `node --check functions/crcAdminRuntime.js` passed
+  - `npm run build:crc` passed
+- Live deploy:
+  - redeployed Firebase Function `sendCrcPatientDirectMessage` after the query-hardening fix
+  - remote update completed successfully for `sendCrcPatientDirectMessage(us-central1)`
+
+## 2026-05-12 - ePRO queue UI split for Submitted vs Overdue and review cutoff moved to 1 PM
+
+- Updated the CRC ePRO review workspace so the `Submitted / Overdue` section is no longer one mixed list.
+- Added a pill-style switch toggle in:
+  - `src/components/EproReviewWorkspace.jsx`
+  - `src/index.css`
+- The toggle now lets CRC review:
+  - `Submitted`
+  - `Overdue`
+  as separate filtered views while preserving the current mirrored Firestore operational data source.
+- Fixed the misleading mixed-list behavior where overdue records could still appear with raw `ASSIGNED` wording inside the combined list.
+  - The new section now filters by derived operational status before pagination.
+- Adjusted the ePRO summary layout in the CRC workspace to stop the `Today's ePRO review queue` header area from crowding and wrapping badly.
+  - Reworked the summary card layout so:
+    - intro copy
+    - action buttons
+    - review window note
+    - metric cards
+    render in stable blocks instead of collapsing into one cramped row
+- Changed the default ePRO review timing in:
+  - `supabase/functions/_shared/eproReviewCore.ts`
+- New defaults are now:
+  - review window opens at `9:00 AM`
+  - unapproved drafts auto-release at `1:00 PM`
+  - patient due time remains `11:59 PM`
+- Updated the CRC ePRO summary note so it now displays the review window as a time range and explicitly states that unapproved drafts auto-release at the cutoff time.
+
+- Verification:
+  - `npm run build:crc` passed
+
+## 2026-05-12 - ePRO protocol-specific questionnaire generation wired into the real runtime
+
+- Investigated Li Qiu's questionnaire generation path after testing showed different patient protocols still produced the same daily ePRO baseline questions.
+- Confirmed the main issue was not just "missing automation" between the old manual scripts:
+  - `li qiu's part questionnaire ePRO/idp_testing.js`
+  - `li qiu's part questionnaire ePRO/generate_dynamic_questions.js`
+  - `li qiu's part questionnaire ePRO/epro_config.json`
+- Root cause in plain terms:
+  - the live patient app runtime was not using those manual scripts at all
+  - the real Supabase edge ePRO path was still falling back to one shared hardcoded baseline questionnaire for everyone
+  - so changing protocol in testing did not automatically change the real questionnaire baseline seen by the patient app
+- Added protocol-aware baseline generation to the active shared ePRO runtime:
+  - `supabase/functions/_shared/eproShared.ts`
+  - baseline questions are now generated from protocol chunks stored in Supabase `guidance_documents`
+  - semantic retrieval uses `match_guidance_documents(...)` with protocol filters when available
+  - fallback direct chunk reads also filter by protocol id / protocol name
+  - the generated baseline is sanitized into valid ePRO question structure before use
+- Updated the daily review flow so trial-level daily questionnaire baselines are protocol-specific instead of always cloning the old global fallback:
+  - `supabase/functions/_shared/eproReviewCore.ts`
+  - new trial reviews now build baseline questions from protocol context
+  - pending trial reviews that still match the old fallback baseline are eligible for automatic upgrade
+  - patient-level customized follow-up questions are still built on top of the protocol baseline, not instead of it
+- Updated the patient app ePRO service and screen so the active runtime always sends protocol context explicitly:
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/eproService.js`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/QuestionnaireScreen.js`
+  - the app now forwards `protocol_id` and `protocol_name` for both fetch and submit flows
+- Completed the missing end-to-end parameter wiring in the Supabase edge entrypoints:
+  - `supabase/functions/_shared/eproCore.ts`
+  - `supabase/functions/epro-daily-survey/index.ts`
+  - `supabase/functions/epro-submit/index.ts`
+  - before this, the patient app could send protocol metadata but the live edge entrypoints did not pass it all the way into the review core
+  - now the review core can use explicit protocol metadata immediately, while still falling back to the Firebase user profile when needed
+- Mirrored the same protocol-aware baseline behavior into the local Node demo server so manual testing does not drift away from the live runtime:
+  - `li qiu's part questionnaire ePRO/server_integrated.js`
+
+- Verification:
+  - reviewed the active live path and confirmed the real runtime is:
+    - patient app -> `src/services/eproService.js`
+    - Supabase edge functions -> `supabase/functions/epro-daily-survey` and `supabase/functions/epro-submit`
+    - shared review logic -> `supabase/functions/_shared/eproCore.ts` and `supabase/functions/_shared/eproReviewCore.ts`
+  - `node --check "li qiu's part questionnaire ePRO/server_integrated.js"` passed
+  - `node --check "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/eproService.js"` passed
+  - `node --check "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/QuestionnaireScreen.js"` passed
+  - `npm --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2" run export:web` passed
+  - local TypeScript-only Supabase files were manually re-reviewed after patching because `deno` is not installed in this workspace shell
+  - deploy-time Supabase bundling also exposed and confirmed one hidden TypeScript syntax bug in `supabase/functions/_shared/eproShared.ts`
+    - fixed `const baseQuestionIds = new string[]();`
+    - replaced with `const baseQuestionIds: string[] = [];`
+  - deployed to Jianhong/Kuro Supabase project `fygkqituefwldmglijvy`:
+    - `epro-daily-survey`
+    - `epro-submit`
+
+## 2026-05-11 - Patient adverse effect guidance now shows CRC direct messages
+
+- Updated the patient `GeminiChatbot` guidance history surface so the patient-side `AI Adverse Effect Guidance` modal now renders from the mirrored `conversation_timeline` stream instead of showing only `ai_chat_history`.
+- This means the patient guidance view now preserves and replays one combined timeline containing:
+  - patient -> AI adverse effect guidance messages
+  - AI -> patient guidance replies
+  - patient guidance audit/system notes
+  - CRC -> patient direct messages mirrored from the CRC mixed timeline
+  - patient -> CRC replies mirrored from direct-message or urgent chat threads
+- Kept the existing patient AI save path intact:
+  - AI guidance still writes to `users/{patientUid}/ai_chat_history/*`
+  - the UI change only affects what the patient guidance modal reads and displays
+- Added a distinct CRC message bubble treatment inside the patient guidance modal so patient users can clearly differentiate CRC manual messages from AI guidance replies.
+- Renamed the visible patient-side `AI Side Effect Guidance` wording to `AI Adverse Effect Guidance` across the patient app home and guidance modal surfaces.
+
+- Verification:
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` passed
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js` passed
+  - `npm --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2" run export:web` passed
+
+## 2026-05-11 - Patient guidance wording corrected from Adverse Effect to Adverse Event
+
+- Corrected the visible patient-side guidance wording so the patient website now uses:
+  - `AI Adverse Event Guidance`
+  instead of:
+  - `AI Adverse Effect Guidance`
+- Updated the patient guidance modal title, empty-state copy, patient home card title, hero summary copy, and the patient home CTA label so the terminology is consistent.
+
+- Verification:
+  - no remaining `Adverse Effect` wording was found under `MyClinicalApp2/src`
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` passed
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js` passed
+  - `npm --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2" run export:web` passed
+
+## 2026-05-11 - Terry adverse event trace bundle script added
+
+- Added a packaging script for Terry so the recent adverse event guidance reasoning trace code can be bundled into one zip with repo-relative paths preserved.
+- New script:
+  - `scripts/package-terry-ai-adverse-event-trace.ps1`
+- The script currently bundles:
+  - shared Firebase Functions adverse event guidance trace runtime
+  - CRC adverse event guidance trace UI and services
+  - patient adverse event guidance trace UI and services
+  - mirrored conversation timeline and CRC direct-message integration files that now feed the patient guidance view
+  - `CRC_GUIDANCE_TRACE_STREAM_V1.md`
+- The script also writes a `BUNDLE_MANIFEST.md` into the staging folder so Terry can see exactly which files were included and why.
+- The script intentionally leaves the staging folder in place after packaging for audit/manual review.
+
+- Verification:
+  - executed `scripts/package-terry-ai-adverse-event-trace.ps1` successfully
+  - generated staging folder:
+    - `artifacts/terry-ai-adverse-event-trace/terry-ai-adverse-event-trace-20260511-232922`
+  - generated zip:
+    - `artifacts/terry-ai-adverse-event-trace/terry-ai-adverse-event-trace-20260511-232922.zip`
+## 2026-05-11 - Canonical subject pool sync fix
+
+- Root-caused the empty `Subject ID` dropdown after setting `dropout_trial_id=NCT00003453`.
+- Confirmed the live `dropout_testing_subjects` mirror was still empty for `NCT00003453`, even though the local canonical registry contains `TL-S00001` to `TL-S00012`.
+- Fixed `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py` so `publish_testing_subjects()` always mirrors the canonical dropout registry CSV into Supabase instead of rebuilding the subject pool from current Firestore patient mappings.
+- Mirrored the same fix into `.dropout-main-worktree/src/publish_dropout_snapshots.py` so the next push to the dropout repo `main` uses the corrected subject-pool sync behavior.
+- This prevents `skip_testing_subject_sync=false` runs from producing an empty subject pool simply because patient mappings were cleared to `No mapped subject ID`.
+
+## 2026-05-11 - Canonical TL subject sync source correction
+
+- Identified a second root cause in the subject-pool sync path: the prior fix still sourced subjects from `triallight_dropout_testing.csv`, which yields raw legacy IDs like `NCT..._P000x` rather than CRC-facing canonical IDs like `TL-S00012`.
+- Updated both `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py` and `.dropout-main-worktree/src/publish_dropout_snapshots.py` so `publish_testing_subjects()` now prefers `deploy_assets/data/triallight_subject_id_map_v35subjectid.csv`.
+- This makes the mirrored `dropout_testing_subjects` pool publish canonical `TL-SXXXXX` rows for `NCT00003453`, which is what the CRC UI expects and filters for.
+
+## 2026-05-12 - Progress interval crash fix
+
+- Fixed a regression in `publish_dropout_snapshots.py` where `_progress_interval()` could return `None` whenever `DROPOUT_PROGRESS_EVERY` was set.
+- The bug caused GitHub Actions live publish runs to crash at `position % progress_interval` with `TypeError: unsupported operand type(s) for %: 'int' and 'NoneType'`.
+- Restored the intended `try/except` parsing inside `_progress_interval()` and removed the misplaced dead code from `_normalize_text()`.
+
+## 2026-05-12 - Publish early insufficient-history states
+
+- Confirmed that the live publish run was excluding all five real patients before scoring because `usable_live_history` required at least 3 generated history rows.
+- This conflicted with the model contract: day 1-2 patients are intentionally routed to `insufficient_history` / `collect_more_history`, not treated as runtime failures.
+- Updated both `Patient-Dropout-Prediction/src/live_data_adapter.py` and `.dropout-main-worktree/src/live_data_adapter.py` to use a dedicated `DROPOUT_LIVE_MIN_PUBLISHABLE_HISTORY_DAYS` threshold with a default of `1`.
+- The publish pipeline still requires at least one operational source, but it now allows early-study patients with 1-2 days of data to publish CRC-visible no-score states instead of failing the whole run.
+
+## 2026-05-12 - ePRO review queue layout cleanup and Submitted/Overdue toggle refinement
+
+- Reworked the CRC ePRO review queue summary so the title/description, action buttons, review-window note, and metric cards no longer collapse into the broken narrow-column layout.
+- Kept the ePRO product logic intact while changing the visual structure to a more stable two-zone summary header with the metrics row below it.
+- Refined the mirrored ePRO operational section so it now renders:
+  - the explanatory lines first
+  - the `Submitted / Overdue` segmented toggle with counts
+  - the pagination controls below, matching the requested visual hierarchy
+- Updated the review-window wording to explicitly state that if CRC does not approve by the cutoff, questionnaires auto release.
+- Set the default shared review timing in the ePRO review core to:
+  - review build at `9:00 AM`
+  - CRC cutoff / auto release at `1:00 PM`
+  - patient due at `11:59 PM`
+
+- Verification:
+  - `npm run build:crc` passed
+
+## 2026-05-12 - CRC hosting, ePRO edge functions, and dropout registry functions deployed
+
+- Deployed the CRC dropout registry Firebase Functions to `traillight-4750b`:
+  - `configureProtocolDropoutTrial`
+  - `ensureDropoutTrialRegistryTrial`
+  - `refreshConfiguredDropoutTrialRegistry`
+- Deployed the Supabase ePRO edge functions to project `fygkqituefwldmglijvy`:
+  - `epro-daily-survey`
+  - `epro-submit`
+- Deployed the latest CRC web build to Firebase Hosting:
+  - target: `hosting:crc`
+  - URL: `https://triallight.web.app`
+
+- Notes:
+  - the dropout registry frontend/runtime changes are now live for the CRC web app and Firebase callable path
+  - the ePRO review window backend now uses the updated `9:00 AM` to `1:00 PM` review/auto-release timing
+  - `publish_dropout_snapshots.py` was updated locally, but it is not a deployable service by itself; it still depends on the repo/workflow execution path that uses that script
+
+## 2026-05-12 - Protocol-specific ePRO baseline hardening and stale fallback removal
+
+- Removed the silent global baseline fallback path from the shared ePRO questionnaire runtime.
+- `buildProtocolBaselineQuestions(...)` now feeds into runtime validation that blocks questionnaire release when:
+  - no protocol is assigned
+  - no indexed protocol guidance chunks exist
+  - Gemini generation fails
+  - the generated result collapses back to the deprecated global `skin issues` baseline
+- Hardened `ensurePatientDailyReview(...)` so protocol-bound patients no longer reuse `default-epro` / `TrialLight baseline ePRO` defaults.
+- Changed patient questionnaire serving and submission to require a validated protocol-specific effective questionnaire instead of silently returning `cloneBaselineConfig()`.
+- Allowed existing same-day trial reviews that were created with the old fallback baseline to attempt in-place regeneration from indexed protocol guidance; if regeneration still fails, the patient now sees an honest error instead of the misleading fallback questionnaire.
+- Filtered the CRC ePRO review workspace to only show reviews for patients whose current protocol review could actually be prepared, preventing deleted or invalid protocol rows from polluting today's queue.
+- Extended CRC protocol deletion so future protocol deletes also clean linked Supabase ePRO trial and patient review rows for that protocol ID.
+
+- Verification:
+  - `npm run build:crc` passed
+
+## 2026-05-12 - Protocol-specific ePRO hardening deployed to Supabase
+
+- Deployed the updated Supabase ePRO runtime functions to project `fygkqituefwldmglijvy`:
+  - `epro-daily-survey`
+  - `epro-submit`
+  - `epro-review-queue`
+  - `epro-review-action`
+- The live runtime now uses the hardened shared logic that:
+  - blocks silent fallback to the deprecated global `skin issues` questionnaire
+  - throws explicit protocol-specific errors when no protocol, no chunks, or invalid generated baseline exists
+  - allows same-day stale fallback trial reviews to be regenerated in place when a valid indexed protocol exists
+  - stops CRC queue rendering from surfacing reviews for patients whose current protocol review could not be prepared successfully
+
+- Notes:
+  - already-created stale review rows for deleted protocols are not retroactively deleted by deployment alone; future protocol deletes now clean linked ePRO review rows automatically
+
+## 2026-05-12 - Supabase fallback comparison bug fixed for live ePRO rows
+
+- Identified a production bug in the protocol-specific ePRO hardening path:
+  - live Supabase review rows were storing question objects with a different field order than the local `baselineConfig.ts`
+  - direct `JSON.stringify(...)` comparison therefore failed to recognize that those rows were still the exact deprecated global `skin issues` fallback
+- Replaced the question comparison helper with canonical field-by-field normalization so fallback detection now ignores object key order.
+- Re-deployed the affected Supabase functions after that fix:
+  - `epro-daily-survey`
+  - `epro-submit`
+  - `epro-review-queue`
+  - `epro-review-action`
+- Expected live behavior after this deploy:
+  - old same-day fallback rows should no longer slip through as if they were protocol-specific
+  - if Gemini generation still fails (for example because the active Gemini key is expired), patients now see the honest error instead of the misleading skin questionnaire
+
+## 2026-05-12 - Supabase ePRO Gemini secret rotated and runtime re-deployed
+
+- Updated the live Supabase `GEMINI_API_KEY` secret for the Jianhong ePRO runtime after production questionnaire generation started returning `API_KEY_INVALID`.
+- Re-deployed the full ePRO function set so the new live key is picked up consistently across:
+  - `epro-daily-survey`
+  - `epro-submit`
+  - `epro-review-queue`
+  - `epro-review-action`
+
+- Expected live behavior after this rotation:
+  - protocol-specific questionnaire generation should no longer fail because of the expired Gemini key
+  - patients with valid indexed protocols should either receive protocol-specific questionnaires or explicit protocol-generation errors, but not the deprecated global skin fallback
+
+## 2026-05-12 - ePRO queue compact layout follow-up deployed
+
+- Restored the CRC ePRO review queue to a tighter top-row layout closer to the earlier compact composition:
+  - intro copy on the left
+  - action buttons and metric cards grouped in the middle
+  - review window note on the right
+- Removed the extra `Submitted / Overdue` heading so the segmented toggle now acts as the visible section control.
+- Reordered the mirrored ePRO operational block to:
+  - toggle
+  - explanatory lines
+  - pagination controls
+  - rows
+- Deployed the additional Supabase edge functions that actually power the CRC queue and approvals:
+  - `epro-review-queue`
+  - `epro-review-action`
+- Re-deployed `hosting:crc` after the compact ePRO UI changes.
+
+- Verification:
+  - `npm run build:crc` passed before deploy
+
+## 2026-05-12 - ePRO review window source and mirrored count conflict fixed
+
+- Removed the duplicate mirrored-record count line in the CRC ePRO `Submitted / Overdue` block by stopping the extra parent-supplied window label from rendering there.
+- Locked the shared ePRO review timing in `eproReviewCore.ts` to the requested fixed schedule:
+  - draft build at `9:00 AM`
+  - CRC cutoff / auto release at `1:00 PM`
+  - patient due at `11:59 PM`
+- This avoids stale Supabase environment values from silently forcing the older `6:00 AM` to `9:00 AM` review window back into the CRC workspace copy.
+
+- Verification:
+  - `node --check D:\\IDP For Integration\\supabase\\functions\\_shared\\eproReviewCore.ts` passed
+  - `npm run build:crc` passed
+
+## 2026-05-12 - ePRO queue summary wording, pagination note, and released list tightening
+
+- Updated the ePRO summary metric labels to:
+  - `Pending Trials Review`
+  - `Pending Patients Review`
+- Centered the four summary metric cards so their labels and counts sit on one shared horizontal rhythm instead of drifting inside each tile.
+- Changed the CRC-side review-window summary rendering to use the fixed intended schedule directly in the UI:
+  - `9:00 AM` review start
+  - `1:00 PM` CRC cutoff / auto release
+  - `11:59 PM` patient due
+- This prevents stale or conflicting backend timestamps from continuing to show `6:00 AM - 9:00 AM` in the CRC web summary copy.
+- Refined the `Submitted / Overdue` pagination note to show the actual visible count versus the filtered total, reducing the false impression that page-size switching is broken.
+- Tightened the `Released Today` rows so the released list uses less vertical space while preserving the same release logic and data.
+
+- Verification:
+  - `npm run build:crc` passed
+
+## 2026-05-12 - CRC sidebar wording and active protocol PDF fallback
+
+- Renamed the CRC workspace sidebar labels to:
+  - `Clinical Trial Protocols`
+  - `Electronic Patient Reported Outcome, ePRO`
+- Fixed protocol PDF opening for older patient records that already have an assigned protocol but do not carry a populated `protocolUrl` field on the patient document.
+- Added a fallback so CRC now opens the assigned protocol from the loaded protocol template `storagePath` when the patient record is missing its direct protocol file path.
+- Applied the same fallback to the AI scheduler protocol read path and the guidance-side `Open protocol` action.
+- Improved the `Active protocol` empty-state note so it distinguishes:
+  - no patient / no assignment
+  - assigned protocol exists but its PDF path is still unavailable
+  - `node --check D:\\IDP For Integration\\supabase\\functions\\_shared\\eproReviewCore.ts` passed

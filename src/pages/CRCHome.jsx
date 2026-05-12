@@ -16,11 +16,11 @@ import CRCWorkspaceShell from '../components/CRCWorkspaceShell';
 import GeminiChatbot from '../components/GeminiChatbot';
 import LiveChatWidget from '../components/LiveChatWidget';
 import IncidentDetailModal from '../components/IncidentDetailModal';
+import PatientConversationTimeline from '../components/PatientConversationTimeline';
 import ProtocolManager from '../components/ProtocolManager';
 import PatientList from '../components/PatientList';
 import PatientEditMenu from '../components/PatientEditMenu';
 import PatientNotesPanel from '../components/PatientNotesPanel';
-import PatientTasksPanel from '../components/PatientTasksPanel';
 import EproReviewWorkspace from '../components/EproReviewWorkspace';
 import DropoutRiskPanel from '../components/DropoutRiskPanel';
 import SafetyInboxPanel from '../components/SafetyInboxPanel';
@@ -41,11 +41,19 @@ import {
 } from '../services/browserPushService';
 import {
   fetchAlertHistorySummary,
+  fetchCrcUrgentIncidentSummary,
   fetchIncidentSummary,
   fetchPatientRosterSummary,
 } from '../services/crcSummaryService';
-import { fetchDropoutDashboardSummary, fetchDropoutTestingSubjects } from '../services/dropoutService';
+import {
+  fetchDropoutDashboardSummary,
+  fetchDropoutTestingSubjects,
+  validateDropoutSubjectMapping,
+} from '../services/dropoutService';
+import { getProtocolStaticContextStatus } from '../services/protocolStaticContextService';
+import { normalizeDropoutTrialId } from '../services/dropoutTrialRegistryService';
 import { subscribeToIncidentRecords } from '../services/incidentService';
+import { purgePatientRecord } from '../services/patientAdminService';
 import { getSignedUrl } from '../services/storageService';
 import {
   buildFallbackMonitoredVitals,
@@ -60,7 +68,90 @@ const MAX_GLOBAL_ALERT_LIMIT = 30;
 const MAX_GLOBAL_EPRO_LIMIT = 30;
 const MAX_GLOBAL_INCIDENT_LIMIT = 30;
 const DEFAULT_WINDOW_PAGE_SIZE = 30;
-const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'notes', 'tasks', 'coordination'];
+const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'notes', 'coordination'];
+const GUIDANCE_PANE_STORAGE_KEY = 'crc-adverse-event-guidance-left-pane-width';
+const DEFAULT_GUIDANCE_LEFT_PANE_WIDTH = 56;
+const MIN_GUIDANCE_LEFT_PANE_WIDTH = 32;
+const MAX_GUIDANCE_LEFT_PANE_WIDTH = 68;
+const GUIDANCE_STACKED_BREAKPOINT = 1240;
+
+function buildDefaultDropoutTrialSupportStatus(trialId = '') {
+  const normalizedTrialId = normalizeDropoutTrialId(trialId);
+  if (!normalizedTrialId) {
+    return {
+      trial_id: '',
+      status: 'not_configured',
+      status_label: 'Not configured',
+      message: 'No disengagement dataset trial ID is configured for this protocol yet.',
+      registry: null,
+      metadata: null,
+      source: 'none',
+    };
+  }
+
+  return {
+    trial_id: normalizedTrialId,
+    status: 'loading',
+    status_label: 'Checking trial support',
+    message: `Checking whether ${normalizedTrialId} is supported by the canonical dropout registry...`,
+    registry: null,
+    metadata: null,
+    source: 'none',
+  };
+}
+
+function clampGuidancePaneWidth(nextWidth, containerWidth = 0) {
+  const minWidthFromPixels = containerWidth ? Math.ceil((360 / containerWidth) * 100) : MIN_GUIDANCE_LEFT_PANE_WIDTH;
+  const maxWidthFromPixels = containerWidth ? Math.floor(((containerWidth - 420) / containerWidth) * 100) : MAX_GUIDANCE_LEFT_PANE_WIDTH;
+  const minWidth = Math.max(MIN_GUIDANCE_LEFT_PANE_WIDTH, minWidthFromPixels);
+  const maxWidth = Math.min(MAX_GUIDANCE_LEFT_PANE_WIDTH, maxWidthFromPixels);
+  const safeMaxWidth = Math.max(minWidth, maxWidth);
+  return Math.min(safeMaxWidth, Math.max(minWidth, nextWidth));
+}
+
+function normalizeIncidentText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isUnresolvedIncident(incident) {
+  return ['open', 'acknowledged'].includes(normalizeIncidentText(incident?.status));
+}
+
+function isAbnormalVitalIncident(incident) {
+  const incidentType = normalizeIncidentText(incident?.incident_type);
+  const latestSourceSystem = normalizeIncidentText(incident?.latest_source_system);
+  const eventTitle = normalizeIncidentText(incident?.event_title || incident?.reason);
+
+  return (
+    incidentType === 'vital_monitor' ||
+    latestSourceSystem === 'patient_vitals_auto_monitor' ||
+    eventTitle.includes('critical vitals') ||
+    eventTitle.includes('abnormal vitals')
+  );
+}
+
+function isCrcActionableAdverseEvent(incident) {
+  if (isAbnormalVitalIncident(incident)) return false;
+
+  const severity = normalizeIncidentText(incident?.severity);
+  const urgency = normalizeIncidentText(incident?.urgency);
+  const incidentType = normalizeIncidentText(incident?.incident_type);
+
+  return (
+    incidentType === 'side_effect' ||
+    incidentType === 'emergency' ||
+    Boolean(incident?.immediate_help_requested) ||
+    severity === 'serious' ||
+    ['urgent', 'immediate', 'critical'].includes(urgency)
+  );
+}
+
+function isHeaderUrgentIncident(incident) {
+  return (
+    isUnresolvedIncident(incident) &&
+    (isAbnormalVitalIncident(incident) || isCrcActionableAdverseEvent(incident))
+  );
+}
 
 function isHospitalEmailAddress(value = '') {
   return String(value || '')
@@ -89,10 +180,10 @@ const HOME_SECTIONS = {
     description: 'Review open incidents, resolved follow-up, and historical safety threads in one structured workspace.',
   },
   'side-effect-guidance': {
-    label: 'Side Effect Guidance',
+    label: 'Adverse Event Guidance',
     path: '/home?section=side-effect-guidance',
-    title: 'Side Effect Guidance',
-    description: 'Use patient context, protocol grounding, and CTCAE support from one dedicated CRC guidance workspace.',
+    title: 'Adverse Event Guidance',
+    description: 'Review patient context, protocol grounding, and CTCAE support from one dedicated CRC adverse event workspace.',
   },
   'patient-disengagement': {
     label: 'Patient Disengagement Prediction',
@@ -160,8 +251,15 @@ export default function CRCHome({ user, onLogout }) {
   const [tempStudyEmergencyPhone, setTempStudyEmergencyPhone] = useState('');
   const [tempProtocolId, setTempProtocolId] = useState('');
   const [tempSubjectId, setTempSubjectId] = useState('');
+  const [subjectIdError, setSubjectIdError] = useState('');
+  const [subjectMappingStatus, setSubjectMappingStatus] = useState('unmapped');
+  const [subjectMappingStatusNote, setSubjectMappingStatusNote] = useState('');
+  const [isSubjectMappingStatusPending, setIsSubjectMappingStatusPending] = useState(false);
   const [protocolTemplates, setProtocolTemplates] = useState([]);
   const [dropoutTestingSubjects, setDropoutTestingSubjects] = useState([]);
+  const [currentDropoutTrialSupportStatus, setCurrentDropoutTrialSupportStatus] = useState(() =>
+    buildDefaultDropoutTrialSupportStatus('')
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [isAlertWidgetOpen, setIsAlertWidgetOpen] = useState(false);
@@ -177,9 +275,23 @@ export default function CRCHome({ user, onLogout }) {
   const [globalAlertSummary, setGlobalAlertSummary] = useState(null);
   const [selectedAlertSummary, setSelectedAlertSummary] = useState(null);
   const [globalIncidentSummary, setGlobalIncidentSummary] = useState(null);
+  const [globalUrgentIncidentSummary, setGlobalUrgentIncidentSummary] = useState(null);
   const [selectedIncidentSummary, setSelectedIncidentSummary] = useState(null);
   const [disengagementSummary, setDisengagementSummary] = useState(null);
   const [rosterSearchQuery, setRosterSearchQuery] = useState('');
+  const [guidanceViewportWidth, setGuidanceViewportWidth] = useState(() =>
+    typeof window === 'undefined' ? 1440 : window.innerWidth
+  );
+  const [guidanceLeftPaneWidth, setGuidanceLeftPaneWidth] = useState(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_GUIDANCE_LEFT_PANE_WIDTH;
+    }
+
+    const persistedValue = Number(window.localStorage.getItem(GUIDANCE_PANE_STORAGE_KEY));
+    return Number.isFinite(persistedValue)
+      ? clampGuidancePaneWidth(persistedValue)
+      : DEFAULT_GUIDANCE_LEFT_PANE_WIDTH;
+  });
 
   const patientRosterLimit = Math.min(
     patientRosterPage * patientRosterPageSize + 1,
@@ -238,6 +350,8 @@ export default function CRCHome({ user, onLogout }) {
   const prevAlertCountRef = useRef(0);
   const isFirstLoadRef = useRef(true);
   const foregroundNotificationRef = useRef(new Set());
+  const guidanceWorkspaceRef = useRef(null);
+  const guidanceResizeActiveRef = useRef(false);
 
   useEffect(() => {
     getDoc(doc(db, 'users', user.uid)).then((snapshot) => {
@@ -246,6 +360,75 @@ export default function CRCHome({ user, onLogout }) {
       }
     });
   }, [user]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setGuidanceViewportWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(
+      GUIDANCE_PANE_STORAGE_KEY,
+      String(guidanceLeftPaneWidth)
+    );
+  }, [guidanceLeftPaneWidth]);
+
+  const isGuidanceStacked = guidanceViewportWidth < GUIDANCE_STACKED_BREAKPOINT;
+
+  const handleGuidanceResizeStart = useCallback((event) => {
+    if (isGuidanceStacked) {
+      return;
+    }
+
+    event.preventDefault();
+    guidanceResizeActiveRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [isGuidanceStacked]);
+
+  useEffect(() => {
+    const handlePointerMove = (event) => {
+      if (!guidanceResizeActiveRef.current || !guidanceWorkspaceRef.current || isGuidanceStacked) {
+        return;
+      }
+
+      const bounds = guidanceWorkspaceRef.current.getBoundingClientRect();
+      if (!bounds.width) {
+        return;
+      }
+
+      const nextWidth = ((event.clientX - bounds.left) / bounds.width) * 100;
+      setGuidanceLeftPaneWidth(clampGuidancePaneWidth(nextWidth, bounds.width));
+    };
+
+    const handlePointerUp = () => {
+      if (!guidanceResizeActiveRef.current) {
+        return;
+      }
+
+      guidanceResizeActiveRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isGuidanceStacked]);
 
   useEffect(() => {
     if (!shouldLoadPatientRosterSummary) {
@@ -305,6 +488,29 @@ export default function CRCHome({ user, onLogout }) {
       cancelled = true;
     };
   }, [shouldLoadPatientRosterSummary]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUrgentIncidentSummary() {
+      try {
+        const payload = await fetchCrcUrgentIncidentSummary();
+        if (!cancelled) {
+          setGlobalUrgentIncidentSummary(payload);
+        }
+      } catch (error) {
+        console.error('Failed to load urgent incident summary:', error);
+        if (!cancelled) {
+          setGlobalUrgentIncidentSummary(null);
+        }
+      }
+    }
+
+    loadUrgentIncidentSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeHomeSection]);
 
   useEffect(() => {
     if (!shouldLoadDisengagementSummary) {
@@ -384,6 +590,8 @@ export default function CRCHome({ user, onLogout }) {
               ...data,
               protocolId: data.protocolId || data.protocol_id || null,
               protocolName: data.protocolName || data.protocol_name || data.protocol || null,
+              protocolUrl: data.protocolUrl || data.protocol_url || null,
+              dropout_trial_id: data.dropout_trial_id || data.dropoutTrialId || null,
               primary_crc_id: data.primary_crc_id || data.primaryCrcId || null,
               primaryCrcId: data.primaryCrcId || data.primary_crc_id || null,
               study_emergency_phone: data.study_emergency_phone || data.studyEmergencyPhone || null,
@@ -485,11 +693,41 @@ export default function CRCHome({ user, onLogout }) {
       null
     );
   }, [protocolTemplates, selPatient]);
+  const selectedProtocolFilePath = useMemo(
+    () =>
+      String(
+        selPatient?.protocolUrl ||
+          selectedProtocolTemplate?.storagePath ||
+          selectedProtocolTemplate?.protocolUrl ||
+          ''
+      ).trim(),
+    [selPatient?.protocolUrl, selectedProtocolTemplate]
+  );
 
   const editingProtocolTemplate = useMemo(() => {
     if (!tempProtocolId) return null;
     return protocolTemplates.find((template) => template.id === tempProtocolId) || null;
   }, [protocolTemplates, tempProtocolId]);
+  const currentProtocolTemplateForDisengagement = useMemo(
+    () => editingProtocolTemplate || selectedProtocolTemplate || null,
+    [editingProtocolTemplate, selectedProtocolTemplate]
+  );
+  const currentProtocolStaticContextStatus = useMemo(
+    () => getProtocolStaticContextStatus(currentProtocolTemplateForDisengagement),
+    [currentProtocolTemplateForDisengagement]
+  );
+
+  const currentDropoutTrialId = useMemo(
+    () =>
+      String(
+        editingProtocolTemplate?.dropout_trial_id ||
+          selectedProtocolTemplate?.dropout_trial_id ||
+          selPatient?.dropout_trial_id ||
+          selPatient?.dropoutTrialId ||
+          ''
+      ).trim(),
+    [editingProtocolTemplate, selectedProtocolTemplate, selPatient]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -497,21 +735,55 @@ export default function CRCHome({ user, onLogout }) {
     async function loadTestingSubjects() {
       if (!shouldLoadDropoutTestingSubjects || !selPatient) {
         setDropoutTestingSubjects([]);
+        setCurrentDropoutTrialSupportStatus(buildDefaultDropoutTrialSupportStatus(''));
         return;
       }
 
+      if (currentProtocolTemplateForDisengagement && !currentProtocolStaticContextStatus.ready) {
+        setDropoutTestingSubjects([]);
+        setCurrentDropoutTrialSupportStatus({
+          ...buildDefaultDropoutTrialSupportStatus(currentDropoutTrialId),
+          trial_id: normalizeDropoutTrialId(currentDropoutTrialId),
+          status: currentProtocolStaticContextStatus.status,
+          status_label: currentProtocolStaticContextStatus.label,
+          message: currentProtocolStaticContextStatus.message,
+          registry: null,
+          metadata: null,
+          source: 'protocol_static_context',
+        });
+        return;
+      }
+
+      if (!currentDropoutTrialId) {
+        setDropoutTestingSubjects([]);
+        setCurrentDropoutTrialSupportStatus(buildDefaultDropoutTrialSupportStatus(''));
+        return;
+      }
+
+      setCurrentDropoutTrialSupportStatus(buildDefaultDropoutTrialSupportStatus(currentDropoutTrialId));
       try {
         const payload = await fetchDropoutTestingSubjects({
-          trialId: editingProtocolTemplate?.dropout_trial_id || null,
+          trialId: currentDropoutTrialId,
           limit: 120,
         });
         if (!cancelled) {
           setDropoutTestingSubjects(payload.subjects || []);
+          setCurrentDropoutTrialSupportStatus(
+            payload.supportStatus || buildDefaultDropoutTrialSupportStatus(currentDropoutTrialId)
+          );
         }
       } catch (error) {
         console.error('Failed to load subject ID options:', error);
         if (!cancelled) {
           setDropoutTestingSubjects([]);
+          setCurrentDropoutTrialSupportStatus({
+            ...buildDefaultDropoutTrialSupportStatus(currentDropoutTrialId),
+            status: 'sync_failed',
+            status_label: 'Sync failed',
+            message:
+              error?.message ||
+              `The canonical Subject ID pool for ${normalizeDropoutTrialId(currentDropoutTrialId)} could not be loaded.`,
+          });
         }
       }
     }
@@ -520,7 +792,16 @@ export default function CRCHome({ user, onLogout }) {
     return () => {
       cancelled = true;
     };
-  }, [editingProtocolTemplate, selPatient, selectedProtocolTemplate, shouldLoadDropoutTestingSubjects]);
+  }, [
+    currentDropoutTrialId,
+    currentProtocolStaticContextStatus.label,
+    currentProtocolStaticContextStatus.message,
+    currentProtocolStaticContextStatus.ready,
+    currentProtocolStaticContextStatus.status,
+    currentProtocolTemplateForDisengagement,
+    selPatient,
+    shouldLoadDropoutTestingSubjects,
+  ]);
 
   useEffect(() => {
     if (!shouldLoadUrgentAlertThreads) {
@@ -674,6 +955,10 @@ export default function CRCHome({ user, onLogout }) {
       setTempStudyEmergencyPhone('');
       setTempProtocolId('');
       setTempSubjectId('');
+      setSubjectIdError('');
+      setSubjectMappingStatus('unmapped');
+      setSubjectMappingStatusNote('');
+      setIsSubjectMappingStatusPending(false);
       setSuggestedDate('');
       setSuggestedReason('');
       setSuccessMsg('');
@@ -688,6 +973,10 @@ export default function CRCHome({ user, onLogout }) {
     setTempStudyEmergencyPhone(patient.study_emergency_phone || patient.studyEmergencyPhone || '');
     setTempProtocolId(patient.protocolId || '');
     setTempSubjectId(patient.subject_id || patient.subjectId || patient.dropout_subject_id || patient.dropoutSubjectId || '');
+    setSubjectIdError('');
+    setSubjectMappingStatus('unmapped');
+    setSubjectMappingStatusNote('');
+    setIsSubjectMappingStatusPending(false);
     setSuggestedDate('');
     setSuggestedReason('');
     setSuccessMsg('');
@@ -698,6 +987,102 @@ export default function CRCHome({ user, onLogout }) {
     if (!selectedPatientId) return;
     setTempProtocolId(selPatient?.protocolId || '');
   }, [selectedPatientId, selPatient?.protocolId]);
+
+  useEffect(() => {
+    setSubjectIdError('');
+  }, [selectedPatientId, tempProtocolId, tempSubjectId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function validateActiveSubjectMapping() {
+      const normalizedSubjectId = String(tempSubjectId || '').trim();
+
+      if (activeHomeSection !== 'patients' || activePatientTab !== 'coordination' || !selPatient?.id) {
+        setIsSubjectMappingStatusPending(false);
+        return;
+      }
+
+      if (!normalizedSubjectId) {
+        setSubjectMappingStatus('unmapped');
+        setSubjectMappingStatusNote(
+          'No canonical subject is mapped. This patient will stay out of CRC-only disengagement prediction until a valid Subject ID is assigned.'
+        );
+        setIsSubjectMappingStatusPending(false);
+        return;
+      }
+
+      if (currentProtocolTemplateForDisengagement && !currentProtocolStaticContextStatus.ready) {
+        setSubjectMappingStatus('invalid');
+        setSubjectMappingStatusNote(
+          currentProtocolStaticContextStatus.message ||
+            'The current protocol has not finished strict disengagement static-context extraction yet.'
+        );
+        setIsSubjectMappingStatusPending(false);
+        return;
+      }
+
+      if (!currentDropoutTrialId) {
+        setSubjectMappingStatus('invalid');
+        setSubjectMappingStatusNote(
+          'Assign a clinical protocol with a configured dropout trial ID before keeping a mapped Subject ID.'
+        );
+        setIsSubjectMappingStatusPending(false);
+        return;
+      }
+
+      if (currentDropoutTrialSupportStatus.status !== 'configured') {
+        setSubjectMappingStatus('invalid');
+        setSubjectMappingStatusNote(
+          currentDropoutTrialSupportStatus.message ||
+            'The current protocol does not have a verified disengagement trial configuration yet.'
+        );
+        setIsSubjectMappingStatusPending(false);
+        return;
+      }
+
+      setIsSubjectMappingStatusPending(true);
+      try {
+        await validateDropoutSubjectMapping({
+          subjectId: normalizedSubjectId,
+          trialId: currentDropoutTrialId,
+          currentPatientId: selPatient.id,
+        });
+        if (cancelled) return;
+        setSubjectMappingStatus('mapped');
+        setSubjectMappingStatusNote(
+          'This patient is mapped to one canonical dropout subject in the current trial pool.'
+        );
+      } catch (error) {
+        if (cancelled) return;
+        setSubjectMappingStatus('invalid');
+        setSubjectMappingStatusNote(
+          error?.message ||
+            'This mapped Subject ID is not valid for the current trial or is already assigned to another patient.'
+        );
+      } finally {
+        if (!cancelled) {
+          setIsSubjectMappingStatusPending(false);
+        }
+      }
+    }
+
+    validateActiveSubjectMapping();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeHomeSection,
+    activePatientTab,
+    currentDropoutTrialId,
+    currentProtocolStaticContextStatus.message,
+    currentProtocolStaticContextStatus.ready,
+    currentProtocolTemplateForDisengagement,
+    currentDropoutTrialSupportStatus.message,
+    currentDropoutTrialSupportStatus.status,
+    selPatient?.id,
+    tempSubjectId,
+  ]);
 
   const handleNavAlertClick = (alert) => {
     const target = patients.find((patient) => patient.id === alert.uid);
@@ -760,7 +1145,7 @@ export default function CRCHome({ user, onLogout }) {
   };
 
   const handleSuggestDate = async () => {
-    if (!selPatient?.protocolUrl) {
+    if (!selectedProtocolFilePath) {
       setSuggestedReason('No protocol assigned.');
       return;
     }
@@ -769,7 +1154,7 @@ export default function CRCHome({ user, onLogout }) {
     setSuggestedReason(`Reading ${selPatient.protocolName}...`);
     setSuggestedDate('');
     try {
-      const result = await suggestAppointmentDate(selPatient.protocolUrl, pAppts);
+      const result = await suggestAppointmentDate(selectedProtocolFilePath, pAppts);
       setSuggestedDate(result.date);
       setSuggestedReason(result.reason);
       if (result.date) setNewDate(result.date);
@@ -797,12 +1182,54 @@ export default function CRCHome({ user, onLogout }) {
     }
     setIsSaving(true);
     setSuccessMsg('');
+    setSubjectIdError('');
     try {
       const assignedCrc = crcUsers.find((entry) => entry.id === tempPrimaryCrcId);
       const assignedProtocol = protocolTemplates.find((entry) => entry.id === tempProtocolId) || null;
+      const assignedDropoutTrialId = String(assignedProtocol?.dropout_trial_id || '').trim();
+      const assignedDropoutTrialStatus = String(assignedProtocol?.dropout_trial_status || '').trim() || 'not_configured';
+      const assignedProtocolStaticContextStatus = getProtocolStaticContextStatus(assignedProtocol);
+      const protocolIsFullyConfigured = Boolean(
+        assignedProtocol &&
+          assignedProtocolStaticContextStatus.ready &&
+          assignedDropoutTrialId &&
+          assignedDropoutTrialStatus === 'configured'
+      );
       const inheritedMonitoredVitals = assignedProtocol
         ? buildFallbackMonitoredVitals(assignedProtocol.vital_templates || [])
         : [];
+      const currentSubjectId = String(
+        selPatient.subject_id || selPatient.subjectId || selPatient.dropout_subject_id || selPatient.dropoutSubjectId || ''
+      ).trim();
+      const currentTrialId = normalizeDropoutTrialId(selPatient.dropout_trial_id || selPatient.dropoutTrialId || '');
+      const nextTrialId = normalizeDropoutTrialId(assignedDropoutTrialId);
+      let nextSubjectId = String(tempSubjectId || '').trim();
+      let subjectMappingAutoCleared = false;
+
+      if (assignedProtocol && !protocolIsFullyConfigured) {
+        throw new Error(
+          assignedProtocolStaticContextStatus.ready
+            ? 'This protocol cannot be assigned yet because its disengagement dataset trial binding is not fully configured.'
+            : assignedProtocolStaticContextStatus.message ||
+                'This protocol has not finished strict disengagement static-context extraction yet.'
+        );
+      }
+
+      if (!assignedProtocol && nextSubjectId) {
+        nextSubjectId = '';
+        subjectMappingAutoCleared = true;
+      } else if (assignedProtocol && currentSubjectId && currentTrialId !== nextTrialId && nextSubjectId === currentSubjectId) {
+        nextSubjectId = '';
+        subjectMappingAutoCleared = true;
+      }
+
+      if (nextSubjectId) {
+        await validateDropoutSubjectMapping({
+          subjectId: nextSubjectId,
+          trialId: assignedDropoutTrialId,
+          currentPatientId: selPatient.id,
+        });
+      }
       await updateDoc(doc(db, 'users', selPatient.id), {
         email: tempEmail,
         primary_crc_id: tempPrimaryCrcId || null,
@@ -811,18 +1238,57 @@ export default function CRCHome({ user, onLogout }) {
         study_emergency_phone: tempStudyEmergencyPhone || null,
         protocolId: assignedProtocol?.id || null,
         protocolName: assignedProtocol?.name || null,
+        dropout_trial_id: assignedDropoutTrialId || null,
+        dropout_trial_label: assignedProtocol?.dropout_trial_label || assignedDropoutTrialId || null,
+        dropout_trial_status: assignedDropoutTrialStatus,
+        dropout_trial_pool_size: Number(assignedProtocol?.dropout_trial_pool_size) || null,
+        dropout_trial_model_version: assignedProtocol?.dropout_trial_model_version || null,
+        dropout_trial_last_verified_at: assignedProtocol?.dropout_trial_last_verified_at || null,
+        dropout_trial_last_synced_at: assignedProtocol?.dropout_trial_last_synced_at || null,
         protocolUrl: assignedProtocol?.storagePath || null,
         protocolStatus: assignedProtocol ? 'active' : null,
         protocolAssignedAt: assignedProtocol ? new Date().toISOString() : null,
         monitoredVitals: inheritedMonitoredVitals,
-        subject_id: tempSubjectId || null,
+        subject_id: nextSubjectId || null,
       });
-      setSuccessMsg('Saved patient ownership, trial assignment, emergency contact, and subject ID mapping.');
+      setTempSubjectId(nextSubjectId);
+      setSuccessMsg(
+        nextSubjectId
+          ? 'Saved patient ownership, trial assignment, emergency contact, and subject ID mapping.'
+          : subjectMappingAutoCleared
+            ? 'Saved patient ownership, trial assignment, and emergency contacts. The old Subject ID mapping was cleared because it no longer matches the current disengagement trial pool.'
+            : 'Saved patient ownership, trial assignment, and emergency contacts. This patient will stay out of CRC-only disengagement prediction until a canonical Subject ID is mapped again.'
+      );
       window.setTimeout(() => setSuccessMsg(''), 3000);
     } catch (error) {
+      if (String(error.code || '').startsWith('subject_mapping_')) {
+        setSubjectIdError(error.message || 'Unable to validate the mapped Subject ID.');
+      }
       window.alert(error.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (!selPatient?.id) {
+      return;
+    }
+
+    try {
+      const purgeResult = await purgePatientRecord(selPatient.id);
+      const patientLabel = purgeResult?.patientName || selPatient.nickname || selPatient.email || selPatient.id;
+      setToastMsg(`Purged patient record for ${patientLabel}.`);
+      window.setTimeout(() => setToastMsg(null), 3200);
+      if (Array.isArray(purgeResult?.warnings) && purgeResult.warnings.length) {
+        window.alert(
+          `Patient data was purged, but there were follow-up warnings:\n\n${purgeResult.warnings.join('\n')}`
+        );
+      }
+      selectP(null);
+      openWorkspaceSection('patients', { patientId: null });
+    } catch (error) {
+      window.alert(error.message || 'Unable to delete this patient record right now.');
     }
   };
 
@@ -886,7 +1352,6 @@ export default function CRCHome({ user, onLogout }) {
   const incidentWindowLabel = selPatient
     ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.resolvedIncidents ?? 0} resolved, ${selectedIncidentSummary?.groupedIncidents ?? 0} grouped.`
     : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${globalIncidentSummary?.openIncidents ?? 0} open, ${globalIncidentSummary?.resolvedIncidents ?? 0} resolved, ${globalIncidentSummary?.groupedIncidents ?? 0} grouped.`;
-  const eproWindowLabel = `Showing ${eproEntries.length} loaded mirrored ePRO records from the current recent window.`;
   const pendingEproCount = useMemo(
     () => eproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length,
     [eproEntries]
@@ -1113,11 +1578,18 @@ export default function CRCHome({ user, onLogout }) {
   }, [location.hash, searchParams, setSearchParams]);
 
   const openIncidents = useMemo(
-    () => incidents.filter((incident) => String(incident.status || '').toLowerCase() !== 'resolved'),
+    () => incidents.filter((incident) => isUnresolvedIncident(incident)),
     [incidents]
   );
   const urgentIncidentRows = useMemo(
-    () => openIncidents.filter((incident) => String(incident.severity || '').toLowerCase() === 'serious'),
+    () =>
+      openIncidents
+        .filter((incident) => isHeaderUrgentIncident(incident))
+        .sort((left, right) => {
+          const leftTime = new Date(left.updated_at || left.created_at || left.timestamp || 0).getTime();
+          const rightTime = new Date(right.updated_at || right.created_at || right.timestamp || 0).getTime();
+          return rightTime - leftTime;
+        }),
     [openIncidents]
   );
   const urgentIncidentCards = useMemo(
@@ -1154,8 +1626,8 @@ export default function CRCHome({ user, onLogout }) {
     return selectedIncidentSummary?.totalIncidents ?? incidents.filter((incident) => (incident.linked_patient_ids || []).includes(selPatient.id)).length;
   }, [incidents, selPatient, selectedIncidentSummary]);
   const urgentIncidentCount = useMemo(
-    () => Math.max(Number(globalIncidentSummary?.openSeriousIncidents ?? 0), urgentIncidentRows.length),
-    [globalIncidentSummary, urgentIncidentRows.length]
+    () => Math.max(Number(globalUrgentIncidentSummary?.urgentCount ?? 0), urgentIncidentRows.length),
+    [globalUrgentIncidentSummary, urgentIncidentRows.length]
   );
 
   const currentHeaderSection = isPatientWorkspaceOpen
@@ -1347,10 +1819,10 @@ export default function CRCHome({ user, onLogout }) {
           },
         },
         { id: 'safety', label: 'Safety', icon: 'safety', path: HOME_SECTIONS.safety.path },
-        { id: 'side-effect-guidance', label: 'Side Effect Guidance', icon: 'guidance', emphasis: 'guidance', path: HOME_SECTIONS['side-effect-guidance'].path },
+      { id: 'side-effect-guidance', label: 'Adverse Event Guidance', icon: 'guidance', emphasis: 'guidance', path: HOME_SECTIONS['side-effect-guidance'].path },
         { id: 'patient-disengagement', label: 'Patient Disengagement Prediction', icon: 'dropout', emphasis: 'dropout', path: HOME_SECTIONS['patient-disengagement'].path },
-        { id: 'epro', label: 'ePRO', icon: 'epro', path: HOME_SECTIONS.epro.path },
-        { id: 'protocols', label: 'Protocols', icon: 'protocol', path: HOME_SECTIONS.protocols.path },
+        { id: 'epro', label: 'Electronic Patient Reported Outcome, ePRO', icon: 'epro', path: HOME_SECTIONS.epro.path },
+        { id: 'protocols', label: 'Clinical Trial Protocols', icon: 'protocol', path: HOME_SECTIONS.protocols.path },
         { id: 'resources', label: 'Resources', icon: 'resources', path: HOME_SECTIONS.resources.path },
       ],
     },
@@ -1520,7 +1992,7 @@ export default function CRCHome({ user, onLogout }) {
                             Open Study Coordination
                           </button>
                           <button className="btn btn-primary" onClick={() => openWorkspaceSection('side-effect-guidance')}>
-                            Open Side Effect Guidance
+                                      Open Adverse Event Guidance
                           </button>
                           <button className="btn btn-secondary" onClick={() => openWorkspaceSection('protocols')}>
                             Open Protocols
@@ -1598,9 +2070,6 @@ export default function CRCHome({ user, onLogout }) {
                       <div className="section-header">
                         <div>
                           <h3>Patient workspace</h3>
-                          <div className="section-note">
-                            Keep patient context pinned while moving across workflow tabs, safety follow-up, ePRO, and study coordination.
-                          </div>
                         </div>
                         <button
                           className="btn btn-secondary btn-small"
@@ -1626,10 +2095,23 @@ export default function CRCHome({ user, onLogout }) {
                             </div>
                             <div>
                               <div className="patient-workspace__heroName">{selPatient.nickname || 'Unnamed patient'}</div>
-                              <div className="patient-workspace__heroMeta">
-                                <span>{selPatient.subject_id || selPatient.subjectId || 'No subject ID'}</span>
-                                <span>{selectedProtocolName}</span>
-                                <span>{selPatient.primary_crc_name || 'Unassigned CRC'}</span>
+                              <div className="patient-workspace__heroDetails">
+                                <div className="patient-workspace__heroDetail">
+                                  <span>Subject ID :</span>
+                                  <strong>{selPatient.subject_id || selPatient.subjectId || 'Not set'}</strong>
+                                </div>
+                                <div className="patient-workspace__heroDetail">
+                                  <span>Email :</span>
+                                  <strong>{selPatient.email || 'Not set'}</strong>
+                                </div>
+                                <div className="patient-workspace__heroDetail">
+                                  <span>CRC :</span>
+                                  <strong>{selPatient.primary_crc_name || crcName || 'Unassigned CRC'}</strong>
+                                </div>
+                                <div className="patient-workspace__heroDetail">
+                                  <span>Protocol :</span>
+                                  <strong>{selectedProtocolName}</strong>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1878,13 +2360,6 @@ export default function CRCHome({ user, onLogout }) {
                             />
                           ) : null}
 
-                          {activePatientTab === 'tasks' ? (
-                            <PatientTasksPanel
-                              patientId={selPatient.id}
-                              currentUser={{ uid: user.uid, name: currentCrcDisplayName }}
-                            />
-                          ) : null}
-
                           {activePatientTab === 'coordination' ? (
                             <div className="patient-coordination-layout">
                               <div className="patient-coordination-layout__main">
@@ -1901,9 +2376,34 @@ export default function CRCHome({ user, onLogout }) {
                                   assignedProtocolId={tempProtocolId}
                                   setAssignedProtocolId={setTempProtocolId}
                                   protocolOptions={protocolTemplates}
-                                  assignedProtocol={editingProtocolTemplate}
+                                   assignedProtocol={editingProtocolTemplate}
+                                   currentDropoutTrialId={currentDropoutTrialId}
+                                   currentDropoutTrialStatus={currentDropoutTrialSupportStatus.status}
+                                   currentDropoutTrialStatusLabel={currentDropoutTrialSupportStatus.status_label}
+                                   currentDropoutTrialStatusMessage={currentDropoutTrialSupportStatus.message}
+                                   currentProtocolStaticContextStatus={currentProtocolStaticContextStatus.status}
+                                   currentProtocolStaticContextStatusLabel={currentProtocolStaticContextStatus.label}
+                                   currentProtocolStaticContextTone={currentProtocolStaticContextStatus.tone}
+                                   currentProtocolStaticContextMessage={currentProtocolStaticContextStatus.message}
+                                   currentDropoutTrialPoolSize={
+                                     Number(currentDropoutTrialSupportStatus.registry?.expected_pool_size) ||
+                                     Number(currentDropoutTrialSupportStatus.metadata?.expected_pool_size) ||
+                                     0
+                                   }
+                                  currentDropoutTrialModelVersion={
+                                    currentDropoutTrialSupportStatus.registry?.model_version_label ||
+                                    currentDropoutTrialSupportStatus.metadata?.model_version_label ||
+                                    ''
+                                  }
+                                  currentDropoutTrialLastVerifiedAt={
+                                    currentDropoutTrialSupportStatus.registry?.last_verified_at || ''
+                                  }
+                                  mappingStatus={subjectMappingStatus}
+                                  mappingStatusNote={subjectMappingStatusNote}
+                                  isMappingStatusPending={isSubjectMappingStatusPending}
                                   subjectId={tempSubjectId}
                                   setSubjectId={setTempSubjectId}
+                                  subjectIdError={subjectIdError}
                                   crcUsers={crcUsers}
                                   inheritedVitals={inheritedVitalsPreview}
                                   dropoutOptions={dropoutTestingSubjects}
@@ -1913,6 +2413,7 @@ export default function CRCHome({ user, onLogout }) {
                                   primaryCrcPhoneError={primaryCrcPhoneError}
                                   studyEmergencyPhoneError={studyEmergencyPhoneError}
                                   disableSave={hasPhoneValidationErrors}
+                                  onDeletePatient={handleDeletePatient}
                                 />
                               </div>
 
@@ -2081,30 +2582,104 @@ export default function CRCHome({ user, onLogout }) {
 
           {activeHomeSection === 'side-effect-guidance' ? (
             <section id="side-effect-guidance" className="dashboard-section">
-              <div className="guidance-workspace">
-                <GeminiChatbot
-                  role="crc"
-                  userId={user.uid}
-                  userNickname={crcName}
-                  patientData={stablePatientData}
-                  patientVitals={pVitals}
-                  patientAppointments={pAppts}
-                  patientAlerts={pAlerts}
-                  patientEproEntries={selectedPatientEproEntries}
-                  patientIncidents={selectedPatientIncidents}
-                  activeProtocolId={selPatient?.protocolId || null}
-                  protocolUrl={selPatient?.protocolUrl}
-                  activeProtocolName={selPatient?.protocolName}
-                  allPatients={patients}
-                  workspaceAlerts={globalAlerts}
-                  workspaceUrgentAlerts={urgentAlerts}
-                  workspaceEproEntries={eproEntries}
-                  workspaceIncidents={incidents}
-                  presentation="docked"
-                  titleOverride="Side Effect Guidance"
-                  panelDescription="Review symptoms, protocol guidance, CTCAE context, and follow-up actions from one docked CRC workspace."
-                />
+              <div
+                ref={guidanceWorkspaceRef}
+                className="guidance-workspace"
+                style={{
+                  display: 'flex',
+                  flexDirection: isGuidanceStacked ? 'column' : 'row',
+                  gap: isGuidanceStacked ? '18px' : '0',
+                  alignItems: 'stretch',
+                  minHeight: '74vh',
+                }}
+              >
+                <div
+                  style={{
+                    flex: isGuidanceStacked ? '1 1 auto' : `0 0 calc(${guidanceLeftPaneWidth}% - 8px)`,
+                    minWidth: isGuidanceStacked ? 0 : '360px',
+                    minHeight: 0,
+                    display: 'flex',
+                  }}
+                >
+                  <PatientConversationTimeline
+                    patient={selPatient}
+                    crcName={crcName}
+                  />
+                </div>
+                {!isGuidanceStacked ? (
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize patient mixed timeline and adverse event guidance panels"
+                    title="Drag to resize panels. Double-click to reset."
+                    onPointerDown={handleGuidanceResizeStart}
+                    onDoubleClick={() => setGuidanceLeftPaneWidth(DEFAULT_GUIDANCE_LEFT_PANE_WIDTH)}
+                    style={{
+                      width: '16px',
+                      flex: '0 0 16px',
+                      cursor: 'col-resize',
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      touchAction: 'none',
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: '18px 7px',
+                        borderRadius: '999px',
+                        background: 'linear-gradient(180deg, rgba(15,96,155,0.12), rgba(15,96,155,0.28), rgba(15,96,155,0.12))',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'relative',
+                        zIndex: 1,
+                        width: '8px',
+                        height: '96px',
+                        borderRadius: '999px',
+                        background: '#ffffff',
+                        border: '1px solid rgba(15, 96, 155, 0.24)',
+                        boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)',
+                      }}
+                    />
+                  </div>
+                ) : null}
+                <div
+                  style={{
+                    flex: '1 1 0',
+                    minWidth: 0,
+                    minHeight: 0,
+                    display: 'flex',
+                  }}
+                >
+                  <GeminiChatbot
+                    role="crc"
+                    userId={user.uid}
+                    userNickname={crcName}
+                    patientData={stablePatientData}
+                    patientVitals={pVitals}
+                    patientAppointments={pAppts}
+                    patientAlerts={pAlerts}
+                    patientEproEntries={selectedPatientEproEntries}
+                    patientIncidents={selectedPatientIncidents}
+                    activeProtocolId={selPatient?.protocolId || null}
+                    protocolUrl={selPatient?.protocolUrl}
+                    activeProtocolName={selPatient?.protocolName}
+                    allPatients={patients}
+                    workspaceAlerts={globalAlerts}
+                    workspaceUrgentAlerts={urgentAlerts}
+                    workspaceEproEntries={eproEntries}
+                    workspaceIncidents={incidents}
+                    presentation="docked"
+                    titleOverride="Adverse Event Guidance"
+                    panelDescription="Use the right pane for CRC adverse event guidance and the left pane for the patient, AI, and CRC mixed timeline."
+                  />
+                </div>
 
+                {false ? (
                 <div className="card workspace-card guidance-contextCard">
                   <div className="section-header section-header--tight">
                     <div>
@@ -2137,8 +2712,8 @@ export default function CRCHome({ user, onLogout }) {
                           </button>
                           <button
                             className="btn btn-secondary btn-small"
-                            onClick={() => handleOpenClinicalResource(selPatient.protocolUrl, 'protocol')}
-                            disabled={!selPatient.protocolUrl}
+                            onClick={() => handleOpenClinicalResource(selectedProtocolFilePath, 'protocol')}
+                            disabled={!selectedProtocolFilePath}
                           >
                             Open protocol
                           </button>
@@ -2197,6 +2772,7 @@ export default function CRCHome({ user, onLogout }) {
                     </div>
                   )}
                 </div>
+                ) : null}
               </div>
             </section>
           ) : null}
@@ -2223,7 +2799,6 @@ export default function CRCHome({ user, onLogout }) {
               user={user}
               patients={patients}
               entries={eproEntries}
-              entryWindowLabel={eproWindowLabel}
               entriesPage={eproEntriesPage}
               entriesPageSize={eproEntriesPageSize}
               onEntriesPageChange={setEproEntriesPage}
@@ -2256,16 +2831,18 @@ export default function CRCHome({ user, onLogout }) {
                   <div>
                     <h3>Active protocol</h3>
                     <div className="section-note">
-                      {selPatient?.protocolUrl
+                      {selectedProtocolFilePath
                         ? 'Open the currently assigned protocol PDF for the selected patient.'
+                        : selPatient?.protocolId || selPatient?.protocolName
+                          ? 'This patient has an assigned protocol record, but no openable protocol PDF path is available yet.'
                         : 'Select a patient with an assigned protocol to open it here.'}
                     </div>
                   </div>
                 </div>
                 <button
                   className="btn btn-secondary"
-                  onClick={() => handleOpenClinicalResource(selPatient.protocolUrl, 'protocol')}
-                  disabled={!selPatient?.protocolUrl}
+                  onClick={() => handleOpenClinicalResource(selectedProtocolFilePath, 'protocol')}
+                  disabled={!selectedProtocolFilePath}
                 >
                   Open assigned protocol
                 </button>

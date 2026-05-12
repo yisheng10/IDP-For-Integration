@@ -75,3 +75,84 @@ export async function callFunctionHttp(functionName, payload = {}) {
 
   return parsedPayload;
 }
+
+export async function streamFunctionHttp(functionName, payload = {}, { onEvent } = {}) {
+  const idToken = await getCurrentUserIdToken();
+  const response = await fetch(`${getFunctionsBaseUrl()}/${functionName}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/x-ndjson',
+    },
+    body: JSON.stringify(payload || {}),
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    const parsedPayload = parseResponsePayload(responseText);
+    throw toHttpFunctionError(response, parsedPayload, responseText);
+  }
+
+  if (!response.body) {
+    throw new Error('Streaming response body was not available.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    lines
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        let parsedLine = null;
+        try {
+          parsedLine = JSON.parse(line);
+        } catch {
+          parsedLine = null;
+        }
+
+        if (!parsedLine) {
+          return;
+        }
+
+        if (parsedLine?.error) {
+          throw new Error(String(parsedLine.error?.message || 'Streaming request failed.'));
+        }
+
+        if (typeof onEvent === 'function') {
+          onEvent(parsedLine);
+        }
+      });
+  }
+
+  const finalChunk = decoder.decode();
+  const trailingBuffer = `${buffer}${finalChunk}`.trim();
+  if (trailingBuffer) {
+    let parsedLine = null;
+    try {
+      parsedLine = JSON.parse(trailingBuffer);
+    } catch {
+      parsedLine = null;
+    }
+
+    if (parsedLine?.error) {
+      throw new Error(String(parsedLine.error?.message || 'Streaming request failed.'));
+    }
+
+    if (parsedLine && typeof onEvent === 'function') {
+      onEvent(parsedLine);
+    }
+  }
+}

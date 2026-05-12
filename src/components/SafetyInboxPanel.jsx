@@ -302,6 +302,9 @@ const SafetyInboxPanel = ({
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: '52px' }}>
+                    #
+                  </th>
                   <th onClick={() => handleHistorySort('timestamp')} style={{ cursor: 'pointer' }}>
                     Date {historySortIndicator('timestamp')}
                   </th>
@@ -323,36 +326,43 @@ const SafetyInboxPanel = ({
               <tbody>
                 {currentHistoryItems.length === 0 ? (
                   <tr>
-                    <td colSpan="6">
+                    <td colSpan="7">
                       <div className="empty-panel">No matching historical alert threads.</div>
                     </td>
                   </tr>
                 ) : (
-                  currentHistoryItems.map((alert) => (
-                    <tr key={alert.id} className="hover-row">
-                      <td>
-                        <div>{new Date(alert.timestamp).toLocaleDateString()}</div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                          {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </td>
-                      <td>{historyStatusLabel(alert.status)}</td>
-                      <td>
-                        <div style={{ fontWeight: '700' }}>{alert.patientName || alert.senderName || 'Unknown'}</div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{alert.uid || 'Unknown UID'}</div>
-                      </td>
-                      <td>{alert.reason}</td>
-                      <td>{alert.lastSender === 'crc' ? 'Staff' : 'Patient'}</td>
-                      <td>
-                        <button
-                          className="btn btn-primary btn-small"
-                          onClick={() => onOpenAlertThread?.(alert)}
-                        >
-                          Open thread
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  currentHistoryItems.map((alert, rowIndex) => {
+                    const historyNumber =
+                      (historyPage - 1) * historyPageSize + rowIndex + 1;
+                    return (
+                      <tr key={alert.id} className="hover-row">
+                        <td style={{ width: '52px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                          {historyNumber}
+                        </td>
+                        <td>
+                          <div>{new Date(alert.timestamp).toLocaleDateString()}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                            {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </td>
+                        <td>{historyStatusLabel(alert.status)}</td>
+                        <td>
+                          <div style={{ fontWeight: '700' }}>{alert.patientName || alert.senderName || 'Unknown'}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{alert.uid || 'Unknown UID'}</div>
+                        </td>
+                        <td>{alert.reason}</td>
+                        <td>{alert.lastSender === 'crc' ? 'Staff' : 'Patient'}</td>
+                        <td>
+                          <button
+                            className="btn btn-primary btn-small"
+                            onClick={() => onOpenAlertThread?.(alert)}
+                          >
+                            Open thread
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -375,12 +385,24 @@ const SafetyInboxPanel = ({
           </div>
 
           <div className="inbox-filterGrid">
+            <select value={dueFilter} onChange={(event) => setDueFilter(event.target.value)}>
+              <option value="all">All due states</option>
+              <option value="overdue">Overdue</option>
+              <option value="due_24h">Due within 24h</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="resolved">Resolved</option>
+            </select>
             <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
               <option value="all">All severities</option>
               <option value="mild">Mild</option>
               <option value="moderate">Moderate</option>
               <option value="serious">Serious</option>
             </select>
+            <input
+              placeholder="Filter by protocol"
+              value={protocolFilter}
+              onChange={(event) => setProtocolFilter(event.target.value)}
+            />
             {activeTab === 'open' ? (
               <select value={incidentStatusFilter} onChange={(event) => setIncidentStatusFilter(event.target.value)}>
                 <option value="all">All active statuses</option>
@@ -390,18 +412,6 @@ const SafetyInboxPanel = ({
             ) : (
               <div className="inbox-filterHint">Resolved cases stay in the archive until reopened manually.</div>
             )}
-            <select value={dueFilter} onChange={(event) => setDueFilter(event.target.value)}>
-              <option value="all">All due states</option>
-              <option value="overdue">Overdue</option>
-              <option value="due_24h">Due within 24h</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="resolved">Resolved</option>
-            </select>
-            <input
-              placeholder="Filter by protocol"
-              value={protocolFilter}
-              onChange={(event) => setProtocolFilter(event.target.value)}
-            />
           </div>
 
           {selectedPatient ? (
@@ -432,14 +442,19 @@ const SafetyInboxPanel = ({
                   : 'No active incidents match the current filters.'}
               </div>
             ) : (
-              visibleIncidents.map((incident) => {
+              visibleIncidents.map((incident, rowIndex) => {
                 const state = getIncidentDueState(incident);
+                const incidentNumber =
+                  (incidentPage - 1) * incidentPageSize + rowIndex + 1;
                 return (
                   <button
                     key={incident.id}
                     className="incident-row"
                     onClick={() => onOpenIncident?.(incident)}
                   >
+                    <div className="incident-row__index" aria-hidden="true">
+                      {incidentNumber}
+                    </div>
                     <div className="incident-row__copy">
                       <div className="incident-row__top">
                         <strong>{incident.event_title}</strong>

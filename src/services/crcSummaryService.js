@@ -5,7 +5,11 @@ import {
   query,
   where,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { db } from '../firebase';
+import { functions } from '../firebase';
+
+const fetchCrcUrgentIncidentSummaryCallable = httpsCallable(functions, 'fetchCrcUrgentIncidentSummary');
 
 async function safeCount(targetQuery) {
   const snapshot = await getCountFromServer(targetQuery);
@@ -92,4 +96,9 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
     overdueIncidents,
     totalIncidents: openIncidents + resolvedIncidents,
   };
+}
+
+export async function fetchCrcUrgentIncidentSummary() {
+  const response = await fetchCrcUrgentIncidentSummaryCallable();
+  return response.data || { urgentCount: 0 };
 }

@@ -1985,6 +1985,52 @@ td {
   line-height: 1.6;
 }
 
+.dropout-dashboard__explainabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.dropout-dashboard__statusHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.section-note--dense {
+  line-height: 1.55;
+}
+
+.dropout-dashboard__statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dropout-dashboard__statusBadge--high {
+  background: #e7f6eb;
+  color: #177a3e;
+}
+
+.dropout-dashboard__statusBadge--limited {
+  background: #fff4e2;
+  color: #9a5f00;
+}
+
+.dropout-dashboard__statusBadge--mixed,
+.dropout-dashboard__statusBadge--unavailable {
+  background: #eef3f9;
+  color: #5c6c80;
+}
+
 .dropout-card__header {
   display: flex;
   justify-content: space-between;
@@ -3124,6 +3170,10 @@ body {
   .dropout-dashboard__metrics,
   .dropout-dashboard__layout,
   .dropout-dashboard__detailSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .dropout-dashboard__explainabilityGrid {
     grid-template-columns: 1fr;
   }
 }
@@ -4615,6 +4665,113 @@ body {
   color: #b42318;
 }
 
+.epro-review__summary {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 16px !important;
+}
+
+.epro-review__summaryTop {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.epro-review__summarySide {
+  display: grid;
+  gap: 12px;
+  justify-items: stretch;
+}
+
+.epro-review__windowNote {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f7fbff;
+  border: 1px solid #dbe6f6;
+  color: #35516a;
+  line-height: 1.5;
+}
+
+.epro-review__toolbar {
+  justify-content: flex-start;
+}
+
+.epro-review__statusSwitch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2d8cff 0%, #1560d0 100%);
+  box-shadow: inset 0 0 0 1px rgba(21, 96, 208, 0.16);
+}
+
+.epro-review__statusSwitchOption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.epro-review__statusSwitchOption:hover {
+  color: #ffffff;
+}
+
+.epro-review__statusSwitchOption.is-active {
+  background: #ffffff;
+  color: #1454a2;
+  box-shadow: 0 8px 24px rgba(20, 84, 162, 0.14);
+}
+
+.epro-review__statusSwitchCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.epro-review__statusSwitchOption.is-active .epro-review__statusSwitchCount {
+  background: #e8f1fe;
+  color: #1454a2;
+}
+
+@media (max-width: 1180px) {
+  .epro-review__summaryTop {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .epro-review__statusSwitch {
+    width: 100%;
+  }
+
+  .epro-review__statusSwitchOption {
+    min-width: 0;
+    padding: 0 12px;
+  }
+}
+
 @media (max-width: 1536px) {
   .guidance-workspace,
   .dashboard-mainGrid--patients,
@@ -5191,6 +5348,40 @@ body {
   flex-wrap: wrap;
   color: #607488;
   font-size: 0.88rem;
+}
+
+.patient-workspace__heroDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 1fr));
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+
+.patient-workspace__heroDetail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  color: #607488;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.patient-workspace__heroDetail span {
+  font-weight: 800;
+  color: #6b7c93;
+}
+
+.patient-workspace__heroDetail strong {
+  color: #173551;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+@media (max-width: 980px) {
+  .patient-workspace__heroDetails {
+    grid-template-columns: 1fr;
+  }
 }
 
 .patient-workspace__heroSignals {
@@ -7454,6 +7645,38 @@ body {
   gap: 8px !important;
 }
 
+.inbox-filterGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch;
+}
+
+.inbox-filterGrid > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.crc-sidebar--collapsed {
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  overflow: hidden !important;
+}
+
+.crc-sidebar--collapsed .crc-sidebar__brand {
+  width: 100% !important;
+}
+
+.crc-sidebar--collapsed .crc-sidebar__navButton {
+  width: 100% !important;
+}
+
+@media (max-width: 860px) {
+  .inbox-filterGrid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .topnav__headline {
   gap: 2px !important;
 }
@@ -7469,6 +7692,121 @@ body {
 .topnav__title {
   font-size: clamp(1.6rem, 1.9vw, 2.12rem) !important;
   line-height: 0.96 !important;
+}
+
+/* Safety numbering + roster numbering */
+
+.incident-row__index {
+  width: 36px;
+  flex: 0 0 36px;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2px;
+  color: #0f609b;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.patient-roster__tableHeader,
+.patient-roster__item--grid {
+  grid-template-columns:
+    44px
+    minmax(120px, 0.92fr)
+    minmax(220px, 1.45fr)
+    minmax(180px, 1.08fr)
+    minmax(180px, 1.02fr)
+    minmax(154px, 0.9fr)
+    minmax(190px, 1fr) !important;
+}
+
+.patient-roster__tableHeader span:first-child {
+  text-align: center;
+}
+
+.patient-roster__cell--index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f609b;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.patient-rosterPage--full .patient-roster__tableHeader,
+.patient-rosterPage--full .patient-roster__item--grid {
+  grid-template-columns:
+    44px
+    minmax(132px, 0.86fr)
+    minmax(250px, 1.28fr)
+    minmax(214px, 0.96fr)
+    minmax(168px, 0.88fr)
+    minmax(144px, 0.72fr)
+    minmax(178px, 0.82fr) !important;
+}
+
+@media (max-width: 1200px) {
+  .patient-roster__tableHeader,
+  .patient-roster__item--grid {
+    grid-template-columns:
+      40px
+      minmax(118px, 0.9fr)
+      minmax(200px, 1.25fr)
+      minmax(168px, 0.98fr)
+      minmax(152px, 0.92fr)
+      minmax(138px, 0.82fr) !important;
+  }
+
+  .patient-roster__tableHeader span:nth-child(7),
+  .patient-roster__item--grid .patient-roster__cell--task {
+    grid-column: 1 / -1;
+  }
+
+  .patient-rosterPage--full .patient-roster__tableHeader,
+  .patient-rosterPage--full .patient-roster__item--grid {
+    grid-template-columns:
+      40px
+      minmax(126px, 0.88fr)
+      minmax(232px, 1.2fr)
+      minmax(196px, 0.96fr)
+      minmax(166px, 0.92fr)
+      minmax(138px, 0.78fr) !important;
+  }
+
+  .patient-rosterPage--full .patient-roster__tableHeader span:nth-child(7),
+  .patient-rosterPage--full .patient-roster__item--grid .patient-roster__cell--task {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  .patient-roster__tableHeader,
+  .patient-roster__item--grid {
+    grid-template-columns:
+      38px
+      minmax(116px, 0.88fr)
+      minmax(200px, 1.18fr)
+      minmax(160px, 0.9fr) !important;
+  }
+
+  .patient-roster__tableHeader span:nth-child(5),
+  .patient-roster__tableHeader span:nth-child(6),
+  .patient-roster__tableHeader span:nth-child(7),
+  .patient-roster__item--grid .patient-roster__cell:nth-child(5),
+  .patient-roster__item--grid .patient-roster__cell:nth-child(6),
+  .patient-roster__item--grid .patient-roster__cell:nth-child(7) {
+    grid-column: 1 / -1;
+  }
+
+  .patient-rosterPage--full .patient-roster__tableHeader,
+  .patient-rosterPage--full .patient-roster__item--grid {
+    grid-template-columns:
+      38px
+      minmax(122px, 0.86fr)
+      minmax(210px, 1.16fr)
+      minmax(170px, 0.92fr) !important;
+  }
 }
 
 .topnav__description {
@@ -7516,7 +7854,54 @@ body {
   word-break: break-word !important;
 }
 
-.epro-review__summary,
+.epro-review__summary {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 16px !important;
+}
+
+.epro-review__summaryTop {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(420px, 1.15fr) minmax(300px, 1fr) !important;
+  gap: 18px !important;
+  align-items: start !important;
+}
+
+.epro-review__summaryIntro {
+  min-width: 0 !important;
+}
+
+.epro-review__summaryIntro .section-note {
+  max-width: 28ch;
+}
+
+.epro-review__summaryCenter,
+.epro-review__summarySide {
+  display: grid !important;
+  gap: 12px !important;
+  align-content: start !important;
+}
+
+.epro-review__toolbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+.epro-review__windowNote {
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  border-radius: 16px !important;
+  background: #f7fbff !important;
+  border: 1px solid #dbe6f6 !important;
+  color: #35516a !important;
+  line-height: 1.5 !important;
+}
+
+.epro-review__windowNote--placeholder {
+  color: #6b8094 !important;
+}
+
 .epro-review__metricsRow {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
@@ -7524,12 +7909,76 @@ body {
 }
 
 .epro-review__summary .workspace-summary-item {
-  min-height: 68px !important;
+  min-height: 0 !important;
   padding: 10px 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 6px !important;
+}
+
+.epro-review__summary .workspace-summary-item span {
+  margin-bottom: 0 !important;
+  text-align: center !important;
 }
 
 .epro-review__summary .workspace-summary-item strong {
   font-size: 1.08rem !important;
+  text-align: center !important;
+}
+
+.epro-review__statusSwitch {
+  margin: 2px 0 2px !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  padding: 4px !important;
+  border-radius: 999px !important;
+  border: 1px solid #8db8f2 !important;
+  background: #fdfefe !important;
+  box-shadow: none !important;
+}
+
+.epro-review__statusSwitchOption {
+  min-height: 48px !important;
+  padding: 0 26px !important;
+  color: #1756a5 !important;
+  font-weight: 800 !important;
+}
+
+.epro-review__statusSwitchOption:hover {
+  color: #0f4c98 !important;
+}
+
+.epro-review__statusSwitchOption.is-active {
+  background: linear-gradient(135deg, #2d8cff 0%, #1560d0 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(20, 84, 162, 0.18) !important;
+}
+
+.epro-review__statusSwitchCount {
+  background: #edf4ff !important;
+  color: #1454a2 !important;
+}
+
+.epro-review__statusSwitchOption.is-active .epro-review__statusSwitchCount {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.epro-review .history-pagination {
+  align-items: center !important;
+  margin-top: 0 !important;
+}
+
+.epro-review .history-pagination__controls {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.epro-review .history-pagination .section-note {
+  max-width: none;
 }
 
 .guidance-panel__header {
@@ -7608,4 +8057,78 @@ body {
   font-size: 0.76rem;
   font-weight: 700;
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+}
+
+@media (max-width: 1280px) {
+  .epro-review__summaryTop {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.95fr) !important;
+  }
+
+  .epro-review__windowNote {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .epro-review__summaryTop {
+    grid-template-columns: 1fr !important;
+  }
+
+  .epro-review__summaryIntro .section-note {
+    max-width: none;
+  }
+
+  .epro-review__metricsRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .epro-review__statusSwitch {
+    width: 100% !important;
+  }
+
+  .epro-review__statusSwitchOption {
+    min-width: 0 !important;
+    padding: 0 12px !important;
+  }
+
+  .epro-review__metricsRow {
+    grid-template-columns: 1fr !important;
+  }
+
+  .epro-review .history-pagination {
+    align-items: stretch !important;
+  }
+
+  .epro-review .history-pagination__controls {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+.epro-review__releaseRow {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  gap: 10px !important;
+}
+
+.epro-review__releaseRow + .epro-review__releaseRow {
+  margin-top: 8px !important;
+}
+
+.epro-review__releaseTitle {
+  margin-bottom: 2px !important;
+}
+
+.epro-review__releaseRow .section-note {
+  line-height: 1.45 !important;
+}
+
+.epro-review__releaseRow .metric-pill {
+  padding: 8px 14px !important;
+  min-height: auto !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
 }

@@ -12,9 +12,24 @@ import {
   retrieveGuidanceContextHttp,
   sideEffectGuidanceChat,
   sideEffectGuidanceChatHttp,
+  sideEffectGuidanceTraceStreamHttp,
   suggestAppointmentDate,
   suggestAppointmentDateHttp,
 } from './guidanceRuntime.js';
+import {
+  fetchCrcUrgentIncidentSummary,
+  purgePatientRecord,
+  sendCrcPatientDirectMessage,
+} from './crcAdminRuntime.js';
+import {
+  configureProtocolDropoutTrial,
+  ensureDropoutTrialRegistryTrial,
+  refreshConfiguredDropoutTrialRegistry,
+} from './dropoutRegistryRuntime.js';
+import {
+  finalizeUploadedProtocolTemplate,
+  reconcileProtocolDropoutTrialBinding,
+} from './protocolStaticContextRuntime.js';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -137,8 +152,17 @@ export const sendIncidentPushNotifications = onDocumentWritten(
 );
 
 export {
+  configureProtocolDropoutTrial,
+  ensureDropoutTrialRegistryTrial,
+  fetchCrcUrgentIncidentSummary,
+  finalizeUploadedProtocolTemplate,
+  purgePatientRecord,
+  reconcileProtocolDropoutTrialBinding,
+  refreshConfiguredDropoutTrialRegistry,
+  sendCrcPatientDirectMessage,
   sideEffectGuidanceChat,
   sideEffectGuidanceChatHttp,
+  sideEffectGuidanceTraceStreamHttp,
   classifyGuidanceRoute,
   classifyGuidanceRouteHttp,
   retrieveGuidanceContext,

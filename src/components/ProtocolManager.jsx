@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -24,10 +23,23 @@ import {
   isBuiltinVitalTemplate,
   subscribeToTrialTemplates,
 } from '../services/trialTemplateService';
-import { extractAndPersistProtocolDropoutStaticContext } from '../services/protocolStaticContextService';
+import {
+  finalizeUploadedProtocolTemplate,
+  getProtocolStaticContextStatus,
+} from '../services/protocolStaticContextService';
+import {
+  configureProtocolDropoutTrial,
+  getSupportedDropoutTrialMetadata,
+  normalizeDropoutTrialId,
+  reconcileProtocolDropoutTrialBinding,
+} from '../services/dropoutTrialRegistryService';
 
 const POLICY_FIELDS = ['mild', 'moderate', 'serious'];
 const DUE_UNITS = ['hour', 'day', 'week', 'month'];
+
+function normalizeText(value) {
+  return String(value || '').trim();
+}
 
 function hoursFromUnit(value, unit) {
   const safeValue = Math.max(1, Number(value) || 1);
@@ -111,6 +123,204 @@ function buildDraft(protocol) {
     vital_templates: coerceVitalTemplates(protocol.vital_templates, protocol.monitoredVitals),
     dropout_trial_id: protocol.dropout_trial_id || '',
   };
+}
+
+function buildPatientDropoutTrialFields(protocol = null) {
+  const normalizedTrialId = normalizeDropoutTrialId(protocol?.dropout_trial_id);
+  return {
+    dropout_trial_id: normalizedTrialId || null,
+    dropout_trial_label: protocol?.dropout_trial_label || normalizedTrialId || null,
+    dropout_trial_status: protocol?.dropout_trial_status || (normalizedTrialId ? 'configured' : 'not_configured'),
+    dropout_trial_pool_size: Number(protocol?.dropout_trial_pool_size) || null,
+    dropout_trial_model_version: protocol?.dropout_trial_model_version || null,
+    dropout_trial_last_verified_at: protocol?.dropout_trial_last_verified_at || null,
+    dropout_trial_last_synced_at: protocol?.dropout_trial_last_synced_at || null,
+  };
+}
+
+function buildDropoutTrialFieldStatus(protocol = {}, draftTrialId = '') {
+  const normalizedDraftTrialId = normalizeDropoutTrialId(draftTrialId);
+  const normalizedSavedTrialId = normalizeDropoutTrialId(protocol?.dropout_trial_id);
+  const savedStatus = normalizeText(protocol?.dropout_trial_status).toLowerCase();
+  const matchStatus = normalizeText(protocol?.dropout_trial_match_status).toLowerCase();
+  const matchCandidates = Array.isArray(protocol?.dropout_trial_match_candidates)
+    ? protocol.dropout_trial_match_candidates.filter(Boolean)
+    : [];
+  const matchMessage = normalizeText(protocol?.dropout_trial_match_message);
+  const supportedMetadata = getSupportedDropoutTrialMetadata(normalizedDraftTrialId);
+  const usingSavedValue = normalizedDraftTrialId && normalizedDraftTrialId === normalizedSavedTrialId;
+  const staticContextStatus = getProtocolStaticContextStatus(protocol);
+
+  if (!normalizedDraftTrialId) {
+    if (matchStatus === 'configured' && normalizedSavedTrialId) {
+      return {
+        tone: 'success',
+        label: 'Configured',
+        message:
+          matchMessage ||
+          'This protocol is already bound to a supported disengagement dataset trial and is ready for patient mapping.',
+        blocking: false,
+        poolSize: Number(protocol?.dropout_trial_pool_size) || null,
+        modelVersion: protocol?.dropout_trial_model_version || '',
+        lastVerifiedAt: protocol?.dropout_trial_last_verified_at || '',
+      };
+    }
+
+    if (matchStatus === 'no_supported_trial_detected') {
+      return {
+        tone: 'warning',
+        label: 'No supported dataset trial detected',
+        message:
+          matchMessage ||
+          'Strict static context is ready, but no supported disengagement dataset trial ID was detected in the protocol PDF.',
+        blocking: false,
+        poolSize: null,
+        modelVersion: '',
+        lastVerifiedAt: '',
+      };
+    }
+
+    if (matchStatus === 'multiple_supported_trials_detected') {
+      return {
+        tone: 'warning',
+        label: 'Multiple supported dataset trials detected',
+        message:
+          matchMessage ||
+          `Strict static context is ready, but multiple supported disengagement dataset trial IDs were detected: ${matchCandidates.join(', ')}`,
+        blocking: false,
+        poolSize: null,
+        modelVersion: '',
+        lastVerifiedAt: '',
+      };
+    }
+
+    return {
+      tone: 'warning',
+      label: 'Not configured',
+      message: 'This protocol is currently out of patient disengagement prediction until a supported dataset trial ID is configured.',
+      blocking: false,
+      poolSize: null,
+      modelVersion: '',
+      lastVerifiedAt: '',
+    };
+  }
+
+  if (!staticContextStatus.ready) {
+    return {
+      tone: staticContextStatus.tone,
+      label: staticContextStatus.label,
+      message: `${staticContextStatus.message} Configure the disengagement dataset trial ID only after strict static context extraction reaches ready.`,
+      blocking: true,
+      poolSize: null,
+      modelVersion: '',
+      lastVerifiedAt: '',
+    };
+  }
+
+  if (usingSavedValue && savedStatus) {
+    if (savedStatus === 'configured') {
+      return {
+        tone: 'success',
+        label: 'Configured',
+        message: 'This protocol is bound to a supported disengagement trial and its canonical Subject ID pool is verified.',
+        blocking: false,
+        poolSize: Number(protocol?.dropout_trial_pool_size) || supportedMetadata?.expected_pool_size || null,
+        modelVersion: protocol?.dropout_trial_model_version || supportedMetadata?.model_version_label || '',
+        lastVerifiedAt: protocol?.dropout_trial_last_verified_at || '',
+      };
+    }
+
+    if (savedStatus === 'model_unavailable') {
+      return {
+        tone: 'danger',
+        label: 'No model configured',
+        message: 'This trial ID is recognized, but no active disengagement model is configured for it.',
+        blocking: true,
+        poolSize: Number(protocol?.dropout_trial_pool_size) || supportedMetadata?.expected_pool_size || null,
+        modelVersion: protocol?.dropout_trial_model_version || supportedMetadata?.model_version_label || '',
+        lastVerifiedAt: protocol?.dropout_trial_last_verified_at || '',
+      };
+    }
+
+    if (savedStatus === 'pool_unavailable' || savedStatus === 'sync_failed') {
+      return {
+        tone: 'danger',
+        label: 'No canonical subject pool available',
+        message: 'This trial ID is recognized, but its canonical Subject ID pool is not available yet.',
+        blocking: true,
+        poolSize: Number(protocol?.dropout_trial_pool_size) || supportedMetadata?.expected_pool_size || null,
+        modelVersion: protocol?.dropout_trial_model_version || supportedMetadata?.model_version_label || '',
+        lastVerifiedAt: protocol?.dropout_trial_last_verified_at || '',
+      };
+    }
+  }
+
+  if (!supportedMetadata) {
+    return {
+      tone: 'danger',
+      label: 'Unknown trial ID',
+      message: 'This disengagement dataset trial ID is not in the supported dropout registry, so save will be blocked.',
+      blocking: true,
+      poolSize: null,
+      modelVersion: '',
+      lastVerifiedAt: '',
+    };
+  }
+
+  return {
+    tone: 'brand',
+    label: 'Supported trial ID',
+    message: 'This trial ID is supported. Saving the template will verify it and sync its canonical Subject ID pool automatically.',
+    blocking: false,
+    poolSize: supportedMetadata.expected_pool_size,
+    modelVersion: supportedMetadata.model_version_label,
+    lastVerifiedAt: '',
+  };
+}
+
+function isProtocolFullyConfiguredForDisengagement(protocol = null) {
+  const staticContextStatus = getProtocolStaticContextStatus(protocol);
+  const trialId = normalizeDropoutTrialId(protocol?.dropout_trial_id);
+  const trialStatus = normalizeText(protocol?.dropout_trial_status).toLowerCase();
+  return Boolean(staticContextStatus.ready && trialId && trialStatus === 'configured');
+}
+
+function buildProtocolAssignmentBlockReason(protocol = null) {
+  const staticContextStatus = getProtocolStaticContextStatus(protocol);
+  if (!staticContextStatus.ready) {
+    return staticContextStatus.message;
+  }
+  const trialId = normalizeDropoutTrialId(protocol?.dropout_trial_id);
+  const trialStatus = normalizeText(protocol?.dropout_trial_status).toLowerCase();
+  if (!trialId) {
+    return (
+      normalizeText(protocol?.dropout_trial_match_message) ||
+      'This protocol cannot be assigned until a supported disengagement dataset trial ID is configured.'
+    );
+  }
+  if (trialStatus !== 'configured') {
+    return 'This protocol cannot be assigned until its disengagement dataset trial binding is fully verified.';
+  }
+  return '';
+}
+
+function formatOptionalDate(value) {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return '';
+  }
+  const nextDate = new Date(normalizedValue);
+  return Number.isNaN(nextDate.getTime()) ? normalizedValue : nextDate.toLocaleString();
+}
+
+function buildProtocolUploadStagingPath(fileName = '') {
+  const safeName = String(fileName || '')
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'protocol.pdf';
+  return `protocol-upload-staging/${Date.now()}-${safeName}`;
 }
 
 function TemplateField({ label, children }) {
@@ -209,9 +419,14 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
   const [file, setFile] = useState(null);
   const [protocols, setProtocols] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [showUploadExceptionDialog, setShowUploadExceptionDialog] = useState(false);
+  const [uploadExceptionPhaseOverride, setUploadExceptionPhaseOverride] = useState('');
+  const [uploadExceptionConfirmValue, setUploadExceptionConfirmValue] = useState('');
   const [drafts, setDrafts] = useState({});
   const [builtinSelections, setBuiltinSelections] = useState({});
   const [expandedProtocolId, setExpandedProtocolId] = useState(null);
+  const [savingProtocolId, setSavingProtocolId] = useState(null);
+  const [protocolSaveFeedbackById, setProtocolSaveFeedbackById] = useState({});
 
   const builtinVitals = useMemo(() => getBuiltinVitalLibrary(), []);
 
@@ -252,64 +467,31 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
     [patients]
   );
 
-  const handleUpload = async () => {
-    if (!file) return;
+  const handleUpload = async (manualTrialPhaseOverride = '') => {
+    if (!file) return false;
     setUploading(true);
+    let uploadSucceeded = false;
 
     try {
       const fileName = file.name;
-      const storagePath = fileName;
-      const uploadedAt = new Date().toISOString();
-      const uploadWarnings = [];
+      const storagePath = buildProtocolUploadStagingPath(fileName);
 
       const { error: uploadError } = await supabase.storage.from('protocol').upload(storagePath, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      const existingProtocol = protocols.find(
-        (protocol) => protocol.storagePath === storagePath || protocol.name === fileName
-      );
+      const existingProtocol = protocols.find((protocol) => protocol.name === fileName) || null;
+      const finalizeResult = await finalizeUploadedProtocolTemplate({
+        protocolId: existingProtocol?.id || null,
+        protocolName: fileName,
+        stagedStorageBucket: 'protocol',
+        stagedStoragePath: storagePath,
+        manualTrialPhaseOverride,
+      });
+      const protocolId = String(finalizeResult?.protocolId || '').trim();
+      const finalizedProtocol = finalizeResult?.protocol || null;
 
-      let protocolId = existingProtocol?.id || null;
-
-      if (existingProtocol) {
-        await updateDoc(doc(db, 'protocols', existingProtocol.id), {
-          name: fileName,
-          storagePath,
-          uploadedAt,
-          guidance_index_status: 'indexing',
-          guidance_index_error: null,
-          guidance_indexed_at: null,
-        });
-      } else {
-        const protocolRef = await addDoc(collection(db, 'protocols'), {
-          name: fileName,
-          storagePath,
-          uploadedAt,
-          notification_policy: normalizePolicyForSave(getDefaultNotificationPolicy()),
-          vital_templates: coerceVitalTemplates([], ['temperature', 'spo2', 'bp']),
-          dropout_trial_id: '',
-          extraction_status: 'pending',
-          guidance_index_status: 'indexing',
-          guidance_index_error: null,
-          guidance_indexed_at: null,
-        });
-        protocolId = protocolRef.id;
-      }
-
-      if (!protocolId) {
-        throw new Error('Protocol document ID could not be resolved after upload.');
-      }
-
-      try {
-        await extractAndPersistProtocolDropoutStaticContext(protocolId, {
-          name: fileName,
-          storagePath,
-        });
-      } catch (extractionError) {
-        console.error('Protocol dropout static-context extraction failed:', extractionError);
-        uploadWarnings.push(
-          'Disengagement static context extraction is still unavailable for this protocol. Side Effect Guidance indexing can still continue.'
-        );
+      if (!protocolId || !finalizedProtocol?.storagePath) {
+        throw new Error('Strict protocol upload finished without a resolved protocol document.');
       }
 
       try {
@@ -320,26 +502,41 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
           protocolName: fileName,
           title: fileName,
           storageBucket: 'protocol',
-          storagePath,
+          storagePath: finalizedProtocol.storagePath,
           metadata: {
             source_label: fileName,
           },
         });
+        window.alert('Added to Trial Library. Strict disengagement static context is ready. Guidance indexing will continue in the background.');
       } catch (guidanceError) {
         console.error('Protocol guidance indexing trigger failed:', guidanceError);
+        await updateDoc(doc(db, 'protocols', protocolId), {
+          guidance_index_status: 'error',
+          guidance_index_error: guidanceError.message || 'Guidance indexing could not be started automatically.',
+          guidance_indexed_at: null,
+        });
+        window.alert(
+          'Added to Trial Library. Strict disengagement static context is ready. Guidance indexing could not be started automatically, but this does not block patient disengagement prediction. Use "Retry guidance index" on this protocol card.'
+        );
       }
 
       setFile(null);
-      window.alert(
-        uploadWarnings.length
-          ? `Added to Trial Library. Guidance indexing will continue in the background.\n\nWarning: ${uploadWarnings.join(' ')}`
-          : 'Added to Trial Library. Guidance indexing will continue in the background.'
-      );
+      uploadSucceeded = true;
     } catch (error) {
       console.error(error);
       window.alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
+    }
+    return uploadSucceeded;
+  };
+
+  const handleExceptionalUpload = async () => {
+    const succeeded = await handleUpload(uploadExceptionPhaseOverride);
+    if (succeeded) {
+      setShowUploadExceptionDialog(false);
+      setUploadExceptionPhaseOverride('');
+      setUploadExceptionConfirmValue('');
     }
   };
 
@@ -359,6 +556,21 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
         console.error('Guidance chunk cleanup failed during protocol delete:', guidanceCleanupError);
       }
 
+      try {
+        const [{ error: patientReviewDeleteError }, { error: trialReviewDeleteError }] = await Promise.all([
+          supabase.from('epro_patient_daily_review').delete().eq('trial_id', protocol.id),
+          supabase.from('epro_trial_daily_review').delete().eq('trial_id', protocol.id),
+        ]);
+        if (patientReviewDeleteError) {
+          throw patientReviewDeleteError;
+        }
+        if (trialReviewDeleteError) {
+          throw trialReviewDeleteError;
+        }
+      } catch (eproCleanupError) {
+        console.error('ePRO review cleanup failed during protocol delete:', eproCleanupError);
+      }
+
       const usersQuery = query(collection(db, 'users'), where('protocolId', '==', protocol.id));
       const usersSnapshot = await getDocs(usersQuery);
 
@@ -371,6 +583,8 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
             protocolStatus: null,
             protocolAssignedAt: null,
             monitoredVitals: [],
+            subject_id: null,
+            ...buildPatientDropoutTrialFields(null),
           })
         )
       );
@@ -425,7 +639,18 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
       return;
     }
 
+    if (!isProtocolFullyConfiguredForDisengagement(protocol) && selectedPatient.protocolId !== protocol.id) {
+      window.alert(buildProtocolAssignmentBlockReason(protocol));
+      return;
+    }
+
     const isCurrentlyActive = selectedPatient.protocolId === protocol.id;
+    const currentSubjectId = normalizeText(
+      selectedPatient.subject_id || selectedPatient.subjectId || selectedPatient.dropout_subject_id || selectedPatient.dropoutSubjectId
+    );
+    const currentTrialId = normalizeDropoutTrialId(selectedPatient.dropout_trial_id || selectedPatient.dropoutTrialId);
+    const nextTrialId = normalizeDropoutTrialId(protocol?.dropout_trial_id);
+    const shouldClearSubjectMapping = !isCurrentlyActive && currentSubjectId && currentTrialId !== nextTrialId;
     try {
       if (isCurrentlyActive) {
         await updateDoc(doc(db, 'users', selectedPatient.id), {
@@ -435,6 +660,8 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
           protocolStatus: null,
           protocolAssignedAt: null,
           monitoredVitals: [],
+          subject_id: null,
+          ...buildPatientDropoutTrialFields(null),
         });
       } else {
         const draft = drafts[protocol.id] || buildDraft(protocol);
@@ -446,6 +673,8 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
           protocolStatus: 'active',
           protocolAssignedAt: new Date().toISOString(),
           monitoredVitals: buildFallbackMonitoredVitals(normalizedTemplates),
+          subject_id: shouldClearSubjectMapping ? null : currentSubjectId || null,
+          ...buildPatientDropoutTrialFields(protocol),
         });
       }
     } catch (error) {
@@ -489,6 +718,15 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
       return {
         ...current,
         [protocolId]: updater(baseDraft),
+      };
+    });
+    setProtocolSaveFeedbackById((current) => {
+      if (!current[protocolId]) {
+        return current;
+      }
+      return {
+        ...current,
+        [protocolId]: null,
       };
     });
   };
@@ -586,8 +824,23 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
   };
 
   const handleSaveProtocol = async (protocolId) => {
+    const protocol = protocols.find((entry) => entry.id === protocolId) || {};
+    const draft = drafts[protocolId] || buildDraft(protocol);
+    const staticContextStatus = getProtocolStaticContextStatus(protocol);
+    const dropoutTrialFieldStatus = buildDropoutTrialFieldStatus(protocol, draft.dropout_trial_id);
+    if (dropoutTrialFieldStatus.blocking) {
+      setProtocolSaveFeedbackById((current) => ({
+        ...current,
+        [protocolId]: {
+          tone: 'danger',
+          message: `Save blocked. ${dropoutTrialFieldStatus.message}`,
+        },
+      }));
+      return;
+    }
+
+    setSavingProtocolId(protocolId);
     try {
-      const draft = drafts[protocolId];
       const normalizedTemplates = coerceVitalTemplates(draft.vital_templates);
       const notificationPolicy = normalizePolicyForSave(draft.notification_policy);
 
@@ -595,7 +848,6 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
         notification_policy: notificationPolicy,
         vital_templates: normalizedTemplates,
         monitoredVitals: buildFallbackMonitoredVitals(normalizedTemplates),
-        dropout_trial_id: String(draft.dropout_trial_id || '').trim(),
         updatedAt: new Date().toISOString(),
       });
 
@@ -610,9 +862,75 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
         )
       );
 
-      window.alert('Trial template saved.');
+      const normalizedDraftTrialId = String(draft.dropout_trial_id || '').trim();
+      const dropoutTrialResult = normalizedDraftTrialId
+        ? await configureProtocolDropoutTrial({
+            protocolId,
+            trialId: normalizedDraftTrialId,
+          })
+        : staticContextStatus.ready
+          ? await reconcileProtocolDropoutTrialBinding({ protocolId })
+          : await configureProtocolDropoutTrial({
+              protocolId,
+              trialId: '',
+            });
+
+      if (dropoutTrialResult?.dropout_trial_status === 'configured') {
+        setProtocolSaveFeedbackById((current) => ({
+          ...current,
+          [protocolId]: {
+            tone: 'success',
+            message: 'Trial template saved and disengagement trial binding verified.',
+          },
+        }));
+      } else if (dropoutTrialResult?.dropout_trial_match_status === 'no_supported_trial_detected') {
+        setProtocolSaveFeedbackById((current) => ({
+          ...current,
+          [protocolId]: {
+            tone: 'warning',
+            message:
+              dropoutTrialResult?.dropout_trial_match_message ||
+              'Trial template saved. Strict static context is ready, but no supported disengagement dataset trial ID was detected in the stored PDF.',
+          },
+        }));
+      } else if (dropoutTrialResult?.dropout_trial_match_status === 'multiple_supported_trials_detected') {
+        setProtocolSaveFeedbackById((current) => ({
+          ...current,
+          [protocolId]: {
+            tone: 'warning',
+            message:
+              dropoutTrialResult?.dropout_trial_match_message ||
+              'Trial template saved. Strict static context is ready, but multiple supported disengagement dataset trial IDs were detected in the stored PDF.',
+          },
+        }));
+      } else if (dropoutTrialResult?.dropout_trial_status === 'not_configured') {
+        setProtocolSaveFeedbackById((current) => ({
+          ...current,
+          [protocolId]: {
+            tone: 'success',
+            message:
+              'Trial template saved. This protocol is currently out of disengagement prediction until a supported dataset trial ID is configured.',
+          },
+        }));
+      } else {
+        setProtocolSaveFeedbackById((current) => ({
+          ...current,
+          [protocolId]: {
+            tone: 'success',
+            message: 'Trial template saved.',
+          },
+        }));
+      }
     } catch (error) {
-      window.alert(`Failed to save trial template: ${error.message}`);
+      setProtocolSaveFeedbackById((current) => ({
+        ...current,
+        [protocolId]: {
+          tone: 'danger',
+          message: error.message || 'Failed to save trial template.',
+        },
+      }));
+    } finally {
+      setSavingProtocolId(null);
     }
   };
 
@@ -633,10 +951,33 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
           </div>
           <div className="protocol-library__toolbar">
             <input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files[0] || null)} />
-            <button onClick={handleUpload} disabled={!file || uploading} className="btn btn-primary btn-small">
+            <button onClick={() => handleUpload('')} disabled={!file || uploading} className="btn btn-primary btn-small">
               {uploading ? 'Uploading...' : 'Upload PDF'}
             </button>
           </div>
+        </div>
+        <div className="section-note section-note--spaced">
+          After strict static-context extraction succeeds, TrialLight automatically looks for a unique supported `NCT...`
+          trial ID in the PDF text and binds it to the disengagement dataset field when there is exactly one match.
+        </div>
+        <div className="section-note">
+          Need a one-time disengagement phase exception for a blocked upload?{' '}
+          <button
+            type="button"
+            onClick={() => setShowUploadExceptionDialog(true)}
+            disabled={!file || uploading}
+            style={{
+              border: 0,
+              background: 'transparent',
+              color: 'var(--brand-700, #0f4c81)',
+              fontWeight: 600,
+              cursor: !file || uploading ? 'not-allowed' : 'pointer',
+              padding: 0,
+              textDecoration: 'underline',
+            }}
+          >
+            Open advanced exception
+          </button>
         </div>
 
         <div className="protocol-library__summaryGrid">
@@ -666,6 +1007,11 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
             const isActive = selectedPatient?.protocolId === protocol.id;
             const usageCount = usageCounts[protocol.id] || 0;
             const isExpanded = expandedProtocolId === protocol.id;
+            const dropoutTrialFieldStatus = buildDropoutTrialFieldStatus(protocol, draft.dropout_trial_id);
+            const staticContextStatus = getProtocolStaticContextStatus(protocol);
+            const protocolSaveFeedback = protocolSaveFeedbackById[protocol.id] || null;
+            const assignmentBlockedReason = buildProtocolAssignmentBlockReason(protocol);
+            const canAssignProtocol = Boolean(selectedPatient) && (isActive || isProtocolFullyConfiguredForDisengagement(protocol));
 
             return (
               <section
@@ -683,8 +1029,19 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                     <div className="section-note">
                       Uploaded {protocol.uploadedAt ? new Date(protocol.uploadedAt).toLocaleString() : 'Unknown time'}
                     </div>
+                    <div className="patient-config__pillWrap" style={{ marginTop: '10px' }}>
+                      <span className={`metric-pill metric-pill--${staticContextStatus.tone}`}>
+                        {staticContextStatus.label}
+                      </span>
+                    </div>
+                    <div className="section-note section-note--spaced">{staticContextStatus.message}</div>
+                    {staticContextStatus.extractedAt ? (
+                      <div className="section-note">
+                        Last extracted: {formatOptionalDate(staticContextStatus.extractedAt)}
+                      </div>
+                    ) : null}
                     <div className="section-note section-note--spaced">{formatGuidanceIndexStatus(protocol)}</div>
-                    <div className="section-note">This index lets Side Effect Guidance search protocol content quickly.</div>
+                <div className="section-note">This index lets Adverse Event Guidance search protocol content quickly.</div>
                   </div>
 
                   <div className="protocol-library__cardActions">
@@ -698,8 +1055,12 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                     <button onClick={() => handlePreview(protocol)} className="btn btn-secondary btn-small">
                       Preview PDF
                     </button>
-                    <button onClick={() => handleSaveProtocol(protocol.id)} className="btn btn-primary btn-small">
-                      Save template
+                    <button
+                      onClick={() => handleSaveProtocol(protocol.id)}
+                      className="btn btn-primary btn-small"
+                      disabled={savingProtocolId === protocol.id || dropoutTrialFieldStatus.blocking}
+                    >
+                      {savingProtocolId === protocol.id ? 'Saving...' : 'Save template'}
                     </button>
                     <button
                       onClick={() => handleRetryGuidanceIndex(protocol)}
@@ -710,8 +1071,9 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                     </button>
                     <button
                       onClick={() => handleActivate(protocol)}
-                      disabled={!selectedPatient}
+                      disabled={!canAssignProtocol}
                       className={`btn btn-small ${isActive ? 'btn-success' : 'btn-secondary'}`}
+                      title={!canAssignProtocol && !isActive ? assignmentBlockedReason : ''}
                     >
                       {isActive ? 'Assigned to selected patient' : 'Assign to selected patient'}
                     </button>
@@ -736,8 +1098,45 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                             }
                             placeholder="Optional testing dataset trial ID"
                           />
+                          <div className="section-note section-note--spaced">
+                            Keep this visible for CRC transparency. TrialLight now auto-binds this field only when the PDF text contains exactly one supported `NCT...` dataset trial ID. Manual save is still blocked unless strict static context is ready and the trial ID is supported.
+                          </div>
+                          <div className="patient-config__pillWrap" style={{ marginTop: '10px' }}>
+                            <span className={`metric-pill metric-pill--${dropoutTrialFieldStatus.tone}`}>
+                              {dropoutTrialFieldStatus.label}
+                            </span>
+                            {dropoutTrialFieldStatus.poolSize ? (
+                              <span className="metric-pill">{dropoutTrialFieldStatus.poolSize} canonical subjects</span>
+                            ) : null}
+                            {dropoutTrialFieldStatus.modelVersion ? (
+                              <span className="metric-pill">{dropoutTrialFieldStatus.modelVersion}</span>
+                            ) : null}
+                          </div>
+                          <div className="section-note section-note--spaced">{dropoutTrialFieldStatus.message}</div>
+                          {dropoutTrialFieldStatus.lastVerifiedAt ? (
+                            <div className="section-note">Last verified: {formatOptionalDate(dropoutTrialFieldStatus.lastVerifiedAt)}</div>
+                          ) : null}
+                          {dropoutTrialFieldStatus.blocking ? (
+                            <div className="field-error">
+                              Saving is blocked until this disengagement dataset trial ID is valid, supported, and ready.
+                            </div>
+                          ) : null}
+                          {protocolSaveFeedback?.message ? (
+                            protocolSaveFeedback.tone === 'danger' ? (
+                              <div className="field-error">{protocolSaveFeedback.message}</div>
+                            ) : (
+                              <div className="section-note section-note--spaced">{protocolSaveFeedback.message}</div>
+                            )
+                          ) : null}
                         </TemplateField>
                       </div>
+
+                      {!isProtocolFullyConfiguredForDisengagement(protocol) ? (
+                        <div className="info-banner protocol-library__metaCard">
+                          <strong>Patient assignment is blocked</strong>
+                          <div className="section-note section-note--spaced">{assignmentBlockedReason}</div>
+                        </div>
+                      ) : null}
 
                       <div className="info-banner protocol-library__metaCard">
                         <div className="section-header section-header--tight">
@@ -847,7 +1246,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                           <div>
                             <strong>Notification policy</strong>
                             <div className="section-note section-note--spaced">
-                              Define how CRC follow-up timing behaves for mild, moderate, and serious side effects.
+                  Define how CRC follow-up timing behaves for mild, moderate, and serious adverse events.
                             </div>
                           </div>
                         </div>
@@ -923,6 +1322,90 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
           <div className="empty-panel">No protocols found yet. Upload the first clinical trial PDF to get started.</div>
         </div>
       )}
+
+      {showUploadExceptionDialog ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            zIndex: 2000,
+          }}
+        >
+          <div
+            className="card workspace-card"
+            style={{ width: 'min(640px, 100%)', maxHeight: '90vh', overflowY: 'auto' }}
+          >
+            <div className="section-header">
+              <div>
+                <h3>Advanced exception upload</h3>
+                <div className="section-note">
+                  This does not rewrite the PDF. It only changes the disengagement model phase used for this single upload.
+                </div>
+              </div>
+            </div>
+
+            <div className="info-banner">
+              <TemplateField label="One-time disengagement phase exception">
+                <select
+                  value={uploadExceptionPhaseOverride}
+                  onChange={(event) => setUploadExceptionPhaseOverride(event.target.value)}
+                  disabled={uploading}
+                >
+                  <option value="">Choose exception phase</option>
+                  <option value="phase 0">Force disengagement early phase 1</option>
+                  <option value="phase 1">Force disengagement phase 1</option>
+                  <option value="phase 2">Force disengagement phase 2</option>
+                </select>
+              </TemplateField>
+
+              <div className="section-note section-note--spaced">
+                This path is intended only for one-time operator exceptions. The override is backend-audited and is cleared after upload.
+              </div>
+
+              <TemplateField label="Type ALLOW EXCEPTION to continue">
+                <input
+                  value={uploadExceptionConfirmValue}
+                  onChange={(event) => setUploadExceptionConfirmValue(event.target.value)}
+                  placeholder="ALLOW EXCEPTION"
+                />
+              </TemplateField>
+            </div>
+
+            <div className="protocol-library__cardActions" style={{ marginTop: '16px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={() => {
+                  setShowUploadExceptionDialog(false);
+                  setUploadExceptionPhaseOverride('');
+                  setUploadExceptionConfirmValue('');
+                }}
+                disabled={uploading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-small"
+                onClick={handleExceptionalUpload}
+                disabled={
+                  !file ||
+                  uploading ||
+                  !uploadExceptionPhaseOverride ||
+                  uploadExceptionConfirmValue.trim().toUpperCase() !== 'ALLOW EXCEPTION'
+                }
+              >
+                {uploading ? 'Uploading...' : 'Upload with exception'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

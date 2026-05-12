@@ -191,7 +191,7 @@ export default function Login({ type, onLogin }) {
       <p className="section-note login-card__lead">
         {type === 'crc'
           ? 'Use your hospital email to enter the CRC workspace.'
-          : 'Use the patient app account for questionnaires, side effects, appointments, and vitals.'}
+                : 'Use the patient app account for questionnaires, adverse events, appointments, and vitals.'}
       </p>
 
       <form onSubmit={handleAuth} className="login-form">

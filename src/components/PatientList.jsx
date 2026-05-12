@@ -102,6 +102,7 @@ export default function PatientList({
       </div>
 
       <div className="patient-roster__tableHeader">
+        <span>#</span>
         <span>Subject ID</span>
         <span>Name</span>
         <span>Protocol</span>
@@ -114,7 +115,7 @@ export default function PatientList({
         {visiblePatients.length === 0 ? (
           <div className="empty-panel">No patients match the current filters.</div>
         ) : (
-          visiblePatients.map((patient) => {
+          visiblePatients.map((patient, rowIndex) => {
             const subjectId = patient.subject_id || patient.subjectId || 'Not set';
             const protocolName = patient.protocolName || 'Not assigned';
             const primaryCrc = patient.primary_crc_name || 'Unassigned';
@@ -122,6 +123,7 @@ export default function PatientList({
             const workflowStatus = patient.workflowStatus || 'Stable';
             const workflowTone = patient.workflowTone || 'default';
             const nextTask = patient.nextTask || 'No immediate action';
+            const rosterNumber = (effectivePage - 1) * pageSize + rowIndex + 1;
 
             return (
               <button
@@ -130,6 +132,9 @@ export default function PatientList({
                 onClick={() => onSelect(patient)}
                 className={`patient-roster__item patient-roster__item--grid ${selectedPatientId === patient.id ? 'patient-roster__item--selected' : ''}`}
               >
+                <div className="patient-roster__cell patient-roster__cell--index">
+                  {rosterNumber}
+                </div>
                 <div className="patient-roster__cell patient-roster__cell--subject">
                   <div className="patient-roster__subjectValue">{subjectId}</div>
                   <span className={`metric-pill ${isMapped ? 'metric-pill--selected' : 'metric-pill--warning'}`}>

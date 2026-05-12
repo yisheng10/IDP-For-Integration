@@ -7,6 +7,8 @@ export const SIDE_EFFECT_GUIDANCE_PROVIDER =
   import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_PROVIDER || 'firebase-callable';
 export const SIDE_EFFECT_GUIDANCE_MODEL =
   import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_MODEL || 'gemini-2.5-flash';
+export const CRC_GUIDANCE_TRACE_STREAM_ENABLED =
+  import.meta.env.VITE_CRC_GUIDANCE_TRACE_STREAM !== 'false';
 
 export const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL || 'https://fygkqituefwldmglijvy.supabase.co';

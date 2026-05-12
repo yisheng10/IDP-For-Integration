@@ -15,7 +15,6 @@ function parseArgs(argv = process.argv.slice(2)) {
   const args = {
     execute: false,
     protocolIds: [],
-    fallbackOnly: false,
     help: false,
   };
 
@@ -36,9 +35,6 @@ function parseArgs(argv = process.argv.slice(2)) {
         .filter(Boolean);
       return;
     }
-    if (entry === '--fallback-only') {
-      args.fallbackOnly = true;
-    }
   });
 
   return args;
@@ -46,19 +42,19 @@ function parseArgs(argv = process.argv.slice(2)) {
 
 function usage() {
   console.log(`Usage:
-  node functions/scripts/backfill-protocol-static-context.mjs [--execute] [--protocol-ids=id1,id2] [--fallback-only]
+  node functions/scripts/backfill-protocol-static-context.mjs [--execute] [--protocol-ids=id1,id2]
 
 Environment:
   TARGET_FIREBASE_SERVICE_ACCOUNT_JSON   Required. Terry Firebase project service account path.
   SUPABASE_URL                          Required. Supabase URL for protocol storage.
   SUPABASE_SERVICE_ROLE_KEY             Required. Supabase service role key.
-  GEMINI_API_KEY                        Required unless --fallback-only is used.
+  GEMINI_API_KEY                        Required.
 
 Behavior:
   - Default mode is dry-run and only reports which protocols would be updated
   - --execute writes dropout_static_context back into Firestore protocols/{protocolId}
-  - If Gemini extraction fails, heuristic fallback still produces a static context
-  - --fallback-only skips Gemini and uses local heuristic extraction only
+  - Strict mode only: Gemini extraction must succeed and produce a complete static context
+  - Existing fallback_only protocol states are no longer accepted
 `);
 }
 
@@ -239,23 +235,51 @@ Required JSON shape:
   return extractJsonObject(result.response.text());
 }
 
-function normalizeGeminiStaticContext(rawContext, protocol, extractedText) {
-  const fallback = fallbackStaticContext({ extractedText, protocol });
+function requireFiniteNumber(fieldName, value, { min = 0 } = {}) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < min) {
+    throw new Error(`Strict protocol static-context extraction did not produce a valid ${fieldName}.`);
+  }
+  return parsed;
+}
+
+function requireBooleanLike(fieldName, value) {
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  const text = normalizeText(value);
+  if (['1', 'true', 'yes', 'y', 'present'].includes(text)) return 1;
+  if (['0', 'false', 'no', 'n', 'absent'].includes(text)) return 0;
+  throw new Error(`Strict protocol static-context extraction did not produce a valid ${fieldName}.`);
+}
+
+function mapTrialPhaseStrict(value) {
+  const text = normalizeText(value);
+  if (!text) {
+    throw new Error('Strict protocol static-context extraction did not produce a valid trial_phase_label.');
+  }
+  if (text.includes('early phase 1')) return 0;
+  if (/\bphase\s*1\b/.test(text)) return 1;
+  if (/\bphase\s*2\b/.test(text)) return 2;
+  if (/\bphase\s*3\b/.test(text)) return 3;
+  if (/\bphase\s*4\b/.test(text)) return 4;
+  throw new Error(`Strict protocol static-context extraction produced an unsupported trial_phase_label: ${value}`);
+}
+
+function normalizeGeminiStaticContext(rawContext) {
   const context = rawContext || {};
   return {
-    trial_phase: mapTrialPhase(context.trial_phase_label, extractedText),
-    condition_family: conditionFamilyFromText(context.condition_summary, protocol.name, extractedText),
-    enrollment: coercePositiveNumber(context.enrollment, fallback.enrollment),
-    criteria_complexity: coercePositiveNumber(context.criteria_complexity, fallback.criteria_complexity),
-    has_device_intervention: coerceBinary(context.has_device_intervention, fallback.has_device_intervention),
-    has_drug_intervention: coerceBinary(context.has_drug_intervention, fallback.has_drug_intervention),
-    has_behavioral_intervention: coerceBinary(
-      context.has_behavioral_intervention,
-      fallback.has_behavioral_intervention
+    trial_phase: mapTrialPhaseStrict(context.trial_phase_label),
+    condition_family: conditionFamilyFromText(context.condition_summary),
+    enrollment: requireFiniteNumber('enrollment', context.enrollment, { min: 1 }),
+    criteria_complexity: requireFiniteNumber('criteria_complexity', context.criteria_complexity, { min: 1 }),
+    has_device_intervention: requireBooleanLike('has_device_intervention', context.has_device_intervention),
+    has_drug_intervention: requireBooleanLike('has_drug_intervention', context.has_drug_intervention),
+    has_behavioral_intervention: requireBooleanLike(
+      'has_behavioral_intervention',
+      context.has_behavioral_intervention
     ),
-    has_procedure_intervention: coerceBinary(
-      context.has_procedure_intervention,
-      fallback.has_procedure_intervention
+    has_procedure_intervention: requireBooleanLike(
+      'has_procedure_intervention',
+      context.has_procedure_intervention
     ),
   };
 }
@@ -342,45 +366,56 @@ async function main() {
       continue;
     }
 
-    const fileBytes = await downloadSupabaseFileBytes(DEFAULT_BUCKET, storagePath);
-    const extractedText = await extractPdfText(fileBytes);
+    try {
+      const fileBytes = await downloadSupabaseFileBytes(DEFAULT_BUCKET, storagePath);
+      const extractedText = await extractPdfText(fileBytes);
+      const rawGemini = await requestGeminiStaticContext(protocol, extractedText);
+      const staticContext = normalizeGeminiStaticContext(rawGemini);
 
-    let extractionStatus = 'fallback_only';
-    let rawGemini = null;
-    if (!args.fallbackOnly) {
-      try {
-        rawGemini = await requestGeminiStaticContext(protocol, extractedText);
-        if (rawGemini) {
-          extractionStatus = 'ready';
-        }
-      } catch {
-        extractionStatus = 'fallback_only';
+      summary.candidates.push({
+        protocolId: snapshot.id,
+        protocolName: protocol.name || null,
+        extractionStatus: 'ready',
+        storagePath,
+        staticContext,
+      });
+
+      if (args.execute) {
+        await snapshot.ref.set(
+          {
+            dropout_static_context: staticContext,
+            extraction_status: 'ready',
+            extraction_error: null,
+            extracted_at: new Date().toISOString(),
+            extractor_version: EXTRACTOR_VERSION,
+            source_pdf_path: storagePath,
+            extracted_text_preview: String(extractedText || '').slice(0, 4000),
+          },
+          { merge: true }
+        );
+        summary.updatedCount += 1;
       }
-    }
+    } catch (error) {
+      summary.candidates.push({
+        protocolId: snapshot.id,
+        protocolName: protocol.name || null,
+        extractionStatus: 'error',
+        storagePath,
+        error: error?.message || String(error || 'Unknown extraction error'),
+      });
 
-    const staticContext = normalizeGeminiStaticContext(rawGemini, protocol, extractedText);
-    summary.candidates.push({
-      protocolId: snapshot.id,
-      protocolName: protocol.name || null,
-      extractionStatus,
-      fallbackOnly: args.fallbackOnly,
-      storagePath,
-      staticContext,
-    });
-
-    if (args.execute) {
-      await snapshot.ref.set(
-        {
-          dropout_static_context: staticContext,
-          extraction_status: extractionStatus,
-          extracted_at: new Date().toISOString(),
-          extractor_version: EXTRACTOR_VERSION,
-          source_pdf_path: storagePath,
-          extracted_text_preview: String(extractedText || '').slice(0, 4000),
-        },
-        { merge: true }
-      );
-      summary.updatedCount += 1;
+      if (args.execute) {
+        await snapshot.ref.set(
+          {
+            extraction_status: 'error',
+            extraction_error: error?.message || String(error || 'Unknown extraction error'),
+            extracted_at: new Date().toISOString(),
+            extractor_version: EXTRACTOR_VERSION,
+            source_pdf_path: storagePath,
+          },
+          { merge: true }
+        );
+      }
     }
   }
 

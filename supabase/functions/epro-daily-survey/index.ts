@@ -18,6 +18,8 @@ Deno.serve(async (request) => {
     const payload = await handleDailySurvey({
       requestedSubjectId: url.searchParams.get('subject_id'),
       patientName: url.searchParams.get('patient_name'),
+      protocolId: url.searchParams.get('protocol_id'),
+      protocolName: url.searchParams.get('protocol_name'),
       firebaseUid: user.uid,
       firebaseToken: user.token,
     });

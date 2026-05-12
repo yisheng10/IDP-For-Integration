@@ -7,7 +7,7 @@ import {
 } from './eproReviewCore.ts';
 import {
   buildAnswerSummary,
-  cloneBaselineConfig,
+  ensureProtocolSpecificBaselineQuestions,
   getServiceClient,
   MAX_TRIAL_DAY,
   sanitizeSubjectId,
@@ -74,11 +74,15 @@ function buildAwaitingPayload({
 export async function handleDailySurvey({
   requestedSubjectId,
   patientName,
+  protocolId,
+  protocolName,
   firebaseUid,
   firebaseToken,
 }: {
   requestedSubjectId?: string | null;
   patientName?: string | null;
+  protocolId?: string | null;
+  protocolName?: string | null;
   firebaseUid: string;
   firebaseToken: string;
 }) {
@@ -93,6 +97,8 @@ export async function handleDailySurvey({
   let reviewState = await ensurePatientDailyReview({
     requestedSubjectId: subjectId,
     patientName,
+    protocolId,
+    protocolName,
     firebaseUid,
     firebaseToken,
   });
@@ -118,6 +124,8 @@ export async function handleDailySurvey({
     reviewState = await ensurePatientDailyReview({
       requestedSubjectId: subjectId,
       patientName,
+      protocolId,
+      protocolName,
       firebaseUid,
       firebaseToken,
     });
@@ -139,7 +147,12 @@ export async function handleDailySurvey({
     Array.isArray(reviewState.patientReview.effective_questions) &&
     reviewState.patientReview.effective_questions.length > 0
       ? reviewState.patientReview.effective_questions
-      : cloneBaselineConfig();
+      : ensureProtocolSpecificBaselineQuestions({
+          questions: reviewState.trialReview?.effective_questions,
+          protocolId: protocolId || reviewState.trialReview?.trial_id,
+          protocolName: protocolName || reviewState.trialReview?.protocol_name,
+          sourceLabel: `Today's ePRO questionnaire for ${reviewState.state.patient_name || subjectId}`,
+        });
 
   return {
     subject_id: subjectId,
@@ -167,12 +180,16 @@ export async function handleDailySurvey({
 export async function handleSubmit({
   requestedSubjectId,
   patientName,
+  protocolId,
+  protocolName,
   answers,
   firebaseUid,
   firebaseToken,
 }: {
   requestedSubjectId?: string | null;
   patientName?: string | null;
+  protocolId?: string | null;
+  protocolName?: string | null;
   answers?: Record<string, unknown>;
   firebaseUid: string;
   firebaseToken: string;
@@ -188,6 +205,8 @@ export async function handleSubmit({
   let reviewState = await ensurePatientDailyReview({
     requestedSubjectId: subjectId,
     patientName,
+    protocolId,
+    protocolName,
     firebaseUid,
     firebaseToken,
   });
@@ -212,6 +231,8 @@ export async function handleSubmit({
     reviewState = await ensurePatientDailyReview({
       requestedSubjectId: subjectId,
       patientName,
+      protocolId,
+      protocolName,
       firebaseUid,
       firebaseToken,
     });
@@ -227,7 +248,12 @@ export async function handleSubmit({
     Array.isArray(reviewState.patientReview.effective_questions) &&
     reviewState.patientReview.effective_questions.length > 0
       ? reviewState.patientReview.effective_questions
-      : cloneBaselineConfig();
+      : ensureProtocolSpecificBaselineQuestions({
+          questions: reviewState.trialReview?.effective_questions,
+          protocolId: protocolId || reviewState.trialReview?.trial_id,
+          protocolName: protocolName || reviewState.trialReview?.protocol_name,
+          sourceLabel: `Today's ePRO questionnaire for ${reviewState.state.patient_name || subjectId}`,
+        });
   const submittedAt = new Date().toISOString();
   const assignedAt = reviewState.patientReview.patient_visible_at || reviewState.state.assigned_at || submittedAt;
   const completionLatencySec = Math.max(

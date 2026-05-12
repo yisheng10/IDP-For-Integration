@@ -201,7 +201,7 @@ export default function HistoryPage({ user, onLogout }) {
         { id: 'today', label: 'Today', description: 'Shift overview', icon: 'dashboard', path: '/home?section=today' },
         { id: 'patients', label: 'Patients', description: 'Roster', icon: 'patients', path: '/home?section=patients' },
         { id: 'safety', label: 'Safety', description: 'Incidents & history', icon: 'safety', path: '/home?section=safety' },
-        { id: 'side-effect-guidance', label: 'Side Effect Guidance', description: 'Patient-grounded AI', icon: 'guidance', path: '/home?section=side-effect-guidance' },
+    { id: 'side-effect-guidance', label: 'Adverse Event Guidance', description: 'Patient-grounded AI', icon: 'guidance', path: '/home?section=side-effect-guidance' },
         { id: 'patient-disengagement', label: 'Patient Disengagement Prediction', description: 'CRC only', icon: 'dropout', path: '/home?section=patient-disengagement' },
       ],
     },

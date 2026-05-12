@@ -1,6 +1,7 @@
 import { 
   collection, 
-  addDoc, 
+  doc,
+  getDoc,
   updateDoc, 
   query, 
   where, 
@@ -8,9 +9,14 @@ import {
   getDocs, 
   onSnapshot, 
   collectionGroup, 
-  limit 
+  limit,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import {
+  buildConversationTimelineEventData,
+  queueConversationTimelineMirror,
+} from './conversationTimelineService';
 import { syncPatientEmergencyToIncident } from './incidentService';
 
 const DEFAULT_ALERT_LIST_LIMIT = 20;
@@ -104,12 +110,15 @@ export const createUrgentAlertThread = async (userId, reason, message, senderNam
   if (!reason) throw new Error("Reason required");
   
   const alertsRef = collection(db, "users", userId, "alerts");
-  
-  const docRef = await addDoc(alertsRef, {
+  const docRef = doc(alertsRef);
+  const messageTimestamp = new Date().toISOString();
+  const batch = writeBatch(db);
+
+  batch.set(docRef, {
     type: 'URGENT',
     reason: reason,
     message: message || "No details provided",
-    timestamp: new Date().toISOString(),
+    timestamp: messageTimestamp,
     status: 'unread',
     senderRole: 'patient',
     senderName: senderName,
@@ -118,13 +127,28 @@ export const createUrgentAlertThread = async (userId, reason, message, senderNam
   });
 
   if (message) {
-    await addDoc(collection(docRef, "messages"), {
+    const messageRef = doc(collection(docRef, "messages"));
+    batch.set(messageRef, {
       sender: 'patient',
       senderName: senderName,
       text: message,
-      timestamp: new Date().toISOString()
+      timestamp: messageTimestamp
     });
+
+    queueConversationTimelineMirror(batch, userId, buildConversationTimelineEventData({
+      actorType: 'patient',
+      channelType: 'crc_chat',
+      threadType: 'urgent_alert',
+      alertId: docRef.id,
+      sourcePath: messageRef.path,
+      messageText: message,
+      timestamp: messageTimestamp,
+      displayName: senderName || 'Patient',
+      threadLabel: reason,
+    }));
   }
+
+  await batch.commit();
   return docRef;
 };
 
@@ -155,21 +179,24 @@ export const startDirectMessage = async (userId, message, senderName) => {
   const q = query(alertsRef, where('type', '==', 'MESSAGE'), orderBy('timestamp', 'desc'), limit(1));
   const snapshot = await getDocs(q);
   let docRef;
+  const messageTimestamp = new Date().toISOString();
+  const batch = writeBatch(db);
 
   if (!snapshot.empty) {
     docRef = snapshot.docs[0].ref;
-    await updateDoc(docRef, {
+    batch.update(docRef, {
       status: 'unread',
-      timestamp: new Date().toISOString(),
+      timestamp: messageTimestamp,
       message: message,
       lastSender: 'crc' 
     });
   } else {
-    docRef = await addDoc(alertsRef, {
+    docRef = doc(alertsRef);
+    batch.set(docRef, {
       type: 'MESSAGE',
       reason: 'Direct Message',
       message: message,
-      timestamp: new Date().toISOString(),
+      timestamp: messageTimestamp,
       status: 'unread',
       senderRole: 'crc',
       senderName: senderName,
@@ -177,33 +204,74 @@ export const startDirectMessage = async (userId, message, senderName) => {
     });
   }
   
-  await addDoc(collection(docRef, "messages"), {
+  const messageRef = doc(collection(docRef, "messages"));
+  batch.set(messageRef, {
     sender: 'crc',
     senderName: senderName,
     text: message,
-    timestamp: new Date().toISOString()
+    timestamp: messageTimestamp
   });
+
+  queueConversationTimelineMirror(batch, userId, buildConversationTimelineEventData({
+    actorType: 'crc',
+    channelType: 'crc_chat',
+    threadType: 'direct_message',
+    alertId: docRef.id,
+    sourcePath: messageRef.path,
+    messageText: message,
+    timestamp: messageTimestamp,
+    displayName: senderName || 'CRC',
+    threadLabel: 'Direct Message',
+  }));
+
+  await batch.commit();
   
   return docRef;
 };
 
-export const sendChatMessage = async (alertRef, role, message, senderName) => {
+export const sendChatMessage = async (alertRef, role, message, senderName, options = {}) => {
   if (!message.trim()) return;
   
-  const messagesRef = collection(alertRef, "messages");
-  await addDoc(messagesRef, {
+  const alertSnapshot = options.alertType
+    ? null
+    : await getDoc(alertRef);
+  const alertData = alertSnapshot?.exists() ? alertSnapshot.data() : null;
+  const alertType = String(options.alertType || alertData?.type || '').trim().toUpperCase();
+  const alertReason = String(options.threadLabel || alertData?.reason || '').trim();
+  const patientUid = String(
+    options.patientUid || alertRef?.parent?.parent?.id || ''
+  ).trim();
+  const messageTimestamp = new Date().toISOString();
+  const messageRef = doc(collection(alertRef, "messages"));
+  const batch = writeBatch(db);
+
+  batch.set(messageRef, {
     sender: role, 
     senderName: senderName || role.toUpperCase(),
     text: message,
-    timestamp: new Date().toISOString()
+    timestamp: messageTimestamp
   });
 
-  await updateDoc(alertRef, {
+  batch.update(alertRef, {
     status: 'unread', 
     lastSender: role, 
-    timestamp: new Date().toISOString(),
+    timestamp: messageTimestamp,
     message: message 
   });
+
+  queueConversationTimelineMirror(batch, patientUid, buildConversationTimelineEventData({
+    actorType: role === 'crc' ? 'crc' : 'patient',
+    channelType: 'crc_chat',
+    threadType: alertType === 'MESSAGE' ? 'direct_message' : 'urgent_alert',
+    alertId: alertRef.id,
+    sourcePath: messageRef.path,
+    messageText: message,
+    timestamp: messageTimestamp,
+    displayName: senderName || role.toUpperCase(),
+    threadLabel: alertType === 'MESSAGE' ? 'Direct Message' : alertReason || 'Urgent',
+  }));
+
+  await batch.commit();
 };
 
 export const subscribeToChat = (alertRef, onUpdate) => {
