@@ -40,6 +40,7 @@ jobs:
       DROPOUT_LIVE_HISTORY_CONTEXT_DAYS: "30"
       DROPOUT_LIVE_STALENESS_CAP_DAYS: "30"
       DROPOUT_PROGRESS_EVERY: "5"
+      REQUIRED_FIREBASE_PROJECT_ID: "traillight-4750b"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
