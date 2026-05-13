@@ -8,7 +8,7 @@ on:
         required: false
         type: number
       firebase_uids:
-        description: "Optional comma-separated Firebase UIDs to target"
+        description: "Optional Firebase UIDs to target. Commas, spaces, or new lines are all accepted."
         required: false
         type: string
       skip_testing_subject_sync:

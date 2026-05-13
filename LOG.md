@@ -72,6 +72,12 @@
     - `protocol_assigned_at`
     - `patient_static_context_source`
     - `protocol_static_context_source`
+- Investigated a later manual workflow run that showed `0 scored patients` even though the QA seed had already landed correctly in `traillight-4750b`.
+  - Verified with exact Firestore reads that the seeded QA patient docs, `protocolAssignedAt`, vitals, ePRO submissions, incidents, alerts, and alert messages were present in the active Firebase project.
+  - Verified that the affected QA patients still had valid `role=patient`, `subject_id`, and matching `dropout_trial_id` / protocol-linked trial IDs.
+  - Root cause: the publish CLI only parsed `--firebase-uids` as comma-separated text. If a manual GitHub Actions run pasted newline- or space-separated UIDs, the workflow treated the whole block as one invalid target UID and filtered out every patient.
+  - Hardened `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py` to accept comma-, space-, or newline-separated UID input and to log the parsed target UID count plus a preview of the resolved list.
+  - Updated `.github/workflows/dropout-precompute.yml` so the manual-dispatch input description now explicitly says commas, spaces, or new lines are accepted.
 - Fixed the GitHub Actions dropout publish workspace verification by force-adding the required Candidate 024 scoring artifact to the external dropout repository branch:
   - `deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl`
   - commit `e753685` on `yisheng10/Patient-Dropout-Prediction:codex/candidate-024-disengagement-hardening`
