@@ -1,7 +1,7 @@
 # TrialLight Project Log
 
 ## Last Updated
-- Date: 2026-05-12
+- Date: 2026-05-13
 - Workspace: `D:\IDP For Integration`
 
 ## Current Objective
@@ -16,6 +16,81 @@
 - Production cloud functions: partially blocked by Firebase plan limitations.
 
 ## Completed Work
+### Dropout QA Live-History Seed Script
+- Added `functions/scripts/seed-dropout-qa-live-history.mjs` for Patient Disengagement Prediction QA setup.
+- The script is intentionally budget-safe:
+  - it performs zero Firestore reads
+  - it never scans users or collections
+  - it only writes deterministic documents for an explicit `--uid`
+  - it defaults to dry-run and requires `--apply` before any Firestore writes happen
+- Added `npm --prefix functions run seed:dropout-qa-live-history` as the local entrypoint.
+- Supported QA scenarios are `low`, `medium`, and `high`, with 5-14 days of targeted vitals, ePRO submissions, appointments, adverse event reports, incidents, and CRC follow-up thread data.
+- Verification:
+  - `node --check functions\scripts\seed-dropout-qa-live-history.mjs` passed
+  - `npm.cmd --prefix functions run seed:dropout-qa-live-history -- --uid=QA_TEST_UID --scenario=high --days=7` passed as dry-run and planned 19 writes with `Firestore reads: 0`
+- Applied the QA seed script to 10 explicitly supplied patient UIDs for tomorrow's dropout prediction testing:
+  - 3 low-risk scenario patients
+  - 4 medium-risk scenario patients
+  - 3 high-risk scenario patients
+- The apply run committed 193 deterministic Firestore writes and the script reported `Firestore reads performed by this script: 0` for every patient.
+- Updated the dropout explainability mirror contract and CRC UI honest reporting:
+  - `dropout_predictions_explainability/current` payloads now include `mirror_status`, `blocked_reasons`, `source_coverage`, `source_errors`, and `missing_required_sections`
+  - publish logs and dashboard summary now include ready/partial/blocked mirror counts
+  - live source read errors are carried into patient-level mirror docs instead of being silently treated as empty data
+  - CRC `Patient Disengagement Prediction` no longer uses legacy snapshot fields as a fake explainability mirror fallback
+  - missing mirror docs now display `Explainability mirror has not been published for this patient.`
+- Updated `.github/workflows/dropout-precompute.yml` so the workflow checkout for `yisheng10/Patient-Dropout-Prediction` uses the pushed `codex/candidate-024-disengagement-hardening` branch during QA validation.
+- Verification:
+  - `python -m py_compile Patient-Dropout-Prediction\src\crc_integration_contracts.py Patient-Dropout-Prediction\src\explainability_summary.py Patient-Dropout-Prediction\src\publish_dropout_snapshots.py` passed
+  - `npm.cmd run build:crc` passed
+
+### Shared Gemini Key Pool Rotation For Official Online Backends
+- Added a private Supabase key registry table in `supabase/migrations/20260513_gemini_key_registry.sql`.
+- Implemented Firebase Functions key-pool rotation in:
+  - `functions/geminiKeyRegistry.js`
+  - `functions/guidanceRuntime.js`
+- Implemented Supabase ePRO key-pool rotation in:
+  - `supabase/functions/_shared/geminiKeyRegistry.ts`
+  - `supabase/functions/_shared/eproShared.ts`
+- Rotation now follows the agreed production policy:
+  - `429 / quota / rate-limit` -> mark key as `reached_limit` until the next Kuala Lumpur day reset (`00:05`)
+  - leaked / invalid / permission-denied style failures -> mark key as `disabled`
+  - transient service failures can rotate to the next key without permanently disabling the current one
+- Scope is limited to the official online backends:
+  - Firebase guidance runtime for CRC website and patient guidance backend
+  - Supabase ePRO questionnaire generation runtime
+- Future key replacement is now intended to happen directly in the Supabase private registry table instead of forcing a redeploy just to swap one exhausted key.
+- Added low-capacity warning logs when the active shared key pool drops below 3 usable keys.
+- Installed `Deno 2.7.14` into the local Windows user environment to support Supabase Edge tooling and future `deno check` / debugging work.
+- Applied the registry SQL to the live Supabase project `fygkqituefwldmglijvy` using the exact migration only, instead of pushing all pending migrations.
+- Seeded the first production Gemini key batch into the live private registry table with 9 active keys across:
+  - `Yi sheng`
+  - `jian hong`
+- Expanded the live private Gemini key registry with an additional 14 active keys across:
+  - `li qiu`
+  - `liqiuFriend`
+- Expanded the live private Gemini key registry again with an additional 2 active keys across:
+  - `terry`
+- Verified the live registry count after expansion:
+  - total keys: `28`
+  - active: `28`
+  - reached_limit: `0`
+  - disabled: `0`
+- Deployed the updated Firebase guidance functions to project `traillight-4750b`:
+  - `sideEffectGuidanceChat`
+  - `sideEffectGuidanceChatHttp`
+  - `sideEffectGuidanceTraceStreamHttp`
+  - `classifyGuidanceRoute`
+  - `classifyGuidanceRouteHttp`
+  - `suggestAppointmentDate`
+  - `suggestAppointmentDateHttp`
+- Deployed the updated Supabase ePRO functions to project `fygkqituefwldmglijvy`:
+  - `epro-daily-survey`
+  - `epro-submit`
+  - `epro-review-queue`
+  - `epro-review-action`
+- Verified the live registry now contains the seeded key labels only (no raw key logging) and all 9 entries were active immediately after seeding.
+
 ### ePRO Protocol Questionnaire Anchor Recovery
 - Confirmed the live dropout prediction adapter currently consumes `pain_score` and `anxiety_score` from ePRO submissions, while `stress` is not yet a formal dropout feature.
 - Confirmed protocol-specific baseline generation was working, but shared anchor questions were no longer guaranteed once Gemini generated protocol-specific questionnaires.

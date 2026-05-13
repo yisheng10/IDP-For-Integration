@@ -63,6 +63,7 @@ jobs:
         with:
           repository: yisheng10/Patient-Dropout-Prediction
           token: ${{ secrets.DROPOUT_REPO_PAT }}
+          ref: codex/candidate-024-disengagement-hardening
           path: Patient-Dropout-Prediction
 
       - name: Validate required secrets

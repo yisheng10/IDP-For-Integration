@@ -13,7 +13,8 @@
     "sync:patient-subject-assignments": "node ./scripts/sync-patient-subject-assignments.mjs",
     "delete:target-patient-users": "node ./scripts/delete-target-patient-users.mjs",
     "reconcile:patient-email-conflict": "node ./scripts/reconcile-patient-email-conflict.mjs",
-    "backfill:protocol-static-context": "node ./scripts/backfill-protocol-static-context.mjs"
+    "backfill:protocol-static-context": "node ./scripts/backfill-protocol-static-context.mjs",
+    "seed:dropout-qa-live-history": "node ./scripts/seed-dropout-qa-live-history.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

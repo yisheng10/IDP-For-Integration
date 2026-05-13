@@ -107,7 +107,7 @@ function buildSignalLines(value) {
         if (typeof entry === 'object') {
           const label = entry.label || entry.signal || entry.key || entry.feature || '';
           const signalValue = entry.value ?? entry.score ?? entry.delta ?? '';
-          return label ? `${label}: ${signalValue}` : JSON.stringify(entry);
+          return label ? `${label}: ${signalValue}` : '';
         }
         return String(entry);
       })
@@ -123,6 +123,28 @@ function buildSignalLines(value) {
   }
 
   return [];
+}
+
+function buildSourceErrorLines(value) {
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value)
+    .map(([sourceName, errorValue]) => {
+      const message =
+        typeof errorValue === 'string'
+          ? errorValue
+          : errorValue?.message || errorValue?.detail || 'read failed';
+      return `${sourceName}: ${message}`;
+    })
+    .filter(Boolean);
+}
+
+function formatMirrorStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (!normalized) return 'missing';
+  if (normalized === 'not_published_in_current_workflow_scope') {
+    return 'not published in current workflow scope';
+  }
+  return normalized.replace(/_/g, ' ');
 }
 
 function translateLegacySignalEntry(signalEntry) {
@@ -322,73 +344,6 @@ function StatusSummarySection({ title, status, summary, emptyLabel }) {
   );
 }
 
-function buildLegacyRiskReductionHints(snapshot = null) {
-  const safeSnapshot = snapshot && typeof snapshot === 'object' ? snapshot : {};
-  const signals = Array.isArray(safeSnapshot.explanation_signals) ? safeSnapshot.explanation_signals : [];
-  const missingInputs = Array.isArray(safeSnapshot.missing_inputs_summary) ? safeSnapshot.missing_inputs_summary : [];
-  const flags = Array.isArray(safeSnapshot.data_quality_flags)
-    ? safeSnapshot.data_quality_flags.map((entry) => String(entry || '').toLowerCase())
-    : [];
-  const hints = [];
-
-  if (signals.some((entry) => String(entry?.signal || '').toLowerCase() === 'days_since_last_any_activity')) {
-    hints.push('A fresh patient check-in would give the model a stronger recent engagement signal.');
-  }
-  if (signals.some((entry) => String(entry?.signal || '').toLowerCase() === 'days_since_last_vitals')) {
-    hints.push('A new vitals submission would reduce uncertainty around recent patient engagement.');
-  }
-  if (
-    signals.some((entry) => {
-      const signalName = String(entry?.signal || '').toLowerCase();
-      return signalName === 'epro_status_current' || signalName === 'crc_followup_unanswered_72h';
-    }) ||
-    missingInputs.some((entry) => /questionnaire|epro|reply latency/i.test(String(entry || '')))
-  ) {
-    hints.push('Closing the next questionnaire or CRC follow-up loop would improve the recent engagement evidence.');
-  }
-  if (missingInputs.some((entry) => /appointment/i.test(String(entry || '')))) {
-    hints.push('Documented appointment attendance or follow-up completion would give the model a clearer operational signal.');
-  }
-  if (flags.includes('reduced_input_mode') && !hints.length) {
-    hints.push('Filling the missing upstream engagement sources would make the next disengagement summary more actionable.');
-  }
-  if (!hints.length) {
-    hints.push('The next completed patient touchpoint would give the model a stronger recent engagement signal.');
-  }
-
-  return Array.from(new Set(hints)).slice(0, 3);
-}
-
-function buildLegacyConfidenceAndStability(snapshot = null) {
-  const safeSnapshot = snapshot && typeof snapshot === 'object' ? snapshot : {};
-  const flags = Array.isArray(safeSnapshot.data_quality_flags)
-    ? safeSnapshot.data_quality_flags.map((entry) => String(entry || '').toLowerCase())
-    : [];
-  if (flags.includes('confidence_high')) {
-    return {
-      status: 'high',
-      summary: 'Recent history coverage is strong enough for a stable, readable CRC disengagement summary.',
-    };
-  }
-  if (
-    flags.includes('confidence_medium') ||
-    flags.includes('confidence_limited') ||
-    flags.includes('reduced_input_mode') ||
-    flags.includes('insufficient_history_no_score') ||
-    flags.includes('stage_model_operational_fallback')
-  ) {
-    return {
-      status: 'limited',
-      summary:
-        'This snapshot is directionally useful, but confidence is limited because recent history or upstream engagement coverage is incomplete.',
-    };
-  }
-  return {
-    status: 'unavailable',
-    summary: '',
-  };
-}
-
 export default function DropoutRiskPanel({
   patients = [],
   onOpenStudyCoordination,
@@ -534,20 +489,14 @@ export default function DropoutRiskPanel({
   );
 
   const explainabilityWhyFlagged = useMemo(() => {
-    const mirrorItems = buildSignalLines(activeExplainability?.why_flagged);
-    if (mirrorItems.length) return mirrorItems;
-    return buildLegacyWhyFlaggedLines(activeEntry);
-  }, [activeEntry, activeExplainability?.why_flagged]);
+    return buildSignalLines(activeExplainability?.why_flagged);
+  }, [activeExplainability?.why_flagged]);
   const explainabilityMissingInputs = useMemo(() => {
-    const mirrorItems = buildSignalLines(activeExplainability?.missing_or_weak_inputs);
-    if (mirrorItems.length) return mirrorItems;
-    return buildLegacyMissingInputLines(activeEntry);
-  }, [activeEntry, activeExplainability?.missing_or_weak_inputs]);
+    return buildSignalLines(activeExplainability?.missing_or_weak_inputs);
+  }, [activeExplainability?.missing_or_weak_inputs]);
   const explainabilityRiskReduction = useMemo(() => {
-    const mirrorItems = buildSignalLines(activeExplainability?.what_could_reduce_risk);
-    if (mirrorItems.length) return mirrorItems;
-    return buildLegacyRiskReductionHints(activeEntry);
-  }, [activeEntry, activeExplainability?.what_could_reduce_risk]);
+    return buildSignalLines(activeExplainability?.what_could_reduce_risk);
+  }, [activeExplainability?.what_could_reduce_risk]);
   const explainabilityModelAgreement = useMemo(() => {
     const payload = activeExplainability?.model_agreement;
     if (payload && typeof payload === 'object') {
@@ -557,10 +506,12 @@ export default function DropoutRiskPanel({
       };
     }
     return {
-      status: 'unavailable',
-      summary: '',
+      status: activeExplainability ? 'not_published_in_current_workflow_scope' : 'unavailable',
+      summary: activeExplainability
+        ? 'Model agreement is not published in this workflow scope.'
+        : '',
     };
-  }, [activeExplainability?.model_agreement]);
+  }, [activeExplainability, activeExplainability?.model_agreement]);
   const explainabilityConfidence = useMemo(() => {
     const payload = activeExplainability?.confidence_and_stability;
     if (payload && typeof payload === 'object') {
@@ -569,15 +520,28 @@ export default function DropoutRiskPanel({
         summary: String(payload.summary || '').trim(),
       };
     }
-    return buildLegacyConfidenceAndStability(activeEntry);
-  }, [activeEntry, activeExplainability?.confidence_and_stability]);
-  const hasAnyExplainability = Boolean(
-    explainabilityWhyFlagged.length ||
-      explainabilityMissingInputs.length ||
-      explainabilityRiskReduction.length ||
-      explainabilityModelAgreement.summary ||
-      explainabilityConfidence.summary
+    return {
+      status: activeExplainability ? 'not_published' : 'unavailable',
+      summary: activeExplainability
+        ? 'Confidence and stability are not published in this workflow scope.'
+        : '',
+    };
+  }, [activeExplainability, activeExplainability?.confidence_and_stability]);
+  const explainabilityBlockedReasons = useMemo(
+    () => buildSignalLines(activeExplainability?.blocked_reasons),
+    [activeExplainability?.blocked_reasons]
   );
+  const explainabilityMissingRequiredSections = useMemo(
+    () => buildSignalLines(activeExplainability?.missing_required_sections),
+    [activeExplainability?.missing_required_sections]
+  );
+  const explainabilitySourceErrors = useMemo(
+    () => buildSourceErrorLines(activeExplainability?.source_errors),
+    [activeExplainability?.source_errors]
+  );
+  const mirrorStatusLabel = activeExplainability
+    ? formatMirrorStatus(activeExplainability.mirror_status || 'ready')
+    : '';
   const legacyExplanationSignals = useMemo(
     () => buildLegacyWhyFlaggedLines(activeEntry),
     [activeEntry]
@@ -821,46 +785,66 @@ export default function DropoutRiskPanel({
                   <div>
                     <h3 className="mt-0">Explainability summary</h3>
                     <div className="section-note">
-                      CRC-facing summary generated from the published disengagement snapshot. This panel prefers the dedicated explainability mirror and falls back to the legacy snapshot fields when needed.
+                      CRC-facing summary from the dedicated explainability mirror. Legacy snapshot fields are shown above, but they are not treated as the mirror explanation.
                     </div>
                   </div>
                 </div>
 
-                {hasAnyExplainability ? (
-                  <div className="dropout-dashboard__explainabilityGrid">
-                    <DetailSection
-                      title="Why this patient is flagged"
-                      items={explainabilityWhyFlagged}
-                      emptyLabel="No readable explanation bullets were published for this patient yet."
-                    />
-                    <DetailSection
-                      title="Data gaps affecting confidence"
-                      items={explainabilityMissingInputs}
-                      emptyLabel="No major data gaps were published for this patient yet."
-                    />
-                    <DetailSection
-                      title="What might reduce disengagement risk"
-                      items={explainabilityRiskReduction}
-                      emptyLabel="No next-action explanation summary was published for this patient yet."
-                    />
-                    <StatusSummarySection
-                      title="Model agreement"
-                      status={explainabilityModelAgreement.status}
-                      summary={explainabilityModelAgreement.summary}
-                      emptyLabel="Model agreement is not available for this published snapshot yet."
-                    />
-                    <StatusSummarySection
-                      title="Confidence and stability"
-                      status={explainabilityConfidence.status}
-                      summary={explainabilityConfidence.summary}
-                      emptyLabel="Confidence and stability are not available for this published snapshot yet."
-                    />
-                  </div>
+                {activeExplainability ? (
+                  <>
+                    <div className="info-banner section-note--spaced">
+                      Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
+                      {explainabilityBlockedReasons.length ? (
+                        <div className="section-note section-note--dense">
+                          Blocked or partial reason: {explainabilityBlockedReasons.join('; ')}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="dropout-dashboard__explainabilityGrid">
+                      <DetailSection
+                        title="Why this patient is flagged"
+                        items={explainabilityWhyFlagged}
+                        emptyLabel="Why flagged: missing"
+                      />
+                      <DetailSection
+                        title="Data gaps affecting confidence"
+                        items={explainabilityMissingInputs}
+                        emptyLabel="Missing or weak inputs: missing"
+                      />
+                      <DetailSection
+                        title="What might reduce disengagement risk"
+                        items={explainabilityRiskReduction}
+                        emptyLabel="What could reduce risk: missing"
+                      />
+                      <StatusSummarySection
+                        title="Model agreement"
+                        status={explainabilityModelAgreement.status}
+                        summary={explainabilityModelAgreement.summary}
+                        emptyLabel="Model agreement: not published in this workflow scope"
+                      />
+                      <StatusSummarySection
+                        title="Confidence and stability"
+                        status={explainabilityConfidence.status}
+                        summary={explainabilityConfidence.summary}
+                        emptyLabel="Confidence and stability: limited / not published"
+                      />
+                      <DetailSection
+                        title="Missing mirror sections"
+                        items={explainabilityMissingRequiredSections}
+                        emptyLabel="No required mirror sections are missing."
+                      />
+                      <DetailSection
+                        title="Live source read errors"
+                        items={explainabilitySourceErrors}
+                        emptyLabel="No live source read errors were reported for this mirror."
+                      />
+                    </div>
+                  </>
                 ) : activeExplainabilityReady ? (
                   <div className="empty-panel">
-                    Explainability summary is not available for this published snapshot yet.
+                    Explainability mirror has not been published for this patient.
                     <div className="section-note section-note--spaced">
-                      This patient still has a disengagement score, but the readable explanation summary has not been published.
+                      The current prediction snapshot can still be shown above, but CRC should not treat legacy snapshot fields as a dedicated explainability mirror.
                     </div>
                   </div>
                 ) : (
