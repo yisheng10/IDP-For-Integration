@@ -5255,3 +5255,22 @@ eady calculation.
   - no patient / no assignment
   - assigned protocol exists but its PDF path is still unavailable
   - `node --check D:\\IDP For Integration\\supabase\\functions\\_shared\\eproReviewCore.ts` passed
+
+## 2026-05-13 - GitHub handoff manuals for full TrialLight codebase sharing
+
+- Added a beginner-friendly English onboarding manual for Yunhong to clone the full TrialLight workspace from GitHub, including the root repo plus both submodules:
+  - `YUNHONG_GITHUB_ONBOARDING.md`
+- Added an owner-side preparation checklist covering:
+  - repo access
+  - submodule pointer readiness
+  - push-before-handoff requirements
+  - secrets separation
+  - minimum collaboration rules
+  - `OWNER_PREP_FOR_YUNHONG_GITHUB_HANDOFF.md`
+- Documented the current TrialLight GitHub structure explicitly so the handoff is less likely to fail because of missing submodules or misunderstood repo ownership.
+- Expanded the Yunhong onboarding manual to include:
+  - exact collaboration branches for the root repo and both submodules
+  - dependency install steps
+  - environment file setup
+  - local preview commands for CRC web, patient app web, and dropout Python setup
+  - explicit rule that Yunhong must not push directly to `main`
