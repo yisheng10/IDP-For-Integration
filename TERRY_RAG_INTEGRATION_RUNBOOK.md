@@ -49,9 +49,8 @@ The following have already been merged into the active repo:
   - `src/firebase.jsx`
 - Patient app Firebase config is now env-based in:
   - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/firebase.js`
-- Root `.firebaserc` now points to:
-  - `traillight-4750b` as the default project
-  - `idp-authentication-7e8d7` as legacy
+- Root `.firebaserc` now points only to:
+  - `traillight-4750b` as the active Firebase project
 
 ### 2. Supabase guidance schema
 
@@ -159,8 +158,7 @@ These are dangerous operational steps and must be run deliberately later.
 
 The following blockers were identified during readiness checks:
 
-- local source Firebase service account currently points to:
-  - `idp-authentication-7e8d7`
+- retired pre-cutover Firebase credentials must not be used for active local scripts, QA seed jobs, or deploys
 - Terry Firebase service-account access is now available locally, but the current deployment principal still lacks the Firebase IAM needed for full live cutover:
   - Cloud Functions deploy currently fails on missing `iam.serviceAccounts.ActAs`
   - Firebase Hosting deploy currently fails with `403 The caller does not have permission`
@@ -294,11 +292,7 @@ This section is still pending. It documents the expected sequence.
 
 ### Goal
 
-Move from:
-
-- `idp-authentication-7e8d7`
-
-To:
+Move from the retired pre-cutover Firebase project to:
 
 - `traillight-4750b`
 

@@ -166,38 +166,38 @@ function translateLegacySignalEntry(signalEntry) {
 
   if (signalName === 'attention_peak') {
     return Number.isFinite(dayIndex)
-      ? `Recent engagement activity around day ${dayIndex} was highlighted as a strong disengagement signal.`
-      : 'Recent engagement activity was highlighted as a strong disengagement signal.';
+      ? `Legacy snapshot signal: recent engagement activity around day ${dayIndex} was highlighted in the published score payload.`
+      : 'Legacy snapshot signal: recent engagement activity was highlighted in the published score payload.';
   }
   if (signalName === 'days_since_last_any_activity' && hasNumericValue) {
     const rounded = Math.round(signalValue);
-    return `No recent patient activity was recorded for about ${rounded} day${rounded === 1 ? '' : 's'}, which is lifting the disengagement score.`;
+    return `Legacy snapshot signal: no recent patient activity was recorded for about ${rounded} day${rounded === 1 ? '' : 's'}.`;
   }
   if (signalName === 'days_since_last_vitals' && hasNumericValue) {
     const rounded = Math.round(signalValue);
-    return `No fresh vitals were logged for about ${rounded} day${rounded === 1 ? '' : 's'}, so the model is treating recent engagement as weaker.`;
+    return `Legacy snapshot signal: no fresh vitals were logged for about ${rounded} day${rounded === 1 ? '' : 's'}.`;
   }
   if (signalName === 'epro_status_current') {
-    return 'The current questionnaire response status is contributing to the disengagement signal.';
+    return 'Legacy snapshot signal: the current questionnaire response status was included in the published score payload.';
   }
   if (signalName === 'crc_followup_unanswered_72h') {
-    return 'An unanswered CRC follow-up thread is still contributing to the disengagement signal.';
+    return 'Legacy snapshot signal: an unanswered CRC follow-up thread was included in the published score payload.';
   }
   if (signalName === 'ctcae_grade_max_14d' && hasNumericValue) {
-    return `Recent side-effect burden is still contributing to the current risk pattern (max CTCAE signal ${signalValue.toFixed(1)}).`;
+    return `Legacy snapshot signal: recent side-effect burden was included in the published score payload (max CTCAE signal ${signalValue.toFixed(1)}).`;
   }
   if (signalName === 'pain_score_mean_7d' && hasNumericValue) {
-    return `Recent pain burden over the last 7 days is contributing to the disengagement signal (mean score ${signalValue.toFixed(1)}).`;
+    return `Legacy snapshot signal: recent pain burden over the last 7 days was included in the published score payload (mean score ${signalValue.toFixed(1)}).`;
   }
   if (signalName === 'anxiety_score_mean_7d' && hasNumericValue) {
-    return `Recent anxiety burden over the last 7 days is contributing to the disengagement signal (mean score ${signalValue.toFixed(1)}).`;
+    return `Legacy snapshot signal: recent anxiety burden over the last 7 days was included in the published score payload (mean score ${signalValue.toFixed(1)}).`;
   }
 
   const fallbackLabel = signalName ? signalName.replace(/_/g, ' ') : 'model signal';
   if (hasNumericValue) {
-    return `${fallbackLabel.charAt(0).toUpperCase() + fallbackLabel.slice(1)} is contributing to the current disengagement signal (${signalValue.toFixed(2)}).`;
+    return `Legacy snapshot signal: ${fallbackLabel} = ${signalValue.toFixed(2)}.`;
   }
-  return `${fallbackLabel.charAt(0).toUpperCase() + fallbackLabel.slice(1)} is contributing to the current disengagement signal.`;
+  return `Legacy snapshot signal: ${fallbackLabel}.`;
 }
 
 function buildLegacyWhyFlaggedLines(snapshot = null) {
@@ -214,7 +214,7 @@ function buildLegacyWhyFlaggedLines(snapshot = null) {
   const probability = getProbabilityNumber(safeSnapshot.dropout_probability);
   const bucket = renderRiskBucket(safeSnapshot.risk_bucket);
   if (probability != null) {
-    return [`The published snapshot placed this patient in the ${bucket} disengagement bucket at ${(probability * 100).toFixed(1)}%.`];
+    return [`Legacy snapshot bucket: ${bucket} at ${(probability * 100).toFixed(1)}%.`];
   }
   return [];
 }
@@ -229,7 +229,7 @@ function buildLegacyMissingInputLines(snapshot = null) {
   const rows = missingInputs
     .map((entry) => String(entry || '').trim())
     .filter(Boolean)
-    .map((entry) => `Input coverage gap: ${entry}.`);
+    .map((entry) => `Legacy snapshot input gap: ${entry}.`);
 
   if (flags.includes('reduced_input_mode')) {
     rows.push('This snapshot is running in reduced input mode because part of the upstream engagement evidence is still missing.');
@@ -360,6 +360,7 @@ export default function DropoutRiskPanel({
   const [snapshotPage, setSnapshotPage] = useState(1);
   const [activeExplainability, setActiveExplainability] = useState(null);
   const [activeExplainabilityReady, setActiveExplainabilityReady] = useState(false);
+  const [activeExplainabilityUserId, setActiveExplainabilityUserId] = useState('');
 
   const loadedUserIds = useMemo(() => patients.map((patient) => patient.id).filter(Boolean), [patients]);
   const loadedUserSignature = useMemo(() => loadedUserIds.join('|'), [loadedUserIds]);
@@ -459,23 +460,35 @@ export default function DropoutRiskPanel({
     if (!activeEntry?.userId) {
       setActiveExplainability(null);
       setActiveExplainabilityReady(false);
+      setActiveExplainabilityUserId('');
       return undefined;
     }
 
+    setActiveExplainability(null);
     setActiveExplainabilityReady(false);
+    setActiveExplainabilityUserId(activeEntry.userId);
     return subscribeToDropoutPredictionExplainability(
       activeEntry.userId,
       (payload) => {
         setActiveExplainability(payload);
+        setActiveExplainabilityUserId(activeEntry.userId);
         setActiveExplainabilityReady(true);
       },
       (nextError) => {
         console.error('Unable to load disengagement explainability mirror:', nextError);
         setActiveExplainability(null);
+        setActiveExplainabilityUserId(activeEntry.userId);
         setActiveExplainabilityReady(true);
       }
     );
   }, [activeEntry?.userId]);
+
+  const activeExplainabilityPayload = useMemo(() => {
+    if (!activeExplainabilityReady) return null;
+    if (!activeEntry?.userId) return null;
+    if (activeExplainabilityUserId !== activeEntry.userId) return null;
+    return activeExplainability;
+  }, [activeEntry?.userId, activeExplainability, activeExplainabilityReady, activeExplainabilityUserId]);
 
   const dashboardMetrics = useMemo(
     () => ({
@@ -489,16 +502,16 @@ export default function DropoutRiskPanel({
   );
 
   const explainabilityWhyFlagged = useMemo(() => {
-    return buildSignalLines(activeExplainability?.why_flagged);
-  }, [activeExplainability?.why_flagged]);
+    return buildSignalLines(activeExplainabilityPayload?.why_flagged);
+  }, [activeExplainabilityPayload?.why_flagged]);
   const explainabilityMissingInputs = useMemo(() => {
-    return buildSignalLines(activeExplainability?.missing_or_weak_inputs);
-  }, [activeExplainability?.missing_or_weak_inputs]);
+    return buildSignalLines(activeExplainabilityPayload?.missing_or_weak_inputs);
+  }, [activeExplainabilityPayload?.missing_or_weak_inputs]);
   const explainabilityRiskReduction = useMemo(() => {
-    return buildSignalLines(activeExplainability?.what_could_reduce_risk);
-  }, [activeExplainability?.what_could_reduce_risk]);
+    return buildSignalLines(activeExplainabilityPayload?.what_could_reduce_risk);
+  }, [activeExplainabilityPayload?.what_could_reduce_risk]);
   const explainabilityModelAgreement = useMemo(() => {
-    const payload = activeExplainability?.model_agreement;
+    const payload = activeExplainabilityPayload?.model_agreement;
     if (payload && typeof payload === 'object') {
       return {
         status: payload.status || 'unavailable',
@@ -506,14 +519,14 @@ export default function DropoutRiskPanel({
       };
     }
     return {
-      status: activeExplainability ? 'not_published_in_current_workflow_scope' : 'unavailable',
-      summary: activeExplainability
+      status: activeExplainabilityPayload ? 'not_published_in_current_workflow_scope' : 'unavailable',
+      summary: activeExplainabilityPayload
         ? 'Model agreement is not published in this workflow scope.'
         : '',
     };
-  }, [activeExplainability, activeExplainability?.model_agreement]);
+  }, [activeExplainabilityPayload, activeExplainabilityPayload?.model_agreement]);
   const explainabilityConfidence = useMemo(() => {
-    const payload = activeExplainability?.confidence_and_stability;
+    const payload = activeExplainabilityPayload?.confidence_and_stability;
     if (payload && typeof payload === 'object') {
       return {
         status: payload.status || 'unavailable',
@@ -521,26 +534,26 @@ export default function DropoutRiskPanel({
       };
     }
     return {
-      status: activeExplainability ? 'not_published' : 'unavailable',
-      summary: activeExplainability
+      status: activeExplainabilityPayload ? 'not_published' : 'unavailable',
+      summary: activeExplainabilityPayload
         ? 'Confidence and stability are not published in this workflow scope.'
         : '',
     };
-  }, [activeExplainability, activeExplainability?.confidence_and_stability]);
+  }, [activeExplainabilityPayload, activeExplainabilityPayload?.confidence_and_stability]);
   const explainabilityBlockedReasons = useMemo(
-    () => buildSignalLines(activeExplainability?.blocked_reasons),
-    [activeExplainability?.blocked_reasons]
+    () => buildSignalLines(activeExplainabilityPayload?.blocked_reasons),
+    [activeExplainabilityPayload?.blocked_reasons]
   );
   const explainabilityMissingRequiredSections = useMemo(
-    () => buildSignalLines(activeExplainability?.missing_required_sections),
-    [activeExplainability?.missing_required_sections]
+    () => buildSignalLines(activeExplainabilityPayload?.missing_required_sections),
+    [activeExplainabilityPayload?.missing_required_sections]
   );
   const explainabilitySourceErrors = useMemo(
-    () => buildSourceErrorLines(activeExplainability?.source_errors),
-    [activeExplainability?.source_errors]
+    () => buildSourceErrorLines(activeExplainabilityPayload?.source_errors),
+    [activeExplainabilityPayload?.source_errors]
   );
-  const mirrorStatusLabel = activeExplainability
-    ? formatMirrorStatus(activeExplainability.mirror_status || 'ready')
+  const mirrorStatusLabel = activeExplainabilityPayload
+    ? formatMirrorStatus(activeExplainabilityPayload.mirror_status || 'unknown')
     : '';
   const legacyExplanationSignals = useMemo(
     () => buildLegacyWhyFlaggedLines(activeEntry),
@@ -556,6 +569,15 @@ export default function DropoutRiskPanel({
       .map((entry) => String(entry || '').trim())
       .filter(Boolean);
   }, [activeEntry?.data_quality_flags]);
+  const loadedRowsLabel = isUsingFallbackRows
+    ? `${filteredRows.length} fallback rows`
+    : `${filteredRows.length} loaded`;
+  const visibleRowsSummary = isUsingFallbackRows
+    ? `Showing ${visibleRows.length} visible patients from ${filteredRows.length} loaded global fallback snapshot rows. The latest published snapshot pool is being used because the current patient window has not mirrored rows yet.`
+    : `Showing ${visibleRows.length} visible patients from ${filteredRows.length} loaded current snapshots. Full summary cards above are sourced separately from the latest published disengagement summary.`;
+  const paginationNote = isUsingFallbackRows
+    ? `Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} global fallback snapshot rows from the latest published snapshot pool.`
+    : `Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} ranked patients from the loaded disengagement snapshot window.`;
 
   const openStudyCoordination = () => {
     if (activeEntry?.patient && typeof onOpenStudyCoordination === 'function') {
@@ -639,11 +661,11 @@ export default function DropoutRiskPanel({
                   Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk inside the current loaded snapshot feed.
                 </div>
                 <div className="section-note section-note--spaced">
-                  Showing {visibleRows.length} visible patients from {filteredRows.length} loaded current snapshots. Full summary cards above are sourced separately from the latest published disengagement summary.
+                  {visibleRowsSummary}
                 </div>
               </div>
               <div className="dropout-dashboard__detailActions">
-                <span className="metric-pill">{filteredRows.length} loaded</span>
+                <span className="metric-pill">{loadedRowsLabel}</span>
               </div>
             </div>
 
@@ -667,7 +689,7 @@ export default function DropoutRiskPanel({
                 setSnapshotPage(1);
               }}
               canGoNext={canGoToNextSnapshotPage}
-              note={`Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} ranked patients from the loaded disengagement snapshot window.`}
+              note={paginationNote}
             />
 
             <div className="dropout-dashboard__list">
@@ -766,31 +788,31 @@ export default function DropoutRiskPanel({
                 ) : null}
 
                 <DetailSection
-                  title="Explanation signals"
+                  title="Legacy snapshot signals"
                   items={legacyExplanationSignals}
-                  emptyLabel="No explanation signals were included in the current snapshot."
+                  emptyLabel="No legacy explanation signals were included in the current snapshot payload."
                 />
                 <DetailSection
-                  title="Missing inputs summary"
+                  title="Legacy snapshot input gaps"
                   items={legacyMissingInputs}
-                  emptyLabel="No missing-input issues were reported for the current snapshot."
+                  emptyLabel="No legacy missing-input issues were reported for the current snapshot."
                 />
                 <DetailSection
-                  title="Data quality flags"
+                  title="Legacy snapshot data-quality flags"
                   items={legacyDataQualityFlags}
-                  emptyLabel="No data-quality flags were reported for the current snapshot."
+                  emptyLabel="No legacy data-quality flags were reported for the current snapshot."
                 />
 
                 <div className="section-header section-header--tight section-header--spaced">
                   <div>
                     <h3 className="mt-0">Explainability summary</h3>
                     <div className="section-note">
-                      CRC-facing summary from the dedicated explainability mirror. Legacy snapshot fields are shown above, but they are not treated as the mirror explanation.
+                      CRC-facing summary from the dedicated explainability mirror. Legacy current-snapshot fields are shown above as operational context only.
                     </div>
                   </div>
                 </div>
 
-                {activeExplainability ? (
+                {activeExplainabilityPayload ? (
                   <>
                     <div className="info-banner section-note--spaced">
                       Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
@@ -840,7 +862,7 @@ export default function DropoutRiskPanel({
                       />
                     </div>
                   </>
-                ) : activeExplainabilityReady ? (
+                ) : activeExplainabilityReady && activeExplainabilityUserId === activeEntry?.userId ? (
                   <div className="empty-panel">
                     Explainability mirror has not been published for this patient.
                     <div className="section-note section-note--spaced">

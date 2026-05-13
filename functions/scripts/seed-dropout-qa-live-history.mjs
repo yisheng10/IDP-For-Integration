@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
+import fs from 'node:fs';
 import admin from 'firebase-admin';
 
 const SCENARIOS = new Set(['low', 'medium', 'high']);
 const QA_SOURCE = 'qa_dropout_seed_v1';
+const REQUIRED_FIREBASE_PROJECT_ID = 'traillight-4750b';
 
 function parseArgs(argv) {
   const args = {
@@ -11,6 +13,7 @@ function parseArgs(argv) {
     days: 7,
     scenario: 'high',
     patchPatientStatic: false,
+    patchProtocolAnchor: false,
   };
 
   for (const arg of argv) {
@@ -20,6 +23,10 @@ function parseArgs(argv) {
     }
     if (arg === '--patch-patient-static') {
       args.patchPatientStatic = true;
+      continue;
+    }
+    if (arg === '--patch-protocol-anchor') {
+      args.patchProtocolAnchor = true;
       continue;
     }
     const match = arg.match(/^--([^=]+)=(.*)$/);
@@ -48,17 +55,30 @@ function validateArgs(args) {
 function initAdmin() {
   if (admin.apps.length) return;
 
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const serviceAccountJson = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
+  const targetServiceAccountPath = String(process.env.TARGET_FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
+  let parsed = null;
+
   if (serviceAccountJson) {
-    const parsed = JSON.parse(serviceAccountJson);
-    admin.initializeApp({
-      credential: admin.credential.cert(parsed),
-    });
-    return;
+    parsed = JSON.parse(serviceAccountJson);
+  } else if (targetServiceAccountPath) {
+    parsed = JSON.parse(fs.readFileSync(targetServiceAccountPath, 'utf8'));
+  }
+
+  if (!parsed || parsed.type !== 'service_account') {
+    throw new Error(
+      'Seed requires FIREBASE_SERVICE_ACCOUNT_JSON or TARGET_FIREBASE_SERVICE_ACCOUNT_JSON. Application default credentials are intentionally disabled.'
+    );
+  }
+  if (String(parsed.project_id || '').trim() !== REQUIRED_FIREBASE_PROJECT_ID) {
+    throw new Error(
+      `Seed refused to run against project "${parsed.project_id || 'unknown'}". Only ${REQUIRED_FIREBASE_PROJECT_ID} is allowed.`
+    );
   }
 
   admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
+    credential: admin.credential.cert(parsed),
+    projectId: REQUIRED_FIREBASE_PROJECT_ID,
   });
 }
 
@@ -80,6 +100,10 @@ function subtractDays(dateString, days) {
 
 function malaysiaTimestamp(dateString, hour, minute = 0) {
   return admin.firestore.Timestamp.fromDate(new Date(`${dateString}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+08:00`));
+}
+
+function malaysiaIso(dateString, hour, minute = 0) {
+  return new Date(`${dateString}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+08:00`).toISOString();
 }
 
 function uidSlug(uid) {
@@ -162,23 +186,34 @@ function addSet(plan, path, data, merge = true) {
 
 function buildPlan(args) {
   const endDate = args.endDate || dateOnlyInMalaysia();
+  const startDate = subtractDays(endDate, args.days - 1);
   const slug = uidSlug(args.uid);
   const plan = [];
   const now = admin.firestore.Timestamp.now();
 
-  if (args.patchPatientStatic) {
-    addSet(plan, `users/${args.uid}`, {
-      subject_id: args.subjectId || `QA-${slug}`,
-      dropout_static_context: {
+  if (args.patchPatientStatic || args.patchProtocolAnchor) {
+    const patientRootPatch = {
+      updated_at: now,
+      ...baseMeta(args),
+    };
+
+    if (args.patchPatientStatic) {
+      patientRootPatch.subject_id = args.subjectId || `QA-${slug}`;
+      patientRootPatch.dropout_static_context = {
         qa_seeded: true,
         support_level: args.scenario === 'low' ? 'strong' : args.scenario === 'medium' ? 'limited' : 'weak',
         distance_to_site_km: args.scenario === 'low' ? 8 : args.scenario === 'medium' ? 35 : 80,
         employment_or_school_constraint: args.scenario === 'high',
         last_verified_at: now,
-      },
-      updated_at: now,
-      ...baseMeta(args),
-    });
+      };
+    }
+
+    if (args.patchProtocolAnchor) {
+      // QA-only anchor patch: keep the trial start day aligned with the seeded live-history window.
+      patientRootPatch.protocolAssignedAt = malaysiaIso(startDate, 7, 0);
+    }
+
+    addSet(plan, `users/${args.uid}`, patientRootPatch);
   }
 
   for (let index = 0; index < args.days; index += 1) {
@@ -385,6 +420,7 @@ function printPlan(args, plan) {
   console.log(`Days: ${args.days}`);
   console.log(`End date: ${args.endDate || dateOnlyInMalaysia()}`);
   console.log(`Patch patient static context: ${args.patchPatientStatic ? 'yes' : 'no'}`);
+  console.log(`Patch protocol anchor: ${args.patchProtocolAnchor ? 'yes' : 'no'}`);
   console.log('Firestore reads: 0');
   console.log(`Firestore writes planned: ${plan.length}`);
   console.log('');

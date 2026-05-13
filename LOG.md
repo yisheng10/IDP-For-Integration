@@ -33,11 +33,45 @@
   - 4 medium-risk scenario patients
   - 3 high-risk scenario patients
 - The apply run committed 193 deterministic Firestore writes and the script reported `Firestore reads performed by this script: 0` for every patient.
+- Re-ran the same 10 QA seed jobs against the active Firebase project `traillight-4750b` after confirming an earlier local seed had accidentally used a retired service account for another project.
+- Hardened `functions/scripts/seed-dropout-qa-live-history.mjs` so it now:
+  - refuses application-default credentials
+  - requires explicit service-account input
+  - hard-fails unless the credential `project_id` is exactly `traillight-4750b`
+- Extended `functions/scripts/seed-dropout-qa-live-history.mjs` with a QA-only `--patch-protocol-anchor` mode.
+  - This keeps the QA patient's `protocolAssignedAt` aligned with the seeded 7-day live-history window.
+  - It does not weaken the production disengagement scoring threshold or change the live publisher anchor contract for real patients.
+- Re-applied the 10 explicit QA patient seeds with the protocol-anchor patch against `traillight-4750b`:
+  - 3 low-risk scenario patients at 20 writes each
+  - 4 medium-risk scenario patients at 21 writes each
+  - 3 high-risk scenario patients at 20 writes each
+  - total writes: `204`
+  - total reported Firestore reads: `0`
+- Removed the retired Firebase project alias from root `.firebaserc`.
+- Verified the old `secrets/firebase-service-account.json` runtime path no longer exists in the workspace, so no legacy service-account file remained at that original location.
+- Updated deprecated reference Firebase config files to point at `traillight-4750b` instead of the retired pre-cutover project:
+  - `Patient_web_v2/Code/src/firebase.js`
+  - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/Code/src/firebase.js`
+- Updated the Terry integration runbook so active operational guidance now treats `traillight-4750b` as the only Firebase runtime project.
 - Updated the dropout explainability mirror contract and CRC UI honest reporting:
   - `dropout_predictions_explainability/current` payloads now include `mirror_status`, `blocked_reasons`, `source_coverage`, `source_errors`, and `missing_required_sections`
   - publish logs and dashboard summary now include ready/partial/blocked mirror counts
   - live source read errors are carried into patient-level mirror docs instead of being silently treated as empty data
   - CRC `Patient Disengagement Prediction` no longer uses legacy snapshot fields as a fake explainability mirror fallback
+  - switching between patients now clears the previous explainability payload immediately, so the CRC panel no longer briefly shows another patient's mirror
+  - missing `mirror_status` no longer gets silently treated as `ready`
+  - global fallback snapshot rows now label themselves as fallback data instead of looking like ordinary patient-window rows
+  - legacy snapshot sections are explicitly labeled as legacy operational context rather than dedicated explainability content
+  - explainability mirror payloads now also expose anchor/history diagnostics:
+    - `anchor_date`
+    - `anchor_date_source`
+    - `recent_window_start`
+    - `history_day_count`
+    - `global_final_day_index`
+    - `usable_live_history`
+    - `protocol_assigned_at`
+    - `patient_static_context_source`
+    - `protocol_static_context_source`
 - Fixed the GitHub Actions dropout publish workspace verification by force-adding the required Candidate 024 scoring artifact to the external dropout repository branch:
   - `deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl`
   - commit `e753685` on `yisheng10/Patient-Dropout-Prediction:codex/candidate-024-disengagement-hardening`
