@@ -110,7 +110,6 @@ jobs:
           required_files=(
             "requirements.txt"
             "src/publish_dropout_snapshots.py"
-            "deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv"
             "deploy_assets/checkpoints_candidate_024/model_stage_3_29_single.pth"
             "deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl"
           )

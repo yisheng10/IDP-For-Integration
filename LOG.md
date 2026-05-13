@@ -40,6 +40,7 @@
   - CRC `Patient Disengagement Prediction` no longer uses legacy snapshot fields as a fake explainability mirror fallback
   - missing mirror docs now display `Explainability mirror has not been published for this patient.`
 - Updated `.github/workflows/dropout-precompute.yml` so the workflow checkout for `yisheng10/Patient-Dropout-Prediction` uses the pushed `codex/candidate-024-disengagement-hardening` branch during QA validation.
+- Relaxed the workflow file verification so it no longer requires the subject context registry CSV to be committed into GitHub. The live publisher already treats that registry as optional and can continue using Firestore patient/protocol context without uploading subject-level registry data.
 - Verification:
   - `python -m py_compile Patient-Dropout-Prediction\src\crc_integration_contracts.py Patient-Dropout-Prediction\src\explainability_summary.py Patient-Dropout-Prediction\src\publish_dropout_snapshots.py` passed
   - `npm.cmd run build:crc` passed
