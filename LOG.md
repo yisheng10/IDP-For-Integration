@@ -38,6 +38,10 @@
   - publish logs and dashboard summary now include ready/partial/blocked mirror counts
   - live source read errors are carried into patient-level mirror docs instead of being silently treated as empty data
   - CRC `Patient Disengagement Prediction` no longer uses legacy snapshot fields as a fake explainability mirror fallback
+- Fixed the GitHub Actions dropout publish workspace verification by force-adding the required Candidate 024 scoring artifact to the external dropout repository branch:
+  - `deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl`
+  - commit `e753685` on `yisheng10/Patient-Dropout-Prediction:codex/candidate-024-disengagement-hardening`
+- Did not add or publish subject registry CSV files; patient/subject registry data remains excluded from this repair.
   - missing mirror docs now display `Explainability mirror has not been published for this patient.`
 - Updated `.github/workflows/dropout-precompute.yml` so the workflow checkout for `yisheng10/Patient-Dropout-Prediction` uses the pushed `codex/candidate-024-disengagement-hardening` branch during QA validation.
 - Relaxed the workflow file verification so it no longer requires the subject context registry CSV to be committed into GitHub. The live publisher already treats that registry as optional and can continue using Firestore patient/protocol context without uploading subject-level registry data.
