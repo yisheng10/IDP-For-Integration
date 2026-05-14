@@ -5392,3 +5392,63 @@ eady calculation.
   - so the outer function referenced a name that was out of scope
 - Fixed the safe branch by defining `protocol_extraction_status` directly inside `build_live_static_context()` and reusing that normalized value in the diagnostics payload.
 - Verified the repaired files with `py_compile` before the next rerun.
+
+## 2026-05-14 - Targeted QA dropout publish succeeded on codex branch
+
+- Confirmed the manually triggered `publish-dropout-snapshots` workflow on:
+  - root branch `codex/root-integration-sync-20260415`
+  - dropout branch `codex/candidate-024-disengagement-safe`
+  completed successfully for the targeted 9 QA patient UIDs.
+- Final QA publish result:
+  - `scanned_patient_docs=9`
+  - `eligible_mapped_patients=9`
+  - `predictions_ready=9`
+  - `unsupported_trial_id=0`
+  - `score_failures=0`
+  - `Published 9 disengagement prediction snapshots`
+- Live source completeness for the targeted QA publish reached:
+  - `vitals=9`
+  - `appointments=9`
+  - `epro_submissions=9`
+  - `side_effect_reports=9`
+  - `incident_records=8`
+  - `crc_followup_threads=9`
+- CRC UI now shows formal scored output instead of `COLLECTING DATA` for the targeted QA cohort, including:
+  - scored patients
+  - high-risk patients
+  - average risk
+  - patient-level formal risk probability and action priority
+- Explainability mirror status for the 9 QA patients is currently:
+  - `published=9`
+  - `ready=0`
+  - `partial=9`
+  - all sample blocked reasons point to:
+    - `missing_required_section:missing_or_weak_inputs`
+- This means the end-to-end scoring path is now proven, while the explainability mirror still has one remaining section-quality gap rather than a publish-path failure.
+
+## 2026-05-14 - Main branch success explained by v35 deployment remap assets
+
+- Reviewed:
+  - `Patient-Dropout-Prediction/src/remap_deploy_subject_ids.py`
+  - `.dropout-main-worktree/deploy_assets/data`
+- Confirmed the main dropout workflow succeeds with the deployment-oriented v35 subject-ID remap asset set present:
+  - `triallight_dropout_testing_v35subjectid.csv`
+  - `triallight_subject_id_map_v35subjectid.csv`
+  - `triallight_subject_context_registry_v35subjectid.csv`
+- Plainly stated:
+  - `remap_deploy_subject_ids.py` generates a deployment-safe dataset where legacy model-side patient IDs are remapped to canonical TrialLight `subject_id` values such as `TL-S00001`.
+  - That gives the main workflow a complete deployment identity bridge without needing to infer every mapping from live Firestore at runtime.
+- The codex safe branch no longer depends on pushing those subject-level CSV assets to GitHub, because supported trial metadata can now fall back to:
+  - exact Firestore reads on `dropout_trial_registry/{trialId}`
+
+## 2026-05-14 - Dropout workflow pip cache enabled to reduce rerun latency
+
+- Optimized `.github/workflows/dropout-precompute.yml` so repeated manual and scheduled runs spend less time reinstalling Python dependencies.
+- Changes:
+  - enabled `actions/setup-python` built-in `pip` cache
+  - set `cache-dependency-path` to `Patient-Dropout-Prediction/requirements.txt`
+  - removed unconditional `python -m pip install --upgrade pip`
+  - set `PIP_DISABLE_PIP_VERSION_CHECK=1`
+- Plainly stated:
+  - this does not change model behavior
+  - it only reduces repeated dependency download/install time on subsequent workflow runs when `requirements.txt` is unchanged
