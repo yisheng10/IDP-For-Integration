@@ -8,7 +8,7 @@ on:
         required: false
         type: number
       firebase_uids:
-        description: "Optional comma-separated Firebase UIDs to target"
+        description: "Optional Firebase UIDs to target. Commas, spaces, or new lines are all accepted."
         required: false
         type: string
       skip_testing_subject_sync:
@@ -30,6 +30,7 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       PYTHONUNBUFFERED: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -40,6 +41,7 @@ jobs:
       DROPOUT_LIVE_HISTORY_CONTEXT_DAYS: "30"
       DROPOUT_LIVE_STALENESS_CAP_DAYS: "30"
       DROPOUT_PROGRESS_EVERY: "5"
+      REQUIRED_FIREBASE_PROJECT_ID: "traillight-4750b"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -63,6 +65,7 @@ jobs:
         with:
           repository: yisheng10/Patient-Dropout-Prediction
           token: ${{ secrets.DROPOUT_REPO_PAT }}
+          ref: codex/candidate-024-disengagement-safe
           path: Patient-Dropout-Prediction
 
       - name: Validate required secrets
@@ -99,6 +102,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: Patient-Dropout-Prediction/requirements.txt
 
       - name: Verify dropout workspace files
         working-directory: ./Patient-Dropout-Prediction
@@ -109,7 +114,6 @@ jobs:
           required_files=(
             "requirements.txt"
             "src/publish_dropout_snapshots.py"
-            "deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv"
             "deploy_assets/checkpoints_candidate_024/model_stage_3_29_single.pth"
             "deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl"
           )
@@ -130,7 +134,6 @@ jobs:
         working-directory: ./Patient-Dropout-Prediction
         shell: bash
         run: |
-          python -m pip install --upgrade pip
           python -m pip install -r "./requirements.txt"
 
       - name: Preflight live dropout assets and secrets

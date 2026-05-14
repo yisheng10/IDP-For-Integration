@@ -1,8 +1,12 @@
 import {
   buildFormId,
+  buildProtocolBaselineQuestions,
   buildQuestionSet,
-  cloneBaselineConfig,
+  ensureProtocolSpecificBaselineQuestions,
+  EproProtocolBaselineError,
+  type EproQuestion,
   getServiceClient,
+  isExactGlobalFallbackBaseline,
   MAX_TRIAL_DAY,
   SOURCE_SYSTEM,
 } from './eproShared.ts';
@@ -20,9 +24,9 @@ export const REVIEW_SCOPE_PATIENT_INHERITED = 'patient_inherited';
 export const REVIEW_SCOPE_PATIENT_CUSTOMIZED = 'patient_customized';
 
 const OPERATION_TIMEZONE = Deno.env.get('TRIALLIGHT_OPERATION_TZ') || 'Asia/Kuala_Lumpur';
-const DRAFT_BUILD_HOUR_LOCAL = Number(Deno.env.get('EPRO_DRAFT_BUILD_HOUR_LOCAL') || 6);
-const REVIEW_CUTOFF_HOUR_LOCAL = Number(Deno.env.get('EPRO_REVIEW_CUTOFF_HOUR_LOCAL') || 9);
-const PATIENT_DUE_HOUR_LOCAL = Number(Deno.env.get('EPRO_PATIENT_DUE_HOUR_LOCAL') || 23);
+const DRAFT_BUILD_HOUR_LOCAL = 9;
+const REVIEW_CUTOFF_HOUR_LOCAL = 13;
+const PATIENT_DUE_HOUR_LOCAL = 23;
 const PATIENT_DUE_MINUTE_LOCAL = 59;
 
 type ReviewWindow = {
@@ -135,11 +139,11 @@ function normalizeActivePatientInput(input: ActivePatientInput | null | undefine
 }
 
 function resolveTrialId(patient: ReturnType<typeof normalizeActivePatientInput>) {
-  return patient?.protocol_id || patient?.protocol_name || 'default-epro';
+  return patient?.protocol_id || patient?.protocol_name || '';
 }
 
 function resolveProtocolName(patient: ReturnType<typeof normalizeActivePatientInput>) {
-  return patient?.protocol_name || patient?.protocol_id || 'TrialLight baseline ePRO';
+  return patient?.protocol_name || patient?.protocol_id || '';
 }
 
 function normalizeOverrides(value: unknown) {
@@ -205,10 +209,66 @@ async function ensureSubjectState({
 }
 
 function buildTrialEffectiveQuestions(trialReview: Record<string, unknown>) {
-  const baselineQuestions = Array.isArray(trialReview.baseline_questions)
-    ? (trialReview.baseline_questions as Array<Record<string, unknown>>)
-    : cloneBaselineConfig();
+  const baselineQuestions = ensureProtocolSpecificBaselineQuestions({
+    questions: trialReview.baseline_questions,
+    protocolId: String(trialReview.trial_id || '').trim(),
+    protocolName: String(trialReview.protocol_name || '').trim(),
+    sourceLabel: `The trial-level ePRO review for ${String(trialReview.protocol_name || trialReview.trial_id || 'this protocol').trim()}`,
+  }) as Array<Record<string, unknown>>;
   return applyWordingOverrides(baselineQuestions, trialReview.wording_overrides);
+}
+
+async function maybeUpgradeTrialBaseline({
+  client,
+  trialReview,
+  patient,
+}: {
+  client: ReturnType<typeof getServiceClient>;
+  trialReview: Record<string, unknown>;
+  patient: ReturnType<typeof normalizeActivePatientInput>;
+}) {
+  if (!patient?.protocol_id && !patient?.protocol_name) {
+    return trialReview;
+  }
+
+  const currentBaseline = Array.isArray(trialReview.baseline_questions)
+    ? (trialReview.baseline_questions as Array<Record<string, unknown>>)
+    : [];
+  const baselineNeedsUpgrade =
+    !currentBaseline.length || isExactGlobalFallbackBaseline(currentBaseline);
+
+  if (!baselineNeedsUpgrade) {
+    return trialReview;
+  }
+
+  const generatedBaseline = await buildProtocolBaselineQuestions({
+    client,
+    protocolId: patient.protocol_id,
+    protocolName: patient.protocol_name,
+  });
+
+  if (!generatedBaseline.length || sameJson(generatedBaseline, currentBaseline)) {
+    return trialReview;
+  }
+
+  const effectiveQuestions = applyWordingOverrides(generatedBaseline, trialReview.wording_overrides);
+  const { data, error } = await client
+    .from('epro_trial_daily_review')
+    .update({
+      protocol_name: resolveProtocolName(patient),
+      baseline_questions: generatedBaseline,
+      effective_questions: effectiveQuestions,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', trialReview.id)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 }
 
 function buildPatientEffectiveQuestions({
@@ -221,13 +281,19 @@ function buildPatientEffectiveQuestions({
   const inheritedBaseline = Array.isArray(trialReview.effective_questions)
     ? (trialReview.effective_questions as Array<Record<string, unknown>>)
     : buildTrialEffectiveQuestions(trialReview);
+  const safeInheritedBaseline = ensureProtocolSpecificBaselineQuestions({
+    questions: inheritedBaseline,
+    protocolId: String(trialReview.trial_id || '').trim(),
+    protocolName: String(trialReview.protocol_name || '').trim(),
+    sourceLabel: `The patient-inherited ePRO baseline for ${String(patientReview.patient_name || patientReview.subject_id || 'this patient').trim()}`,
+  }) as Array<Record<string, unknown>>;
   const customized = Array.isArray(patientReview.customized_questions)
     ? (patientReview.customized_questions as Array<Record<string, unknown>>)
     : [];
   const merged =
     String(patientReview.review_scope || '') === REVIEW_SCOPE_PATIENT_CUSTOMIZED
-      ? [...inheritedBaseline, ...customized]
-      : inheritedBaseline;
+      ? [...safeInheritedBaseline, ...customized]
+      : safeInheritedBaseline;
   return applyWordingOverrides(merged, patientReview.wording_overrides);
 }
 
@@ -504,12 +570,16 @@ async function finalizeTrialReview({
 export async function ensurePatientDailyReview({
   requestedSubjectId,
   patientName,
+  protocolId,
+  protocolName,
   firebaseUid,
   firebaseToken,
   now = new Date(),
 }: {
   requestedSubjectId?: string | null;
   patientName?: string | null;
+  protocolId?: string | null;
+  protocolName?: string | null;
   firebaseUid: string;
   firebaseToken: string;
   now?: Date;
@@ -521,12 +591,21 @@ export async function ensurePatientDailyReview({
     firebase_uid: firebaseUid,
     subject_id: requestedSubjectId || identity.subject_id || firebaseUid,
     nickname: patientName || identity.nickname || requestedSubjectId || firebaseUid,
-    protocol_id: identity.protocol_id,
-    protocol_name: identity.protocol_name,
+    protocol_id: protocolId || identity.protocol_id,
+    protocol_name: protocolName || identity.protocol_name,
   });
 
   if (!patient) {
     throw new Error('Unable to resolve patient identity for ePRO review.');
+  }
+
+  if (!patient.protocol_id && !patient.protocol_name) {
+    throw new EproProtocolBaselineError({
+      code: 'protocol_not_assigned',
+      message: `This patient does not have an active protocol assigned, so TrialLight cannot generate today's ePRO questionnaire for ${patient.patient_name || patient.subject_id}.`,
+      protocolId: null,
+      protocolName: null,
+    });
   }
 
   const state = await ensureSubjectState({
@@ -555,7 +634,11 @@ export async function ensurePatientDailyReview({
     .maybeSingle();
 
   if (!trialReview) {
-    const baselineQuestions = cloneBaselineConfig();
+    const baselineQuestions = await buildProtocolBaselineQuestions({
+      client,
+      protocolId: patient.protocol_id,
+      protocolName: patient.protocol_name,
+    });
     const payload = {
       review_date: reviewWindow.reviewDate,
       trial_id: trialId,
@@ -576,8 +659,26 @@ export async function ensurePatientDailyReview({
     }
     trialReview = data;
   } else {
+    trialReview = await maybeUpgradeTrialBaseline({
+      client,
+      trialReview,
+      patient,
+    });
     trialReview = await refreshTrialReview(client, trialReview);
   }
+
+  const safeTrialBaseline = ensureProtocolSpecificBaselineQuestions({
+    questions: trialReview.baseline_questions,
+    protocolId: patient.protocol_id,
+    protocolName: patient.protocol_name,
+    sourceLabel: `The trial-level ePRO review for ${patient.protocol_name || patient.protocol_id || patient.patient_name}`,
+  });
+  const safeTrialEffectiveQuestions = ensureProtocolSpecificBaselineQuestions({
+    questions: trialReview.effective_questions,
+    protocolId: patient.protocol_id,
+    protocolName: patient.protocol_name,
+    sourceLabel: `The effective trial-level ePRO questionnaire for ${patient.protocol_name || patient.protocol_id || patient.patient_name}`,
+  });
 
   let { data: patientReview } = await client
     .from('epro_patient_daily_review')
@@ -593,6 +694,9 @@ export async function ensurePatientDailyReview({
       subjectId: patient.subject_id,
       currentDay,
       patientName: patient.patient_name,
+      protocolId: patient.protocol_id,
+      protocolName: patient.protocol_name,
+      baselineQuestions: safeTrialEffectiveQuestions as EproQuestion[],
       firebaseUid: patient.firebase_uid,
       firebaseToken,
     });
@@ -602,8 +706,8 @@ export async function ensurePatientDailyReview({
     const reviewScope = customQuestions.length ? REVIEW_SCOPE_PATIENT_CUSTOMIZED : REVIEW_SCOPE_PATIENT_INHERITED;
     const effectiveQuestions =
       reviewScope === REVIEW_SCOPE_PATIENT_CUSTOMIZED
-        ? [...(trialReview.effective_questions || []), ...customQuestions]
-        : (trialReview.effective_questions || []);
+        ? [...safeTrialEffectiveQuestions, ...customQuestions]
+        : safeTrialEffectiveQuestions;
     const formId = buildFormId(patient.subject_id, currentDay);
     const payload = {
       review_date: reviewWindow.reviewDate,
@@ -615,7 +719,7 @@ export async function ensurePatientDailyReview({
       patient_name: patient.patient_name,
       day_number: currentDay,
       form_id: formId,
-      baseline_questions: trialReview.baseline_questions || cloneBaselineConfig(),
+      baseline_questions: safeTrialBaseline,
       customized_questions: customQuestions,
       effective_questions: effectiveQuestions,
       review_scope: reviewScope,
@@ -713,15 +817,19 @@ export async function autoReleasePendingForDate({
     .eq('review_status', REVIEW_STATUS_PENDING);
 
   for (const trialReview of pendingTrials || []) {
-    await finalizeTrialReview({
-      client,
-      trialReview,
-      firebaseToken,
-      actor: null,
-      releaseStatus: REVIEW_STATUS_AUTO_RELEASED,
-      releasedAt,
-    });
-    autoReleasedTrials += 1;
+    try {
+      await finalizeTrialReview({
+        client,
+        trialReview,
+        firebaseToken,
+        actor: null,
+        releaseStatus: REVIEW_STATUS_AUTO_RELEASED,
+        releasedAt,
+      });
+      autoReleasedTrials += 1;
+    } catch (error) {
+      console.error('Skipping invalid pending trial review during auto release:', error);
+    }
   }
 
   const { data: pendingPatients } = await client
@@ -740,16 +848,20 @@ export async function autoReleasePendingForDate({
     if (!trialReview) {
       continue;
     }
-    await finalizePatientReview({
-      client,
-      patientReview,
-      trialReview,
-      firebaseToken,
-      actor: null,
-      releaseStatus: REVIEW_STATUS_AUTO_RELEASED,
-      releasedAt,
-    });
-    autoReleasedPatients += 1;
+    try {
+      await finalizePatientReview({
+        client,
+        patientReview,
+        trialReview,
+        firebaseToken,
+        actor: null,
+        releaseStatus: REVIEW_STATUS_AUTO_RELEASED,
+        releasedAt,
+      });
+      autoReleasedPatients += 1;
+    } catch (error) {
+      console.error('Skipping invalid pending patient review during auto release:', error);
+    }
   }
 
   return { autoReleasedTrials, autoReleasedPatients };
@@ -836,18 +948,39 @@ export async function loadCrcDailyReviewWorkspace({
     throw new Error('Only CRC users can access the ePRO review workspace.');
   }
 
+  const hasExplicitActivePatients = Array.isArray(activePatients) && activePatients.length > 0;
+  const visibleTrialIds = new Set<string>();
+  const visibleSubjectIds = new Set<string>();
+  const patientGenerationErrors: Array<Record<string, string>> = [];
+
   for (const rawPatient of activePatients) {
     const patient = normalizeActivePatientInput(rawPatient);
     if (!patient) {
       continue;
     }
-    await ensurePatientDailyReview({
-      requestedSubjectId: patient.subject_id,
-      patientName: patient.patient_name,
-      firebaseUid: patient.firebase_uid,
-      firebaseToken,
-      now,
-    });
+    try {
+      await ensurePatientDailyReview({
+        requestedSubjectId: patient.subject_id,
+        patientName: patient.patient_name,
+        protocolId: patient.protocol_id,
+        protocolName: patient.protocol_name,
+        firebaseUid: patient.firebase_uid,
+        firebaseToken,
+        now,
+      });
+      visibleSubjectIds.add(patient.subject_id);
+      if (patient.protocol_id || patient.protocol_name) {
+        visibleTrialIds.add(resolveTrialId(patient));
+      }
+    } catch (error) {
+      patientGenerationErrors.push({
+        subject_id: patient.subject_id,
+        patient_name: patient.patient_name,
+        protocol_id: patient.protocol_id || '',
+        protocol_name: patient.protocol_name || '',
+        error: (error as Error)?.message || 'Unable to prepare today\'s ePRO review.',
+      });
+    }
   }
 
   await autoReleasePendingForDate({ firebaseUid, firebaseToken, now });
@@ -868,8 +1001,24 @@ export async function loadCrcDailyReviewWorkspace({
       .order('patient_name'),
   ]);
 
-  const safeTrialReviews = trialReviews || [];
-  const safePatientReviews = patientReviews || [];
+  const safePatientReviews = (patientReviews || []).filter((row) => {
+    if (!hasExplicitActivePatients) {
+      return true;
+    }
+    if (!visibleSubjectIds.size) {
+      return false;
+    }
+    return visibleSubjectIds.has(String(row.subject_id || '').trim());
+  });
+  const safeTrialReviews = (trialReviews || []).filter((row) => {
+    if (!hasExplicitActivePatients) {
+      return true;
+    }
+    if (!visibleTrialIds.size) {
+      return false;
+    }
+    return visibleTrialIds.has(String(row.trial_id || '').trim());
+  });
 
   return {
     review_date: reviewWindow.reviewDate,
@@ -889,6 +1038,7 @@ export async function loadCrcDailyReviewWorkspace({
     },
     trial_reviews: safeTrialReviews,
     patient_reviews: safePatientReviews,
+    patient_generation_errors: patientGenerationErrors,
   };
 }
 

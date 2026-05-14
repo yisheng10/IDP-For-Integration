@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { APP_NAME } from '../config';
 import TopNavbar from './TopNavbar';
+import { TrialLightCrcMark, TrialLightCrcWordmark } from './TrialLightCrcBrand';
 
 const SIDEBAR_STORAGE_KEY = 'triallight_crc_sidebar_collapsed';
 
@@ -213,6 +213,10 @@ export default function CRCWorkspaceShell({
   onHomeClick,
   headerTitle,
   headerDescription,
+  searchValue = '',
+  onSearchChange,
+  searchResults = [],
+  onSearchSelect,
   children,
 }) {
   const navigate = useNavigate();
@@ -242,30 +246,32 @@ export default function CRCWorkspaceShell({
   return (
     <div className={`crc-shell ${isCollapsed ? 'crc-shell--sidebarCollapsed' : ''}`}>
       <aside className={`crc-sidebar ${isCollapsed ? 'crc-sidebar--collapsed' : ''}`}>
-        <button
-          type="button"
-          className="crc-sidebar__brand"
-          onClick={() => {
-            navigate('/home');
-            onHomeClick?.();
-          }}
-        >
-          <span className="crc-sidebar__brandMark">TL</span>
-          <span className="crc-sidebar__brandText">
-            <span className="crc-sidebar__brandEyebrow">CRC workspace</span>
-            <span className="crc-sidebar__brandName">{APP_NAME}</span>
-          </span>
-        </button>
+        <div className="crc-sidebar__header">
+          <button
+            type="button"
+            className="crc-sidebar__brand"
+            onClick={() => {
+              navigate('/home?section=today');
+              onHomeClick?.();
+            }}
+          >
+            {isCollapsed ? (
+              <TrialLightCrcMark size={50} />
+            ) : (
+              <TrialLightCrcWordmark className="crc-sidebar__brandLockup" subline="CRC Workspace" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          className="crc-sidebar__collapseToggle"
-          onClick={() => setIsCollapsed((current) => !current)}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <CollapseIcon collapsed={isCollapsed} />
-        </button>
+          <button
+            type="button"
+            className="crc-sidebar__collapseToggle"
+            onClick={() => setIsCollapsed((current) => !current)}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <CollapseIcon collapsed={isCollapsed} />
+          </button>
+        </div>
 
         <div className="crc-sidebar__scroll">
           <div className="crc-sidebar__navGroups" aria-label="CRC navigation">
@@ -311,13 +317,17 @@ export default function CRCWorkspaceShell({
           onLogout={onLogout}
           alerts={alerts}
           onAlertsClick={onAlertsClick}
-          alertButtonLabel={alertButtonLabel}
-          alertButtonUrgent={alertButtonUrgent}
-          title={headerTitle}
-          description={headerDescription}
-        />
+        alertButtonLabel={alertButtonLabel}
+        alertButtonUrgent={alertButtonUrgent}
+        title={headerTitle}
+        description={headerDescription}
+        searchValue={searchValue}
+        onSearchChange={onSearchChange}
+        searchResults={searchResults}
+        onSearchSelect={onSearchSelect}
+      />
 
-        <main className="crc-shell__content">{children}</main>
+      <main className="crc-shell__content">{children}</main>
       </div>
     </div>
   );

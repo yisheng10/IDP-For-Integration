@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
+import { streamFunctionHttp } from './firebaseFunctionHttp';
 import {
   GEMINI_API_KEY,
   SIDE_EFFECT_GUIDANCE_MODEL,
@@ -45,7 +46,7 @@ function mapErrorMessage(error) {
     return `AI Error. ${message}`;
   }
 
-  return 'AI Error. Side Effect Guidance is unavailable right now.';
+  return 'AI Error. Adverse Event Guidance is unavailable right now.';
 }
 
 function buildGeminiContents(messages = [], userMessage = '') {
@@ -115,6 +116,37 @@ export async function requestSideEffectGuidance(payload) {
     }
 
     return await requestGuidanceViaCallable(payload);
+  } catch (error) {
+    const wrapped = new Error(mapErrorMessage(error));
+    wrapped.original = error;
+    throw wrapped;
+  }
+}
+
+export async function requestSideEffectGuidanceTraceStream(payload, handlers = {}) {
+  try {
+    await streamFunctionHttp('sideEffectGuidanceTraceStreamHttp', payload, {
+      onEvent: (event) => {
+        if (event?.type === 'trace_event' && typeof handlers.onTraceEvent === 'function') {
+          handlers.onTraceEvent(event);
+          return;
+        }
+
+        if (event?.type === 'final_answer' && typeof handlers.onFinalAnswer === 'function') {
+          handlers.onFinalAnswer(event);
+          return;
+        }
+
+        if (event?.type === 'trace_complete' && typeof handlers.onTraceComplete === 'function') {
+          handlers.onTraceComplete(event);
+          return;
+        }
+
+        if (event?.type === 'trace_error' && typeof handlers.onTraceError === 'function') {
+          handlers.onTraceError(event);
+        }
+      },
+    });
   } catch (error) {
     const wrapped = new Error(mapErrorMessage(error));
     wrapped.original = error;

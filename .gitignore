@@ -18,6 +18,10 @@ coverage/
 .env
 .env.*
 !.env.example
+Supabase and Firebase accesses credentials.txt
+.supabase-cli-config/
+.firebase-tools-config/
+supabase/.temp/
 
 # Firebase local config
 .firebase/
@@ -65,6 +69,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 .venv312/
+.venv-dropout312/
 venv/
 env/
 
@@ -76,4 +81,6 @@ Patient-Dropout-Prediction/checkpoints/
 Patient-Dropout-Prediction/runs/
 Patient-Dropout-Prediction/auto_run_bias-13/
 Patient-Dropout-Prediction/data/
+MyClinicalApp_AndroidAPK_5Jan2026_2138.zip
+newest-crc-web/
 Patient-Dropout-Prediction/没有用了的/

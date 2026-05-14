@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import EproStatusPanel from './EproStatusPanel';
+import WindowPaginationControls from './WindowPaginationControls';
 import {
   approveAllEproReviews,
   approvePatientReview,
@@ -8,6 +9,8 @@ import {
   savePatientReviewWording,
   saveTrialReviewWording,
 } from '../services/eproReviewService';
+
+const EMPTY_METRIC = '0';
 
 function formatTimestamp(value) {
   if (!value) {
@@ -20,6 +23,68 @@ function statusLabel(value) {
   return String(value || 'unknown').toUpperCase().replace(/_/g, ' ');
 }
 
+function deriveOperationalStatus(entry) {
+  if (String(entry?.status || '').toLowerCase() === 'submitted') {
+    return 'submitted';
+  }
+
+  if (entry?.due_at && new Date(entry.due_at).getTime() < Date.now()) {
+    return 'overdue';
+  }
+
+  return String(entry?.status || 'assigned').toLowerCase();
+}
+
+function resolveReviewDate(workspace) {
+  const explicitDate = String(workspace?.review_date || '').trim();
+  if (explicitDate) {
+    return explicitDate;
+  }
+
+  const fallbackValue = workspace?.draft_generation_at || workspace?.review_cutoff_at || workspace?.patient_due_at;
+  if (!fallbackValue) {
+    return '';
+  }
+
+  const parsed = new Date(fallbackValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function buildLocalDateTime(reviewDate, hour, minute, second = 0) {
+  if (!reviewDate) {
+    return null;
+  }
+  const [year, month, day] = reviewDate.split('-').map((value) => Number(value));
+  if (!year || !month || !day) {
+    return null;
+  }
+  return new Date(year, month - 1, day, hour, minute, second);
+}
+
+function formatReviewWindowSummary(workspace) {
+  const reviewDate = resolveReviewDate(workspace);
+  if (!reviewDate) {
+    return '';
+  }
+
+  const reviewStart = buildLocalDateTime(reviewDate, 9, 0, 0);
+  const reviewEnd = buildLocalDateTime(reviewDate, 13, 0, 0);
+  const dueAt = buildLocalDateTime(reviewDate, 23, 59, 0);
+
+  if (!reviewStart || !reviewEnd || !dueAt) {
+    return '';
+  }
+
+  return `Review window: ${reviewStart.toLocaleString()} - ${reviewEnd.toLocaleTimeString()}. If CRC does not approve by ${reviewEnd.toLocaleTimeString()}, questionnaires auto release. Patient due by ${dueAt ? dueAt.toLocaleString() : 'Not set'}.`;
+}
+
 function buildQuestionMap(questions = []) {
   return Object.fromEntries(
     (Array.isArray(questions) ? questions : []).map((question) => [
@@ -29,12 +94,7 @@ function buildQuestionMap(questions = []) {
   );
 }
 
-function ReviewQuestionList({
-  questions = [],
-  editable = false,
-  draft = {},
-  onChange,
-}) {
+function ReviewQuestionList({ questions = [], editable = false, draft = {}, onChange }) {
   return (
     <div className="epro-review__questionList">
       {(Array.isArray(questions) ? questions : []).map((question) => {
@@ -67,6 +127,11 @@ export default function EproReviewWorkspace({
   user,
   patients = [],
   entries = [],
+  entriesPage = 1,
+  entriesPageSize = 30,
+  onEntriesPageChange,
+  onEntriesPageSizeChange,
+  canGoNextEntries = false,
 }) {
   const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +143,7 @@ export default function EproReviewWorkspace({
   const [patientDrafts, setPatientDrafts] = useState({});
   const [approveAllOpen, setApproveAllOpen] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [entryStatusView, setEntryStatusView] = useState('submitted');
 
   const activePatients = useMemo(() => {
     return patients.filter((patient) => {
@@ -90,12 +156,11 @@ export default function EproReviewWorkspace({
   const activePatientSignature = useMemo(
     () =>
       activePatients
-        .map((patient) => [
-          patient.id,
-          patient.subject_id || patient.subjectId || '',
-          patient.protocolId || '',
-          patient.protocolName || '',
-        ].join(':'))
+        .map((patient) =>
+          [patient.id, patient.subject_id || patient.subjectId || '', patient.protocolId || '', patient.protocolName || ''].join(
+            ':'
+          )
+        )
         .join('|'),
     [activePatients]
   );
@@ -104,6 +169,9 @@ export default function EproReviewWorkspace({
     () => patients.find((patient) => patient.id === selectedPatientId) || null,
     [patients, selectedPatientId]
   );
+  const isQueueServiceUnavailable = Boolean(error);
+  const queueUnavailableMessage =
+    'The live CRC ePRO review service is temporarily unavailable. Queue data is hidden until the review functions are repaired.';
 
   const loadWorkspace = useCallback(async () => {
     setLoading(true);
@@ -113,6 +181,7 @@ export default function EproReviewWorkspace({
       setWorkspace(payload);
     } catch (loadError) {
       setError(loadError.message || 'Unable to load the ePRO review workspace.');
+      setWorkspace(null);
     } finally {
       setLoading(false);
     }
@@ -129,9 +198,7 @@ export default function EproReviewWorkspace({
   const pendingPatientReviews = useMemo(
     () =>
       (workspace?.patient_reviews || []).filter(
-        (row) =>
-          row.review_status === 'pending_crc_review' &&
-          row.review_scope === 'patient_customized'
+        (row) => row.review_status === 'pending_crc_review' && row.review_scope === 'patient_customized'
       ),
     [workspace]
   );
@@ -142,31 +209,43 @@ export default function EproReviewWorkspace({
       ),
     [workspace]
   );
+
   const submittedOrOverdue = useMemo(() => {
     return [...entries]
       .filter((entry) => {
         if (!entry) return false;
-        if (entry.status === 'submitted') return true;
-        if (entry.status === 'overdue') return true;
-        if (entry.due_at && new Date(entry.due_at).getTime() < Date.now() && entry.status !== 'submitted') {
-          return true;
-        }
-        return false;
+        const status = deriveOperationalStatus(entry);
+        return status === 'submitted' || status === 'overdue';
       })
       .sort((left, right) => {
         const leftTime = new Date(left.updated_at || left.submitted_at || left.assigned_at || 0).getTime();
         const rightTime = new Date(right.updated_at || right.submitted_at || right.assigned_at || 0).getTime();
         return rightTime - leftTime;
-      })
-      .slice(0, 8);
+      });
   }, [entries]);
 
-  const metrics = workspace?.metrics || {
-    pending_trials: 0,
-    pending_patient_drafts: 0,
-    released_today: 0,
-    customized_patient_drafts: 0,
-  };
+  const submittedEntries = useMemo(
+    () => submittedOrOverdue.filter((entry) => deriveOperationalStatus(entry) === 'submitted'),
+    [submittedOrOverdue]
+  );
+  const overdueEntries = useMemo(
+    () => submittedOrOverdue.filter((entry) => deriveOperationalStatus(entry) === 'overdue'),
+    [submittedOrOverdue]
+  );
+  const filteredEntryRows = entryStatusView === 'overdue' ? overdueEntries : submittedEntries;
+
+  const totalEntryPages = Math.max(1, Math.ceil(filteredEntryRows.length / entriesPageSize));
+  const effectiveEntriesPage = Math.min(entriesPage, totalEntryPages);
+  const visibleSubmittedOrOverdue = filteredEntryRows.slice(
+    (effectiveEntriesPage - 1) * entriesPageSize,
+    effectiveEntriesPage * entriesPageSize
+  );
+  const canAdvanceEntries =
+    filteredEntryRows.length > effectiveEntriesPage * entriesPageSize || canGoNextEntries;
+  const loadedEntryCount = submittedOrOverdue.length;
+  const entryStatusLabel = entryStatusView === 'overdue' ? 'overdue' : 'submitted';
+
+  const metrics = workspace?.metrics || null;
 
   const handleApproveTrial = async (reviewId) => {
     setBusyKey(`trial:${reviewId}`);
@@ -255,60 +334,73 @@ export default function EproReviewWorkspace({
   return (
     <div className="epro-review">
       <div className="card workspace-card epro-review__summary">
-        <div className="section-header">
-          <div>
+        <div className="epro-review__summaryTop">
+          <div className="epro-review__summaryIntro">
             <h3>Today&apos;s ePRO review queue</h3>
             <div className="section-note">
               CRC previews today&apos;s trial and patient-specific questionnaires before patient release.
             </div>
           </div>
-          <div className="epro-review__toolbar">
-            <button className="btn btn-secondary btn-small" onClick={loadWorkspace} disabled={loading}>
-              {loading ? 'Refreshing...' : 'Refresh'}
-            </button>
-            <button
-              className="btn btn-primary btn-small"
-              onClick={() => setApproveAllOpen(true)}
-              disabled={!metrics.pending_trials && !metrics.pending_patient_drafts}
-            >
-              Approve All ePRO
-            </button>
+          <div className="epro-review__summaryCenter">
+            <div className="epro-review__toolbar">
+              <button className="btn btn-secondary btn-small" onClick={loadWorkspace} disabled={loading}>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <button
+                className="btn btn-primary btn-small"
+                onClick={() => setApproveAllOpen(true)}
+                disabled={!metrics || (!metrics.pending_trials && !metrics.pending_patient_drafts)}
+              >
+                Approve All ePRO
+              </button>
+            </div>
+            <div className="workspace-summary-grid workspace-summary-grid--compact epro-review__metricsRow">
+              <div className="workspace-summary-item">
+                <span>Pending Trials Review</span>
+                <strong>{metrics ? metrics.pending_trials : EMPTY_METRIC}</strong>
+              </div>
+              <div className="workspace-summary-item">
+                <span>Pending Patients Review</span>
+                <strong>{metrics ? metrics.pending_patient_drafts : EMPTY_METRIC}</strong>
+              </div>
+              <div className="workspace-summary-item">
+                <span>Released today</span>
+                <strong>{metrics ? metrics.released_today : EMPTY_METRIC}</strong>
+              </div>
+              <div className="workspace-summary-item">
+                <span>Customized drafts</span>
+                <strong>{metrics ? metrics.customized_patient_drafts : EMPTY_METRIC}</strong>
+              </div>
+            </div>
           </div>
+          {workspace ? (
+            <div className="section-note epro-review__windowNote">{formatReviewWindowSummary(workspace)}</div>
+          ) : (
+            <div className="section-note epro-review__windowNote epro-review__windowNote--placeholder">
+              Review window details will appear once the live CRC ePRO workspace finishes loading.
+            </div>
+          )}
         </div>
 
-        <div className="workspace-summary-grid workspace-summary-grid--compact">
-          <div className="workspace-summary-item">
-            <span>Pending trials</span>
-            <strong>{metrics.pending_trials}</strong>
-          </div>
-          <div className="workspace-summary-item">
-            <span>Pending patient drafts</span>
-            <strong>{metrics.pending_patient_drafts}</strong>
-          </div>
-          <div className="workspace-summary-item">
-            <span>Released today</span>
-            <strong>{metrics.released_today}</strong>
-          </div>
-          <div className="workspace-summary-item">
-            <span>Customized drafts</span>
-            <strong>{metrics.customized_patient_drafts}</strong>
-          </div>
-        </div>
-
-        {workspace ? (
-          <div className="section-note">
-            Review window: {formatTimestamp(workspace.review_cutoff_at)} cutoff, patient due by {formatTimestamp(workspace.patient_due_at)}.
+        {!workspace && isQueueServiceUnavailable ? (
+          <div className="info-banner" style={{ marginTop: '14px' }}>
+            {queueUnavailableMessage} Mirrored Firestore questionnaire activity can still load below while the review
+            service is being repaired.
           </div>
         ) : null}
       </div>
 
-      {error ? <div className="card workspace-card"><div className="empty-panel">{error}</div></div> : null}
+      {error ? (
+        <div className="card workspace-card">
+          <div className="empty-panel">{queueUnavailableMessage}</div>
+        </div>
+      ) : null}
 
       <div className="workspace-two-column">
         <div className="card workspace-card">
           <div className="section-header">
             <div>
-              <h3>Pending Trial Reviews</h3>
+              <h3>Pending Trials Review</h3>
               <div className="section-note">Approve or edit the protocol-owned baseline wording for today.</div>
             </div>
           </div>
@@ -322,11 +414,15 @@ export default function EproReviewWorkspace({
                     <div>
                       <div className="epro-review__title">{review.protocol_name || review.trial_id}</div>
                       <div className="section-note">
-                        Trial ID: {review.trial_id} · Active patients: {review.active_patient_count || 0} · Cutoff: {formatTimestamp(review.review_cutoff_at)}
+                        Trial ID: {review.trial_id} - Active patients: {review.active_patient_count || 0} - Cutoff:{' '}
+                        {formatTimestamp(review.review_cutoff_at)}
                       </div>
                     </div>
                     <div className="epro-review__actions">
-                      <button className="btn btn-secondary btn-small" onClick={() => (editing ? setEditingTrialId(null) : openTrialEditor(review))}>
+                      <button
+                        className="btn btn-secondary btn-small"
+                        onClick={() => (editing ? setEditingTrialId(null) : openTrialEditor(review))}
+                      >
                         {editing ? 'Close editor' : 'Edit wording'}
                       </button>
                       <button
@@ -367,14 +463,16 @@ export default function EproReviewWorkspace({
               );
             })
           ) : (
-            <div className="empty-panel">No pending trial-level reviews for today.</div>
+            <div className="empty-panel">
+              {isQueueServiceUnavailable ? queueUnavailableMessage : 'No pending trial-level reviews for today.'}
+            </div>
           )}
         </div>
 
         <div className="card workspace-card">
           <div className="section-header">
             <div>
-              <h3>Pending Patient Reviews</h3>
+              <h3>Pending Patients Review</h3>
               <div className="section-note">Only patients with customized questions need patient-level approval.</div>
             </div>
           </div>
@@ -388,11 +486,15 @@ export default function EproReviewWorkspace({
                     <div>
                       <div className="epro-review__title">{review.patient_name || review.subject_id}</div>
                       <div className="section-note">
-                        Subject ID: {review.subject_id} · Scope: {statusLabel(review.review_scope)} · Trial: {review.protocol_name || review.trial_id}
+                        Subject ID: {review.subject_id} - Scope: {statusLabel(review.review_scope)} - Trial:{' '}
+                        {review.protocol_name || review.trial_id}
                       </div>
                     </div>
                     <div className="epro-review__actions">
-                      <button className="btn btn-secondary btn-small" onClick={() => (editing ? setEditingPatientId(null) : openPatientEditor(review))}>
+                      <button
+                        className="btn btn-secondary btn-small"
+                        onClick={() => (editing ? setEditingPatientId(null) : openPatientEditor(review))}
+                      >
                         {editing ? 'Close editor' : 'Edit wording'}
                       </button>
                       <button
@@ -433,7 +535,11 @@ export default function EproReviewWorkspace({
               );
             })
           ) : (
-            <div className="empty-panel">No patient-specific customized drafts are waiting for CRC approval.</div>
+            <div className="empty-panel">
+              {isQueueServiceUnavailable
+                ? queueUnavailableMessage
+                : 'No patient-specific customized drafts are waiting for CRC approval.'}
+            </div>
           )}
         </div>
       </div>
@@ -457,26 +563,57 @@ export default function EproReviewWorkspace({
                 <div>
                   <div className="epro-review__releaseTitle">{review.patient_name || review.subject_id}</div>
                   <div className="section-note">
-                    {review.subject_id} · {statusLabel(review.review_status)} · Visible {formatTimestamp(review.patient_visible_at)}
+                    {review.subject_id} - {statusLabel(review.review_status)} - Visible{' '}
+                    {formatTimestamp(review.patient_visible_at)}
                   </div>
                 </div>
                 <span className="metric-pill">{statusLabel(review.review_scope)}</span>
               </button>
             ))
           ) : (
-            <div className="empty-panel">No questionnaires have been released today yet.</div>
+            <div className="empty-panel">
+              {isQueueServiceUnavailable ? queueUnavailableMessage : 'No questionnaires have been released today yet.'}
+            </div>
           )}
         </div>
 
         <div className="card workspace-card">
-          <div className="section-header">
-            <div>
-              <h3>Submitted / Overdue</h3>
-              <div className="section-note">Most recent operational visibility from mirrored ePRO records.</div>
-            </div>
+          <div className="epro-review__statusSwitch" role="tablist" aria-label="Mirrored ePRO status filter">
+            <button
+              type="button"
+              className={`epro-review__statusSwitchOption${entryStatusView === 'submitted' ? ' is-active' : ''}`}
+              onClick={() => {
+                setEntryStatusView('submitted');
+                onEntriesPageChange?.(1);
+              }}
+            >
+              Submitted
+              <span className="epro-review__statusSwitchCount">{submittedEntries.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`epro-review__statusSwitchOption${entryStatusView === 'overdue' ? ' is-active' : ''}`}
+              onClick={() => {
+                setEntryStatusView('overdue');
+                onEntriesPageChange?.(1);
+              }}
+            >
+              Overdue
+              <span className="epro-review__statusSwitchCount">{overdueEntries.length}</span>
+            </button>
           </div>
-          {submittedOrOverdue.length ? (
-            submittedOrOverdue.map((entry) => (
+          <div className="section-note">Most recent operational visibility from mirrored ePRO records.</div>
+          <div className="section-note">Showing {loadedEntryCount} loaded mirrored ePRO records from the current recent window.</div>
+          <WindowPaginationControls
+            page={effectiveEntriesPage}
+            pageSize={entriesPageSize}
+            onPageChange={onEntriesPageChange}
+            onPageSizeChange={onEntriesPageSizeChange}
+            canGoNext={canAdvanceEntries}
+            note={`Page ${effectiveEntriesPage} - Showing ${visibleSubmittedOrOverdue.length} of ${filteredEntryRows.length} ${entryStatusLabel} mirrored ePRO rows from the current loaded window.`}
+          />
+          {visibleSubmittedOrOverdue.length ? (
+            visibleSubmittedOrOverdue.map((entry) => (
               <button
                 key={entry.id}
                 type="button"
@@ -486,23 +623,23 @@ export default function EproReviewWorkspace({
                 <div>
                   <div className="epro-review__releaseTitle">{entry.patientName || entry.subject_id || entry.uid}</div>
                   <div className="section-note">
-                    {entry.form_id} · {statusLabel(entry.status)} · Updated {formatTimestamp(entry.updated_at || entry.submitted_at || entry.assigned_at)}
+                    {entry.form_id} - {statusLabel(deriveOperationalStatus(entry))} - Updated{' '}
+                    {formatTimestamp(entry.updated_at || entry.submitted_at || entry.assigned_at)}
                   </div>
                 </div>
               </button>
             ))
           ) : (
-            <div className="empty-panel">No submitted or overdue questionnaire records yet.</div>
+            <div className="empty-panel">
+              {entries.length
+                ? `No ${entryStatusView} questionnaire records are visible inside the current loaded mirrored ePRO window.`
+                : `No ${entryStatusView} questionnaire records yet.`}
+            </div>
           )}
         </div>
       </div>
 
-      <EproStatusPanel
-        entries={entries}
-        selectedPatient={selectedPatient}
-        patients={patients}
-        hideHeading
-      />
+      <EproStatusPanel entries={entries} selectedPatient={selectedPatient} patients={patients} hideHeading />
 
       {approveAllOpen ? (
         <div className="modal-shell">
@@ -517,11 +654,11 @@ export default function EproReviewWorkspace({
             <div className="workspace-summary-grid workspace-summary-grid--compact">
               <div className="workspace-summary-item">
                 <span>Pending trials</span>
-                <strong>{metrics.pending_trials}</strong>
+                <strong>{metrics ? metrics.pending_trials : EMPTY_METRIC}</strong>
               </div>
               <div className="workspace-summary-item">
                 <span>Pending patient drafts</span>
-                <strong>{metrics.pending_patient_drafts}</strong>
+                <strong>{metrics ? metrics.pending_patient_drafts : EMPTY_METRIC}</strong>
               </div>
             </div>
             <div className="epro-review__confirmActions">

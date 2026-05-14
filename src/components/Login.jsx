@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { auth, db } from '../firebase';
 import {
+  browserLocalPersistence,
   browserSessionPersistence,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   sendEmailVerification,
   setPersistence,
   signInWithEmailAndPassword,
@@ -23,8 +25,14 @@ function getAuthErrorMessage({ error, type, isReg }) {
   if (code === 'auth/invalid-email') {
     return `Please enter a valid ${surfaceLabel.toLowerCase()} email address.`;
   }
-  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-    return `${surfaceLabel} login failed. Check your ${surfaceLabel.toLowerCase()} email and password and try again.`;
+  if (code === 'auth/wrong-password') {
+    return `${surfaceLabel} login failed. The password is incorrect. Please try again.`;
+  }
+  if (code === 'auth/user-not-found') {
+    return `No ${surfaceLabel.toLowerCase()} account was found for this email address in the current Firebase project.`;
+  }
+  if (code === 'auth/invalid-credential') {
+    return `${surfaceLabel} login failed. The email address does not exist in the current Firebase project, or the password is incorrect.`;
   }
   if (code === 'auth/email-already-in-use') {
     return `${surfaceLabel} account already exists. Please log in instead.`;
@@ -56,17 +64,21 @@ export default function Login({ type, onLogin }) {
   const [dob, setDob] = useState('');
   const [isReg, setIsReg] = useState(false);
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
+  const [rememberMe, setRememberMe] = useState(type === 'crc');
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
 
   const handleAuth = async (event) => {
     event.preventDefault();
     setError('');
+    setInfoMessage('');
 
     try {
       if (type === 'crc' && !email.endsWith('@hospital.com')) throw new Error('Only @hospital.com allowed');
       if (type === 'patient' && email.endsWith('@hospital.com')) throw new Error('Staff use CRC portal');
 
-      await setPersistence(auth, browserSessionPersistence);
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
 
       if (isReg) {
         if (type === 'patient' && (!firstName || !lastName || !gender || !dob)) {
@@ -131,6 +143,26 @@ export default function Login({ type, onLogin }) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setError('');
+    setInfoMessage('');
+
+    if (!email.trim()) {
+      setError('Enter the CRC email address first so the reset email goes to the right account.');
+      return;
+    }
+
+    setIsSendingReset(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setInfoMessage(`Password reset email sent to ${email.trim()}.`);
+    } catch (authError) {
+      setError(getAuthErrorMessage({ error: authError, type, isReg: false }));
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
   if (verificationSent) {
     return (
       <div className="login-card">
@@ -153,38 +185,79 @@ export default function Login({ type, onLogin }) {
   }
 
   return (
-    <div className="login-card">
+    <div className="login-card login-card--auth">
       <div className="dashboard-kicker">{type === 'crc' ? 'CRC sign-in' : 'Patient access'}</div>
-      <h2 className="mt-0" style={{ marginBottom: '10px' }}>{type === 'crc' ? 'CRC Portal' : isReg ? 'Patient Sign Up' : 'Patient Login'}</h2>
-      <p className="section-note" style={{ marginBottom: '18px' }}>
+      <h2 className="mt-0 login-card__title">{type === 'crc' ? 'Welcome back' : isReg ? 'Patient Sign Up' : 'Patient Login'}</h2>
+      <p className="section-note login-card__lead">
         {type === 'crc'
           ? 'Use your hospital email to enter the CRC workspace.'
-          : 'Use the patient app account for questionnaires, side effects, appointments, and vitals.'}
+                : 'Use the patient app account for questionnaires, adverse events, appointments, and vitals.'}
       </p>
 
-      <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form onSubmit={handleAuth} className="login-form">
         {isReg && type === 'patient' ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <input type="text" placeholder="First name" value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
-              <input type="text" placeholder="Last name" value={lastName} onChange={(event) => setLastName(event.target.value)} required />
+            <div className="login-form__grid">
+              <div className="login-form__field">
+                <label>First name</label>
+                <input type="text" placeholder="First name" value={firstName} onChange={(event) => setFirstName(event.target.value)} required />
+              </div>
+              <div className="login-form__field">
+                <label>Last name</label>
+                <input type="text" placeholder="Last name" value={lastName} onChange={(event) => setLastName(event.target.value)} required />
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <select value={gender} onChange={(event) => setGender(event.target.value)} required>
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-              <input type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />
+            <div className="login-form__grid">
+              <div className="login-form__field">
+                <label>Gender</label>
+                <select value={gender} onChange={(event) => setGender(event.target.value)} required>
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="login-form__field">
+                <label>Date of birth</label>
+                <input type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />
+              </div>
             </div>
           </>
         ) : null}
 
-        <input type="email" placeholder={type === 'crc' ? 'name@hospital.com' : 'patient@example.com'} value={email} onChange={(event) => setEmail(event.target.value)} required />
-        <input type="password" placeholder="Enter password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        <div className="login-form__field">
+          <label>Email address</label>
+          <input
+            type="email"
+            placeholder={type === 'crc' ? 'name@hospital.com' : 'patient@example.com'}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="login-form__field">
+          <label>Password</label>
+          <input type="password" placeholder="Enter password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        </div>
+
+        {type === 'crc' ? (
+          <div className="login-form__utilityRow">
+            <label className="login-form__checkbox">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
+              />
+              <span>Remember me</span>
+            </label>
+            <button type="button" className="login-form__linkButton" onClick={handleForgotPassword} disabled={isSendingReset}>
+              {isSendingReset ? 'Sending...' : 'Forgot password?'}
+            </button>
+          </div>
+        ) : null}
 
         <button className={`btn ${type === 'crc' ? 'btn-primary' : 'btn-success'}`}>
-          {isReg ? 'Create account' : 'Continue'}
+          {isReg ? 'Create account' : type === 'crc' ? 'Sign in' : 'Continue'}
         </button>
       </form>
 
@@ -194,17 +267,28 @@ export default function Login({ type, onLogin }) {
         </div>
       ) : null}
 
+      {infoMessage ? (
+        <div className="login-card__info">
+          <p style={{ margin: 0 }}>{infoMessage}</p>
+        </div>
+      ) : null}
+
       {type === 'patient' ? (
         <p
           onClick={() => {
             setIsReg(!isReg);
             setError('');
+            setInfoMessage('');
           }}
           style={{ color: 'var(--brand)', cursor: 'pointer', textDecoration: 'underline', marginTop: '16px', fontWeight: '700' }}
         >
           {isReg ? 'Already registered? Log in instead' : 'New here? Create a patient account'}
         </p>
-      ) : null}
+      ) : (
+        <div className="section-note login-card__footnote">
+          Use your approved study email. Patient sign-in belongs in the patient mobile app, not this CRC website.
+        </div>
+      )}
     </div>
   );
 }

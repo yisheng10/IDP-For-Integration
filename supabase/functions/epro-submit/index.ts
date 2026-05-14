@@ -18,6 +18,8 @@ Deno.serve(async (request) => {
     const payload = await handleSubmit({
       requestedSubjectId: body.subject_id,
       patientName: body.patient_name,
+      protocolId: body.protocol_id,
+      protocolName: body.protocol_name,
       answers: body.answers,
       firebaseUid: user.uid,
       firebaseToken: user.token,

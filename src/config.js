@@ -1,12 +1,14 @@
 export const APP_NAME = 'TrialLight';
-export const APP_ICON = 'icon.png';
+export const APP_ICON = 'triallight-crc-favicon.svg';
 export const APP_BACKGROUND_IMAGE = 'Background.jpg';
 
 export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 export const SIDE_EFFECT_GUIDANCE_PROVIDER =
-  import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_PROVIDER || 'gemini-browser';
+  import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_PROVIDER || 'firebase-callable';
 export const SIDE_EFFECT_GUIDANCE_MODEL =
   import.meta.env.VITE_SIDE_EFFECT_GUIDANCE_MODEL || 'gemini-2.5-flash';
+export const CRC_GUIDANCE_TRACE_STREAM_ENABLED =
+  import.meta.env.VITE_CRC_GUIDANCE_TRACE_STREAM !== 'false';
 
 export const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL || 'https://fygkqituefwldmglijvy.supabase.co';

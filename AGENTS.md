@@ -91,3 +91,19 @@ The patient app must never expose:
 * 先比较：文件名、大小、修改时间、可能的哈希值、内容是否重复。
 * 输出差异说明和处理建议。
 * 等用户决定“保留两份 / 覆盖 / 跳过 / 合并”。
+
+## 2.3 前端与 Firebase 交互的绝对红线（防范 Read Storm 事故）
+
+历史教训：曾因前端 React 生命周期与 Firebase 监听器配置不当，导致数百万次非预期 Reads。在生成任何前端查询代码时，必须严格遵守以下规范：
+
+* **禁止全表扫描 (No Unbounded Queries):**
+  任何通过 `getDocs` 获取集合数据的代码，除非有极特殊的白名单理由，否则强制要求使用 `query()` 并配合 `limit()`（默认最大 50）。禁止写出 `getDocs(collection(db, "collectionName"))` 这种裸查询。
+
+* **严格的 onSnapshot 生命周期管理 (Strict Listener Hygiene):**
+  凡是使用 `onSnapshot` 进行实时订阅的 React 组件，必须满足：
+  1. 必须包裹在 `useEffect` 中。
+  2. `useEffect` 的依赖数组必须极其精确，严禁因为无关 state 变化导致 effect 反复执行。
+  3. **必须**在 `useEffect` 中 return `unsubscribe` 函数，确保组件卸载时断开连接。
+
+* **禁止在错误捕获中触发重试副作用 (No Retry on Denial):**
+  在处理 Firebase 调用的 `try...catch` 时，遇到错误（特别是 `permission-denied` 或 `quota-exceeded`），仅允许阻断逻辑并展示静态 UI 提示。绝对禁止在 Catch 块中修改触发重新渲染并导致重新请求的 State，防止陷入无限请求死循环。

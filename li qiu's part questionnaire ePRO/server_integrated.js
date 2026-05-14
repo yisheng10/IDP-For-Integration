@@ -4,7 +4,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI, TaskType } = require('@google/generative-ai');
 
 const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:5173',
@@ -63,6 +63,260 @@ const SOURCE_SYSTEM = 'triallight-epro-service';
 
 function cloneBaselineConfig() {
   return JSON.parse(JSON.stringify(baselineConfig));
+}
+
+function normalizeBaselineQuestionType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'boolean' || normalized === 'numeric_scale' || normalized === 'text') {
+    return normalized;
+  }
+  return 'text';
+}
+
+function normalizeConditionalOperator(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'greater_than' || normalized === 'less_than') {
+    return normalized;
+  }
+  return 'equals';
+}
+
+function ensureBooleanSuffix(questionText) {
+  if (/\(yes\/no\)/i.test(questionText)) {
+    return questionText;
+  }
+  return `${questionText} (Yes/No)`;
+}
+
+function ensureScaleSuffix(questionText) {
+  if (/\b0\s*[-to]+\s*10\b/i.test(questionText) || /\(0-10\)/i.test(questionText)) {
+    return questionText;
+  }
+  return `${questionText} (0-10)`;
+}
+
+function sanitizeBaselineQuestions(rawQuestions) {
+  if (!Array.isArray(rawQuestions)) {
+    return cloneBaselineConfig();
+  }
+
+  const preliminary = rawQuestions
+    .map((candidate, index) => {
+      if (!candidate || typeof candidate !== 'object') {
+        return null;
+      }
+
+      const questionText = normalizeQuestionText(candidate.question_text ?? candidate.question);
+      if (!questionText) {
+        return null;
+      }
+
+      return {
+        originalQuestionId: String(candidate.question_id ?? candidate.id ?? `AUTO_${index + 1}`).trim() || `AUTO_${index + 1}`,
+        questionText,
+        questionType: normalizeBaselineQuestionType(candidate.question_type ?? candidate.type),
+        tier: String(candidate.tier || 'BASE').trim().toUpperCase() === 'CONDITIONAL' ? 'CONDITIONAL' : 'BASE',
+        conditionalLogic: candidate.conditional_logic || null,
+      };
+    })
+    .filter(Boolean);
+
+  if (!preliminary.length) {
+    return cloneBaselineConfig();
+  }
+
+  const idMap = new Map();
+  preliminary.forEach((entry, index) => {
+    idMap.set(entry.originalQuestionId, `ePRO_${String(index + 1).padStart(3, '0')}`);
+  });
+
+  const sanitized = [];
+  const baseQuestionIds = [];
+
+  preliminary.forEach((entry) => {
+    const questionId = idMap.get(entry.originalQuestionId);
+    let questionText = entry.questionText;
+
+    if (entry.questionType === 'boolean') {
+      questionText = ensureBooleanSuffix(questionText);
+    }
+    if (entry.questionType === 'numeric_scale') {
+      questionText = ensureScaleSuffix(questionText);
+    }
+
+    if (entry.tier === 'BASE') {
+      sanitized.push({
+        question_id: questionId,
+        question_text: questionText,
+        question_type: entry.questionType,
+        tier: 'BASE',
+        conditional_logic: null,
+      });
+      baseQuestionIds.push(questionId);
+      return;
+    }
+
+    const referencedOriginalId = String(entry.conditionalLogic?.question_id || '').trim();
+    let parentQuestionId = referencedOriginalId ? idMap.get(referencedOriginalId) || null : null;
+    if (!parentQuestionId && baseQuestionIds.length > 0) {
+      parentQuestionId = baseQuestionIds[baseQuestionIds.length - 1];
+    }
+    if (!parentQuestionId) {
+      return;
+    }
+
+    sanitized.push({
+      question_id: questionId,
+      question_text: questionText,
+      question_type: entry.questionType,
+      tier: 'CONDITIONAL',
+      conditional_logic: {
+        question_id: parentQuestionId,
+        operator: normalizeConditionalOperator(entry.conditionalLogic?.operator),
+        value:
+          entry.conditionalLogic && Object.prototype.hasOwnProperty.call(entry.conditionalLogic, 'value')
+            ? entry.conditionalLogic.value
+            : true,
+      },
+    });
+  });
+
+  const hasBaseQuestion = sanitized.some((entry) => entry.tier === 'BASE');
+  return sanitized.length && hasBaseQuestion ? sanitized : cloneBaselineConfig();
+}
+
+async function buildProtocolQueryEmbedding(queryText) {
+  if (!genAI) {
+    return null;
+  }
+
+  const embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+  const embeddingResult = await embeddingModel.embedContent({
+    content: { parts: [{ text: queryText }] },
+    taskType: TaskType.RETRIEVAL_QUERY,
+  });
+  return embeddingResult?.embedding?.values || null;
+}
+
+async function fetchProtocolContextChunks({ protocolId, protocolName }) {
+  const cleanProtocolId = String(protocolId || '').trim();
+  const cleanProtocolName = cleanProtocolId ? '' : String(protocolName || '').trim();
+
+  if (!cleanProtocolId && !cleanProtocolName) {
+    return [];
+  }
+
+  try {
+    const queryEmbedding = await buildProtocolQueryEmbedding(
+      'daily patient reported outcome questionnaire, diary questions, safety signals, symptom follow-up, primary endpoints'
+    );
+
+    if (queryEmbedding?.length) {
+      const { data: matches, error } = await supabase.rpc('match_guidance_documents', {
+        query_embedding: queryEmbedding,
+        match_count: 8,
+        _source_types: ['protocol'],
+        _protocol_id: cleanProtocolId || null,
+        _protocol_name: cleanProtocolName || null,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (Array.isArray(matches) && matches.length > 0) {
+        return matches;
+      }
+    }
+  } catch (error) {
+    console.warn('Protocol semantic retrieval fallback activated:', error.message);
+  }
+
+  let queryBuilder = supabase
+    .from('guidance_documents')
+    .select('protocol_id, protocol_name, title, page, chunk_index, content')
+    .eq('source_type', 'protocol');
+
+  if (cleanProtocolId) {
+    queryBuilder = queryBuilder.eq('protocol_id', cleanProtocolId);
+  } else if (cleanProtocolName) {
+    queryBuilder = queryBuilder.eq('protocol_name', cleanProtocolName);
+  }
+
+  const { data } = await queryBuilder.order('chunk_index', { ascending: true }).limit(12);
+  return Array.isArray(data) ? data : [];
+}
+
+function buildProtocolBaselinePrompt({ protocolId, protocolName, protocolChunks }) {
+  const excerptText = protocolChunks
+    .map((entry, index) => {
+      const page = entry.page ?? 'Unknown';
+      const title = String(entry.title || protocolName || protocolId || 'Protocol');
+      return `[Excerpt ${index + 1} | ${title} | page ${page}]\n${normalizeQuestionText(entry.content)}`;
+    })
+    .join('\n\n---\n\n');
+
+  return `
+You are a clinical trial questionnaire architect.
+
+Create the BASELINE daily ePRO questionnaire for this protocol.
+
+PROTOCOL:
+- Protocol ID: ${protocolId || 'unknown'}
+- Protocol name: ${protocolName || 'unknown'}
+
+PROTOCOL EXCERPTS:
+${excerptText}
+
+STRICT OUTPUT RULES:
+1. Return ONLY a valid JSON array. No markdown or extra explanation.
+2. Each object must contain:
+   - "question_id"
+   - "question_text"
+   - "question_type" ("boolean", "numeric_scale", or "text")
+   - "tier" ("BASE" or "CONDITIONAL")
+   - "conditional_logic" (null for BASE, object for CONDITIONAL)
+3. BASE questions are mandatory daily gatekeeper questions.
+4. CONDITIONAL questions are follow-up detail questions tied to a BASE question.
+5. Use only patient-friendly English.
+6. Keep the questionnaire grounded in the protocol excerpts only.
+7. Prefer 6 to 16 total questions unless the excerpts clearly support fewer.
+8. Every numeric_scale question must be a 0-10 severity or interference scale.
+9. Use this conditional logic shape:
+   {
+     "question_id": "parent base question id",
+     "operator": "equals",
+     "value": true
+   }
+`;
+}
+
+async function generateProtocolBaselineConfig({ protocolId, protocolName }) {
+  if (!model) {
+    return cloneBaselineConfig();
+  }
+
+  const protocolChunks = await fetchProtocolContextChunks({ protocolId, protocolName });
+  if (!protocolChunks.length) {
+    return cloneBaselineConfig();
+  }
+
+  try {
+    const result = await model.generateContent(
+      buildProtocolBaselinePrompt({ protocolId, protocolName, protocolChunks })
+    );
+    const parsed = JSON.parse(
+      result.response
+        .text()
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim()
+    );
+    return sanitizeBaselineQuestions(parsed);
+  } catch (error) {
+    console.warn('Protocol baseline generation fallback activated:', error.message);
+    return cloneBaselineConfig();
+  }
 }
 
 function normalizeQuestionText(value) {
@@ -154,21 +408,28 @@ function nextDueDate(fromIsoString) {
   return new Date(baseDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
 }
 
-async function ensureSession(subjectId, patientName) {
+async function ensureSession(subjectId, patientName, protocolIdInput = null, protocolNameInput = null) {
   const cleanSubjectId = sanitizeSubjectId(subjectId);
   if (!cleanSubjectId) {
     throw new Error('subject_id is required');
   }
 
+  const protocolId = String(protocolIdInput || '').trim() || null;
+  const protocolName = String(protocolNameInput || '').trim() || null;
+
   let session = SUBJECT_SESSIONS.get(cleanSubjectId);
   if (!session) {
     const activePatient = await getPatientProfile(cleanSubjectId, patientName);
     const assignedAt = new Date().toISOString();
+    const protocolBaselineCache = await generateProtocolBaselineConfig({ protocolId, protocolName });
     session = {
       subjectId: cleanSubjectId,
       activePatient,
+      protocolId,
+      protocolName,
       currentDay: 1,
-      currentConfigCache: cloneBaselineConfig(),
+      protocolBaselineCache,
+      currentConfigCache: protocolBaselineCache,
       assignedAt,
       dueAt: nextDueDate(assignedAt),
       localHistory: [],
@@ -177,6 +438,17 @@ async function ensureSession(subjectId, patientName) {
     SUBJECT_SESSIONS.set(cleanSubjectId, session);
   } else if (patientName) {
     session.activePatient.name = patientName;
+    const nextProtocolId = protocolId || session.protocolId || null;
+    const nextProtocolName = protocolName || session.protocolName || null;
+    if (nextProtocolId !== session.protocolId || nextProtocolName !== session.protocolName) {
+      session.protocolId = nextProtocolId;
+      session.protocolName = nextProtocolName;
+      session.protocolBaselineCache = await generateProtocolBaselineConfig({
+        protocolId: session.protocolId,
+        protocolName: session.protocolName,
+      });
+      session.currentConfigCache = session.protocolBaselineCache;
+    }
   }
 
   return session;
@@ -226,6 +498,10 @@ async function persistSurveyResponse(session, answers) {
 
 function buildGenerationPrompt(session, recentHistory) {
   const patient = session.activePatient || buildFallbackProfile(session.subjectId);
+  const baselineQuestions =
+    Array.isArray(session.protocolBaselineCache) && session.protocolBaselineCache.length
+      ? session.protocolBaselineCache
+      : cloneBaselineConfig();
 
   return `
 You are generating only the OPTIONAL customized section for a clinical ePRO form.
@@ -233,6 +509,8 @@ You are generating only the OPTIONAL customized section for a clinical ePRO form
 PATIENT:
 - Name: ${patient.name || session.subjectId}
 - Day number: ${session.currentDay}
+- Protocol ID: ${session.protocolId || 'unknown'}
+- Protocol name: ${session.protocolName || 'unknown'}
 - Medical History: ${(patient.medical_history || []).join(', ') || 'Not provided'}
 - Recent vitals summary: ${JSON.stringify(patient.vitals_logged || {})}
 - Recent AI chat summary: ${JSON.stringify(patient.chat_history || [])}
@@ -241,7 +519,7 @@ RECENT EPRO HISTORY (LAST 3 DAYS):
 ${JSON.stringify(recentHistory, null, 2)}
 
 IMMUTABLE BASELINE PROTOCOL QUESTIONS:
-${JSON.stringify(baselineConfig, null, 2)}
+${JSON.stringify(baselineQuestions, null, 2)}
 
 STRICT GENERATION RULES:
 1. Do NOT rewrite, remove, reorder, or replace any baseline protocol question.
@@ -266,8 +544,13 @@ Return either [] or:
 }
 
 async function generateNextDayConfig(session) {
+  const baselineQuestions =
+    Array.isArray(session.protocolBaselineCache) && session.protocolBaselineCache.length
+      ? session.protocolBaselineCache
+      : cloneBaselineConfig();
+
   if (!model) {
-    session.currentConfigCache = cloneBaselineConfig();
+    session.currentConfigCache = baselineQuestions;
     return;
   }
 
@@ -283,10 +566,10 @@ async function generateNextDayConfig(session) {
 
     const parsed = JSON.parse(responseText);
     const customQuestions = sanitizeCustomQuestions(parsed, session.currentDay);
-    session.currentConfigCache = [...cloneBaselineConfig(), ...customQuestions];
+    session.currentConfigCache = [...baselineQuestions, ...customQuestions];
   } catch (error) {
     console.warn(`AI questionnaire generation fallback for ${session.subjectId}:`, error.message);
-    session.currentConfigCache = cloneBaselineConfig();
+    session.currentConfigCache = baselineQuestions;
   }
 }
 
@@ -316,13 +599,13 @@ function dailySurveyResponse(session) {
   };
 }
 
-async function handleDailySurvey(subjectId, patientName) {
-  const session = await ensureSession(subjectId, patientName);
+async function handleDailySurvey(subjectId, patientName, protocolId, protocolName) {
+  const session = await ensureSession(subjectId, patientName, protocolId, protocolName);
   return dailySurveyResponse(session);
 }
 
-async function handleSubmit(subjectId, patientName, answers) {
-  const session = await ensureSession(subjectId, patientName);
+async function handleSubmit(subjectId, patientName, answers, protocolId, protocolName) {
+  const session = await ensureSession(subjectId, patientName, protocolId, protocolName);
 
   if (session.currentDay > MAX_TRIAL_DAY) {
     return {
@@ -373,7 +656,12 @@ app.get('/healthz', (_req, res) => {
 
 app.get('/api/epro/daily-survey', async (req, res) => {
   try {
-    const payload = await handleDailySurvey(req.query.subject_id, req.query.patient_name);
+    const payload = await handleDailySurvey(
+      req.query.subject_id,
+      req.query.patient_name,
+      req.query.protocol_id,
+      req.query.protocol_name
+    );
     res.json(payload);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -382,7 +670,13 @@ app.get('/api/epro/daily-survey', async (req, res) => {
 
 app.post('/api/epro/submit', async (req, res) => {
   try {
-    const payload = await handleSubmit(req.body.subject_id, req.body.patient_name, req.body.answers);
+    const payload = await handleSubmit(
+      req.body.subject_id,
+      req.body.patient_name,
+      req.body.answers,
+      req.body.protocol_id,
+      req.body.protocol_name
+    );
     res.json(payload);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -392,10 +686,21 @@ app.post('/api/epro/submit', async (req, res) => {
 app.post('/api/start-simulation', async (req, res) => {
   try {
     const subjectId = sanitizeSubjectId(req.body.patientId);
-    const session = await ensureSession(subjectId, req.body.patientName);
+    const session = await ensureSession(
+      subjectId,
+      req.body.patientName,
+      req.body.protocol_id,
+      req.body.protocol_name
+    );
     LEGACY_STATE.subjectId = subjectId;
     session.currentDay = 1;
-    session.currentConfigCache = cloneBaselineConfig();
+    session.protocolId = String(req.body.protocol_id || session.protocolId || '').trim() || null;
+    session.protocolName = String(req.body.protocol_name || session.protocolName || '').trim() || null;
+    session.protocolBaselineCache = await generateProtocolBaselineConfig({
+      protocolId: session.protocolId,
+      protocolName: session.protocolName,
+    });
+    session.currentConfigCache = session.protocolBaselineCache;
     session.assignedAt = new Date().toISOString();
     session.dueAt = nextDueDate(session.assignedAt);
     session.localHistory = [];

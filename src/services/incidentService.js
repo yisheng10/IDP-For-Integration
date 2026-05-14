@@ -414,15 +414,37 @@ export function getIncidentDueState(incident) {
 }
 
 export function subscribeToIncidentRecords(onUpdate, onError, options = {}) {
-  const baseQuery = options?.crcId
-    ? query(collection(db, 'incident_records'), where('primary_crc_id', '==', options.crcId))
-    : query(collection(db, 'incident_records'));
+  const safeLimit = Math.min(Math.max(Number(options?.limitCount) || 40, 1), 50);
+  const scopedCrcId = String(options?.crcId || '').trim();
+  const scopedPatientId = String(options?.patientId || '').trim();
+  const baseQuery = query(collection(db, 'incident_records'), limit(safeLimit));
 
   return onSnapshot(
     baseQuery,
     (snapshot) => {
       const incidents = snapshot.docs
         .map((entry) => ({ id: entry.id, ...entry.data() }))
+        .filter((incident) => {
+          if (scopedPatientId) {
+            const linkedIds = Array.isArray(incident.linked_patient_ids) ? incident.linked_patient_ids : [];
+            const linkedPatients = Array.isArray(incident.linked_patients) ? incident.linked_patients : [];
+            const patientMatch =
+              linkedIds.includes(scopedPatientId) ||
+              linkedPatients.some(
+                (patient) => patient?.patient_id === scopedPatientId || patient?.uid === scopedPatientId
+              );
+            if (!patientMatch) return false;
+          }
+
+          if (scopedCrcId) {
+            const owner = String(incident.primary_crc_id || '').trim();
+            if (owner && owner !== scopedCrcId) {
+              return false;
+            }
+          }
+
+          return true;
+        })
         .sort((left, right) => {
           const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
           const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();

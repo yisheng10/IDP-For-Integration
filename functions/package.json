@@ -1,13 +1,27 @@
 {
   "name": "triallight-functions",
   "private": true,
+  "type": "module",
   "main": "index.js",
   "engines": {
     "node": "20"
   },
+  "scripts": {
+    "migrate:firestore": "node ./scripts/migrate-firestore-operational-data.mjs",
+    "backfill:patient-auth-reset": "node ./scripts/backfill-patient-auth-reset.mjs",
+    "backfill:patient-static-context": "node ./scripts/backfill-patient-static-context.mjs",
+    "sync:patient-subject-assignments": "node ./scripts/sync-patient-subject-assignments.mjs",
+    "delete:target-patient-users": "node ./scripts/delete-target-patient-users.mjs",
+    "reconcile:patient-email-conflict": "node ./scripts/reconcile-patient-email-conflict.mjs",
+    "backfill:protocol-static-context": "node ./scripts/backfill-protocol-static-context.mjs",
+    "seed:dropout-qa-live-history": "node ./scripts/seed-dropout-qa-live-history.mjs"
+  },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.49.8",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.0.1",
+    "pdfjs-dist": "3.11.174",
     "web-push": "^3.6.7"
   }
 }

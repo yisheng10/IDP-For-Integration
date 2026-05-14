@@ -201,7 +201,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
                 </div>
               ))
             ) : (
-              <div style={styles.emptyState}>No linked structured side effect reports yet.</div>
+            <div style={styles.emptyState}>No linked structured adverse event reports yet.</div>
             )}
           </div>
 

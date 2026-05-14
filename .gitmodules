@@ -1,3 +1,6 @@
 [submodule "Patient-Dropout-Prediction"]
 	path = Patient-Dropout-Prediction
 	url = https://github.com/yisheng10/Patient-Dropout-Prediction.git
+[submodule "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2"]
+	path = MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2
+	url = https://github.com/yisheng10/IDP_PatientApp.git
