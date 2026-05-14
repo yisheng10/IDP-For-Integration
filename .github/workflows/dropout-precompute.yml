@@ -183,3 +183,16 @@ jobs:
           fi
 
           python "./src/publish_dropout_snapshots.py" "${args[@]}"
+
+      - name: Evaluate shadow monitoring proxies
+        working-directory: ./Patient-Dropout-Prediction
+        shell: bash
+        run: |
+          FIREBASE_UIDS="${{ github.event.inputs.firebase_uids || '' }}"
+          args=(--proxy-version proxy-v1 --window-days 7)
+
+          if [ -n "$FIREBASE_UIDS" ]; then
+            args+=(--firebase-uids "$FIREBASE_UIDS")
+          fi
+
+          python "./src/evaluate_shadow_proxies.py" "${args[@]}"

@@ -5504,3 +5504,62 @@ eady calculation.
   - this does not change the score
   - it does not invent missing data
   - it only turns an empty required section into an explicit “none reported” section so clean mirrors can be marked `ready` instead of `partial`
+
+## 2026-05-14 - CRC intervention case loop added to Patient Disengagement Prediction frontend
+
+- Added bounded Firestore helpers in `src/services/dropoutService.js` for the CRC-only intervention loop:
+  - subscribe to recent `users/{uid}/dropout_intervention_cases` with `orderBy('updated_at', 'desc')` and `limit(...)`
+  - detect the current open case without scanning unbounded history
+  - update the active case with the latest prediction snapshot instead of forcing a new daily CRC click
+- Added minimal intervention case UI to `src/components/DropoutRiskPanel.jsx`:
+  - shows the current case status, recorded action, manual result, and latest synced prediction timestamp
+  - supports manual action buttons:
+    - `outreach_attempted`
+    - `monitor_only`
+  - supports manual result buttons:
+    - `no_response_yet`
+    - `responded`
+  - treats automatic statuses as read-only display only:
+    - `window_open`
+    - `reengaged_observed`
+    - `no_reengagement_observed`
+    - `source_incomplete`
+  - does not expose any `pending` action button
+- Passed `currentUser={{ uid, name }}` from `src/pages/CRCHome.jsx` into the dropout panel so case updates can stamp CRC identity on manual actions/results.
+- Frontend safety notes:
+  - all new Firestore case listeners are inside `useEffect` and return `unsubscribe`
+  - all new case reads are bounded by `limit(...)`
+  - errors only surface UI state and do not trigger retry loops in `catch`
+
+## 2026-05-14 - Case-based intervention loop, deeper explainability, and shadow proxy writeback added to dropout backend
+
+- Added a new helper module at `.dropout-safe-worktree/src/intervention_cases.py` to support a case-based CRC workflow instead of tying manual actions to each daily prediction publish.
+- Plainly stated:
+  - a patient can now have one current open intervention case instead of forcing CRC staff to click again every day
+  - the daily publish refreshes the latest prediction context on the case
+  - the automatic 7-day outcome status stays separate from the manual CRC action/result fields
+- Updated `.dropout-safe-worktree/src/publish_dropout_snapshots.py` so each successful live publish can:
+  - plan or refresh an intervention case for actionable patients
+  - attach the active case ID to the current Firestore snapshot
+  - attach case metadata into the shadow-monitoring JSON payload without changing the Supabase top-level schema
+  - include intervention-case summary counts in the dashboard summary payload
+- Updated `.dropout-safe-worktree/src/evaluate_shadow_proxies.py` so the shadow evaluator now:
+  - re-checks rows previously marked `insufficient_forward_window`
+  - distinguishes automatic patient re-engagement states:
+    - `window_open`
+    - `reengaged_observed`
+    - `no_reengagement_observed`
+    - `source_incomplete`
+  - writes the automatic proxy outcome back to the linked Firestore intervention case
+  - auto-closes a case when re-engagement is observed
+- Extended the CRC explainability contract in:
+  - `.dropout-safe-worktree/src/crc_integration_contracts.py`
+  - `.dropout-safe-worktree/src/explainability_summary.py`
+- New patient-level explainability fields now include:
+  - `challenger_local_drivers`
+  - `challenger_local_summary`
+  - `what_if_scenarios`
+  - `patient_stability_hint`
+  - structured `source_completeness`
+- Updated `.github/workflows/dropout-precompute.yml` so the scheduled/manual dropout workflow now runs the shadow proxy evaluator after publish, instead of only writing shadow rows and stopping there.
+- Also cleaned up the Pandas UTC deprecation warnings in the touched dropout backend paths by switching to `Timestamp.now('UTC')`.
