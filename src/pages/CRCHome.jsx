@@ -2781,6 +2781,7 @@ export default function CRCHome({ user, onLogout }) {
             <section id="patient-disengagement" className="dashboard-section">
               <DropoutRiskPanel
                 patients={patients}
+                currentUser={{ uid: user.uid, name: currentCrcDisplayName }}
                 onOpenPatients={(patient) => openDropoutPatientWorkspace(patient)}
                 onOpenStudyCoordination={(patient) => openDropoutPatientWorkspace(patient, 'coordination')}
               />

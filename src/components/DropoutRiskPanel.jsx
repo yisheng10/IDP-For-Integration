@@ -1,13 +1,35 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import WindowPaginationControls from './WindowPaginationControls';
 import {
+  buildDropoutInterventionPredictionSignature,
+  closeDropoutInterventionCase,
+  findActiveDropoutInterventionCase,
   fetchDropoutDashboardSummary,
+  getDropoutInterventionProxyStatus,
+  isDropoutInterventionCaseOpen,
   subscribeToAllDropoutPredictionSnapshots,
   subscribeToDropoutPredictionExplainability,
   subscribeToDropoutPredictionSnapshotsForUsers,
+  subscribeToRecentDropoutInterventionCases,
+  updateActiveDropoutInterventionCase,
 } from '../services/dropoutService';
 
 const DEFAULT_DROPOUT_PAGE_SIZE = 30;
+const RECENT_INTERVENTION_CASE_LIMIT = 6;
+const INTERVENTION_ACTION_BUTTONS = [
+  { value: 'outreach_attempted', label: 'Outreach attempted' },
+  { value: 'monitor_only', label: 'Monitor only' },
+];
+const INTERVENTION_RESULT_BUTTONS = [
+  { value: 'no_response_yet', label: 'No response yet' },
+  { value: 'responded', label: 'Responded' },
+];
+const READ_ONLY_INTERVENTION_STATUSES = [
+  'window_open',
+  'reengaged_observed',
+  'no_reengagement_observed',
+  'source_incomplete',
+];
 
 function renderRiskBucket(bucket) {
   return String(bucket || 'pending').toUpperCase();
@@ -86,6 +108,57 @@ function formatRecommendedAction(snapshot = {}) {
     return 'Collect more history';
   }
   return snapshot?.recommended_action || 'N/A';
+}
+
+function formatDateTimeValue(value, emptyLabel = 'N/A') {
+  if (!value) return emptyLabel;
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(nextValue.getTime()) ? emptyLabel : nextValue.toLocaleString();
+}
+
+function formatWorkflowValueLabel(value, emptyLabel = 'Not recorded') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return emptyLabel;
+  return normalized
+    .split('_')
+    .filter(Boolean)
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(' ');
+}
+
+function hasUsableSnapshotForInterventionCase(snapshot = {}) {
+  return Boolean(
+    String(snapshot?.published_at || '').trim() ||
+      String(snapshot?.risk_bucket || '').trim() ||
+      getProbabilityNumber(snapshot?.dropout_probability) != null
+  );
+}
+
+function getInterventionCaseStatusTone(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'reengaged_observed') return 'success';
+  if (normalized === 'window_open') return 'brand';
+  if (normalized === 'no_reengagement_observed' || normalized === 'source_incomplete') return 'warning';
+  return 'default';
+}
+
+function getInterventionLifecycleTone(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'open') return 'brand';
+  if (normalized === 'closed') return 'default';
+  return 'default';
+}
+
+function shouldAutoSyncInterventionCase(caseEntry = null, snapshot = {}, patient = null) {
+  if (!hasUsableSnapshotForInterventionCase(snapshot)) {
+    return false;
+  }
+
+  if (!caseEntry) {
+    return isActionableSnapshot(snapshot);
+  }
+
+  return String(caseEntry.latest_prediction_signature || '') !== buildDropoutInterventionPredictionSignature(snapshot, patient);
 }
 
 function buildEarlyHistorySummary(snapshot = {}) {
@@ -346,6 +419,7 @@ function StatusSummarySection({ title, status, summary, emptyLabel }) {
 
 export default function DropoutRiskPanel({
   patients = [],
+  currentUser = null,
   onOpenStudyCoordination,
   onOpenPatients,
 }) {
@@ -361,6 +435,11 @@ export default function DropoutRiskPanel({
   const [activeExplainability, setActiveExplainability] = useState(null);
   const [activeExplainabilityReady, setActiveExplainabilityReady] = useState(false);
   const [activeExplainabilityUserId, setActiveExplainabilityUserId] = useState('');
+  const [recentInterventionCases, setRecentInterventionCases] = useState([]);
+  const [interventionCasesReady, setInterventionCasesReady] = useState(false);
+  const [interventionCaseError, setInterventionCaseError] = useState('');
+  const [isUpdatingInterventionCase, setIsUpdatingInterventionCase] = useState(false);
+  const [interventionCaseMutationError, setInterventionCaseMutationError] = useState('');
 
   const loadedUserIds = useMemo(() => patients.map((patient) => patient.id).filter(Boolean), [patients]);
   const loadedUserSignature = useMemo(() => loadedUserIds.join('|'), [loadedUserIds]);
@@ -483,12 +562,68 @@ export default function DropoutRiskPanel({
     );
   }, [activeEntry?.userId]);
 
+  useEffect(() => {
+    if (!activeEntry?.userId) {
+      setRecentInterventionCases([]);
+      setInterventionCasesReady(false);
+      setInterventionCaseError('');
+      setInterventionCaseMutationError('');
+      return undefined;
+    }
+
+    setRecentInterventionCases([]);
+    setInterventionCasesReady(false);
+    setInterventionCaseError('');
+    setInterventionCaseMutationError('');
+
+    return subscribeToRecentDropoutInterventionCases(
+      activeEntry.userId,
+      (rows) => {
+        setRecentInterventionCases(rows);
+        setInterventionCasesReady(true);
+        setInterventionCaseError('');
+      },
+      (nextError) => {
+        console.error('Unable to load recent dropout intervention cases:', nextError);
+        setRecentInterventionCases([]);
+        setInterventionCasesReady(true);
+        setInterventionCaseError(nextError.message || 'Unable to load recent intervention cases.');
+      },
+      { limitCount: RECENT_INTERVENTION_CASE_LIMIT }
+    );
+  }, [activeEntry?.userId]);
+
   const activeExplainabilityPayload = useMemo(() => {
     if (!activeExplainabilityReady) return null;
     if (!activeEntry?.userId) return null;
     if (activeExplainabilityUserId !== activeEntry.userId) return null;
     return activeExplainability;
   }, [activeEntry?.userId, activeExplainability, activeExplainabilityReady, activeExplainabilityUserId]);
+  const activeInterventionCase = useMemo(
+    () => findActiveDropoutInterventionCase(recentInterventionCases),
+    [recentInterventionCases]
+  );
+  const openInterventionCaseCount = useMemo(
+    () => recentInterventionCases.filter((entry) => isDropoutInterventionCaseOpen(entry)).length,
+    [recentInterventionCases]
+  );
+  const canUseInterventionCaseLoop = useMemo(
+    () => Boolean(activeEntry?.userId && !isEarlyHistorySnapshot(activeEntry) && hasUsableSnapshotForInterventionCase(activeEntry)),
+    [activeEntry]
+  );
+  const shouldAutoSyncActiveInterventionCase = useMemo(() => {
+    if (!interventionCasesReady || interventionCaseError || !canUseInterventionCaseLoop) {
+      return false;
+    }
+
+    return shouldAutoSyncInterventionCase(activeInterventionCase, activeEntry, activeEntry?.patient);
+  }, [
+    activeEntry,
+    activeInterventionCase,
+    canUseInterventionCaseLoop,
+    interventionCaseError,
+    interventionCasesReady,
+  ]);
 
   const dashboardMetrics = useMemo(
     () => ({
@@ -504,12 +639,30 @@ export default function DropoutRiskPanel({
   const explainabilityWhyFlagged = useMemo(() => {
     return buildSignalLines(activeExplainabilityPayload?.why_flagged);
   }, [activeExplainabilityPayload?.why_flagged]);
+  const explainabilityChallengerDrivers = useMemo(() => {
+    return buildSignalLines(activeExplainabilityPayload?.challenger_local_drivers);
+  }, [activeExplainabilityPayload?.challenger_local_drivers]);
+  const explainabilityChallengerSummary = useMemo(
+    () => String(activeExplainabilityPayload?.challenger_local_summary || '').trim(),
+    [activeExplainabilityPayload?.challenger_local_summary]
+  );
   const explainabilityMissingInputs = useMemo(() => {
     return buildSignalLines(activeExplainabilityPayload?.missing_or_weak_inputs);
   }, [activeExplainabilityPayload?.missing_or_weak_inputs]);
   const explainabilityRiskReduction = useMemo(() => {
     return buildSignalLines(activeExplainabilityPayload?.what_could_reduce_risk);
   }, [activeExplainabilityPayload?.what_could_reduce_risk]);
+  const explainabilityWhatIfScenarios = useMemo(() => {
+    return buildSignalLines(activeExplainabilityPayload?.what_if_scenarios);
+  }, [activeExplainabilityPayload?.what_if_scenarios]);
+  const explainabilityPatientStabilityHint = useMemo(
+    () => String(activeExplainabilityPayload?.patient_stability_hint || '').trim(),
+    [activeExplainabilityPayload?.patient_stability_hint]
+  );
+  const explainabilitySourceCompleteness = useMemo(
+    () => buildSignalLines(activeExplainabilityPayload?.source_completeness),
+    [activeExplainabilityPayload?.source_completeness]
+  );
   const explainabilityModelAgreement = useMemo(() => {
     const payload = activeExplainabilityPayload?.model_agreement;
     if (payload && typeof payload === 'object') {
@@ -579,6 +732,50 @@ export default function DropoutRiskPanel({
     ? `Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} global fallback snapshot rows from the latest published snapshot pool.`
     : `Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} ranked patients from the loaded disengagement snapshot window.`;
 
+  useEffect(() => {
+    if (!shouldAutoSyncActiveInterventionCase || isUpdatingInterventionCase || !activeEntry?.userId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function syncActiveInterventionCase() {
+      setIsUpdatingInterventionCase(true);
+      try {
+        await updateActiveDropoutInterventionCase({
+          userId: activeEntry.userId,
+          patient: activeEntry.patient,
+          prediction: activeEntry,
+          recentCases: recentInterventionCases,
+          currentUser,
+        });
+        if (!cancelled) {
+          setInterventionCaseMutationError('');
+        }
+      } catch (nextError) {
+        console.error('Unable to sync the active dropout intervention case:', nextError);
+        if (!cancelled) {
+          setInterventionCaseMutationError(nextError.message || 'Unable to sync the active intervention case.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsUpdatingInterventionCase(false);
+        }
+      }
+    }
+
+    syncActiveInterventionCase();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeEntry,
+    currentUser,
+    isUpdatingInterventionCase,
+    recentInterventionCases,
+    shouldAutoSyncActiveInterventionCase,
+  ]);
+
   const openStudyCoordination = () => {
     if (activeEntry?.patient && typeof onOpenStudyCoordination === 'function') {
       onOpenStudyCoordination(activeEntry.patient);
@@ -590,6 +787,76 @@ export default function DropoutRiskPanel({
       onOpenPatients(activeEntry.patient);
     }
   };
+
+  async function handleInterventionCaseMutation({ actionTaken = '', manualResult = '' } = {}) {
+    if (!activeEntry?.userId || isUpdatingInterventionCase) {
+      return;
+    }
+
+    setIsUpdatingInterventionCase(true);
+    try {
+      await updateActiveDropoutInterventionCase({
+        userId: activeEntry.userId,
+        patient: activeEntry.patient,
+        prediction: activeEntry,
+        recentCases: recentInterventionCases,
+        currentUser,
+        actionTaken,
+        manualResult,
+      });
+      setInterventionCaseMutationError('');
+    } catch (nextError) {
+      console.error('Unable to update the dropout intervention case:', nextError);
+      setInterventionCaseMutationError(nextError.message || 'Unable to update the intervention case.');
+    } finally {
+      setIsUpdatingInterventionCase(false);
+    }
+  }
+
+  async function handleInterventionCaseClose() {
+    if (!activeEntry?.userId || !activeInterventionCase?.id || isUpdatingInterventionCase) {
+      return;
+    }
+
+    setIsUpdatingInterventionCase(true);
+    try {
+      await closeDropoutInterventionCase({
+        userId: activeEntry.userId,
+        caseId: activeInterventionCase.id,
+        currentUser,
+      });
+      setInterventionCaseMutationError('');
+    } catch (nextError) {
+      console.error('Unable to close the dropout intervention case:', nextError);
+      setInterventionCaseMutationError(nextError.message || 'Unable to close the intervention case.');
+    } finally {
+      setIsUpdatingInterventionCase(false);
+    }
+  }
+
+  const interventionCaseStatusValue = activeInterventionCase?.status || '';
+  const interventionCaseProxyStatusValue = getDropoutInterventionProxyStatus(activeInterventionCase);
+  const interventionCaseActionValue =
+    activeInterventionCase?.action_taken_code || activeInterventionCase?.action_taken || '';
+  const interventionCaseResultValue =
+    activeInterventionCase?.contact_result_status || activeInterventionCase?.manual_result || '';
+  const canMutateInterventionCase = Boolean(
+    activeEntry?.userId &&
+      currentUser?.uid &&
+      !isEarlyHistorySnapshot(activeEntry) &&
+      hasUsableSnapshotForInterventionCase(activeEntry) &&
+      (activeInterventionCase || activeEntry?.isActionable) &&
+      !interventionCaseError
+  );
+  const isPreparingInterventionCase =
+    !activeInterventionCase && interventionCasesReady && shouldAutoSyncActiveInterventionCase;
+  const recentInterventionCasePreview = recentInterventionCases.slice(0, 3);
+  const canCloseInterventionCase = Boolean(
+    activeInterventionCase?.id &&
+      currentUser?.uid &&
+      isDropoutInterventionCaseOpen(activeInterventionCase) &&
+      !isUpdatingInterventionCase
+  );
 
   const content = (() => {
     if (error) {
@@ -783,6 +1050,165 @@ export default function DropoutRiskPanel({
                   </div>
                 </div>
 
+                <div className="dropout-card dropout-card--soft" style={{ marginTop: '18px' }}>
+                  <div className="dropout-card__header">
+                    <strong>Intervention case</strong>
+                    <span
+                      className={`metric-pill metric-pill--${getInterventionLifecycleTone(
+                        isPreparingInterventionCase ? 'open' : interventionCaseStatusValue
+                      )}`}
+                    >
+                      {isPreparingInterventionCase
+                        ? 'Preparing case'
+                        : formatWorkflowValueLabel(
+                            interventionCaseStatusValue,
+                            canUseInterventionCaseLoop ? 'No open case' : 'Not available'
+                          )}
+                    </span>
+                  </div>
+                  <div className="dropout-card__metric">
+                    Case lifecycle:{' '}
+                    {isPreparingInterventionCase
+                      ? 'Preparing open case from the latest prediction'
+                      : formatWorkflowValueLabel(
+                          interventionCaseStatusValue,
+                          canUseInterventionCaseLoop ? 'No open case yet' : 'Not available for this patient'
+                        )}
+                  </div>
+                  <div className="dropout-card__metric">
+                    Observed 7-day re-engagement:{' '}
+                    <span className={`metric-pill metric-pill--${getInterventionCaseStatusTone(interventionCaseProxyStatusValue)}`}>
+                      {formatWorkflowValueLabel(interventionCaseProxyStatusValue, 'Window not evaluated yet')}
+                    </span>
+                  </div>
+                  <div className="dropout-card__metric">
+                    Action recorded: {formatWorkflowValueLabel(interventionCaseActionValue, 'Not recorded')}
+                  </div>
+                  <div className="dropout-card__metric">
+                    CRC manual result: {formatWorkflowValueLabel(interventionCaseResultValue, 'Not recorded')}
+                  </div>
+                  <div className="dropout-card__metric">
+                    Latest synced prediction:{' '}
+                    {formatDateTimeValue(
+                      activeInterventionCase?.latest_prediction_published_at || activeEntry?.published_at,
+                      'No synced prediction yet'
+                    )}
+                  </div>
+                  <div className="dropout-card__metric">
+                    Last case update:{' '}
+                    {formatDateTimeValue(
+                      activeInterventionCase?.updated_at || activeInterventionCase?.created_at,
+                      activeInterventionCase ? 'Draft' : 'No case timestamp'
+                    )}
+                  </div>
+
+                  {openInterventionCaseCount > 1 ? (
+                    <div
+                      className="info-banner"
+                      style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}
+                    >
+                      More than one open intervention case is visible for this patient. The CRC UI will keep updating only the most recent open case until the data is cleaned up.
+                    </div>
+                  ) : null}
+
+                  {interventionCaseError ? (
+                    <div
+                      className="info-banner"
+                      style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}
+                    >
+                      {interventionCaseError}
+                    </div>
+                  ) : null}
+
+                  {interventionCaseMutationError ? (
+                    <div
+                      className="info-banner"
+                      style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}
+                    >
+                      {interventionCaseMutationError}
+                    </div>
+                  ) : null}
+
+                  <div className="section-note section-note--spaced">
+                    Automatic case statuses stay read-only here: {READ_ONLY_INTERVENTION_STATUSES.join(', ')}.
+                  </div>
+
+                  <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
+                    {INTERVENTION_ACTION_BUTTONS.map((actionOption) => (
+                      <button
+                        key={actionOption.value}
+                        type="button"
+                        className={`btn ${
+                          interventionCaseActionValue === actionOption.value ? 'btn-primary' : 'btn-secondary'
+                        } btn-small`}
+                        disabled={!canMutateInterventionCase || isUpdatingInterventionCase}
+                        onClick={() => handleInterventionCaseMutation({ actionTaken: actionOption.value })}
+                      >
+                        {actionOption.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
+                    {INTERVENTION_RESULT_BUTTONS.map((resultOption) => (
+                      <button
+                        key={resultOption.value}
+                        type="button"
+                        className={`btn ${
+                          interventionCaseResultValue === resultOption.value ? 'btn-primary' : 'btn-secondary'
+                        } btn-small`}
+                        disabled={!canMutateInterventionCase || isUpdatingInterventionCase}
+                        onClick={() => handleInterventionCaseMutation({ manualResult: resultOption.value })}
+                      >
+                        {resultOption.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {canCloseInterventionCase ? (
+                    <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-small"
+                        onClick={handleInterventionCaseClose}
+                        disabled={isUpdatingInterventionCase}
+                      >
+                        Close case
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <div className="section-note section-note--spaced">
+                    {canMutateInterventionCase
+                      ? isUpdatingInterventionCase
+                        ? 'Saving the latest intervention case update...'
+                        : 'The currently open case will keep syncing to the latest daily prediction, so CRC does not need to click again every day just to refresh the case.'
+                      : !currentUser?.uid
+                        ? 'CRC identity is required before intervention actions can be recorded.'
+                        : isEarlyHistorySnapshot(activeEntry)
+                          ? 'Intervention cases become available after a published scored snapshot is visible for this patient.'
+                          : !activeInterventionCase && !activeEntry?.isActionable
+                            ? 'This patient does not have an open intervention case, and the current snapshot is not actionable enough to open one from the CRC panel.'
+                          : 'Intervention case controls are temporarily unavailable.'}
+                  </div>
+
+                  {recentInterventionCasePreview.length ? (
+                    <div className="section-note section-note--spaced">
+                      Recent cases:{' '}
+                      {recentInterventionCasePreview
+                        .map((caseEntry) => {
+                          const timestampLabel = formatDateTimeValue(
+                            caseEntry.updated_at || caseEntry.created_at,
+                            'No timestamp'
+                          );
+                          const proxyStatus = getDropoutInterventionProxyStatus(caseEntry);
+                          return `${formatWorkflowValueLabel(caseEntry.status, 'No status')} / ${formatWorkflowValueLabel(proxyStatus, 'No proxy status')} (${timestampLabel})`;
+                        })
+                        .join(' | ')}
+                    </div>
+                  ) : null}
+                </div>
+
                 {isEarlyHistorySnapshot(activeEntry) ? (
                   <div className="info-banner section-note--spaced">{buildEarlyHistorySummary(activeEntry)}</div>
                 ) : null}
@@ -829,6 +1255,16 @@ export default function DropoutRiskPanel({
                         emptyLabel="Why flagged: missing"
                       />
                       <DetailSection
+                        title="Challenger local drivers"
+                        items={explainabilityChallengerDrivers}
+                        emptyLabel="No patient-level challenger drivers were published for this snapshot."
+                      />
+                      <DetailSection
+                        title="Challenger local summary"
+                        items={explainabilityChallengerSummary ? [explainabilityChallengerSummary] : []}
+                        emptyLabel="No patient-level challenger summary was published for this snapshot."
+                      />
+                      <DetailSection
                         title="Data gaps affecting confidence"
                         items={explainabilityMissingInputs}
                         emptyLabel="Missing or weak inputs: missing"
@@ -837,6 +1273,21 @@ export default function DropoutRiskPanel({
                         title="What might reduce disengagement risk"
                         items={explainabilityRiskReduction}
                         emptyLabel="What could reduce risk: missing"
+                      />
+                      <DetailSection
+                        title="What-if scenarios"
+                        items={explainabilityWhatIfScenarios}
+                        emptyLabel="No patient-level what-if scenarios were published for this snapshot."
+                      />
+                      <DetailSection
+                        title="Patient stability hint"
+                        items={explainabilityPatientStabilityHint ? [explainabilityPatientStabilityHint] : []}
+                        emptyLabel="No patient-level stability hint was published for this snapshot."
+                      />
+                      <DetailSection
+                        title="Structured source completeness"
+                        items={explainabilitySourceCompleteness}
+                        emptyLabel="No structured source completeness summary was published for this snapshot."
                       />
                       <StatusSummarySection
                         title="Model agreement"
