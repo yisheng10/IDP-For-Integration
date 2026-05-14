@@ -489,7 +489,7 @@ const PatientHome = ({ user, onLogout }) => {
         role="patient"
         userId={user.uid}
         userNickname={nickname}
-        patientData={{ appointments, vitals: history }}
+        patientData={{ appointments, vitals: history, protocolId, protocolName }}
         protocolUrl={protocolUrl}
         activeProtocolName={protocolName}
         onEmergencyTrigger={handleAIAlert}

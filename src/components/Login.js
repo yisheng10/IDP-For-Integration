@@ -56,6 +56,8 @@ function getAuthErrorMessage({ error, type, isReg }) {
 export default function Login({ type, onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [gender, setGender] = useState('');
@@ -72,6 +74,11 @@ export default function Login({ type, onLogin }) {
     parsedDistanceToSiteKm >= 0;
 
   const handleAuth = async () => {
+    if (isSubmitting) return;
+
+    setAuthError('');
+    setIsSubmitting(true);
+
     try {
       if (type === 'crc' && !email.endsWith('@hospital.com')) throw new Error('Only @hospital.com allowed');
       if (type === 'patient' && email.endsWith('@hospital.com')) throw new Error('Staff use CRC portal');
@@ -114,8 +121,14 @@ export default function Login({ type, onLogin }) {
       await enforceRoleSecurity(user, type);
       if (onLogin) onLogin(user);
     } catch (error) {
-      Alert.alert(`${getSurfaceLabel(type)} Authentication`, getAuthErrorMessage({ error, type, isReg }));
+      const message = getAuthErrorMessage({ error, type, isReg });
+      setAuthError(message);
+      if (Platform.OS !== 'web') {
+        Alert.alert(`${getSurfaceLabel(type)} Authentication`, message);
+      }
       if (auth.currentUser) signOut(auth);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -206,9 +219,25 @@ export default function Login({ type, onLogin }) {
           <Text style={styles.label}>Password</Text>
           <TextInput style={styles.input} placeholder="Enter password" value={password} onChangeText={setPassword} secureTextEntry />
 
-          <TouchableOpacity style={[styles.button, { backgroundColor: type === 'crc' ? '#0f609b' : '#00796b' }]} onPress={handleAuth}>
-            <Text style={styles.buttonText}>{isReg ? 'Create account' : 'Continue'}</Text>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              { backgroundColor: type === 'crc' ? '#0f609b' : '#00796b' },
+              isSubmitting && styles.buttonDisabled,
+            ]}
+            onPress={handleAuth}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.buttonText}>
+              {isSubmitting ? 'Please wait...' : isReg ? 'Create account' : 'Continue'}
+            </Text>
           </TouchableOpacity>
+
+          {authError ? (
+            <Text accessibilityRole="alert" style={styles.errorText}>
+              {authError}
+            </Text>
+          ) : null}
 
           {type === 'patient' ? (
             <TouchableOpacity onPress={() => setIsReg((current) => !current)}>
@@ -308,10 +337,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
+  buttonDisabled: {
+    opacity: 0.64,
+  },
   buttonText: {
     color: 'white',
     fontWeight: '800',
     fontSize: 16,
+  },
+  errorText: {
+    marginTop: 12,
+    color: '#b42318',
+    fontWeight: '700',
+    lineHeight: 20,
   },
   linkText: {
     marginTop: 16,

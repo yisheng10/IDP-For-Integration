@@ -5,7 +5,7 @@ export const APP_BACKGROUND_IMAGE =
 
 export const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 export const SIDE_EFFECT_GUIDANCE_PROVIDER =
-  process.env.EXPO_PUBLIC_SIDE_EFFECT_GUIDANCE_PROVIDER || 'gemini-browser';
+  process.env.EXPO_PUBLIC_SIDE_EFFECT_GUIDANCE_PROVIDER || 'gemini';
 export const SIDE_EFFECT_GUIDANCE_MODEL =
   process.env.EXPO_PUBLIC_SIDE_EFFECT_GUIDANCE_MODEL || 'gemini-2.5-flash';
 

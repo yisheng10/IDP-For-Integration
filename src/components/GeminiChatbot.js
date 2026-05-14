@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   addDoc,
   collection,
@@ -27,29 +26,18 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import { GEMINI_API_KEY, SIDE_EFFECT_GUIDANCE_MODEL } from '../config';
 import { useCall } from '../context/CallContext';
 import { db } from '../firebase';
 import { SAFETY_INSTRUCTIONS } from '../safetyInstructions';
+import { retrieveGuidanceContext } from '../services/guidanceRetrievalService';
+import { requestSideEffectGuidance } from '../services/sideEffectGuidanceService';
 import { submitSideEffectReport } from '../services/sideEffectService';
-import { getSignedUrl } from '../services/storageService';
-import { supabase } from '../supabaseClient';
-import { urlToBase64 } from '../utils';
 
 const CRC_AI_NAME = 'Side Effect Guidance';
 const PATIENT_AI_NAME = 'AI Side Effect Guidance';
 const DEFAULT_EMERGENCY_PHONE = '999';
 const CHAT_HISTORY_LIMIT = 100;
-const TEMPORARY_AI_ERROR_PATTERNS = [
-  '503',
-  '429',
-  'high demand',
-  'temporarily unavailable',
-  'overloaded',
-  'service unavailable',
-  'failed to fetch',
-  'networkerror',
-];
+const DEFAULT_RETRIEVAL_MATCH_COUNT = 3;
 const EMERGENCY_KEYWORDS = [
   { label: 'Breathing difficulty', patterns: [/can'?t breathe/i, /cannot breathe/i, /difficulty breathing/i, /short(ness)? of breath/i, /喘/i] },
   { label: 'Chest pain', patterns: [/chest pain/i, /tight chest/i, /胸痛/i] },
@@ -103,17 +91,49 @@ function sanitizePhoneNumber(value) {
   return String(value || '').replace(/[^\d+]/g, '');
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function isAssignedProtocolName(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return !['not assigned', 'no protocol assigned', 'no protocol assigned.', 'none', 'null', 'undefined'].includes(normalized);
 }
 
-function getErrorMessage(error) {
-  return String(error?.message || error || '').trim();
+function isClearlyNonClinicalMessage(userText) {
+  const normalized = String(userText || '').trim().toLowerCase();
+  if (!normalized) return true;
+  if (/^(hi|hello|hey|thanks|thank you|ok|okay|yes|no)$/i.test(normalized)) return true;
+  if (
+    /^(open|close|show|hide|where is|how do i use)\b/i.test(normalized) &&
+    /\b(app|screen|page|button|menu|login|logout|password|profile|chat|window)\b/i.test(normalized)
+  ) {
+    return true;
+  }
+  return false;
 }
 
-function isTemporaryAiError(error) {
-  const message = getErrorMessage(error).toLowerCase();
-  return TEMPORARY_AI_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
+function isBoolean(value) {
+  return typeof value === 'boolean';
+}
+
+function buildDefaultRetrievalRoute({ userText, hasActiveProtocol }) {
+  if (isClearlyNonClinicalMessage(userText)) {
+    return {
+      retrieveCtcae: false,
+      retrieveProtocol: false,
+      ctcaeQuery: '',
+      protocolQuery: '',
+      reason: 'Message appears non-clinical and does not require document retrieval.',
+    };
+  }
+
+  return {
+    retrieveCtcae: true,
+    retrieveProtocol: hasActiveProtocol,
+    ctcaeQuery: userText,
+    protocolQuery: hasActiveProtocol ? userText : '',
+    reason: hasActiveProtocol
+      ? 'Router was unavailable or unclear; defaulting to broader CTCAE and protocol retrieval.'
+      : 'Router was unavailable or unclear; no active protocol assigned, so retrieving CTCAE only.',
+  };
 }
 
 function findFirstKeywordMatch(text, groups) {
@@ -123,6 +143,11 @@ function findFirstKeywordMatch(text, groups) {
     }
   }
   return '';
+}
+
+function toPositiveNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
 function inferLatestVitalsSummary(patientData) {
@@ -139,11 +164,16 @@ function inferLatestVitalsSummary(patientData) {
   if (latest.bpSys) rows.push(`BP ${latest.bpSys}/${latest.bpDia || '-'}`);
   if (latest.heartRate) rows.push(`HR ${latest.heartRate}`);
   if (latest.spo2) rows.push(`SpO2 ${latest.spo2}%`);
+  if (latest.glucoseFasting) rows.push(`Glucose(F) ${latest.glucoseFasting}`);
+  if (latest.glucosePost) rows.push(`Glucose(P) ${latest.glucosePost}`);
 
-  const temp = Number(latest.temperature || 0);
-  const spo2 = Number(latest.spo2 || 0);
-  const bpSys = Number(latest.bpSys || 0);
-  const hasCriticalVitals = (temp && temp >= 39) || (spo2 && spo2 > 0 && spo2 < 92) || bpSys >= 180;
+  const temp = toPositiveNumber(latest.temperature);
+  const spo2 = toPositiveNumber(latest.spo2);
+  const bpSys = toPositiveNumber(latest.bpSys);
+  const hasCriticalVitals =
+    (temp && temp >= 39) ||
+    (spo2 && spo2 > 0 && spo2 < 92) ||
+    bpSys >= 180;
 
   return {
     summary: rows.length > 0 ? rows.join(' | ') : 'No recent vitals available in the app.',
@@ -232,25 +262,6 @@ function buildFallbackSideEffectAssessment({ userText, patientData, activeProtoc
   };
 }
 
-async function generateContentWithRetry(model, parts) {
-  let lastError = null;
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const result = await model.generateContent(parts);
-      return result.response.text().trim();
-    } catch (error) {
-      lastError = error;
-      if (!isTemporaryAiError(error) || attempt === 1) {
-        throw error;
-      }
-      await sleep(1200 * (attempt + 1));
-    }
-  }
-
-  throw lastError || new Error('AI guidance request failed.');
-}
-
 function formatVitalLog(entry) {
   const date = new Date(entry.timestamp).toLocaleDateString();
   const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -270,7 +281,6 @@ const GeminiChatbot = ({
   userNickname,
   userId,
   patientData,
-  protocolUrl,
   activeProtocolName,
   onEmergencyTrigger,
   openSignal,
@@ -285,11 +295,12 @@ const GeminiChatbot = ({
 
   const scrollViewRef = useRef(null);
   const introWrittenRef = useRef(false);
-  const protocolCacheRef = useRef({ key: null, part: null });
 
   const { startCall } = useCall();
   const currentAiName = role === 'crc' ? CRC_AI_NAME : PATIENT_AI_NAME;
   const historyCollectionRef = userId ? collection(db, 'users', userId, 'ai_chat_history') : null;
+  const activeProtocolId = patientData?.protocolId || patientData?.protocol_id || null;
+  const resolvedProtocolName = activeProtocolName || patientData?.protocolName || patientData?.protocol_name || '';
 
   const callTargets = useMemo(
     () => ({
@@ -303,8 +314,7 @@ const GeminiChatbot = ({
 
   useEffect(() => {
     introWrittenRef.current = false;
-    protocolCacheRef.current = { key: null, part: null };
-  }, [protocolUrl, userId, role]);
+  }, [userId, role]);
 
   useEffect(() => {
     if (!historyCollectionRef) {
@@ -372,7 +382,7 @@ const GeminiChatbot = ({
   const fetchFullPatientContext = async (targetId) => {
     let vitalsStr = 'No vitals recorded.';
     let appointmentsStr = 'No upcoming appointments.';
-    let protocolStatus = activeProtocolName || 'No protocol assigned.';
+    let protocolStatus = resolvedProtocolName || 'No protocol assigned.';
 
     if (!targetId) {
       return { vitalsStr, appointmentsStr, protocolStatus };
@@ -411,7 +421,7 @@ const GeminiChatbot = ({
         }
       }
 
-      if (!activeProtocolName && !patientData?.protocolName) {
+      if (!resolvedProtocolName) {
         const userSnapshot = await getDoc(doc(db, 'users', targetId));
         if (userSnapshot.exists()) {
           const profile = userSnapshot.data();
@@ -425,64 +435,146 @@ const GeminiChatbot = ({
     return { vitalsStr, appointmentsStr, protocolStatus };
   };
 
-  const getProtocolInlinePart = async () => {
-    if (!protocolUrl) return null;
-    if (protocolCacheRef.current.key === protocolUrl) {
-      return protocolCacheRef.current.part;
-    }
+  const routeGuidanceRetrieval = async ({ userText, transcript, vitalsStr, protocolStatus }) => {
+    const hasActiveProtocol = isAssignedProtocolName(resolvedProtocolName || protocolStatus);
+    const defaultRoute = buildDefaultRetrievalRoute({ userText, hasActiveProtocol });
+
+    const routerPrompt = `
+Return JSON only.
+
+You are deciding which clinical documents must be retrieved before answering the latest user message.
+
+Document purposes:
+- CTCAE: Use for adverse event terminology, symptom/lab toxicity grading, severity/risk classification, CTCAE grade evidence, and standardized toxicity definitions.
+- Protocol: Use for study-specific rules, assigned protocol requirements, visit schedule, eligibility, dose modification, treatment hold/restart rules, prohibited medications, protocol-specific self-management, reporting requirements, emergency/contact instructions, and whether a symptom/action is covered by the active protocol.
+- Both: Use when the user reports a symptom, side effect, abnormal lab/vital, treatment reaction, medication issue, or safety concern that may need CTCAE severity grading AND protocol-specific management/escalation.
+- Neither: Use only for greetings, simple app navigation, non-clinical logistics, or questions answerable from current conversation/context without document evidence.
+
+Decision rules:
+1. If the user asks "how severe", "what grade", "risk", "CTCAE", or reports a symptom/lab/vital needing severity assessment, retrieve CTCAE.
+2. If the user asks "what should I do under my study/protocol", "is this allowed", "do I continue/hold medication", "when is my visit", "who should be alerted", or asks protocol-specific workflow, retrieve protocol.
+3. If a patient reports a possible side effect or abnormal lab/vital and an active protocol exists, retrieve both CTCAE and protocol unless the message is clearly non-clinical.
+4. If no active protocol is assigned, do not retrieve protocol; set protocol reason to "No active protocol assigned".
+5. If the latest message gives incomplete clinical information, still retrieve the relevant document type, but tell the answer model not to over-confirm grade/risk without missing details.
+6. If you cannot clearly decide whether CTCAE or protocol is needed, retrieve both CTCAE and protocol.
+7. Prefer broader retrieval when uncertainty affects patient safety.
+
+Current active protocol:
+${hasActiveProtocol ? resolvedProtocolName || protocolStatus : 'Not assigned'}
+
+Recent vitals:
+${vitalsStr}
+
+Recent conversation:
+${transcript || 'No previous conversation.'}
+
+Latest user message:
+${userText}
+
+Schema:
+{
+  "retrieve_ctcae": boolean,
+  "retrieve_protocol": boolean,
+  "ctcae_query": string,
+  "protocol_query": string,
+  "reason": string
+}
+`.trim();
 
     try {
-      const resolvedUrl = protocolUrl.startsWith('http') ? protocolUrl : await getSignedUrl(protocolUrl, 'protocol');
-      if (!resolvedUrl) {
-        protocolCacheRef.current = { key: protocolUrl, part: null };
-        return null;
+      const result = await requestSideEffectGuidance({
+        userMessage: routerPrompt,
+        responseFormat: 'json',
+        temperature: 0.1,
+        topP: 0.1,
+      });
+      const parsed = safeJsonParse(result?.text || '');
+      const hasRequiredFields =
+        parsed &&
+        isBoolean(parsed.retrieve_ctcae) &&
+        isBoolean(parsed.retrieve_protocol) &&
+        typeof parsed.ctcae_query === 'string' &&
+        typeof parsed.protocol_query === 'string';
+      const reason = String(parsed?.reason || '').trim();
+      const saysUnclear = /unclear|cannot clearly|can't clearly|uncertain|not sure/i.test(reason);
+
+      if (!hasRequiredFields || saysUnclear) {
+        return defaultRoute;
       }
 
-      const base64 = await urlToBase64(resolvedUrl);
-      const part = base64
-        ? {
-            inlineData: {
-              data: base64,
-              mimeType: 'application/pdf',
-            },
-          }
-        : null;
+      let retrieveCtcae = parsed.retrieve_ctcae;
+      let retrieveProtocol = parsed.retrieve_protocol && hasActiveProtocol;
 
-      protocolCacheRef.current = { key: protocolUrl, part };
-      return part;
+      if (!retrieveCtcae && !retrieveProtocol && !isClearlyNonClinicalMessage(userText)) {
+        return defaultRoute;
+      }
+
+      return {
+        retrieveCtcae,
+        retrieveProtocol,
+        ctcaeQuery: retrieveCtcae ? String(parsed.ctcae_query || userText).trim() || userText : '',
+        protocolQuery: retrieveProtocol ? String(parsed.protocol_query || userText).trim() || userText : '',
+        reason: retrieveProtocol === parsed.retrieve_protocol
+          ? reason
+          : `${reason || 'Retrieval routed by model.'} No active protocol assigned, so protocol retrieval was skipped.`,
+      };
     } catch (error) {
-      console.error('Protocol fetch failed:', error);
-      protocolCacheRef.current = { key: protocolUrl, part: null };
-      return null;
+      console.error('Guidance retrieval router failed:', error);
+      return defaultRoute;
     }
   };
 
-  const retrieveCtcaeContext = async (queryText) => {
+  const formatGuidanceChunks = (chunks, sourceLabel) => {
+    if (!chunks?.length) return '';
+
+    return chunks
+      .map((entry) => {
+        const page = entry.page || entry.metadata?.page || 'Unknown';
+        const title = entry.title || entry.metadata?.title || entry.protocol_name || entry.metadata?.protocol_name || '';
+        const labelParts = [`${sourceLabel} Page ${page}`];
+        if (title) labelParts.push(title);
+        return `[${labelParts.join(' - ')}]\n${entry.content}`;
+      })
+      .join('\n\n');
+  };
+
+  const retrieveGuidanceEvidence = async (route) => {
+    const emptyEvidence = { ctcaeContext: '', protocolContext: '' };
+    if (!route?.retrieveCtcae && !route?.retrieveProtocol) return emptyEvidence;
+
     try {
-      if (!queryText || queryText.trim().length < 3 || !GEMINI_API_KEY) return '';
+      const [ctcaeResponse, protocolResponse] = await Promise.all([
+        route.retrieveCtcae
+          ? retrieveGuidanceContext({
+              queryText: route.ctcaeQuery || route.protocolQuery || '',
+              ctcaeMatchCount: DEFAULT_RETRIEVAL_MATCH_COUNT,
+              protocolMatchCount: 0,
+            }).catch((error) => {
+              console.error('CTCAE retrieval failed:', error);
+              return { ctcaeChunks: [] };
+            })
+          : Promise.resolve({ ctcaeChunks: [] }),
+        route.retrieveProtocol
+          ? retrieveGuidanceContext({
+              queryText: route.protocolQuery || route.ctcaeQuery || '',
+              protocolId: activeProtocolId,
+              protocolName: resolvedProtocolName,
+              ctcaeMatchCount: 0,
+              protocolMatchCount: DEFAULT_RETRIEVAL_MATCH_COUNT,
+            }).catch((error) => {
+              console.error('Protocol retrieval failed:', error);
+              return { protocolChunks: [] };
+            })
+          : Promise.resolve({ protocolChunks: [] }),
+      ]);
 
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-      const embeddingResult = await embeddingModel.embedContent(queryText);
-      const vector = embeddingResult.embedding.values;
-
-      const { data, error } = await supabase.rpc('match_documents', {
-        query_embedding: vector,
-        match_threshold: 0.4,
-        match_count: 3,
-      });
-
-      if (error || !data?.length) return '';
-
-      return data
-        .map((entry) => {
-          const pageInfo = entry.metadata?.page ? `Page ${entry.metadata.page}` : 'Unknown page';
-          return `[${pageInfo}] ${entry.content}`;
-        })
-        .join('\n\n');
+      return {
+        ctcaeContext: formatGuidanceChunks(ctcaeResponse?.ctcaeChunks || [], 'CTCAE'),
+        protocolContext: formatGuidanceChunks(protocolResponse?.protocolChunks || [], 'Protocol'),
+      };
     } catch (error) {
-      console.error('CTCAE retrieval failed:', error);
-      return '';
+      console.error('Guidance retrieval failed:', error);
+      return emptyEvidence;
     }
   };
 
@@ -493,22 +585,17 @@ const GeminiChatbot = ({
     appointmentsStr,
     protocolStatus,
     ctcaeContext,
+    protocolContext,
+    retrievalRoute,
   }) => {
-    if (!GEMINI_API_KEY) {
-      throw new Error('Gemini API key is missing. Add EXPO_PUBLIC_GEMINI_API_KEY to the patient app .env and restart Expo.');
-    }
-
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: SIDE_EFFECT_GUIDANCE_MODEL });
-    const protocolPart = await getProtocolInlinePart();
-
     const instructions = `
 You are ${currentAiName}.
 Role: ${role === 'crc' ? 'Clinical Research Coordinator assistant' : 'Patient symptom guidance assistant'}.
 
 Current patient context:
-- Active protocol: ${activeProtocolName || 'Not assigned'}
+- Active protocol: ${resolvedProtocolName || 'Not assigned'}
 - Protocol status: ${protocolStatus}
+- Retrieval decision: ${retrievalRoute?.reason || 'No retrieval decision recorded.'}
 
 Recent vitals:
 ${vitalsStr}
@@ -523,9 +610,11 @@ Patient assistant rules:
 - Do not tell the patient to fill a separate side effect form.
 - If the patient reports a symptom or side effect, guide them directly in chat.
 - Ask only for missing clinical details when needed.
+- If the patient gives an imprecise lab value or range, do not present a precise CTCAE grade or LOW risk as confirmed. Ask for the exact value, units, symptoms, and whether the value is improving.
+- Cite CTCAE/protocol page numbers only when the page number is present in the retrieved excerpts below. If no reliable page is present, say the page could not be confirmed instead of inventing one.
 - For severe symptoms, tell the patient to call the study emergency number or local emergency services immediately.
 - If the symptom appears covered by the active protocol, explain the likely protocol-aligned self-management or next step cautiously.
-- If the symptom does not appear covered by the active protocol, say CRC will be alerted directly.
+- If the symptom does not appear covered by the active protocol, or no protocol excerpts were retrieved, say CRC will be alerted directly when protocol-specific coverage cannot be confirmed.
 
 Conversation transcript:
 ${transcript || 'No previous conversation.'}
@@ -535,22 +624,28 @@ ${userText}
 
 Relevant CTCAE excerpts:
 ${ctcaeContext || 'None'}
+
+Relevant protocol excerpts:
+${protocolContext || 'None'}
 `.trim();
 
-    const parts = [];
-    if (protocolPart) parts.push(protocolPart);
-    parts.push({ text: instructions });
+    const result = await requestSideEffectGuidance({
+      userMessage: instructions,
+    });
 
-    return generateContentWithRetry(model, parts);
+    return result?.text || '';
   };
 
-  const extractSideEffectEvent = async ({ userText, transcript, vitalsStr, protocolStatus, ctcaeContext }) => {
+  const extractSideEffectEvent = async ({
+    userText,
+    transcript,
+    vitalsStr,
+    protocolStatus,
+    ctcaeContext,
+    protocolContext,
+    retrievalRoute,
+  }) => {
     if (role !== 'patient') return null;
-    if (!GEMINI_API_KEY) return null;
-
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: SIDE_EFFECT_GUIDANCE_MODEL });
-    const protocolPart = await getProtocolInlinePart();
 
     const extractorPrompt = `
 Return JSON only.
@@ -563,11 +658,14 @@ Rules:
 - If the symptom appears clearly covered by the active protocol, set "protocol_covered" to true.
 - If the symptom appears not covered by the active protocol, set "protocol_covered" to false and "should_alert_crc" to true.
 - If protocol coverage cannot be determined safely, set "protocol_covered" to null and "should_alert_crc" to true.
+- Determine protocol_covered only from the Relevant protocol excerpts. If there are no relevant protocol excerpts, set protocol_covered to null.
 - If the symptom is severe, dangerous, or needs urgent escalation, set severity to "serious", "immediate_help_requested" to true, and "should_alert_crc" to true.
+- If the latest message gives only an imprecise lab threshold or range without exact value, symptoms, or current status, do not mark severity as "mild" solely from that incomplete threshold. Use clinical judgment from the available context and set "should_alert_crc" to true when protocol coverage or severity cannot be determined safely.
 - Use the recent vitals as additional severity evidence.
 
-Current protocol name: ${activeProtocolName || 'Not assigned'}
+Current protocol name: ${resolvedProtocolName || 'Not assigned'}
 Protocol status: ${protocolStatus}
+Retrieval decision: ${retrievalRoute?.reason || 'No retrieval decision recorded.'}
 
 Recent vitals:
 ${vitalsStr}
@@ -580,6 +678,9 @@ ${userText}
 
 Relevant CTCAE excerpts:
 ${ctcaeContext || 'None'}
+
+Relevant protocol excerpts:
+${protocolContext || 'None'}
 
 Schema:
 {
@@ -596,12 +697,14 @@ Schema:
 }
 `.trim();
 
-    const parts = [];
-    if (protocolPart) parts.push(protocolPart);
-    parts.push({ text: extractorPrompt });
+    const result = await requestSideEffectGuidance({
+      userMessage: extractorPrompt,
+      responseFormat: 'json',
+      temperature: 0.1,
+      topP: 0.1,
+    });
 
-    const resultText = await generateContentWithRetry(model, parts);
-    return safeJsonParse(resultText);
+    return safeJsonParse(result?.text || '');
   };
 
   const openPhoneLink = async (phoneNumber, label) => {
@@ -688,11 +791,29 @@ Schema:
       const targetId = role === 'patient' ? userId : patientData?.id;
       const { vitalsStr, appointmentsStr, protocolStatus } = await fetchFullPatientContext(targetId);
       const transcript = buildConversationTranscript(messages);
-      const ctcaeContext = await retrieveCtcaeContext(userText);
+      const retrievalRoute = await routeGuidanceRetrieval({ userText, transcript, vitalsStr, protocolStatus });
+      const { ctcaeContext, protocolContext } = await retrieveGuidanceEvidence(retrievalRoute);
 
       const [assistantText, extracted] = await Promise.all([
-        generateAssistantText({ userText, transcript, vitalsStr, appointmentsStr, protocolStatus, ctcaeContext }),
-        extractSideEffectEvent({ userText, transcript, vitalsStr, protocolStatus, ctcaeContext }),
+        generateAssistantText({
+          userText,
+          transcript,
+          vitalsStr,
+          appointmentsStr,
+          protocolStatus,
+          ctcaeContext,
+          protocolContext,
+          retrievalRoute,
+        }),
+        extractSideEffectEvent({
+          userText,
+          transcript,
+          vitalsStr,
+          protocolStatus,
+          ctcaeContext,
+          protocolContext,
+          retrievalRoute,
+        }),
       ]);
 
       if (assistantText) {
@@ -712,7 +833,7 @@ Schema:
         const fallback = buildFallbackSideEffectAssessment({
           userText,
           patientData,
-          activeProtocolName,
+          activeProtocolName: resolvedProtocolName,
         });
 
         await saveMessage('model', fallback.assistantText);
