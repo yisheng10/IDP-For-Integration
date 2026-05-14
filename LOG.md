@@ -5452,3 +5452,15 @@ eady calculation.
 - Plainly stated:
   - this does not change model behavior
   - it only reduces repeated dependency download/install time on subsequent workflow runs when `requirements.txt` is unchanged
+
+## 2026-05-14 - Explainability mirror default missing-input section normalized
+
+- After the successful targeted QA publish, all 9 explainability mirrors were still landing as:
+  - `mirror_status=partial`
+  - because the required section `missing_or_weak_inputs` was empty for clean, high-confidence snapshots
+- Updated the dropout explainability builder so that when no input gaps are present, it now writes:
+  - `No missing-input issues were reported for the current snapshot.`
+- Plainly stated:
+  - this does not change the score
+  - it does not invent missing data
+  - it only turns an empty required section into an explicit “none reported” section so clean mirrors can be marked `ready` instead of `partial`
