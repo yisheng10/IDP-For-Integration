@@ -16,6 +16,14 @@
 - Production cloud functions: partially blocked by Firebase plan limitations.
 
 ## Completed Work
+### Shadow Proxy Evaluator Graceful Skip
+- Fixed the dropout shadow proxy evaluator so GitHub Actions no longer fails when the Supabase shadow monitoring table has not been provisioned yet.
+- `Patient-Dropout-Prediction/src/evaluate_shadow_proxies.py` now matches the publisher's graceful-degradation behavior:
+  - if `dropout_shadow_predictions` returns HTTP `404`
+  - and `DROPOUT_REQUIRE_SHADOW_MONITORING` is not enabled
+  - the evaluator logs a skip message and exits with zero candidates instead of hard-failing the workflow
+- This keeps the main disengagement publish path green while shadow monitoring infrastructure is still intentionally absent.
+
 ### Dropout QA Live-History Seed Script
 - Added `functions/scripts/seed-dropout-qa-live-history.mjs` for Patient Disengagement Prediction QA setup.
 - The script is intentionally budget-safe:
