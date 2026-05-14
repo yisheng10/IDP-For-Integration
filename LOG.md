@@ -78,6 +78,11 @@
   - Root cause: the publish CLI only parsed `--firebase-uids` as comma-separated text. If a manual GitHub Actions run pasted newline- or space-separated UIDs, the workflow treated the whole block as one invalid target UID and filtered out every patient.
   - Hardened `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py` to accept comma-, space-, or newline-separated UID input and to log the parsed target UID count plus a preview of the resolved list.
   - Updated `.github/workflows/dropout-precompute.yml` so the manual-dispatch input description now explicitly says commas, spaces, or new lines are accepted.
+- Investigated a subsequent workflow run that still published `0` predictions with `scanned_patient_docs=0`.
+  - The log proved the run was still using the older external dropout repo checkout and never reached the newly seeded QA patients.
+  - The remaining high-confidence operational risk is the GitHub Actions secret `FIREBASE_SERVICE_ACCOUNT_JSON`: if it targets the wrong Firebase project, the publisher can connect successfully but read an empty `users` collection for `role=patient`.
+  - Hardened `Patient-Dropout-Prediction/src/publish_dropout_snapshots.py` so preflight now prints both the detected Firebase `project_id` and the required project ID, and the publisher hard-fails unless the credential project is exactly `traillight-4750b`.
+  - Updated `.github/workflows/dropout-precompute.yml` to pass `REQUIRED_FIREBASE_PROJECT_ID=traillight-4750b` explicitly into the workflow environment.
 - Fixed the GitHub Actions dropout publish workspace verification by force-adding the required Candidate 024 scoring artifact to the external dropout repository branch:
   - `deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl`
   - commit `e753685` on `yisheng10/Patient-Dropout-Prediction:codex/candidate-024-disengagement-hardening`
@@ -5280,3 +5285,95 @@ eady calculation.
   - environment file setup
   - local preview commands for CRC web, patient app web, and dropout Python setup
   - explicit rule that Yunhong must not push directly to `main`
+
+## 2026-05-13 - Jianhong onboarding manual without dropout prediction repo
+
+- Added a separate beginner-friendly GitHub onboarding manual for Jianhong:
+  - `JIANHONG_GITHUB_ONBOARDING.md`
+- Tailored the instructions so Jianhong only clones:
+  - the main integration repo
+  - the patient app submodule
+- Explicitly avoided the disengagement prediction submodule in Jianhong's workflow by:
+  - removing the recursive clone requirement
+  - using a targeted submodule init command only for `MyClinicalApp2`
+- Included Jianhong-specific setup details for:
+  - environment files
+  - dependency installation
+  - local CRC preview
+  - local patient web preview
+  - branch rules that forbid pushing directly to `main`
+
+## 2026-05-13 - Onboarding manuals tightened for Yunhong and Jianhong access rules
+
+- Updated both onboarding manuals so neither Yunhong nor Jianhong is told they will receive Firebase Hosting deploy access.
+- Kept their collaboration scope to code access plus the explicitly allowed backend/project/API access you approved.
+- Simplified the branch creation instructions to the exact branch names you requested:
+  - `git checkout -b yunhong`
+  - `git checkout -b jianhong`
+- Added an explicit hosting restriction to both manuals:
+  - Yunhong and Jianhong must not host the Firebase CRC website
+  - Yunhong and Jianhong must not host the Firebase patient website
+  - only Yisheng is allowed to deploy Firebase Hosting for those two sites
+
+## 2026-05-13 - Teammate environment setup package prepared
+
+- Created a handoff folder for teammate local environment setup:
+  - `TEAMMATE_ENV_SETUP_20260513`
+- Split the package into:
+  - `yunhong-full`
+  - `jianhong-core`
+- Included the currently present local setup files for:
+  - root CRC web env/config
+  - Firebase Functions env
+  - patient app env
+  - ePRO service env
+  - Supabase config
+  - shared access notes file
+- Included `Patient-Dropout-Prediction/.env.example` only in the Yunhong package.
+- Added package-local English README files so the handoff folder is self-contained even without the separate onboarding manuals.
+- Explicitly documented in the package that no Firebase service account JSON file was present in the workspace at packaging time.
+
+## 2026-05-13 - Teammate environment setup package rebuilt with restored Firebase service account
+
+- After `D:\IDP For Integration\secrets\firebase-service-account.json` was restored, created a second handoff folder:
+  - `TEAMMATE_ENV_SETUP_20260513_WITH_SERVICE_ACCOUNT`
+- Copied the earlier teammate setup package into the new folder version and added:
+  - `yunhong-full/service-account/firebase-service-account.json`
+  - `jianhong-core/service-account/firebase-service-account.json`
+- Updated the new package READMEs to state that this version includes the Firebase admin service account and must be treated as highly sensitive.
+
+## 2026-05-14 - Dropout unsupported-trial root cause isolated to ignored registry CSV assets
+
+- Confirmed the latest `publish-dropout-snapshots` workflow was using:
+  - Firebase project `traillight-4750b`
+  - the targeted 9 QA patient UIDs
+  - the latest dropout branch code
+- Confirmed the workflow still skipped all 9 QA patients with:
+  - `unsupported_trial_id=9`
+  - `eligible_mapped_patients=0`
+- Verified the local QA patient docs already had:
+  - valid `subject_id`
+  - valid `dropout_trial_id`
+  - seeded QA operational history
+- Isolated the new root cause:
+  - `Patient-Dropout-Prediction/deploy_assets/data/triallight_subject_id_map_v35subjectid.csv`
+  - `Patient-Dropout-Prediction/deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv`
+  existed locally but were ignored by the current dropout branch `.gitignore`, so GitHub Actions checkout did not receive the supported-trial registry assets.
+- Verified those two CSV files are tracked in `.dropout-main-worktree` and that the local copies match exactly by size and SHA.
+- Updated `Patient-Dropout-Prediction/.gitignore` allowlist so the current dropout branch can track and ship both registry CSV assets to workflow runs.
+
+## 2026-05-14 - Dropout workflow switched to safe Firestore trial-registry fallback
+
+- The direct GitHub push of subject-level dropout registry CSV assets was blocked by policy because it would disclose subject-mapping/context data to the remote repository.
+- Replaced that unsafe approach with a safer publisher fallback in the dropout repo:
+  - when a configured `assigned_trial_id` is missing from local seed assets,
+  - the publisher now performs exact Firestore reads against `dropout_trial_registry/{trialId}`
+  - and hydrates supported trial metadata from the live registry instead of requiring the CSV assets to be committed.
+- The fallback was validated with exact reads for:
+  - `NCT02227862`
+  - `NCT00737633`
+- Added a guard so metadata-only Firestore fallback does not wipe existing subject subcollections in `dropout_trial_registry`.
+- Created a new safe dropout branch for workflow use:
+  - `codex/candidate-024-disengagement-safe`
+- Updated root workflow `.github/workflows/dropout-precompute.yml` so GitHub Actions now checks out:
+  - `codex/candidate-024-disengagement-safe`
