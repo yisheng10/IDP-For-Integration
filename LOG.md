@@ -5377,3 +5377,18 @@ eady calculation.
   - `codex/candidate-024-disengagement-safe`
 - Updated root workflow `.github/workflows/dropout-precompute.yml` so GitHub Actions now checks out:
   - `codex/candidate-024-disengagement-safe`
+
+## 2026-05-14 - Safe dropout branch repaired after first QA publish failure
+
+- The first targeted QA publish on the safe branch got past:
+  - Firebase project validation
+  - targeted UID parsing
+  - unsupported-trial filtering
+- That run then failed on a plain code bug:
+  - `name 'protocol_extraction_status' is not defined`
+- Root cause:
+  - `build_live_static_context()` used `protocol_extraction_status` in diagnostics
+  - but that variable only existed inside `_protocol_static_context_payload()`
+  - so the outer function referenced a name that was out of scope
+- Fixed the safe branch by defining `protocol_extraction_status` directly inside `build_live_static_context()` and reusing that normalized value in the diagnostics payload.
+- Verified the repaired files with `py_compile` before the next rerun.
