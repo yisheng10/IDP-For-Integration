@@ -5673,3 +5673,41 @@ eady calculation.
   - this confirms the current online rotation chain is still functioning
   - this does not yet prove every unused key is good
   - it does prove that at least one never-used key can be picked up and used successfully by the shared production rotation path
+
+## 2026-05-16 - Safe yunhong + jianhong integration prep for patient guidance and dropout sync
+
+- Created a dedicated root integration worktree and branch:
+  - branch: `codex/merge-yunhong-jianhong-into-yisheng`
+  - purpose: merge teammate changes without touching the dirty live `yisheng` workspace directly
+- Verified the real change boundaries before merging:
+  - root `origin/yunhong` changed:
+    - `functions/guidanceRuntime.js`
+    - `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2` gitlink
+    - `Patient-Dropout-Prediction` gitlink
+  - root `origin/jianhong` did **not** contain the claimed patient UI changes; at root level it only changed lockfiles
+- Verified the patient app submodule branch structure:
+  - `origin/jianhong` in `MyClinicalApp2` is built on top of `origin/yunhong`
+  - therefore the patient-side AE Guidance and UI work should be integrated from the patient app submodule branch, not from the root `jianhong` branch description alone
+- Created a dedicated patient app integration worktree and branch:
+  - branch: `codex/merge-yunhong-jianhong-into-sync`
+  - fast-forwarded it to `origin/jianhong`
+- Repaired the patient app Firebase Functions client in `MyClinicalApp2/src/services/firebaseFunctionHttp.js`:
+  - removed hardcoded local emulator-only guidance endpoints
+  - restored production-default HTTPS Functions routing
+  - added optional `EXPO_PUBLIC_FIREBASE_FUNCTIONS_BASE_URL` override so local testing can still be done through environment configuration instead of source-code edits
+- Hardened `functions/guidanceRuntime.js` in the root integration branch:
+  - removed the unsafe temporary HTTP auth bypass logic
+  - added shared bearer-token decoding for HTTP guidance endpoints
+  - formally allowed `patient_or_crc` access only for the patient-facing guidance HTTP endpoints:
+    - `retrieveGuidanceContextHttp`
+    - `sideEffectGuidanceChatHttp`
+    - `suggestAppointmentDateHttp`
+  - kept other guidance-management HTTP endpoints on CRC-only access semantics
+- Prepared the root integration branch to point at the agreed safe submodule commits:
+  - `MyClinicalApp2` -> patient app integration commit derived from `origin/jianhong`
+  - `Patient-Dropout-Prediction` -> `693e6776ecde7913a8a298b679ef7f42e908f280`
+- Validation notes:
+  - confirmed no remaining patient-guidance emulator URLs in the integrated patient app source
+  - confirmed no remaining `test-patient-uid` or HTTP auth bypass marker in `functions/guidanceRuntime.js`
+  - `node --check functions/guidanceRuntime.js` passed on the integration copy
+  - `expo lint` from the clean patient app merge worktree was blocked by dependency resolution because that worktree does not carry a full standalone Expo dependency graph; this was an environment-resolution issue in the temporary merge worktree, not a confirmed application-code failure
