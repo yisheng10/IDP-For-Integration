@@ -24,6 +24,8 @@ const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
 const REQUEST_TIMEOUT_MS = 45000;
 const DEFAULT_RECENT_SNAPSHOT_LIMIT = 30;
 const MAX_RECENT_SNAPSHOT_LIMIT = 200;
+const DEFAULT_RECENT_PUBLISH_HISTORY_LIMIT = 7;
+const MAX_RECENT_PUBLISH_HISTORY_LIMIT = 14;
 const DEFAULT_RECENT_INTERVENTION_CASE_LIMIT = 6;
 const MAX_RECENT_INTERVENTION_CASE_LIMIT = 20;
 const DEFAULT_DROPOUT_PROXY_WINDOW_DAYS = 7;
@@ -541,6 +543,35 @@ export function subscribeToDropoutPredictionExplainability(userId, onUpdate, onE
   return onSnapshot(
     doc(db, 'users', userId, 'dropout_predictions_explainability', 'current'),
     (snapshot) => onUpdate(snapshot.exists() ? { id: snapshot.id, userId, ...snapshot.data() } : null),
+    onError
+  );
+}
+
+export function subscribeToRecentDropoutPredictionHistory(userId, onUpdate, onError, options = {}) {
+  if (!userId) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const safeLimit = Math.min(
+    Math.max(Number(options?.limitCount) || DEFAULT_RECENT_PUBLISH_HISTORY_LIMIT, 1),
+    MAX_RECENT_PUBLISH_HISTORY_LIMIT
+  );
+  const historyQuery = query(
+    collection(db, 'users', userId, 'dropout_predictions'),
+    orderBy('published_at', 'desc'),
+    limit(safeLimit + 3)
+  );
+
+  return onSnapshot(
+    historyQuery,
+    (snapshot) => {
+      const rows = snapshot.docs
+        .filter((entry) => entry.id !== 'current')
+        .map((entry) => ({ id: entry.id, userId, ...entry.data() }))
+        .slice(0, safeLimit);
+      onUpdate(rows);
+    },
     onError
   );
 }

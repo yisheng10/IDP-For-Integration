@@ -5575,3 +5575,101 @@ eady calculation.
   - this does not add a full multi-day trend module yet
   - it only adds a bounded `current vs previous publish` explanation
   - `patient_daily_logs` is still available as fallback evidence, but CRC should no longer read its absence as “the system is broken” or “the patient never logged in”
+
+## 2026-05-15 - CRC trend view and explainability sharpening added to Patient Disengagement Prediction
+
+- Added a bounded recent-publish history mirror to the dropout publish path so each live publish now writes both:
+  - `users/{uid}/dropout_predictions/current`
+  - `users/{uid}/dropout_predictions/{history_doc_id}`
+- Plainly stated:
+  - this gives the CRC workspace a safe way to show the recent publish timeline without doing any unbounded Firestore history scan
+  - the frontend only listens to a small, ordered window and filters out the `current` mirror document
+- Extended `src/services/dropoutService.js` with a bounded history listener for recent dropout publishes:
+  - `orderBy('published_at', 'desc')`
+  - `limit(...)`
+  - no bare collection scan
+- Updated `src/components/DropoutRiskPanel.jsx` with a new `Recent 7 publishes` card that shows:
+  - the latest visible publish state
+  - the recent sequence of published risk states
+  - the recommended action at each publish
+  - the point change versus the immediately prior publish
+- Tightened the trend card so it now really means seven visible publishes total, instead of accidentally showing the current publish plus seven more historical rows.
+- Continued the CRC detail-panel cleanup:
+  - case status, automatic 7-day observation, CRC action, manual response, latest linked prediction, case last updated, and close reason remain the main fields
+  - recent case history stays in short `status / automatic observation / close reason / timestamp` form
+  - extra explanatory copy is kept shorter so the operational panel reads lighter
+- Further reduced duplicate explainability wording by replacing the separate challenger-driver sections with a weaker merged `Challenger cross-check` block.
+- Sharpened patient-level explainability in `.dropout-safe-worktree/src/explainability_summary.py`:
+  - challenger bullets now group into broader operational themes instead of repeating near-identical engagement lines
+  - `what_if_scenarios` now mention more concrete operational changes such as stale vitals, unanswered follow-up loops, recent inactivity gaps, and near-term questionnaire completion
+  - `patient_stability_hint` now refers more concretely to the number and type of live sources that are actually supporting the current explanation
+- Kept `patient_daily_logs` in the explainability source-completeness view as an optional fallback rather than a core missing source.
+
+## 2026-05-15 - Patient Disengagement Prediction integration-freeze hardening
+
+- Upgraded `src/components/DropoutRiskPanel.jsx` so the CRC workspace now reads more like a continuous operations panel instead of a single-snapshot detail view:
+  - `Recent 7 publishes` now has an inline SVG mini trend chart plus a tighter timeline summary
+  - the trend block now classifies the visible window as `Rising`, `Falling`, `Mixed / volatile`, or `Building history`
+  - obvious jumps are now called out explicitly instead of leaving CRC to infer them from raw percentages
+- Froze the intervention-case wording more tightly in the CRC detail panel:
+  - automatic observation labels now stay on the fixed CRC-safe wording
+  - close reasons now render as explicit sentences such as `Closed automatically after re-engagement was observed`
+  - the panel guidance copy was shortened again so the case card reads lighter and more operational
+- Tightened the challenger cross-check and patient-level explainability content in `.dropout-safe-worktree/src/explainability_summary.py`:
+  - challenger support now prefers operational follow-up, symptom burden, and source-mix narrowing before falling back to repeated engagement-timing wording
+  - `what_if_scenarios` now use explicit directional prefixes:
+    - `Likely lower:`
+    - `Possibly stable:`
+    - `Uncertain:`
+  - `patient_stability_hint` now uses fixed patient-level states:
+    - `Stable`
+    - `Moderate`
+    - `Reduced-input`
+    - `Thin-history`
+  - each stability hint now cites concrete source-mix or history-depth evidence instead of staying purely template-driven
+- Added frontend helper coverage in `src/components/__tests__/dropoutRiskPanel.test.js` for:
+  - recent-publish window limits
+  - recent-publish ordering and delta handling
+  - intervention observation and close-reason wording
+  - `patient_daily_logs` optional-fallback wording
+  - challenger cross-check deduplication
+- Added backend unit coverage in `.dropout-safe-worktree/tests/test_explainability_summary.py` for:
+  - risk-change direction rules
+  - no-previous-publish empty-state handling
+  - challenger non-overlap preference
+  - what-if direction prefixes
+  - stability-hint category wording
+  - `patient_daily_logs` optional-fallback semantics
+  - history mirror document-id generation
+- Repaired `.dropout-safe-worktree/tests/test_module_service.py` so it no longer hardcodes the old external repository path and now safely skips when the legacy direct-scoring dataset columns are not present in the current deploy dataset.
+- Validation completed:
+  - `npm.cmd run build:crc`
+  - `npm.cmd run test:crc`
+  - `Patient-Dropout-Prediction\\env\\Scripts\\python.exe -m py_compile ...`
+  - `Patient-Dropout-Prediction\\env\\Scripts\\python.exe -m unittest discover -s .dropout-safe-worktree\\tests -p test_*.py`
+
+## 2026-05-15 - Gemini key registry Kuala Lumpur view and controlled rotation verification
+
+- Added a new Supabase migration file:
+  - `supabase/migrations/20260515_gemini_key_registry_kl_view.sql`
+- Created a read-only live view:
+  - `public.gemini_key_registry_kl_view`
+- The new view keeps the original `timestamptz` columns untouched for rotation logic and adds Kuala Lumpur 12-hour formatted display fields:
+  - `last_used_at_kl_12h`
+  - `last_failed_at_kl_12h`
+  - `unavailable_until_kl_12h`
+  - `created_at_kl_12h`
+  - `updated_at_kl_12h`
+- Explicitly did **not** convert the source columns into strings, because the key-pool rotation logic still depends on real timestamps for:
+  - cooldown windows
+  - next-day reset eligibility
+  - usage and failure ordering
+- Performed a minimal live Gemini key-pool smoke test against the official Firebase rotation helper, intentionally targeting keys with `last_used_at = null` first.
+- Verified that:
+  - `liqiuFriend-05` was selected from the never-used active pool
+  - the key returned a valid `OK` response through `gemini-2.5-flash-lite`
+  - `last_used_at` was updated successfully in the live registry
+- Plainly stated:
+  - this confirms the current online rotation chain is still functioning
+  - this does not yet prove every unused key is good
+  - it does prove that at least one never-used key can be picked up and used successfully by the shared production rotation path

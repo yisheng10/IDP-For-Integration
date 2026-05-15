@@ -9,12 +9,14 @@ import {
   isDropoutInterventionCaseOpen,
   subscribeToAllDropoutPredictionSnapshots,
   subscribeToDropoutPredictionExplainability,
+  subscribeToRecentDropoutPredictionHistory,
   subscribeToDropoutPredictionSnapshotsForUsers,
   subscribeToRecentDropoutInterventionCases,
   updateActiveDropoutInterventionCase,
 } from '../services/dropoutService';
 
 const DEFAULT_DROPOUT_PAGE_SIZE = 30;
+const RECENT_PUBLISH_HISTORY_LIMIT = 7;
 const RECENT_INTERVENTION_CASE_LIMIT = 6;
 const INTERVENTION_ACTION_BUTTONS = [
   { value: 'outreach_attempted', label: 'Outreach attempted' },
@@ -126,13 +128,25 @@ function formatWorkflowValueLabel(value, emptyLabel = 'Not recorded') {
     .join(' ');
 }
 
-function formatInterventionProxyStatusLabel(value, emptyLabel = 'Observation window still open') {
+export function formatInterventionProxyStatusLabel(value, emptyLabel = 'Observation window still open') {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return emptyLabel;
   if (normalized === 'window_open') return 'Observation window open';
   if (normalized === 'reengaged_observed') return 'Re-engagement observed';
   if (normalized === 'no_reengagement_observed') return 'No re-engagement observed';
   if (normalized === 'source_incomplete') return 'Source data incomplete';
+  return formatWorkflowValueLabel(normalized, emptyLabel);
+}
+
+export function formatInterventionCloseReasonLabel(value, emptyLabel = 'Not recorded') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return emptyLabel;
+  if (normalized === 'auto_reengaged') {
+    return 'Closed automatically after re-engagement was observed';
+  }
+  if (normalized === 'manual_crc_close') {
+    return 'Closed manually by CRC';
+  }
   return formatWorkflowValueLabel(normalized, emptyLabel);
 }
 
@@ -232,7 +246,7 @@ const SOURCE_COMPLETENESS_LABELS = {
   epro_answer_summary: 'ePRO answer summary',
 };
 
-function formatSourceCompletenessStatus(status) {
+export function formatSourceCompletenessStatus(status) {
   const normalized = String(status || '').trim().toLowerCase();
   if (!normalized) return 'unknown';
   if (normalized === 'optional_fallback_not_used' || normalized === 'optional_fallback') {
@@ -280,16 +294,58 @@ function formatRiskStateLabel(bucket, probability) {
   return `${bucketLabel} (${(probabilityValue * 100).toFixed(1)}%)`;
 }
 
-function formatInterventionHistoryEntry(caseEntry = {}) {
+export function formatInterventionHistoryEntry(caseEntry = {}) {
   const statusLabel = formatWorkflowValueLabel(caseEntry?.status, 'No status');
   const proxyStatusLabel = formatInterventionProxyStatusLabel(
     getDropoutInterventionProxyStatus(caseEntry),
     'No automatic observation'
   );
   const closeReason = String(caseEntry?.close_reason || '').trim();
-  const closeReasonLabel = closeReason ? formatWorkflowValueLabel(closeReason) : '';
+  const closeReasonLabel = closeReason ? formatInterventionCloseReasonLabel(closeReason) : '';
   const timestampLabel = formatDateTimeValue(caseEntry?.updated_at || caseEntry?.created_at, 'No timestamp');
   return [statusLabel, proxyStatusLabel, closeReasonLabel, timestampLabel].filter(Boolean).join(' / ');
+}
+
+export function buildChallengerCrossCheckItems(summary, drivers = [], whyFlagged = []) {
+  const rows = [];
+  const summaryText = String(summary || '').trim();
+  if (summaryText) {
+    rows.push(summaryText);
+  }
+
+  const whyFlaggedText = whyFlagged.map((entry) => String(entry || '').trim().toLowerCase()).join(' ');
+  const distinctiveDrivers = (Array.isArray(drivers) ? drivers : []).filter((entry) => {
+    const text = String(entry || '').trim();
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    if (
+      lower.includes('narrower source mix') ||
+      lower.includes('side-effect burden') ||
+      lower.includes('self-reported burden') ||
+      lower.includes('symptom') ||
+      lower.includes('questionnaire')
+    ) {
+      return true;
+    }
+    return !whyFlaggedText || !(
+      (lower.includes('engagement timing') && whyFlaggedText.includes('engagement activity')) ||
+      (lower.includes('inactivity') && whyFlaggedText.includes('no recent patient activity')) ||
+      (lower.includes('fresh vitals') && whyFlaggedText.includes('no fresh vitals')) ||
+      (lower.includes('crc follow-up') && whyFlaggedText.includes('crc follow-up'))
+    );
+  });
+
+  distinctiveDrivers.forEach((entry) => {
+    if (!rows.includes(entry)) {
+      rows.push(entry);
+    }
+  });
+
+  if (!rows.length && whyFlagged.length) {
+    rows.push('The challenger remains directionally aligned with the main disengagement drivers already highlighted above.');
+  }
+
+  return rows.slice(0, 3);
 }
 
 function formatMirrorStatus(status) {
@@ -549,6 +605,247 @@ function RiskChangeSection({
   );
 }
 
+function getProbabilityDelta(currentValue, previousValue) {
+  const currentProbability = getProbabilityNumber(currentValue);
+  const previousProbability = getProbabilityNumber(previousValue);
+  if (currentProbability == null || previousProbability == null) {
+    return null;
+  }
+  return currentProbability - previousProbability;
+}
+
+function getTrendDirection(delta) {
+  if (delta == null) return '';
+  if (delta >= 0.03) return 'higher';
+  if (delta <= -0.03) return 'lower';
+  return 'stable';
+}
+
+function getRiskBucketTone(bucket) {
+  const normalized = String(bucket || '').trim().toLowerCase();
+  if (normalized === 'high') return '#cb5a3c';
+  if (normalized === 'medium') return '#c98d36';
+  if (normalized === 'low') return '#2468a2';
+  if (normalized === 'insufficient_history') return '#7a8799';
+  return '#8a98ac';
+}
+
+function formatRecentTrendDirectionLabel(direction) {
+  if (direction === 'rising') return 'Rising';
+  if (direction === 'falling') return 'Falling';
+  if (direction === 'mixed / volatile') return 'Mixed / volatile';
+  return 'Building history';
+}
+
+function formatTrendDeltaLabel(delta) {
+  if (delta == null) return 'No earlier comparison';
+  const prefix = delta > 0 ? '+' : '';
+  return `${prefix}${(delta * 100).toFixed(1)} pts vs prior publish`;
+}
+
+function buildTrendHeadline(trendDirection, currentCount) {
+  if (trendDirection === 'rising') {
+    return `Recent publishes are trending upward across the visible ${currentCount}-publish window.`;
+  }
+  if (trendDirection === 'falling') {
+    return `Recent publishes are trending downward across the visible ${currentCount}-publish window.`;
+  }
+  if (currentCount > 1) {
+    return `Recent publishes are moving in both directions across the visible ${currentCount}-publish window.`;
+  }
+  return 'Only one published disengagement snapshot is available so far.';
+}
+
+export function buildRecentPublishTrendData(rows = [], currentEntry = null) {
+  const historyRows = Array.isArray(rows) ? rows : [];
+  const timelineRows = [...historyRows]
+    .sort((left, right) => new Date(right.published_at || 0).getTime() - new Date(left.published_at || 0).getTime())
+    .slice(0, Math.max(RECENT_PUBLISH_HISTORY_LIMIT - 1, 0));
+  const visibleRows = currentEntry ? [currentEntry, ...timelineRows] : timelineRows;
+  const chronologicalRows = [...visibleRows].sort(
+    (left, right) => new Date(left.published_at || 0).getTime() - new Date(right.published_at || 0).getTime()
+  );
+  const sequentialDeltas = chronologicalRows
+    .map((entry, index) => {
+      if (index === 0) return null;
+      return getProbabilityDelta(entry?.dropout_probability, chronologicalRows[index - 1]?.dropout_probability);
+    })
+    .filter((value) => value != null);
+  const directionalSteps = sequentialDeltas.map((delta) => getTrendDirection(delta));
+  const higherCount = directionalSteps.filter((entry) => entry === 'higher').length;
+  const lowerCount = directionalSteps.filter((entry) => entry === 'lower').length;
+  const netDelta =
+    chronologicalRows.length >= 2
+      ? getProbabilityDelta(
+          chronologicalRows[chronologicalRows.length - 1]?.dropout_probability,
+          chronologicalRows[0]?.dropout_probability
+        )
+      : null;
+  let trendDirection = 'mixed / volatile';
+  if (chronologicalRows.length < 2) {
+    trendDirection = 'building';
+  } else if (higherCount >= 2 && lowerCount === 0) {
+    trendDirection = 'rising';
+  } else if (lowerCount >= 2 && higherCount === 0) {
+    trendDirection = 'falling';
+  } else if (netDelta != null && netDelta >= 0.08 && higherCount > lowerCount) {
+    trendDirection = 'rising';
+  } else if (netDelta != null && netDelta <= -0.08 && lowerCount > higherCount) {
+    trendDirection = 'falling';
+  }
+  const previousEntry = timelineRows[0] || null;
+  const latestDelta = currentEntry ? getProbabilityDelta(currentEntry?.dropout_probability, previousEntry?.dropout_probability) : null;
+  const latestDirection = getTrendDirection(latestDelta);
+  const headline = buildTrendHeadline(trendDirection, visibleRows.length);
+  let jumpSummary = '';
+  if (latestDelta != null && Math.abs(latestDelta) >= 0.1) {
+    jumpSummary =
+      latestDelta > 0
+        ? `The latest publish made a sharper upward step than the recent baseline (${formatTrendDeltaLabel(latestDelta)}).`
+        : `The latest publish made a sharper downward step than the recent baseline (${formatTrendDeltaLabel(latestDelta)}).`;
+  } else if (
+    latestDirection &&
+    previousEntry &&
+    String(currentEntry?.risk_bucket || '').trim().toLowerCase() !== String(previousEntry?.risk_bucket || '').trim().toLowerCase()
+  ) {
+    jumpSummary = `The latest publish changed risk state versus the prior publish (${formatTrendDeltaLabel(latestDelta)}).`;
+  }
+
+  return {
+    timelineRows,
+    visibleRows,
+    chronologicalRows,
+    trendDirection,
+    headline,
+    jumpSummary,
+    latestDelta,
+  };
+}
+
+function RecentPublishTrendSection({ rows, currentEntry }) {
+  const trendData = buildRecentPublishTrendData(rows, currentEntry);
+  const { visibleRows, chronologicalRows, trendDirection, headline, jumpSummary } = trendData;
+
+  if (!currentEntry) {
+    return null;
+  }
+
+  const chartWidth = 360;
+  const chartHeight = 92;
+  const leftPadding = 16;
+  const rightPadding = 12;
+  const topPadding = 12;
+  const bottomPadding = 14;
+  const usableWidth = chartWidth - leftPadding - rightPadding;
+  const usableHeight = chartHeight - topPadding - bottomPadding;
+  const chartPoints = chronologicalRows.map((entry, index) => {
+    const pointCount = Math.max(chronologicalRows.length - 1, 1);
+    const x = leftPadding + (usableWidth * index) / pointCount;
+    const probability = Math.max(0, Math.min(1, getProbabilityNumber(entry?.dropout_probability) ?? 0));
+    const y = topPadding + (1 - probability) * usableHeight;
+    return {
+      x,
+      y,
+      probability,
+      color: getRiskBucketTone(entry?.risk_bucket),
+      isCurrent: entry === currentEntry,
+      key: entry?.id || entry?.published_at || `point-${index}`,
+    };
+  });
+  const polylinePoints = chartPoints.map((point) => `${point.x},${point.y}`).join(' ');
+
+  return (
+    <div className="dropout-card dropout-card--soft" style={{ marginTop: '18px' }}>
+      <div className="dropout-card__header">
+        <strong>Recent 7 publishes</strong>
+        <span className="metric-pill">{visibleRows.length} visible</span>
+      </div>
+      <div className="section-note section-note--dense">
+        {headline || 'This trend view will fill in as more published disengagement snapshots accumulate for this patient.'}
+      </div>
+      <div className="dropout-dashboard__statusHeader" style={{ marginTop: '10px' }}>
+        <span className={`metric-pill metric-pill--${trendDirection === 'rising' ? 'warning' : trendDirection === 'falling' ? 'success' : 'default'}`}>
+          {formatRecentTrendDirectionLabel(trendDirection)}
+        </span>
+        {jumpSummary ? <span className="section-note section-note--dense">{jumpSummary}</span> : null}
+      </div>
+      <div style={{ marginTop: '12px', border: '1px solid var(--border)', borderRadius: '18px', padding: '10px 12px', background: 'rgba(255,255,255,0.55)' }}>
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="104" aria-label="Recent disengagement publish trend">
+          <line x1={leftPadding} y1={topPadding} x2={chartWidth - rightPadding} y2={topPadding} stroke="rgba(40, 72, 104, 0.12)" strokeWidth="1" />
+          <line x1={leftPadding} y1={chartHeight - bottomPadding} x2={chartWidth - rightPadding} y2={chartHeight - bottomPadding} stroke="rgba(40, 72, 104, 0.16)" strokeWidth="1" />
+          {polylinePoints ? (
+            <polyline
+              fill="none"
+              stroke="rgba(25, 79, 128, 0.42)"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              points={polylinePoints}
+            />
+          ) : null}
+          {chartPoints.map((point) => (
+            <g key={point.key}>
+              {point.isCurrent ? (
+                <circle cx={point.x} cy={point.y} r="7.5" fill="rgba(36, 104, 162, 0.12)" stroke="none" />
+              ) : null}
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={point.isCurrent ? 4.8 : 3.6}
+                fill={point.color}
+                stroke="#ffffff"
+                strokeWidth={point.isCurrent ? 2 : 1.5}
+              />
+            </g>
+          ))}
+        </svg>
+      </div>
+      <div className="dropout-card__metric" style={{ marginTop: '10px' }}>
+        Latest publish: {formatRiskStateLabel(currentEntry?.risk_bucket, currentEntry?.dropout_probability)}
+      </div>
+      <div className="dropout-card__metric">
+        Latest action: {formatRecommendedAction(currentEntry)}
+      </div>
+
+      <div style={{ marginTop: '12px', display: 'grid', gap: '10px' }}>
+        {visibleRows.map((entry, index, rowsWithCurrent) => {
+          const previousEntry = rowsWithCurrent[index + 1] || null;
+          const delta = previousEntry
+            ? getProbabilityDelta(entry?.dropout_probability, previousEntry?.dropout_probability)
+            : null;
+          const direction = getTrendDirection(delta);
+          return (
+            <div
+              key={`trend-${entry?.id || entry?.published_at || index}`}
+              className="dropout-dashboard__detailSection"
+              style={{ marginBottom: 0 }}
+            >
+              <div className="dropout-dashboard__statusHeader">
+                <strong>{index === 0 ? 'Current publish' : `Previous publish ${index}`}</strong>
+                <span className={`metric-pill metric-pill--${getRiskChangeDirectionTone(direction)}`}>
+                  {direction ? formatRiskChangeDirectionLabel(direction) : 'Anchor'}
+                </span>
+              </div>
+              <div className="dropout-card__metric">
+                {formatDateTimeValue(entry?.published_at, 'Not published')}
+              </div>
+              <div className="dropout-card__metric">
+                Risk: {formatRiskStateLabel(entry?.risk_bucket, entry?.dropout_probability)}
+              </div>
+              <div className="dropout-card__metric">
+                Action: {formatRecommendedAction(entry)}
+              </div>
+              <div className="section-note section-note--dense">
+                {formatTrendDeltaLabel(delta)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function DropoutRiskPanel({
   patients = [],
   currentUser = null,
@@ -566,6 +863,9 @@ export default function DropoutRiskPanel({
   const [activeExplainability, setActiveExplainability] = useState(null);
   const [activeExplainabilityReady, setActiveExplainabilityReady] = useState(false);
   const [activeExplainabilityUserId, setActiveExplainabilityUserId] = useState('');
+  const [recentPublishHistory, setRecentPublishHistory] = useState([]);
+  const [recentPublishHistoryReady, setRecentPublishHistoryReady] = useState(false);
+  const [recentPublishHistoryError, setRecentPublishHistoryError] = useState('');
   const [recentInterventionCases, setRecentInterventionCases] = useState([]);
   const [interventionCasesReady, setInterventionCasesReady] = useState(false);
   const [interventionCaseError, setInterventionCaseError] = useState('');
@@ -695,6 +995,35 @@ export default function DropoutRiskPanel({
 
   useEffect(() => {
     if (!activeEntry?.userId) {
+      setRecentPublishHistory([]);
+      setRecentPublishHistoryReady(false);
+      setRecentPublishHistoryError('');
+      return undefined;
+    }
+
+    setRecentPublishHistory([]);
+    setRecentPublishHistoryReady(false);
+    setRecentPublishHistoryError('');
+
+    return subscribeToRecentDropoutPredictionHistory(
+      activeEntry.userId,
+      (rows) => {
+        setRecentPublishHistory(rows);
+        setRecentPublishHistoryReady(true);
+        setRecentPublishHistoryError('');
+      },
+      (nextError) => {
+        console.error('Unable to load recent disengagement publish history:', nextError);
+        setRecentPublishHistory([]);
+        setRecentPublishHistoryReady(true);
+        setRecentPublishHistoryError(nextError.message || 'Unable to load recent publish history.');
+      },
+      { limitCount: Math.max(RECENT_PUBLISH_HISTORY_LIMIT - 1, 1) }
+    );
+  }, [activeEntry?.userId]);
+
+  useEffect(() => {
+    if (!activeEntry?.userId) {
       setRecentInterventionCases([]);
       setInterventionCasesReady(false);
       setInterventionCaseError('');
@@ -780,6 +1109,15 @@ export default function DropoutRiskPanel({
   const explainabilityChallengerSummary = useMemo(
     () => String(activeExplainabilityPayload?.challenger_local_summary || '').trim(),
     [activeExplainabilityPayload?.challenger_local_summary]
+  );
+  const explainabilityChallengerCrossCheck = useMemo(
+    () =>
+      buildChallengerCrossCheckItems(
+        explainabilityChallengerSummary,
+        explainabilityChallengerDrivers,
+        explainabilityWhyFlagged
+      ),
+    [explainabilityChallengerDrivers, explainabilityChallengerSummary, explainabilityWhyFlagged]
   );
   const explainabilityMissingInputs = useMemo(() => {
     return buildSignalLines(activeExplainabilityPayload?.missing_or_weak_inputs);
@@ -983,6 +1321,10 @@ export default function DropoutRiskPanel({
   const isPreparingInterventionCase =
     !activeInterventionCase && interventionCasesReady && shouldAutoSyncActiveInterventionCase;
   const recentInterventionCasePreview = recentInterventionCases.slice(0, 3);
+  const recentInterventionCasePreviewLines = useMemo(
+    () => recentInterventionCasePreview.map((caseEntry) => formatInterventionHistoryEntry(caseEntry)),
+    [recentInterventionCasePreview]
+  );
   const canCloseInterventionCase = Boolean(
     activeInterventionCase?.id &&
       currentUser?.uid &&
@@ -1169,6 +1511,21 @@ export default function DropoutRiskPanel({
                   </div>
                 </div>
 
+                <RecentPublishTrendSection rows={recentPublishHistory} currentEntry={activeEntry} />
+                {recentPublishHistoryError ? (
+                  <div
+                    className="info-banner"
+                    style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}
+                  >
+                    {recentPublishHistoryError}
+                  </div>
+                ) : null}
+                {!recentPublishHistoryError && recentPublishHistoryReady && recentPublishHistory.length === 0 ? (
+                  <div className="section-note section-note--spaced">
+                    Recent-publish trend history will appear here after more published disengagement snapshots accumulate for this patient.
+                  </div>
+                ) : null}
+
                 <div className="dropout-card dropout-card--soft" style={{ marginTop: '18px' }}>
                   <div className="dropout-card__header">
                     <strong>Intervention case</strong>
@@ -1208,7 +1565,7 @@ export default function DropoutRiskPanel({
                   </div>
                   {interventionCaseCloseReasonValue ? (
                     <div className="dropout-card__metric">
-                      Close reason: {formatWorkflowValueLabel(interventionCaseCloseReasonValue)}
+                      Close reason: {formatInterventionCloseReasonLabel(interventionCaseCloseReasonValue)}
                     </div>
                   ) : null}
                   <div className="dropout-card__metric">
@@ -1254,7 +1611,7 @@ export default function DropoutRiskPanel({
                   ) : null}
 
                   <div className="section-note section-note--spaced">
-                    Automatic 7-day observation is system-generated and read-only here.
+                    Automatic observation updates here automatically.
                   </div>
 
                   <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
@@ -1306,7 +1663,7 @@ export default function DropoutRiskPanel({
                     {canMutateInterventionCase
                       ? isUpdatingInterventionCase
                         ? 'Saving the latest intervention case update...'
-                        : 'CRC only needs to update this case when the manual action or patient response changes.'
+                        : 'Update this case only when the CRC action or manual response changes.'
                       : !currentUser?.uid
                         ? 'CRC identity is required before intervention actions can be recorded.'
                         : isEarlyHistorySnapshot(activeEntry)
@@ -1317,12 +1674,11 @@ export default function DropoutRiskPanel({
                   </div>
 
                   {recentInterventionCasePreview.length ? (
-                    <div className="section-note section-note--spaced">
-                      Recent case history:{' '}
-                      {recentInterventionCasePreview
-                        .map((caseEntry) => formatInterventionHistoryEntry(caseEntry))
-                        .join(' | ')}
-                    </div>
+                    <DetailSection
+                      title="Recent case history"
+                      items={recentInterventionCasePreviewLines}
+                      emptyLabel="No recent intervention case history is available yet."
+                    />
                   ) : null}
                 </div>
 
@@ -1389,14 +1745,9 @@ export default function DropoutRiskPanel({
                         emptyLabel="Why flagged: missing"
                       />
                       <DetailSection
-                        title="Challenger local drivers"
-                        items={explainabilityChallengerDrivers}
-                        emptyLabel="No patient-level challenger drivers were published for this snapshot."
-                      />
-                      <DetailSection
-                        title="Challenger local summary"
-                        items={explainabilityChallengerSummary ? [explainabilityChallengerSummary] : []}
-                        emptyLabel="No patient-level challenger summary was published for this snapshot."
+                        title="Challenger cross-check"
+                        items={explainabilityChallengerCrossCheck}
+                        emptyLabel="No patient-level challenger cross-check was published for this snapshot."
                       />
                       <DetailSection
                         title="Data gaps affecting confidence"
