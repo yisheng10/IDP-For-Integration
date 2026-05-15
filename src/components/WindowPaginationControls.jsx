@@ -10,15 +10,18 @@ export default function WindowPaginationControls({
   canGoNext = false,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   note = '',
+  hideNote = false,
 }) {
   return (
     <div className="section-header history-pagination">
       <div className="section-note">
-        {note || (
-          <>
-            Page <strong>{page}</strong>
-          </>
-        )}
+        {hideNote
+          ? null
+          : note || (
+              <>
+                Page <strong>{page}</strong>
+              </>
+            )}
       </div>
       <div className="history-pagination__controls">
         <select

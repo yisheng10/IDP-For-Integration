@@ -735,13 +735,6 @@ export default function DropoutRiskPanel({
   const loadedRowsLabel = isUsingFallbackRows
     ? `${filteredRows.length} fallback rows`
     : `${filteredRows.length} loaded`;
-  const visibleRowsSummary = isUsingFallbackRows
-    ? `Showing ${visibleRows.length} visible patients from ${filteredRows.length} loaded global fallback snapshot rows. The latest published snapshot pool is being used because the current patient window has not mirrored rows yet.`
-    : `Showing ${visibleRows.length} visible patients from ${filteredRows.length} loaded current snapshots. Full summary cards above are sourced separately from the latest published disengagement summary.`;
-  const paginationNote = isUsingFallbackRows
-    ? `Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} global fallback snapshot rows from the latest published snapshot pool.`
-    : `Page ${effectiveSnapshotPage} - Showing up to ${snapshotPageSize} ranked patients from the loaded disengagement snapshot window.`;
-
   useEffect(() => {
     if (!shouldAutoSyncActiveInterventionCase || isUpdatingInterventionCase || !activeEntry?.userId) {
       return undefined;
@@ -785,12 +778,6 @@ export default function DropoutRiskPanel({
     recentInterventionCases,
     shouldAutoSyncActiveInterventionCase,
   ]);
-
-  const openStudyCoordination = () => {
-    if (activeEntry?.patient && typeof onOpenStudyCoordination === 'function') {
-      onOpenStudyCoordination(activeEntry.patient);
-    }
-  };
 
   const openPatientRoster = () => {
     if (activeEntry?.patient && typeof onOpenPatients === 'function') {
@@ -934,12 +921,6 @@ export default function DropoutRiskPanel({
             <div className="section-header section-header--tight">
               <div>
                 <h3 className="mt-0">Risk-ranked patients</h3>
-                <div className="section-note">
-                  Search by patient name, subject ID, or email. Results stay sorted from highest to lowest risk inside the current loaded snapshot feed.
-                </div>
-                <div className="section-note section-note--spaced">
-                  {visibleRowsSummary}
-                </div>
               </div>
               <div className="dropout-dashboard__detailActions">
                 <span className="metric-pill">{loadedRowsLabel}</span>
@@ -966,7 +947,7 @@ export default function DropoutRiskPanel({
                 setSnapshotPage(1);
               }}
               canGoNext={canGoToNextSnapshotPage}
-              note={paginationNote}
+              hideNote
             />
 
             <div className="dropout-dashboard__list">
@@ -994,7 +975,6 @@ export default function DropoutRiskPanel({
                       </div>
 
                       <div className="dropout-dashboard__rowStats">
-                        <span>Confidence: {getConfidenceLabel(entry.data_quality_flags)}</span>
                         <span>Action: {formatRecommendedAction(entry)}</span>
                       </div>
 
@@ -1020,16 +1000,10 @@ export default function DropoutRiskPanel({
                 <div className="section-header">
                   <div>
                     <h3 className="mt-0">Patient disengagement detail</h3>
-                    <div className="section-note">
-                      Detailed CRC-only snapshot for the selected patient. This panel updates immediately when you select a different row.
-                    </div>
                   </div>
                   <div className="dropout-dashboard__detailActions">
                     <button className="btn btn-secondary btn-small" onClick={openPatientRoster} disabled={!activeEntry.patient}>
-                      Open Patients
-                    </button>
-                    <button className="btn btn-primary btn-small" onClick={openStudyCoordination} disabled={!activeEntry.patient}>
-                      Open Study Coordination
+                      Open Patient
                     </button>
                   </div>
                 </div>
