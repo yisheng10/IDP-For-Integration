@@ -16,6 +16,23 @@
 - Production cloud functions: partially blocked by Firebase plan limitations.
 
 ## Completed Work
+### Shadow Proxy Evaluator Graceful Skip
+- Fixed the dropout shadow proxy evaluator so GitHub Actions no longer fails when the Supabase shadow monitoring table has not been provisioned yet.
+- `Patient-Dropout-Prediction/src/evaluate_shadow_proxies.py` now matches the publisher's graceful-degradation behavior:
+  - if `dropout_shadow_predictions` returns HTTP `404`
+  - and `DROPOUT_REQUIRE_SHADOW_MONITORING` is not enabled
+  - the evaluator logs a skip message and exits with zero candidates instead of hard-failing the workflow
+- This keeps the main disengagement publish path green while shadow monitoring infrastructure is still intentionally absent.
+- Reduced recurring live-publish warning noise in the dropout backend:
+  - the optional subject registry message now explains that Firestore-backed patient/protocol context is still being used
+  - Firestore query calls in the live adapter / publisher were updated toward the recommended filter style to avoid repeated positional-argument warnings in workflow logs
+- Activated the live shadow-monitoring database schema on Supabase by applying only:
+  - `supabase/migrations/20260403_dropout_shadow_monitoring.sql`
+- Repaired the remote migration history for `20260403` without marking unrelated pending migrations as applied.
+- Updated `.github/workflows/dropout-precompute.yml` to set:
+  - `DROPOUT_REQUIRE_SHADOW_MONITORING=1`
+- This changes shadow monitoring from "optional skip if missing" to an expected runtime dependency for future workflow runs.
+
 ### Dropout QA Live-History Seed Script
 - Added `functions/scripts/seed-dropout-qa-live-history.mjs` for Patient Disengagement Prediction QA setup.
 - The script is intentionally budget-safe:
