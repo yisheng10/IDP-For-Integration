@@ -32,6 +32,12 @@
 - Updated `.github/workflows/dropout-precompute.yml` to set:
   - `DROPOUT_REQUIRE_SHADOW_MONITORING=1`
 - This changes shadow monitoring from "optional skip if missing" to an expected runtime dependency for future workflow runs.
+- Tightened CRC intervention-case wording in `src/components/DropoutRiskPanel.jsx` so the panel now explains:
+  - `Case status`
+  - `Automatic 7-day observation`
+  - `CRC action`
+  - `Manual response`
+  with less status-code-like wording and a clearer explanation that CRC does not need to click again every day unless the action or manual response changes.
 
 ### Dropout QA Live-History Seed Script
 - Added `functions/scripts/seed-dropout-qa-live-history.mjs` for Patient Disengagement Prediction QA setup.

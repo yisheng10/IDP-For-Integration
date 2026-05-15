@@ -126,6 +126,16 @@ function formatWorkflowValueLabel(value, emptyLabel = 'Not recorded') {
     .join(' ');
 }
 
+function formatInterventionProxyStatusLabel(value, emptyLabel = 'Observation window still open') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return emptyLabel;
+  if (normalized === 'window_open') return 'Observation window open';
+  if (normalized === 'reengaged_observed') return 'Re-engagement observed';
+  if (normalized === 'no_reengagement_observed') return 'No re-engagement observed';
+  if (normalized === 'source_incomplete') return 'Source data incomplete';
+  return formatWorkflowValueLabel(normalized, emptyLabel);
+}
+
 function hasUsableSnapshotForInterventionCase(snapshot = {}) {
   return Boolean(
     String(snapshot?.published_at || '').trim() ||
@@ -1067,35 +1077,35 @@ export default function DropoutRiskPanel({
                     </span>
                   </div>
                   <div className="dropout-card__metric">
-                    Case lifecycle:{' '}
+                    Case status:{' '}
                     {isPreparingInterventionCase
-                      ? 'Preparing open case from the latest prediction'
+                      ? 'Preparing an open case from the latest prediction'
                       : formatWorkflowValueLabel(
                           interventionCaseStatusValue,
                           canUseInterventionCaseLoop ? 'No open case yet' : 'Not available for this patient'
                         )}
                   </div>
                   <div className="dropout-card__metric">
-                    Observed 7-day re-engagement:{' '}
+                    Automatic 7-day observation:{' '}
                     <span className={`metric-pill metric-pill--${getInterventionCaseStatusTone(interventionCaseProxyStatusValue)}`}>
-                      {formatWorkflowValueLabel(interventionCaseProxyStatusValue, 'Window not evaluated yet')}
+                      {formatInterventionProxyStatusLabel(interventionCaseProxyStatusValue)}
                     </span>
                   </div>
                   <div className="dropout-card__metric">
-                    Action recorded: {formatWorkflowValueLabel(interventionCaseActionValue, 'Not recorded')}
+                    CRC action: {formatWorkflowValueLabel(interventionCaseActionValue, 'Not recorded')}
                   </div>
                   <div className="dropout-card__metric">
-                    CRC manual result: {formatWorkflowValueLabel(interventionCaseResultValue, 'Not recorded')}
+                    Manual response: {formatWorkflowValueLabel(interventionCaseResultValue, 'Not recorded')}
                   </div>
                   <div className="dropout-card__metric">
-                    Latest synced prediction:{' '}
+                    Latest linked prediction:{' '}
                     {formatDateTimeValue(
                       activeInterventionCase?.latest_prediction_published_at || activeEntry?.published_at,
-                      'No synced prediction yet'
+                      'No linked prediction yet'
                     )}
                   </div>
                   <div className="dropout-card__metric">
-                    Last case update:{' '}
+                    Case last updated:{' '}
                     {formatDateTimeValue(
                       activeInterventionCase?.updated_at || activeInterventionCase?.created_at,
                       activeInterventionCase ? 'Draft' : 'No case timestamp'
@@ -1130,7 +1140,7 @@ export default function DropoutRiskPanel({
                   ) : null}
 
                   <div className="section-note section-note--spaced">
-                    Automatic case statuses stay read-only here: {READ_ONLY_INTERVENTION_STATUSES.join(', ')}.
+                    The automatic 7-day observation is system-generated and read-only here. It will later settle into Observation window open, Re-engagement observed, No re-engagement observed, or Source data incomplete.
                   </div>
 
                   <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
@@ -1182,19 +1192,19 @@ export default function DropoutRiskPanel({
                     {canMutateInterventionCase
                       ? isUpdatingInterventionCase
                         ? 'Saving the latest intervention case update...'
-                        : 'The currently open case will keep syncing to the latest daily prediction, so CRC does not need to click again every day just to refresh the case.'
+                        : 'The open case will keep following the latest daily prediction automatically. CRC only needs to click again when the action or manual response changes.'
                       : !currentUser?.uid
                         ? 'CRC identity is required before intervention actions can be recorded.'
                         : isEarlyHistorySnapshot(activeEntry)
-                          ? 'Intervention cases become available after a published scored snapshot is visible for this patient.'
+                          ? 'An intervention case becomes available after this patient has a published scored snapshot.'
                           : !activeInterventionCase && !activeEntry?.isActionable
-                            ? 'This patient does not have an open intervention case, and the current snapshot is not actionable enough to open one from the CRC panel.'
+                            ? 'There is no open intervention case, and the current snapshot is not actionable enough to open one from this panel.'
                           : 'Intervention case controls are temporarily unavailable.'}
                   </div>
 
                   {recentInterventionCasePreview.length ? (
                     <div className="section-note section-note--spaced">
-                      Recent cases:{' '}
+                      Recent case history:{' '}
                       {recentInterventionCasePreview
                         .map((caseEntry) => {
                           const timestampLabel = formatDateTimeValue(
@@ -1202,7 +1212,7 @@ export default function DropoutRiskPanel({
                             'No timestamp'
                           );
                           const proxyStatus = getDropoutInterventionProxyStatus(caseEntry);
-                          return `${formatWorkflowValueLabel(caseEntry.status, 'No status')} / ${formatWorkflowValueLabel(proxyStatus, 'No proxy status')} (${timestampLabel})`;
+                          return `${formatWorkflowValueLabel(caseEntry.status, 'No status')} | ${formatInterventionProxyStatusLabel(proxyStatus, 'No automatic observation')} (${timestampLabel})`;
                         })
                         .join(' | ')}
                     </div>
