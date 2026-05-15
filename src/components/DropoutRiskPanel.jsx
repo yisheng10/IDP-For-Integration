@@ -221,6 +221,77 @@ function buildSourceErrorLines(value) {
     .filter(Boolean);
 }
 
+const SOURCE_COMPLETENESS_LABELS = {
+  incident_records: 'incident records',
+  side_effect_reports: 'side-effect reports',
+  patient_daily_logs: 'patient daily logs',
+  epro_submissions: 'ePRO submissions',
+  crc_followup_threads: 'CRC follow-up threads',
+  appointments: 'appointments',
+  vitals: 'vitals',
+  epro_answer_summary: 'ePRO answer summary',
+};
+
+function formatSourceCompletenessStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (!normalized) return 'unknown';
+  if (normalized === 'optional_fallback_not_used' || normalized === 'optional_fallback') {
+    return 'optional fallback';
+  }
+  if (normalized === 'timestamp_missing') {
+    return 'timestamp missing';
+  }
+  return normalized.replace(/_/g, ' ');
+}
+
+function buildSourceCompletenessLines(value) {
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value)
+    .map(([sourceName, status]) => {
+      const label = SOURCE_COMPLETENESS_LABELS[sourceName] || sourceName.replace(/_/g, ' ');
+      return `${label}: ${formatSourceCompletenessStatus(status)}`;
+    })
+    .filter(Boolean);
+}
+
+function formatRiskChangeDirectionLabel(direction) {
+  const normalized = String(direction || '').trim().toLowerCase();
+  if (!normalized) return 'No prior publish';
+  if (normalized === 'higher') return 'Higher';
+  if (normalized === 'lower') return 'Lower';
+  if (normalized === 'stable') return 'Stable';
+  return formatWorkflowValueLabel(normalized, 'No prior publish');
+}
+
+function getRiskChangeDirectionTone(direction) {
+  const normalized = String(direction || '').trim().toLowerCase();
+  if (normalized === 'higher') return 'warning';
+  if (normalized === 'lower') return 'success';
+  if (normalized === 'stable') return 'default';
+  return 'default';
+}
+
+function formatRiskStateLabel(bucket, probability) {
+  const bucketLabel = String(bucket || '').trim() ? renderRiskBucket(bucket) : 'Unknown';
+  const probabilityValue = getProbabilityNumber(probability);
+  if (probabilityValue == null) {
+    return bucketLabel;
+  }
+  return `${bucketLabel} (${(probabilityValue * 100).toFixed(1)}%)`;
+}
+
+function formatInterventionHistoryEntry(caseEntry = {}) {
+  const statusLabel = formatWorkflowValueLabel(caseEntry?.status, 'No status');
+  const proxyStatusLabel = formatInterventionProxyStatusLabel(
+    getDropoutInterventionProxyStatus(caseEntry),
+    'No automatic observation'
+  );
+  const closeReason = String(caseEntry?.close_reason || '').trim();
+  const closeReasonLabel = closeReason ? formatWorkflowValueLabel(closeReason) : '';
+  const timestampLabel = formatDateTimeValue(caseEntry?.updated_at || caseEntry?.created_at, 'No timestamp');
+  return [statusLabel, proxyStatusLabel, closeReasonLabel, timestampLabel].filter(Boolean).join(' / ');
+}
+
 function formatMirrorStatus(status) {
   const normalized = String(status || '').trim().toLowerCase();
   if (!normalized) return 'missing';
@@ -427,10 +498,60 @@ function StatusSummarySection({ title, status, summary, emptyLabel }) {
   );
 }
 
+function RiskChangeSection({
+  summary,
+  direction,
+  previousPublishedAt,
+  previousRiskBucket,
+  previousProbability,
+  currentRiskBucket,
+  currentProbability,
+  reasons,
+}) {
+  if (!summary) {
+    return (
+      <div className="dropout-dashboard__detailSection">
+        <div className="dropout-dashboard__statusHeader">
+          <strong>Risk change since last publish</strong>
+          <span className="metric-pill">No prior publish</span>
+        </div>
+        <div className="section-note">
+          No earlier published snapshot is available yet, so risk change cannot be summarized here.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dropout-dashboard__detailSection">
+      <div className="dropout-dashboard__statusHeader">
+        <strong>Risk change since last publish</strong>
+        <span className={`metric-pill metric-pill--${getRiskChangeDirectionTone(direction)}`}>
+          {formatRiskChangeDirectionLabel(direction)}
+        </span>
+      </div>
+      <div className="section-note section-note--dense">{summary}</div>
+      <div className="dropout-card__metric">Previous publish: {formatDateTimeValue(previousPublishedAt, 'No prior publish')}</div>
+      <div className="dropout-card__metric">
+        Previous risk: {formatRiskStateLabel(previousRiskBucket, previousProbability)}
+      </div>
+      <div className="dropout-card__metric">
+        Current risk: {formatRiskStateLabel(currentRiskBucket, currentProbability)}
+      </div>
+      {reasons.length ? (
+        <ul className="dropout-dashboard__detailList">
+          {reasons.map((item) => (
+            <li key={`risk-change-${item}`}>{item}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export default function DropoutRiskPanel({
   patients = [],
   currentUser = null,
-  onOpenStudyCoordination,
   onOpenPatients,
 }) {
   const [snapshotRows, setSnapshotRows] = useState([]);
@@ -613,6 +734,10 @@ export default function DropoutRiskPanel({
     () => findActiveDropoutInterventionCase(recentInterventionCases),
     [recentInterventionCases]
   );
+  const displayedInterventionCase = useMemo(
+    () => activeInterventionCase || recentInterventionCases[0] || null,
+    [activeInterventionCase, recentInterventionCases]
+  );
   const openInterventionCaseCount = useMemo(
     () => recentInterventionCases.filter((entry) => isDropoutInterventionCaseOpen(entry)).length,
     [recentInterventionCases]
@@ -670,8 +795,16 @@ export default function DropoutRiskPanel({
     [activeExplainabilityPayload?.patient_stability_hint]
   );
   const explainabilitySourceCompleteness = useMemo(
-    () => buildSignalLines(activeExplainabilityPayload?.source_completeness),
+    () => buildSourceCompletenessLines(activeExplainabilityPayload?.source_completeness),
     [activeExplainabilityPayload?.source_completeness]
+  );
+  const explainabilityRiskChangeSummary = useMemo(
+    () => String(activeExplainabilityPayload?.risk_change_summary || '').trim(),
+    [activeExplainabilityPayload?.risk_change_summary]
+  );
+  const explainabilityRiskChangeReasons = useMemo(
+    () => buildSignalLines(activeExplainabilityPayload?.risk_change_reasons),
+    [activeExplainabilityPayload?.risk_change_reasons]
   );
   const explainabilityModelAgreement = useMemo(() => {
     const payload = activeExplainabilityPayload?.model_agreement;
@@ -831,12 +964,14 @@ export default function DropoutRiskPanel({
     }
   }
 
-  const interventionCaseStatusValue = activeInterventionCase?.status || '';
-  const interventionCaseProxyStatusValue = getDropoutInterventionProxyStatus(activeInterventionCase);
+  const interventionCaseStatusValue = displayedInterventionCase?.status || '';
+  const interventionCaseProxyStatusValue = getDropoutInterventionProxyStatus(displayedInterventionCase);
   const interventionCaseActionValue =
-    activeInterventionCase?.action_taken_code || activeInterventionCase?.action_taken || '';
+    displayedInterventionCase?.action_taken_code || displayedInterventionCase?.action_taken || '';
   const interventionCaseResultValue =
-    activeInterventionCase?.contact_result_status || activeInterventionCase?.manual_result || '';
+    displayedInterventionCase?.contact_result_status || displayedInterventionCase?.manual_result || '';
+  const interventionCaseCloseReasonValue =
+    displayedInterventionCase?.close_reason || '';
   const canMutateInterventionCase = Boolean(
     activeEntry?.userId &&
       currentUser?.uid &&
@@ -1056,7 +1191,7 @@ export default function DropoutRiskPanel({
                       ? 'Preparing an open case from the latest prediction'
                       : formatWorkflowValueLabel(
                           interventionCaseStatusValue,
-                          canUseInterventionCaseLoop ? 'No open case yet' : 'Not available for this patient'
+                          canUseInterventionCaseLoop ? 'No visible case yet' : 'Not available for this patient'
                         )}
                   </div>
                   <div className="dropout-card__metric">
@@ -1071,18 +1206,23 @@ export default function DropoutRiskPanel({
                   <div className="dropout-card__metric">
                     Manual response: {formatWorkflowValueLabel(interventionCaseResultValue, 'Not recorded')}
                   </div>
+                  {interventionCaseCloseReasonValue ? (
+                    <div className="dropout-card__metric">
+                      Close reason: {formatWorkflowValueLabel(interventionCaseCloseReasonValue)}
+                    </div>
+                  ) : null}
                   <div className="dropout-card__metric">
                     Latest linked prediction:{' '}
                     {formatDateTimeValue(
-                      activeInterventionCase?.latest_prediction_published_at || activeEntry?.published_at,
+                      displayedInterventionCase?.latest_prediction_published_at || activeEntry?.published_at,
                       'No linked prediction yet'
                     )}
                   </div>
                   <div className="dropout-card__metric">
                     Case last updated:{' '}
                     {formatDateTimeValue(
-                      activeInterventionCase?.updated_at || activeInterventionCase?.created_at,
-                      activeInterventionCase ? 'Draft' : 'No case timestamp'
+                      displayedInterventionCase?.updated_at || displayedInterventionCase?.created_at,
+                      displayedInterventionCase ? 'Draft' : 'No case timestamp'
                     )}
                   </div>
 
@@ -1114,7 +1254,7 @@ export default function DropoutRiskPanel({
                   ) : null}
 
                   <div className="section-note section-note--spaced">
-                    The automatic 7-day observation is system-generated and read-only here. It will later settle into Observation window open, Re-engagement observed, No re-engagement observed, or Source data incomplete.
+                    Automatic 7-day observation is system-generated and read-only here.
                   </div>
 
                   <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
@@ -1166,7 +1306,7 @@ export default function DropoutRiskPanel({
                     {canMutateInterventionCase
                       ? isUpdatingInterventionCase
                         ? 'Saving the latest intervention case update...'
-                        : 'The open case will keep following the latest daily prediction automatically. CRC only needs to click again when the action or manual response changes.'
+                        : 'CRC only needs to update this case when the manual action or patient response changes.'
                       : !currentUser?.uid
                         ? 'CRC identity is required before intervention actions can be recorded.'
                         : isEarlyHistorySnapshot(activeEntry)
@@ -1180,14 +1320,7 @@ export default function DropoutRiskPanel({
                     <div className="section-note section-note--spaced">
                       Recent case history:{' '}
                       {recentInterventionCasePreview
-                        .map((caseEntry) => {
-                          const timestampLabel = formatDateTimeValue(
-                            caseEntry.updated_at || caseEntry.created_at,
-                            'No timestamp'
-                          );
-                          const proxyStatus = getDropoutInterventionProxyStatus(caseEntry);
-                          return `${formatWorkflowValueLabel(caseEntry.status, 'No status')} | ${formatInterventionProxyStatusLabel(proxyStatus, 'No automatic observation')} (${timestampLabel})`;
-                        })
+                        .map((caseEntry) => formatInterventionHistoryEntry(caseEntry))
                         .join(' | ')}
                     </div>
                   ) : null}
@@ -1197,21 +1330,26 @@ export default function DropoutRiskPanel({
                   <div className="info-banner section-note--spaced">{buildEarlyHistorySummary(activeEntry)}</div>
                 ) : null}
 
-                <DetailSection
-                  title="Legacy snapshot signals"
-                  items={legacyExplanationSignals}
-                  emptyLabel="No legacy explanation signals were included in the current snapshot payload."
-                />
-                <DetailSection
-                  title="Legacy snapshot input gaps"
-                  items={legacyMissingInputs}
-                  emptyLabel="No legacy missing-input issues were reported for the current snapshot."
-                />
-                <DetailSection
-                  title="Legacy snapshot data-quality flags"
-                  items={legacyDataQualityFlags}
-                  emptyLabel="No legacy data-quality flags were reported for the current snapshot."
-                />
+                <details className="dropout-dashboard__detailSection" style={{ marginTop: '18px' }}>
+                  <summary>
+                    <strong>Legacy operational context</strong>
+                  </summary>
+                  <DetailSection
+                    title="Legacy snapshot signals"
+                    items={legacyExplanationSignals}
+                    emptyLabel="No legacy explanation signals were included in the current snapshot payload."
+                  />
+                  <DetailSection
+                    title="Legacy snapshot input gaps"
+                    items={legacyMissingInputs}
+                    emptyLabel="No legacy missing-input issues were reported for the current snapshot."
+                  />
+                  <DetailSection
+                    title="Legacy snapshot data-quality flags"
+                    items={legacyDataQualityFlags}
+                    emptyLabel="No legacy data-quality flags were reported for the current snapshot."
+                  />
+                </details>
 
                 <div className="section-header section-header--tight section-header--spaced">
                   <div>
@@ -1233,6 +1371,18 @@ export default function DropoutRiskPanel({
                       ) : null}
                     </div>
                     <div className="dropout-dashboard__explainabilityGrid">
+                      <RiskChangeSection
+                        summary={explainabilityRiskChangeSummary}
+                        direction={activeExplainabilityPayload?.risk_change_direction}
+                        previousPublishedAt={activeExplainabilityPayload?.previous_published_at}
+                        previousRiskBucket={activeExplainabilityPayload?.previous_risk_bucket}
+                        previousProbability={activeExplainabilityPayload?.previous_dropout_probability}
+                        currentRiskBucket={activeExplainabilityPayload?.risk_bucket || activeEntry?.risk_bucket}
+                        currentProbability={
+                          activeExplainabilityPayload?.disengagement_probability ?? activeEntry?.dropout_probability
+                        }
+                        reasons={explainabilityRiskChangeReasons}
+                      />
                       <DetailSection
                         title="Why this patient is flagged"
                         items={explainabilityWhyFlagged}

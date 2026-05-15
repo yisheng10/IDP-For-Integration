@@ -2783,7 +2783,6 @@ export default function CRCHome({ user, onLogout }) {
                 patients={patients}
                 currentUser={{ uid: user.uid, name: currentCrcDisplayName }}
                 onOpenPatients={(patient) => openDropoutPatientWorkspace(patient)}
-                onOpenStudyCoordination={(patient) => openDropoutPatientWorkspace(patient, 'coordination')}
               />
             </section>
           ) : null}

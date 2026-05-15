@@ -5546,3 +5546,32 @@ eady calculation.
   - structured `source_completeness`
 - Updated `.github/workflows/dropout-precompute.yml` so the scheduled/manual dropout workflow now runs the shadow proxy evaluator after publish, instead of only writing shadow rows and stopping there.
 - Also cleaned up the Pandas UTC deprecation warnings in the touched dropout backend paths by switching to `Timestamp.now('UTC')`.
+
+## 2026-05-15 - CRC disengagement panel semantics polished and risk-change explainability added
+
+- Refined `src/components/DropoutRiskPanel.jsx` so the CRC detail panel now presents intervention-case semantics more clearly:
+  - keeps the main case fields focused on status, automatic 7-day observation, CRC action, manual response, latest linked prediction, and last update
+  - shows `close_reason` explicitly when the most recent visible case is already closed
+  - shortens the manual guidance copy so CRC staff do not have to re-read repeated explanations on every patient
+  - formats recent case history in a compact `status / auto observation / close reason / timestamp` style
+- Downgraded legacy snapshot context to a secondary disclosure block instead of letting it compete with the dedicated explainability mirror.
+- Added a new risk-change block to the CRC explainability area that compares the current publish with the immediately previous publish and shows:
+  - previous publish timestamp
+  - previous risk state
+  - current risk state
+  - a short summary of whether risk moved higher, lower, or stayed broadly stable
+  - up to three plain-language reasons pulled from signal changes, missing-input changes, data-quality changes, and source-completeness changes
+- Extended the dropout explainability mirror contract in `.dropout-safe-worktree/src/crc_integration_contracts.py` with:
+  - `previous_published_at`
+  - `previous_risk_bucket`
+  - `previous_dropout_probability`
+  - `risk_change_direction`
+  - `risk_change_probability_delta`
+  - `risk_change_summary`
+  - `risk_change_reasons`
+- Updated `.dropout-safe-worktree/src/publish_dropout_snapshots.py` so each publish now reads the existing Firestore `current` snapshot plus the current explainability mirror before overwriting them, allowing the next explainability mirror to explain `current vs previous publish` safely.
+- Reclassified `patient_daily_logs` inside `.dropout-safe-worktree/src/explainability_summary.py` as an optional fallback source when it is simply unused, instead of presenting it as a core missing source to CRC users.
+- Plainly stated:
+  - this does not add a full multi-day trend module yet
+  - it only adds a bounded `current vs previous publish` explanation
+  - `patient_daily_logs` is still available as fallback evidence, but CRC should no longer read its absence as “the system is broken” or “the patient never logged in”
