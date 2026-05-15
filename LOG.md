@@ -5711,3 +5711,7 @@ eady calculation.
   - confirmed no remaining `test-patient-uid` or HTTP auth bypass marker in `functions/guidanceRuntime.js`
   - `node --check functions/guidanceRuntime.js` passed on the integration copy
   - `expo lint` from the clean patient app merge worktree was blocked by dependency resolution because that worktree does not carry a full standalone Expo dependency graph; this was an environment-resolution issue in the temporary merge worktree, not a confirmed application-code failure
+- Added `TEAMMATE_CODE_SYNC_STEPS.md` to the root integration branch so `yunhong` and `jianhong` have one exact source of truth for:
+  - which integration branch to use
+  - which submodule commits to expect
+  - how to start new work from the integrated baseline without continuing on the old personal branches
