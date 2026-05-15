@@ -26,6 +26,12 @@
 - Reduced recurring live-publish warning noise in the dropout backend:
   - the optional subject registry message now explains that Firestore-backed patient/protocol context is still being used
   - Firestore query calls in the live adapter / publisher were updated toward the recommended filter style to avoid repeated positional-argument warnings in workflow logs
+- Activated the live shadow-monitoring database schema on Supabase by applying only:
+  - `supabase/migrations/20260403_dropout_shadow_monitoring.sql`
+- Repaired the remote migration history for `20260403` without marking unrelated pending migrations as applied.
+- Updated `.github/workflows/dropout-precompute.yml` to set:
+  - `DROPOUT_REQUIRE_SHADOW_MONITORING=1`
+- This changes shadow monitoring from "optional skip if missing" to an expected runtime dependency for future workflow runs.
 
 ### Dropout QA Live-History Seed Script
 - Added `functions/scripts/seed-dropout-qa-live-history.mjs` for Patient Disengagement Prediction QA setup.
