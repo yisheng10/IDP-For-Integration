@@ -268,7 +268,7 @@ async function ensureCrcAccessByUid(uid, token = {}) {
 
   try {
     const userSnapshot = await db.collection('users').doc(uid).get();
-    if (!userSnapshot.exists()) {
+    if (!userSnapshot.exists) {
       throw new HttpsError('permission-denied', 'CRC profile not found.');
     }
 
@@ -312,7 +312,7 @@ async function ensurePatientAccessByUid(uid, token = {}, requestedPatientUid = n
 
   try {
     const userSnapshot = await db.collection('users').doc(uid).get();
-    if (!userSnapshot.exists()) {
+    if (!userSnapshot.exists) {
       return fallbackProfile;
     }
 
@@ -340,26 +340,59 @@ async function assertAuthenticatedUser(request) {
   return ensureCrcAccessByUid(request.auth?.uid, request.auth?.token || {});
 }
 
-async function assertAuthenticatedHttpRequest(req) {
+async function decodeBearerIdToken(req, unauthenticatedMessage = 'Sign in before using CRC guidance services.') {
   const authorizationHeader = String(req.get('authorization') || '').trim();
   if (!authorizationHeader.toLowerCase().startsWith('bearer ')) {
-    throw new HttpsError('unauthenticated', 'Sign in before using CRC guidance services.');
+    throw new HttpsError('unauthenticated', unauthenticatedMessage);
   }
 
   const idToken = authorizationHeader.slice(7).trim();
   if (!idToken) {
-    throw new HttpsError('unauthenticated', 'Sign in before using CRC guidance services.');
+    throw new HttpsError('unauthenticated', unauthenticatedMessage);
   }
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    return ensureCrcAccessByUid(decodedToken.uid, decodedToken);
+    return await admin.auth().verifyIdToken(idToken);
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
     }
-    throw new HttpsError('unauthenticated', 'Sign in before using CRC guidance services.');
+    throw new HttpsError('unauthenticated', unauthenticatedMessage);
   }
+}
+
+async function assertAuthenticatedHttpRequest(req, accessMode = 'crc') {
+  const safeAccessMode = String(accessMode || 'crc').trim().toLowerCase();
+  const unauthenticatedMessage =
+    safeAccessMode === 'patient'
+      ? 'Sign in before using patient guidance services.'
+      : safeAccessMode === 'patient_or_crc'
+        ? 'Sign in before using guidance services.'
+        : 'Sign in before using CRC guidance services.';
+
+  const decodedToken = await decodeBearerIdToken(req, unauthenticatedMessage);
+
+  if (safeAccessMode === 'patient') {
+    return ensurePatientAccessByUid(decodedToken.uid, decodedToken);
+  }
+
+  if (safeAccessMode === 'patient_or_crc') {
+    try {
+      return await ensureCrcAccessByUid(decodedToken.uid, decodedToken);
+    } catch (error) {
+      if (!(error instanceof HttpsError)) {
+        throw error;
+      }
+
+      if (!['permission-denied', 'not-found'].includes(String(error.code || '').toLowerCase())) {
+        throw error;
+      }
+
+      return ensurePatientAccessByUid(decodedToken.uid, decodedToken);
+    }
+  }
+
+  return ensureCrcAccessByUid(decodedToken.uid, decodedToken);
 }
 
 function parseHttpJsonBody(req) {
@@ -421,7 +454,7 @@ function sendHttpJsonError(res, error, action = 'Request') {
   });
 }
 
-async function handleAuthedJsonRequest(req, res, handler, action = 'Request') {
+async function handleAuthedJsonRequest(req, res, handler, action = 'Request', accessMode = 'crc') {
   if (req.method !== 'POST') {
     res.status(405).json({
       error: {
@@ -433,7 +466,7 @@ async function handleAuthedJsonRequest(req, res, handler, action = 'Request') {
   }
 
   try {
-    await assertAuthenticatedHttpRequest(req);
+    await assertAuthenticatedHttpRequest(req, accessMode);
     const payload = parseHttpJsonBody(req);
     const result = await handler(payload);
     res.status(200).json({ result });
@@ -455,28 +488,12 @@ function buildTraceOrigin(traceAudience) {
 }
 
 async function assertAuthenticatedGuidanceTraceHttpRequest(req, traceAudience, patientUid = null) {
-  const authorizationHeader = String(req.get('authorization') || '').trim();
-  if (!authorizationHeader.toLowerCase().startsWith('bearer ')) {
-    throw new HttpsError(
-      'unauthenticated',
-      traceAudience === TRACE_AUDIENCE_PATIENT
-        ? 'Sign in before using patient guidance services.'
-        : 'Sign in before using CRC guidance services.'
-    );
-  }
-
-  const idToken = authorizationHeader.slice(7).trim();
-  if (!idToken) {
-    throw new HttpsError(
-      'unauthenticated',
-      traceAudience === TRACE_AUDIENCE_PATIENT
-        ? 'Sign in before using patient guidance services.'
-        : 'Sign in before using CRC guidance services.'
-    );
-  }
-
+  const unauthenticatedMessage =
+    traceAudience === TRACE_AUDIENCE_PATIENT
+      ? 'Sign in before using patient guidance services.'
+      : 'Sign in before using CRC guidance services.';
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await decodeBearerIdToken(req, unauthenticatedMessage);
     if (traceAudience === TRACE_AUDIENCE_PATIENT) {
       return ensurePatientAccessByUid(decodedToken.uid, decodedToken, patientUid);
     }
@@ -2370,7 +2387,8 @@ export const sideEffectGuidanceTraceStreamHttp = onRequest(
 
 export const sideEffectGuidanceChatHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runSideEffectGuidanceChat, 'Guidance generation')
+  async (req, res) =>
+    handleAuthedJsonRequest(req, res, runSideEffectGuidanceChat, 'Guidance generation', 'patient_or_crc')
 );
 
 export const retrieveGuidanceContext = onCall(
@@ -2383,7 +2401,8 @@ export const retrieveGuidanceContext = onCall(
 
 export const retrieveGuidanceContextHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 120, memory: '512MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runRetrieveGuidanceContext, 'Guidance retrieval')
+  async (req, res) =>
+    handleAuthedJsonRequest(req, res, runRetrieveGuidanceContext, 'Guidance retrieval', 'patient_or_crc')
 );
 
 export const classifyGuidanceRoute = onCall(
@@ -2550,5 +2569,11 @@ export const suggestAppointmentDate = onCall(
 export const suggestAppointmentDateHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
   async (req, res) =>
-    handleAuthedJsonRequest(req, res, runSuggestAppointmentDate, 'Appointment guidance generation')
+    handleAuthedJsonRequest(
+      req,
+      res,
+      runSuggestAppointmentDate,
+      'Appointment guidance generation',
+      'patient_or_crc'
+    )
 );

@@ -5695,3 +5695,21 @@ eady calculation.
   - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js`
   - `npm.cmd run build:crc`
   - `npm.cmd --prefix 'D:\\IDP For Integration\\MyClinicalApp_AndroidAPK_5Jan2026_2138\\MyClinicalApp2' run export:web`
+
+## 2026-05-16 - Safe jianhong2 merge branch for patient guidance alignment
+
+- Created safe merge worktrees and branches instead of touching the live `yisheng` branch directly:
+  - root: `codex/merge-jianhong2-into-yisheng`
+  - patient app: `codex/merge-jianhong2-into-yisheng`
+- Merged the patient app `origin/jianhong2` branch into the new patient merge branch.
+- Restored the patient-side detailed reasoning trace on top of the `jianhong2` UI changes by keeping the shared online Firebase guidance runtime and trace stream path as the source of truth.
+- Verified the patient merge branch still keeps:
+  - `firebase-callable` as the only formal guidance provider
+  - patient-side reasoning trace state and rendering
+  - the shared online key-pool-backed guidance path
+- Re-aligned patient guidance wording so newly added localized strings do not regress from `Adverse Event Guidance` back to `Side Effect Guidance`.
+- Added a temporary local `node_modules` junction and copied the patient `.env` into the temporary merge worktree only for validation.
+- Validation completed on the patient merge branch:
+  - `node --check .merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`
+  - `node --check .merge-jianhong2-patient/src/config.js`
+  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
