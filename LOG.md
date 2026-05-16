@@ -5715,3 +5715,16 @@ eady calculation.
   - which integration branch to use
   - which submodule commits to expect
   - how to start new work from the integrated baseline without continuing on the old personal branches
+- Finalized the remaining Patient Disengagement Prediction integration-freeze polish on the root integration branch:
+  - de-duplicated `Recent 7 publishes` so the current publish no longer reappears as the first previous publish when the history mirror contains the same snapshot identity
+  - added an explicit `stable` trend state so flat probability windows no longer get mislabeled as `mixed / volatile`
+  - tightened stable risk-change wording in the explainability backend so unchanged publishes read as effectively unchanged instead of over-explaining a no-op delta
+  - sharpened `what_if_scenarios` toward concrete operational next steps such as fresh activity, vitals, ePRO completion, and CRC follow-up closure
+  - made the challenger cross-check summary more specific so it reads like a secondary corroboration pass instead of a repeated copy of the main flagged-driver narrative
+- Updated the root integration branch to expect the latest safe dropout backend commit:
+  - `Patient-Dropout-Prediction` -> `9d7151fd13d72e737e26eb6c48844d5c339a0abb`
+- Validation notes for the freeze-finishing round:
+  - `npm.cmd run test:crc` passed with the refreshed trend and label-mapping coverage
+  - `npm.cmd run build:crc` passed on the root integration worktree
+  - dropout explainability backend unit tests passed on the safe worktree
+  - Python compile checks passed for the updated dropout explainability module

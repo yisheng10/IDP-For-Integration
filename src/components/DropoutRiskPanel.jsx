@@ -633,6 +633,7 @@ function getRiskBucketTone(bucket) {
 function formatRecentTrendDirectionLabel(direction) {
   if (direction === 'rising') return 'Rising';
   if (direction === 'falling') return 'Falling';
+  if (direction === 'stable') return 'Stable';
   if (direction === 'mixed / volatile') return 'Mixed / volatile';
   return 'Building history';
 }
@@ -650,17 +651,41 @@ function buildTrendHeadline(trendDirection, currentCount) {
   if (trendDirection === 'falling') {
     return `Recent publishes are trending downward across the visible ${currentCount}-publish window.`;
   }
+  if (trendDirection === 'stable') {
+    return `Recent publishes are holding broadly steady across the visible ${currentCount}-publish window.`;
+  }
   if (currentCount > 1) {
     return `Recent publishes are moving in both directions across the visible ${currentCount}-publish window.`;
   }
   return 'Only one published disengagement snapshot is available so far.';
 }
 
+function buildPublishIdentityKey(entry = {}) {
+  return [
+    String(entry?.published_at || '').trim().toLowerCase(),
+    String(entry?.model_version || '').trim().toLowerCase(),
+    String(getProbabilityNumber(entry?.dropout_probability) ?? '').trim().toLowerCase(),
+    String(entry?.risk_bucket || '').trim().toLowerCase(),
+    String(entry?.subject_id || entry?.subjectId || '').trim().toLowerCase(),
+  ].join('|');
+}
+
 export function buildRecentPublishTrendData(rows = [], currentEntry = null) {
   const historyRows = Array.isArray(rows) ? rows : [];
-  const timelineRows = [...historyRows]
+  const currentIdentityKey = currentEntry ? buildPublishIdentityKey(currentEntry) : '';
+  const dedupedHistoryRows = [];
+  const seenHistoryKeys = new Set();
+  [...historyRows]
     .sort((left, right) => new Date(right.published_at || 0).getTime() - new Date(left.published_at || 0).getTime())
-    .slice(0, Math.max(RECENT_PUBLISH_HISTORY_LIMIT - 1, 0));
+    .forEach((entry) => {
+      const identityKey = buildPublishIdentityKey(entry);
+      if (!identityKey || identityKey === currentIdentityKey || seenHistoryKeys.has(identityKey)) {
+        return;
+      }
+      seenHistoryKeys.add(identityKey);
+      dedupedHistoryRows.push(entry);
+    });
+  const timelineRows = dedupedHistoryRows.slice(0, Math.max(RECENT_PUBLISH_HISTORY_LIMIT - 1, 0));
   const visibleRows = currentEntry ? [currentEntry, ...timelineRows] : timelineRows;
   const chronologicalRows = [...visibleRows].sort(
     (left, right) => new Date(left.published_at || 0).getTime() - new Date(right.published_at || 0).getTime()
@@ -684,6 +709,8 @@ export function buildRecentPublishTrendData(rows = [], currentEntry = null) {
   let trendDirection = 'mixed / volatile';
   if (chronologicalRows.length < 2) {
     trendDirection = 'building';
+  } else if (higherCount === 0 && lowerCount === 0) {
+    trendDirection = 'stable';
   } else if (higherCount >= 2 && lowerCount === 0) {
     trendDirection = 'rising';
   } else if (lowerCount >= 2 && higherCount === 0) {
@@ -764,7 +791,11 @@ function RecentPublishTrendSection({ rows, currentEntry }) {
         {headline || 'This trend view will fill in as more published disengagement snapshots accumulate for this patient.'}
       </div>
       <div className="dropout-dashboard__statusHeader" style={{ marginTop: '10px' }}>
-        <span className={`metric-pill metric-pill--${trendDirection === 'rising' ? 'warning' : trendDirection === 'falling' ? 'success' : 'default'}`}>
+        <span
+          className={`metric-pill metric-pill--${
+            trendDirection === 'rising' ? 'warning' : trendDirection === 'falling' ? 'success' : 'default'
+          }`}
+        >
           {formatRecentTrendDirectionLabel(trendDirection)}
         </span>
         {jumpSummary ? <span className="section-note section-note--dense">{jumpSummary}</span> : null}
