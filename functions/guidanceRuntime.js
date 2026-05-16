@@ -279,7 +279,7 @@ async function ensureCrcAccessByUid(uid, token = {}) {
 
   try {
     const userSnapshot = await db.collection('users').doc(uid).get();
-    if (!userSnapshot.exists()) {
+    if (!userSnapshot.exists) {
       throw new HttpsError('permission-denied', 'CRC profile not found.');
     }
 
@@ -323,7 +323,7 @@ async function ensurePatientAccessByUid(uid, token = {}, requestedPatientUid = n
 
   try {
     const userSnapshot = await db.collection('users').doc(uid).get();
-    if (!userSnapshot.exists()) {
+    if (!userSnapshot.exists) {
       return fallbackProfile;
     }
 
