@@ -5673,3 +5673,25 @@ eady calculation.
   - this confirms the current online rotation chain is still functioning
   - this does not yet prove every unused key is good
   - it does prove that at least one never-used key can be picked up and used successfully by the shared production rotation path
+
+## 2026-05-16 - Locked local CRC and patient guidance paths back onto the shared online Gemini key pool
+
+- Hard-locked the CRC web guidance provider in `src/config.js` to `firebase-callable` so local `dev` / `preview` sessions can no longer silently switch into `gemini-browser` and bypass the shared `gemini_key_registry`.
+- Removed the browser-direct Gemini branch from `src/services/sideEffectGuidanceService.js`.
+- Hard-locked the patient app guidance provider in `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/config.js` to `firebase-callable` for the same reason.
+- Removed the browser-direct Gemini branch from `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/sideEffectGuidanceService.js`.
+- Updated `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` so patient local guidance no longer uses device-local Gemini calls for:
+  - direct answer generation
+  - local CTCAE embedding retrieval
+  - local structured extraction
+- Replaced the old local-answer path with the shared online callable guidance path and retained the existing rule-based safety fallback when streaming guidance fails.
+- Plainly stated:
+  - teammates running local CRC `npm run dev` / `npm run preview` should now hit the same shared online guidance backend as everyone else
+  - teammates running local patient Expo / web export should also stop bypassing the shared pool for the formal patient guidance path
+  - this change does not remove all historical Gemini-related code from the repo, but it removes the main live guidance bypass that could make the shared registry look “single-user”
+- Validation completed:
+  - `node --check src/services/sideEffectGuidanceService.js`
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/sideEffectGuidanceService.js`
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js`
+  - `npm.cmd run build:crc`
+  - `npm.cmd --prefix 'D:\\IDP For Integration\\MyClinicalApp_AndroidAPK_5Jan2026_2138\\MyClinicalApp2' run export:web`

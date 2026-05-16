@@ -1,12 +1,12 @@
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 import admin from 'firebase-admin';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
+import { runGeminiWithKeyPool } from './geminiKeyRegistry.js';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -52,17 +52,6 @@ function requireEnv(name) {
     throw new HttpsError('failed-precondition', `${name} is not configured on the server.`);
   }
   return value;
-}
-
-function getGeminiClient() {
-  return new GoogleGenerativeAI(requireEnv('GEMINI_API_KEY'));
-}
-
-function getGenerationModel(model, options = {}) {
-  return getGeminiClient().getGenerativeModel({
-    model,
-    ...options,
-  });
 }
 
 function getSupabaseClient() {
@@ -1379,22 +1368,28 @@ async function runStructuredGuidanceReasoningTrace(payload = {}) {
   }
 
   try {
-    const model = getGenerationModel(modelName, {
-      systemInstruction: systemPrompt
-        ? {
-            role: 'system',
-            parts: [{ text: systemPrompt }],
-          }
-        : undefined,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.2,
-        topP: 0.8,
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName,
+      modelOptions: {
+        systemInstruction: systemPrompt
+          ? {
+              role: 'system',
+              parts: [{ text: systemPrompt }],
+            }
+          : undefined,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+          topP: 0.8,
+        },
       },
-    });
-
-    const result = await model.generateContent({
-      contents: buildGeminiContents(messages, userMessage),
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Structured reasoning generation',
+      task: async ({ model }) =>
+        model.generateContent({
+          contents: buildGeminiContents(messages, userMessage),
+        }),
     });
 
     return parseJsonResponse(result?.response?.text?.());
@@ -2089,21 +2084,27 @@ async function runSideEffectGuidanceChat(payload = {}) {
   }
 
   try {
-    const model = getGenerationModel(modelName, {
-      systemInstruction: systemPrompt
-        ? {
-            role: 'system',
-            parts: [{ text: systemPrompt }],
-          }
-        : undefined,
-      generationConfig: {
-        temperature: 0.35,
-        topP: 0.9,
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName,
+      modelOptions: {
+        systemInstruction: systemPrompt
+          ? {
+              role: 'system',
+              parts: [{ text: systemPrompt }],
+            }
+          : undefined,
+        generationConfig: {
+          temperature: 0.35,
+          topP: 0.9,
+        },
       },
-    });
-
-    const result = await model.generateContent({
-      contents: buildGeminiContents(messages, userMessage),
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Guidance generation',
+      task: async ({ model }) =>
+        model.generateContent({
+          contents: buildGeminiContents(messages, userMessage),
+        }),
     });
 
     const text = String(result?.response?.text?.() || '').trim();
@@ -2196,25 +2197,31 @@ async function runClassifyGuidanceRoute(payload = {}) {
   }
 
   try {
-    const model = getGenerationModel(ROUTER_MODEL, {
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.1,
-        topP: 0.1,
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName: ROUTER_MODEL,
+      modelOptions: {
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          topP: 0.1,
+        },
       },
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Guidance routing',
+      task: async ({ model }) =>
+        model.generateContent(
+          buildGuidanceRoutePrompt({
+            userText,
+            previousUserMessage,
+            previousModelMessage,
+            hasPatientContext,
+            hasProtocolScope,
+            previousTurnUsedRetrieval,
+            cachedSourcesAvailable,
+          })
+        ),
     });
-
-    const result = await model.generateContent(
-      buildGuidanceRoutePrompt({
-        userText,
-        previousUserMessage,
-        previousModelMessage,
-        hasPatientContext,
-        hasProtocolScope,
-        previousTurnUsedRetrieval,
-        cachedSourcesAvailable,
-      })
-    );
 
     return normalizeRouterDecision(parseJsonResponse(result.response.text()), {
       hasProtocolScope,
@@ -2266,16 +2273,22 @@ OUTPUT JSON FORMAT:
   `.trim();
 
   try {
-    const model = getGenerationModel(APPOINTMENT_MODEL, {
-      generationConfig: {
-        responseMimeType: 'application/json',
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName: APPOINTMENT_MODEL,
+      modelOptions: {
+        generationConfig: {
+          responseMimeType: 'application/json',
+        },
       },
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Appointment guidance generation',
+      task: async ({ model }) =>
+        model.generateContent([
+          { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
+          prompt,
+        ]),
     });
-
-    const result = await model.generateContent([
-      { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
-      prompt,
-    ]);
 
     const parsed = parseJsonResponse(result?.response?.text?.());
     return {
