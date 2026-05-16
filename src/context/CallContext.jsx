@@ -307,6 +307,20 @@ export const CallProvider = ({ children }) => {
     const callDocRef = doc(db, 'calls', callDocId);
     const callSnap = await getDoc(callDocRef);
     const callData = callSnap.data();
+    if (callData?.signalingMode === 'native-placeholder' || !callData?.offer) {
+      setCallType(callData?.callType || 'audio');
+      setLocalStream(null);
+      setRemoteStream(null);
+      await updateDoc(callDocRef, {
+        status: 'active',
+        acceptedAt: new Date().toISOString(),
+        acceptedBy: user?.uid || null,
+      });
+      if (user?.uid) {
+        await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current')).catch(() => {});
+      }
+      return;
+    }
     
     const isVideo = callData.callType === 'video';
     setCallType(callData.callType);
