@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  acknowledgeIncident,
+  documentIncident,
+  openIncident,
   getIncidentDueState,
   hydrateIncidentPatientContext,
   resolveIncident,
@@ -86,30 +87,46 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
     }
   };
 
-  const handleAcknowledge = async () => {
+  const handleDocument = async () => {
     setChangingStatus(true);
     try {
-      await acknowledgeIncident(incident.id, {
+      await documentIncident(incident.id, {
         uid: user.uid,
         name: crcName || user.email,
         email: user.email,
       });
     } catch (error) {
-      alert('Failed to acknowledge incident: ' + error.message);
+      alert('Failed to document AE: ' + error.message);
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
+  const handleOpenAE = async () => {
+    setChangingStatus(true);
+    try {
+      await openIncident(incident.id, {
+        uid: user.uid,
+        name: crcName || user.email,
+        email: user.email,
+      });
+    } catch (error) {
+      alert('Failed to reopen AE: ' + error.message);
     } finally {
       setChangingStatus(false);
     }
   };
 
   const handleResolve = async () => {
-    if (!window.confirm('Resolve this incident?')) return;
+    if (!window.confirm('Resolve this incident and inform AE Guidance?')) return;
     setChangingStatus(true);
     try {
+      const patientId = incident.linked_patient_ids?.[0];
       await resolveIncident(incident.id, {
         uid: user.uid,
         name: crcName || user.email,
         email: user.email,
-      });
+      }, patientId, incident.event_title);
     } catch (error) {
       alert('Failed to resolve incident: ' + error.message);
     } finally {
@@ -171,14 +188,24 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
                 {savingNote ? 'Saving...' : 'Save Note'}
               </button>
               {incident.status === 'open' && (
-                <button onClick={handleAcknowledge} className="btn btn-secondary" disabled={changingStatus}>
-                  {changingStatus ? 'Updating...' : 'Acknowledge'}
-                </button>
+                <>
+                  <button onClick={handleDocument} className="btn btn-secondary" disabled={changingStatus}>
+                    {changingStatus ? 'Updating...' : 'Document AE'}
+                  </button>
+                  <button onClick={handleResolve} className="btn btn-success" disabled={changingStatus}>
+                    Resolve AE
+                  </button>
+                </>
               )}
-              {incident.status !== 'resolved' && (
-                <button onClick={handleResolve} className="btn btn-success" disabled={changingStatus}>
-                  Resolve
-                </button>
+              {incident.status === 'documented' && (
+                <>
+                  <button onClick={handleOpenAE} className="btn btn-secondary" disabled={changingStatus}>
+                    {changingStatus ? 'Updating...' : 'Open AE'}
+                  </button>
+                  <button onClick={handleResolve} className="btn btn-success" disabled={changingStatus}>
+                    Resolve AE
+                  </button>
+                </>
               )}
             </div>
           </div>

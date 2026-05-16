@@ -114,7 +114,7 @@ function normalizeIncidentText(value) {
 }
 
 function isUnresolvedIncident(incident) {
-  return ['open', 'acknowledged'].includes(normalizeIncidentText(incident?.status));
+  return normalizeIncidentText(incident?.status) === 'open';
 }
 
 function isAbnormalVitalIncident(incident) {
@@ -1128,20 +1128,18 @@ export default function CRCHome({ user, onLogout }) {
     setSearchParams(nextParams, { replace: true });
   };
 
-  const handleOpenIncidentChat = ({ alertPath, uid, patientName, reason, status }) => {
+  const handleOpenIncidentChat = ({ uid }) => {
     const target = patients.find((patient) => patient.id === uid);
     if (target) selectP(target);
 
-    setChatAlert({
-      id: alertPath.split('/').pop(),
-      ref: doc(db, alertPath),
-      uid,
-      patientName,
-      reason,
-      status,
-    });
-    setIsAlertWidgetOpen(true);
-    handleCloseIncident();
+    setActiveIncident(null);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('incident');
+    nextParams.delete('patient');
+    nextParams.delete('tab');
+    nextParams.delete('focus');
+    nextParams.set('section', 'side-effect-guidance');
+    setSearchParams(nextParams);
   };
 
   const handleSuggestDate = async () => {
@@ -1564,7 +1562,7 @@ export default function CRCHome({ user, onLogout }) {
       }
     } else if (normalizedSection === 'safety') {
       const tab = nextParams.get('tab');
-      if (!['open', 'resolved', 'history'].includes(tab)) {
+      if (!['open', 'documented', 'resolved', 'history'].includes(tab)) {
         nextParams.set('tab', 'open');
         changed = true;
       }

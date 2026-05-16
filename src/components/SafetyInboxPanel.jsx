@@ -23,6 +23,7 @@ function historyStatusLabel(status) {
 
 const SAFETY_TABS = [
   { id: 'open', label: 'Open' },
+  { id: 'documented', label: 'Documented' },
   { id: 'resolved', label: 'Resolved' },
   { id: 'history', label: 'History' },
 ];
@@ -92,7 +93,10 @@ const SafetyInboxPanel = ({
       const matchesPatient = selectedPatient
         ? (incident.linked_patient_ids || []).includes(selectedPatient.id)
         : true;
-      const matchesTab = activeTab === 'resolved' ? incident.status === 'resolved' : incident.status !== 'resolved';
+      const matchesTab =
+        activeTab === 'resolved' ? incident.status === 'resolved' :
+        activeTab === 'documented' ? incident.status === 'documented' :
+        activeTab === 'open' ? incident.status === 'open' : true;
       const matchesSeverity = severityFilter === 'all' ? true : incident.severity === severityFilter;
       const matchesStatus =
         incidentStatusFilter === 'all' ? true : incident.status === incidentStatusFilter;
@@ -154,12 +158,9 @@ const SafetyInboxPanel = ({
     return rows;
   }, [alertHistory, historyDate, historySearch, historySort, historyStatusFilter, selectedPatient]);
 
-  const openCount = Number.isFinite(Number(incidentSummary?.openIncidents))
-    ? Number(incidentSummary.openIncidents)
-    : incidents.filter((incident) => incident.status !== 'resolved').length;
-  const resolvedCount = Number.isFinite(Number(incidentSummary?.resolvedIncidents))
-    ? Number(incidentSummary.resolvedIncidents)
-    : incidents.filter((incident) => incident.status === 'resolved').length;
+  const openCount = incidents.filter((incident) => incident.status === 'open').length;
+  const documentedCount = incidents.filter((incident) => incident.status === 'documented').length;
+  const resolvedCount = incidents.filter((incident) => incident.status === 'resolved').length;
   const groupedCount = Number.isFinite(Number(incidentSummary?.groupedIncidents))
     ? Number(incidentSummary.groupedIncidents)
     : incidents.filter((incident) => incident.compare_ready).length;
@@ -211,6 +212,10 @@ const SafetyInboxPanel = ({
             <span>Open</span>
           </div>
           <div className="inbox-counterBox">
+            <strong>{documentedCount}</strong>
+            <span>Documented</span>
+          </div>
+          <div className="inbox-counterBox">
             <strong>{resolvedCount}</strong>
             <span>Resolved</span>
           </div>
@@ -231,6 +236,7 @@ const SafetyInboxPanel = ({
           >
             {tab.label}
             {tab.id === 'open' ? <span className="inbox-tabBadge">{openCount}</span> : null}
+            {tab.id === 'documented' ? <span className="inbox-tabBadge">{documentedCount}</span> : null}
             {tab.id === 'resolved' ? <span className="inbox-tabBadge">{resolvedCount}</span> : null}
             {tab.id === 'history' ? <span className="inbox-tabBadge">{activeHistoryCount}</span> : null}
           </button>

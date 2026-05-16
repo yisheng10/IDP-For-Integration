@@ -8,6 +8,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -42,7 +43,7 @@ const SEVERITY_RANK = {
   serious: 3,
 };
 
-const OPEN_INCIDENT_STATUSES = new Set(['open', 'acknowledged']);
+const OPEN_INCIDENT_STATUSES = new Set(['open']);
 
 export function getDefaultNotificationPolicy() {
   return JSON.parse(JSON.stringify(DEFAULT_NOTIFICATION_POLICY));
@@ -457,13 +458,24 @@ export function subscribeToIncidentRecords(onUpdate, onError, options = {}) {
   );
 }
 
-export async function acknowledgeIncident(incidentId, crcMeta = {}) {
+export async function documentIncident(incidentId, crcMeta = {}) {
   const nowIso = new Date().toISOString();
   await updateDoc(doc(db, 'incident_records', incidentId), {
-    status: 'acknowledged',
-    acknowledged_at: nowIso,
-    acknowledged_by: crcMeta.uid || null,
-    acknowledged_by_name: crcMeta.name || crcMeta.email || null,
+    status: 'documented',
+    documented_at: nowIso,
+    documented_by: crcMeta.uid || null,
+    documented_by_name: crcMeta.name || crcMeta.email || null,
+    updated_at: nowIso,
+  });
+}
+
+export async function openIncident(incidentId, crcMeta = {}) {
+  const nowIso = new Date().toISOString();
+  await updateDoc(doc(db, 'incident_records', incidentId), {
+    status: 'open',
+    reopened_at: nowIso,
+    reopened_by: crcMeta.uid || null,
+    reopened_by_name: crcMeta.name || crcMeta.email || null,
     updated_at: nowIso,
   });
 }
@@ -475,7 +487,7 @@ export async function updateIncidentNote(incidentId, crcNote) {
   });
 }
 
-export async function resolveIncident(incidentId, crcMeta = {}) {
+export async function resolveIncident(incidentId, crcMeta = {}, patientId = null, eventTitle = '') {
   const nowIso = new Date().toISOString();
   await updateDoc(doc(db, 'incident_records', incidentId), {
     status: 'resolved',
@@ -484,6 +496,18 @@ export async function resolveIncident(incidentId, crcMeta = {}) {
     resolved_by_name: crcMeta.name || crcMeta.email || null,
     updated_at: nowIso,
   });
+
+  if (patientId && eventTitle) {
+    try {
+      await addDoc(collection(db, 'users', patientId, 'ai_chat_history'), {
+        role: 'system',
+        text: `[SYSTEM LOG]: The CRC has clinically resolved the adverse event regarding: "${eventTitle}". Do not prompt the patient about this issue again unless they bring it up.`,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error('Failed to inject system log into AI chat history:', e);
+    }
+  }
 }
 
 export async function hydrateIncidentPatientContext(incident) {
