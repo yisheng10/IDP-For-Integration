@@ -2,6 +2,7 @@ import { GoogleGenerativeAI, TaskType } from 'npm:@google/generative-ai@0.24.1';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
 import { baselineConfig } from './baselineConfig.ts';
 import { loadRealtimePromptContext } from './firestorePromptContext.ts';
+import { GeminiKeyRegistryRuntimeError, runGeminiWithKeyPool } from './geminiKeyRegistry.ts';
 
 export const MAX_TRIAL_DAY = 30;
 export const MAX_CUSTOM_QUESTIONS = 2;
@@ -495,19 +496,25 @@ function sanitizeBaselineQuestionsStrict(rawQuestions: unknown) {
 }
 
 async function buildProtocolQueryEmbedding(queryText: string) {
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!apiKey) {
+  const client = getServiceClient();
+
+  try {
+    const embeddingResult = await runGeminiWithKeyPool({
+      client,
+      modelName: 'gemini-embedding-001',
+      runtimeLabel: 'supabase-epro',
+      actionLabel: 'Protocol embedding generation',
+      task: async ({ model }) =>
+        model.embedContent({
+          content: { parts: [{ text: queryText }] },
+          taskType: TaskType.RETRIEVAL_QUERY,
+        }),
+    });
+
+    return embeddingResult?.embedding?.values || null;
+  } catch {
     return null;
   }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
-  const embeddingResult = await embeddingModel.embedContent({
-    content: { parts: [{ text: queryText }] },
-    taskType: TaskType.RETRIEVAL_QUERY,
-  });
-
-  return embeddingResult?.embedding?.values || null;
 }
 
 async function fetchProtocolContextChunks({
@@ -659,25 +666,19 @@ export async function buildProtocolBaselineQuestions({
     });
   }
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!apiKey) {
-    throw new EproProtocolBaselineError({
-      code: 'gemini_key_missing',
-      message: 'GEMINI_API_KEY is not configured in the ePRO runtime, so TrialLight cannot generate a protocol-specific questionnaire right now.',
-      protocolId: cleanProtocolId || null,
-      protocolName: cleanProtocolName || null,
-    });
-  }
-
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
     const prompt = buildProtocolBaselinePrompt({
       protocolId: cleanProtocolId,
       protocolName: cleanProtocolName,
       protocolChunks,
     });
-    const result = await model.generateContent(prompt);
+    const result = await runGeminiWithKeyPool({
+      client,
+      modelName: 'gemini-2.5-flash-lite',
+      runtimeLabel: 'supabase-epro',
+      actionLabel: 'Protocol questionnaire generation',
+      task: async ({ model }) => model.generateContent(prompt),
+    });
     const parsed = JSON.parse(stripCodeFence(result.response.text()));
     const sanitized = sanitizeBaselineQuestionsStrict(parsed);
     if (!sanitized?.length) {
@@ -692,6 +693,21 @@ export async function buildProtocolBaselineQuestions({
   } catch (error) {
     if (error instanceof EproProtocolBaselineError) {
       throw error;
+    }
+
+    if (error instanceof GeminiKeyRegistryRuntimeError) {
+      const code =
+        error.code === 'gemini_key_registry_empty'
+          ? 'gemini_key_registry_empty'
+          : error.code === 'gemini_key_pool_exhausted'
+            ? 'gemini_key_pool_exhausted'
+            : 'gemini_key_registry_unavailable';
+      throw new EproProtocolBaselineError({
+        code,
+        message: `${error.message} TrialLight could not generate a protocol-specific questionnaire for ${cleanProtocolName || cleanProtocolId}.`,
+        protocolId: cleanProtocolId || null,
+        protocolName: cleanProtocolName || null,
+      });
     }
 
     throw new EproProtocolBaselineError({
@@ -808,10 +824,6 @@ export async function buildQuestionSet({
       `A protocol-specific baseline questionnaire is required before TrialLight can generate patient-specific follow-up questions for ${protocolName || protocolId || subjectId}.`
     );
   }
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!apiKey) {
-    return baseline;
-  }
 
   const recentHistory = buildRecentHistorySummary(await fetchRecentHistory(client, subjectId));
   let promptContext = {
@@ -842,8 +854,6 @@ export async function buildQuestionSet({
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
     const prompt = buildGenerationPrompt({
       currentDay,
       patientName,
@@ -853,7 +863,13 @@ export async function buildQuestionSet({
       baselineQuestions: baseline,
       promptContext,
     });
-    const result = await model.generateContent(prompt);
+    const result = await runGeminiWithKeyPool({
+      client,
+      modelName: 'gemini-2.5-flash-lite',
+      runtimeLabel: 'supabase-epro',
+      actionLabel: 'Patient follow-up questionnaire generation',
+      task: async ({ model }) => model.generateContent(prompt),
+    });
     const responseText = stripCodeFence(result.response.text());
     const parsed = JSON.parse(responseText);
     const customQuestions = sanitizeCustomQuestions(parsed, currentDay);
