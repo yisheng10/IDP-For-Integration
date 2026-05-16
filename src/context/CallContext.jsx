@@ -350,7 +350,15 @@ export const CallProvider = ({ children }) => {
     const answerDescription = await pc.createAnswer();
     await pc.setLocalDescription(answerDescription);
 
-    await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
+    await updateDoc(callDocRef, {
+      answer: { type: answerDescription.type, sdp: answerDescription.sdp },
+      status: 'active',
+      acceptedAt: new Date().toISOString(),
+      acceptedBy: user?.uid || null,
+    });
+    if (user?.uid) {
+      await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current')).catch(() => {});
+    }
 
     unsubscribeOfferCandidatesRef.current = onSnapshot(collection(callDocRef, 'offerCandidates'), (snapshot) => {
       snapshot.docChanges().forEach((change) => {
