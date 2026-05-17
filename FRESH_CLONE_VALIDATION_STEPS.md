@@ -1,15 +1,15 @@
-# Fresh Clone Validation Steps For The Stable Candidate Branch
+# Fresh Clone Validation Steps For The Main Branch
 
-This document explains how to verify that the current stable candidate branch can be cloned into a fresh folder and still work correctly after environment files are added.
+This document explains how to verify that the current main branch can be cloned into a fresh folder and still work correctly after environment files are added.
 
-This is the validation step we want to complete **before** merging anything into `main`.
+This is the clean-clone validation workflow for the current mainline baseline.
 
 ## Branches To Validate
 
 - Root integration repo:
-  - branch: `codex/stable-candidate-20260517-rc1`
+  - branch: `main`
 - Patient app submodule:
-  - branch: `codex/stable-candidate-20260517-rc1`
+  - branch: `main`
 
 Expected patient submodule commit after sync:
 
@@ -38,7 +38,7 @@ We **are** trying to prove that the project works correctly when a teammate does
 You need:
 
 - the GitHub repos
-- the stable candidate branch names above
+- the main branch names above
 - the environment bundle zip
 - the credentials-only bundle zip
 
@@ -59,7 +59,7 @@ cd TrialLightFreshCloneTest
 ## Step 2: Clone The Root Repo On The Stable Candidate Branch
 
 ```powershell
-git clone --branch codex/stable-candidate-20260517-rc1 https://github.com/yisheng10/IDP-For-Integration.git
+git clone --branch main https://github.com/yisheng10/IDP-For-Integration.git
 cd IDP-For-Integration
 ```
 
@@ -76,7 +76,7 @@ This step should complete without the old error:
 fatal: No url found for submodule path 'external-skills/ui-ux-pro-max-skill' in .gitmodules
 ```
 
-If you still see that exact error, it usually means you cloned an older branch state before the stable-candidate cleanup was pushed. Re-clone the stable candidate branch again instead of continuing with that broken checkout.
+If you still see that exact error, it usually means you cloned an older branch state before the ghost-submodule cleanup was pushed. Re-clone the current `main` branch again instead of continuing with that broken checkout.
 
 ## Step 4: Verify The Root Branch
 
@@ -87,7 +87,7 @@ git branch --show-current
 Expected:
 
 ```text
-codex/stable-candidate-20260517-rc1
+main
 ```
 
 ## Step 5: Verify The Patient Submodule Branch And Commit
@@ -97,10 +97,23 @@ git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" branch --show-cur
 git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" rev-parse HEAD
 ```
 
-Expected branch:
+Important:
+
+- after `git submodule update --init --recursive`, the patient submodule may be in detached `HEAD`
+- this is normal
+- the critical validation is the commit hash
+
+If you want the patient repo to sit on its formal `main` branch before continuing, run:
+
+```powershell
+git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" checkout main
+git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" pull --ff-only origin main
+```
+
+Expected branch after that:
 
 ```text
-codex/stable-candidate-20260517-rc1
+main
 ```
 
 Expected commit:
@@ -273,7 +286,7 @@ Write down:
 
 ## Final Rule
 
-Do **not** merge this stable candidate branch into `main` until:
+The current `main` branch should only be treated as healthy when:
 
 1. CRC web passes
 2. patient web passes

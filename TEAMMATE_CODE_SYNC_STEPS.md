@@ -1,4 +1,4 @@
-# Team Sync Guide For The Stable Candidate Branch
+# Team Sync Guide For The Mainline Baseline
 
 This document explains:
 
@@ -11,9 +11,9 @@ This guide is written for teammates who are not confident with Git.
 
 ## Important Update
 
-If you already synced `codex/merge-jianhong2-into-yisheng-v2` or any earlier test branch today, sync again now.
+If you already synced `codex/stable-candidate-20260517-rc1` or any earlier test branch today, sync again now.
 
-This stable candidate branch was cut from the fully tested `v2` integration state so the team can do a clean fresh-clone validation before anything is merged into `main`.
+The previously validated stable candidate has now been merged into the formal team baseline.
 
 It includes:
 
@@ -24,7 +24,7 @@ It includes:
 
 ## What Was Merged
 
-The new stable candidate branch combines:
+The new mainline baseline combines:
 
 - the current root integration work from `yisheng`
 - the root repo changes from `jianhong2`
@@ -58,9 +58,9 @@ In plain language:
 Teammates must sync to these branches:
 
 - Root integration repo:
-  - branch: `codex/stable-candidate-20260517-rc1`
+  - branch: `main`
 - Patient app submodule:
-  - branch: `codex/stable-candidate-20260517-rc1`
+  - branch: `main`
 
 Expected submodule commits after sync:
 
@@ -145,14 +145,14 @@ This updates:
 Run:
 
 ```powershell
-git checkout codex/stable-candidate-20260517-rc1
-git pull --ff-only origin codex/stable-candidate-20260517-rc1
+git checkout main
+git pull --ff-only origin main
 ```
 
 If Git says the branch does not exist locally, run:
 
 ```powershell
-git checkout -b codex/stable-candidate-20260517-rc1 origin/codex/stable-candidate-20260517-rc1
+git checkout -b main origin/main
 ```
 
 ## Step 4: Sync And Update Submodules
@@ -193,7 +193,7 @@ git branch --show-current
 Expected result:
 
 ```text
-codex/stable-candidate-20260517-rc1
+main
 ```
 
 ## Step 7: Verify The Patient App Submodule Commit
@@ -205,10 +205,23 @@ git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" branch --show-cur
 git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" rev-parse HEAD
 ```
 
-The patient app branch should show:
+Important:
+
+- after `git submodule update --init --recursive`, Git may leave the patient submodule in a detached `HEAD` state
+- this is normal for submodules
+- the most important verification here is the commit hash
+
+If you specifically want the patient repo to sit on its formal `main` branch before doing new work, run:
+
+```powershell
+git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" checkout main
+git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" pull --ff-only origin main
+```
+
+Then the patient app branch should show:
 
 ```text
-codex/stable-candidate-20260517-rc1
+main
 ```
 
 Expected patient app commit:
@@ -223,7 +236,7 @@ If you already created a branch such as `jianhong3` before this latest `v2` upda
 
 The safe beginner path is:
 
-1. finish syncing to `codex/stable-candidate-20260517-rc1`
+1. finish syncing to `main`
 2. create a **new** fresh branch from that updated state
 3. move your unfinished work onto the new branch
 
@@ -253,6 +266,8 @@ git checkout -b <your-new-root-branch>
 If you will edit patient app code, also create a new patient-app branch:
 
 ```powershell
+git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" checkout main
+git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" pull --ff-only origin main
 git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" checkout -b <your-new-patient-branch>
 ```
 
@@ -322,8 +337,8 @@ The fix is usually to run again:
 
 ```powershell
 git fetch origin
-git checkout codex/stable-candidate-20260517-rc1
-git pull --ff-only origin codex/stable-candidate-20260517-rc1
+git checkout main
+git pull --ff-only origin main
 git submodule sync --recursive
 git submodule update --init --recursive
 npm install --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2"

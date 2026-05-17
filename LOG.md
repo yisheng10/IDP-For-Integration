@@ -5997,3 +5997,18 @@ eady calculation.
   - moved the empty local ghost folder into `D:\99_回收站`
   - removed the broken gitlink entry from the Git index
 - Updated teammate docs so the fresh-clone validation instructions now explicitly say this error should no longer appear on the repaired stable candidate branch.
+
+## 2026-05-17 - validated stable candidate merged into root `main` and patient `main` established
+
+- Established a new formal `main` branch in the patient app repo from the validated stable candidate commit:
+  - `a7a4a33`
+- Merged the repaired stable candidate root branch into the root repo mainline release branch.
+- Updated teammate-facing documentation on the mainline branch:
+  - `TEAMMATE_CODE_SYNC_STEPS.md` now points teammates to:
+    - root repo `main`
+    - patient app repo `main`
+  - `FRESH_CLONE_VALIDATION_STEPS.md` now describes clean-clone validation against `main`
+- Plainly stated:
+  - the team can now stop using the old integration merge branches as their working baseline
+  - future feature branches should be cut from `main` in the root repo and from `main` in the patient repo
+  - teammate docs now explicitly explain that a submodule may land in detached `HEAD` after `git submodule update`, and that patient developers should `checkout main` before branching
