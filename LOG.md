@@ -5857,6 +5857,30 @@ eady calculation.
   - all seven guidance functions updated successfully
   - patient local web / Expo / emulator testing can now hit the repaired shared online grounded-answer backend instead of the older deployed logic
 
+## 2026-05-17 - patient guidance route-classifier auth fixed for Android emulator
+
+- Diagnosed Jianhong's Android emulator error:
+  - `Guidance retrieval router failed: Error: Only CRC users can access guidance services.`
+- Root cause:
+  - patient guidance routing had been moved onto `classifyGuidanceRouteHttp`
+  - but the HTTP handler was still using the default CRC-only auth mode
+  - local patient web paths could appear fine when they did not hit that exact router path, but Android emulator patient guidance did
+- Fixed `functions/guidanceRuntime.js` so `classifyGuidanceRouteHttp` now uses:
+  - `patient_or_crc`
+- Plainly stated:
+  - this is a backend auth bug, not a teammate env-file sync mistake
+  - the fix requires a Firebase guidance function redeploy before Android emulator testing can pass
+
+## 2026-05-17 - patient trace-stream failure no longer forces safety fallback
+
+- Hardened `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` for Android / Expo guidance stability.
+- New behavior:
+  - patient AE Guidance still tries the live reasoning trace stream first
+  - if the trace stream fails, the app now immediately retries the same grounded request through the non-streaming shared online guidance endpoint
+  - only if both trace streaming and the normal grounded guidance request fail does the app fall back to the static safety message
+- Plainly stated:
+  - this reduces Android-emulator-specific risk where the user could otherwise get an unnecessary `Temporary guidance fallback` even though retrieval and the normal HTTP guidance path were still healthy
+
 ## 2026-05-17 - teammate sync guide refreshed for latest merge v2 state
 
 - Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the newest `codex/merge-jianhong2-into-yisheng-v2` baseline with the current patient submodule commit:

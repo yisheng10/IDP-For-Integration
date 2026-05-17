@@ -2503,7 +2503,14 @@ export const classifyGuidanceRoute = onCall(
 
 export const classifyGuidanceRouteHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 60, memory: '256MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runClassifyGuidanceRoute, 'Guidance routing')
+  async (req, res) =>
+    handleAuthedJsonRequest(
+      req,
+      res,
+      runClassifyGuidanceRoute,
+      'Guidance routing',
+      'patient_or_crc'
+    )
 );
 
 export const ingestGuidanceDocument = onCall(
