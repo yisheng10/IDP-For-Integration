@@ -17,6 +17,7 @@ The branch was updated again with:
 
 - the Android patient guidance route-classifier auth fix
 - the patient guidance recovery path so a trace-stream failure does not immediately force the static safety fallback
+- the Android buffered trace fallback so reasoning trace can still render when native streaming is unavailable
 
 ## What Was Merged
 
@@ -32,6 +33,7 @@ The new integration branch combines:
 - the patient-side RAG trace wiring fix
 - the patient-side grounded guidance alignment fix so the final answer uses the same retrieved CTCAE / protocol chunks as the reasoning trace
 - the patient-side duplicate-message cleanup so mirrored guidance messages no longer appear twice as easily
+- the Android patient buffered trace fallback so reasoning trace no longer depends on native NDJSON stream support
 - the Daily Health Report to AE Guidance handoff fix
 - the patient guidance timeline filtering fix so urgent alert thread noise does not appear as AE Guidance chat history
 - the `Final A2` CRC dropout operations board replica from `yisheng`
@@ -60,7 +62,7 @@ Teammates must sync to these branches:
 Expected submodule commits after sync:
 
 - Patient app submodule:
-  - commit: `31f4e43`
+  - commit: `a7a4a33`
 
 Do **not** continue development from:
 
@@ -209,7 +211,7 @@ codex/merge-jianhong2-into-yisheng-v2
 Expected patient app commit:
 
 ```text
-aa2809c
+a7a4a33
 ```
 
 ## Step 7B: If You Already Created `jianhong3` Or Another Personal Branch Earlier
@@ -227,6 +229,7 @@ If you keep using an older personal branch without re-syncing first, you may mis
 - the grounded patient guidance fix
 - the duplicate-message cleanup
 - the Android patient guidance recovery fix
+- the Android buffered trace fallback
 - the newer dropout `Final A2` board
 - the latest submodule pointer
 
@@ -270,6 +273,7 @@ After syncing, teammates should verify these points:
 - urgent alert auto-thread messages should not pollute the AE Guidance chat timeline
 - patient guidance messages should no longer duplicate as easily
 - if trace streaming fails on Android, the app should still try the normal grounded online guidance path before falling back to the static safety message
+- if Android cannot consume the live stream body, patient reasoning trace should still render through the buffered trace endpoint
 
 ### CRC side additional expectation
 
@@ -301,6 +305,7 @@ If a teammate still sees:
 - duplicated patient guidance messages
 - Android saying `Only CRC users can access guidance services.`
 - Android dropping straight into `Temporary guidance fallback` even though retrieval is otherwise healthy
+- Android showing `Streaming response body was not available.` while the normal answer already succeeded
 - old patient guidance behavior
 - outdated patient UI
 - the old dropout board layout
@@ -330,7 +335,7 @@ git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2" rev-parse HEAD
 Expected patient app commit:
 
 ```text
-31f4e43
+a7a4a33
 ```
 
 ## If You Already Have Local Branches Based On Older Work

@@ -2151,6 +2151,35 @@ async function runSideEffectGuidanceTraceStream(payload = {}, requesterProfile, 
   }
 }
 
+async function runSideEffectGuidanceTraceBuffered(payload = {}, requesterProfile) {
+  const capturedChunks = [];
+  const mockResponse = {
+    write(chunk) {
+      capturedChunks.push(String(chunk || ''));
+    },
+  };
+
+  await runSideEffectGuidanceTraceStream(payload, requesterProfile, mockResponse);
+
+  const events = capturedChunks
+    .join('')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return {
+    events,
+  };
+}
+
 async function runSideEffectGuidanceChat(payload = {}) {
   const systemPrompt = String(payload.systemPrompt || '');
   const userMessage = String(payload.userMessage || '').trim();
@@ -2469,6 +2498,35 @@ export const sideEffectGuidanceTraceStreamHttp = onRequest(
       );
     } finally {
       res.end();
+    }
+  }
+);
+
+export const sideEffectGuidanceTraceHttp = onRequest(
+  { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
+  async (req, res) => {
+    if (req.method !== 'POST') {
+      res.status(405).json({
+        error: {
+          status: 'method-not-allowed',
+          message: 'Only POST requests are supported.',
+        },
+      });
+      return;
+    }
+
+    try {
+      const payload = parseHttpJsonBody(req);
+      const traceAudience = normalizeTraceAudience(payload.traceAudience);
+      const requesterProfile = await assertAuthenticatedGuidanceTraceHttpRequest(
+        req,
+        traceAudience,
+        String(payload.patientUid || '').trim() || null
+      );
+      const result = await runSideEffectGuidanceTraceBuffered(payload, requesterProfile);
+      res.status(200).json({ result });
+    } catch (error) {
+      sendHttpJsonError(res, error, 'Guidance trace generation');
     }
   }
 );

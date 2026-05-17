@@ -5906,3 +5906,24 @@ eady calculation.
   - old guidance behavior
   - duplicated messages
   - the old dropout board layout
+
+## 2026-05-17 - Android patient reasoning trace now falls back to buffered trace delivery
+
+- Diagnosed the remaining Android emulator trace failure after grounded patient answers were already working:
+  - the guidance answer path was healthy
+  - the retrieval path was healthy
+  - but React Native / Expo on Android did not reliably expose a readable streamed HTTP response body for the NDJSON trace endpoint
+- Plainly stated:
+  - web could read the live trace stream
+  - Android could get the real answer, but the trace reader itself failed with `Streaming response body was not available.`
+- Added a new buffered Firebase HTTP endpoint in `.merge-jianhong2-root/functions/guidanceRuntime.js`:
+  - `sideEffectGuidanceTraceHttp`
+  - it reuses the same trace-generation logic as the stream endpoint, but returns the already-built trace event envelopes as normal JSON instead of requiring live stream support
+- Exported the new endpoint from `.merge-jianhong2-root/functions/index.js`.
+- Updated `.merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`:
+  - patient trace still tries `sideEffectGuidanceTraceStreamHttp` first
+  - if Android reports that the streaming response body is unavailable, the app now automatically retries through `sideEffectGuidanceTraceHttp`
+  - the returned buffered events are replayed through the same patient trace handlers, so the existing UI can render them without a separate Android-only code path
+- Expected result after redeploy:
+  - web keeps the live streaming trace
+  - Android emulator / future APK can still show the reasoning trace even when native fetch cannot consume the stream directly
