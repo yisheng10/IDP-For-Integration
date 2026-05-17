@@ -7,6 +7,7 @@ import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 import { runGeminiWithKeyPool } from './geminiKeyRegistry.js';
+import { createLiveKitCallToken } from './livekitRuntime.js';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -2533,8 +2534,33 @@ export const sideEffectGuidanceTraceHttp = onRequest(
 
 export const sideEffectGuidanceChatHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
-  async (req, res) =>
-    handleAuthedJsonRequest(req, res, runSideEffectGuidanceChat, 'Guidance generation', 'patient_or_crc')
+  async (req, res) => {
+    if (req.method !== 'POST') {
+      res.status(405).json({
+        error: {
+          status: 'method-not-allowed',
+          message: 'Only POST requests are supported.',
+        },
+      });
+      return;
+    }
+
+    try {
+      const requesterProfile = await assertAuthenticatedHttpRequest(req, 'patient_or_crc');
+      const payload = parseHttpJsonBody(req);
+      const result =
+        payload?.__operation === 'createLiveKitCallToken'
+          ? await createLiveKitCallToken({
+              callId: payload.callId,
+              uid: requesterProfile.uid,
+              displayName: payload.displayName || requesterProfile.displayName || requesterProfile.email,
+            })
+          : await runSideEffectGuidanceChat(payload);
+      res.status(200).json({ result });
+    } catch (error) {
+      sendHttpJsonError(res, error, 'Guidance generation');
+    }
+  }
 );
 
 export const retrieveGuidanceContext = onCall(
