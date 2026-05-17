@@ -5773,3 +5773,11 @@ eady calculation.
   - `deleteGuidanceDocumentChunksHttp`
   - `suggestAppointmentDate`
   - `suggestAppointmentDateHttp`
+- Added a new teammate-facing English validation guide:
+  - `TEAMMATE_TESTING_CHECKLIST.md`
+  - this covers merge smoke test, regression test, patient AE Guidance, trace, retrieval, Daily Health Report handoff, chat, call UI, ePRO, dark mode, and Android emulator checks
+- Diagnosed local CRC white-screen testing on the root `v2` worktree:
+  - the preview server itself was healthy
+  - browser console showed `Missing Firebase env: VITE_FIREBASE_API_KEY`
+  - root `.env.local` existed but `.merge-jianhong2-root/.env.local` was missing
+- Restored local CRC merge-worktree testability by copying the root `.env.local` into `.merge-jianhong2-root/.env.local` without committing any secrets.
