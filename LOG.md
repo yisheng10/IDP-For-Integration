@@ -5713,3 +5713,44 @@ eady calculation.
   - `node --check .merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`
   - `node --check .merge-jianhong2-patient/src/config.js`
   - `npm.cmd run export:web` from `.merge-jianhong2-patient`
+
+## 2026-05-17 - jianhong2 merge v2 alignment for patient AE Guidance, trace retrieval, and Daily Health Report handoff
+
+- Continued the safe merge on new `v2` branches instead of touching `yisheng` directly:
+  - root: `codex/merge-jianhong2-into-yisheng-v2`
+  - patient app: `codex/merge-jianhong2-into-yisheng-v2`
+- Merged the newer patient-side `origin/jianhong2` updates on top of the first safe merge and kept the newer call UI / home UI changes intact.
+- Reworked `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` so patient reasoning trace now sends the real retrieved `ctcaeChunks` and `protocolChunks` into the guidance trace stream instead of sending empty arrays.
+- Confirmed the patient answer-generation path and the patient trace path are now aligned again:
+  - patient answers can still use retrieved CTCAE / protocol evidence
+  - the patient trace can now show the same retrieval-backed evidence instead of incorrectly claiming no excerpts were retrieved
+- Filtered the patient guidance timeline so `urgent_alert` chat traffic no longer appears as if it were part of the AE Guidance conversation:
+  - keep `patient_guidance`
+  - keep CRC `direct_message`
+  - exclude unrelated urgent alert thread noise
+- Updated `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js` so Daily Health Report now:
+  - expands the AE Guidance tab before redirecting
+  - auto-sends a structured prompt built from symptoms, measurements, and flagged issues
+  - no longer relies on the old generic abnormal-vitals filler prompt
+- Updated patient `firebaseFunctionHttp.js` and root `src/services/firebaseFunctionHttp.js` so local development no longer silently uses `localhost` / `127.0.0.1` Firebase Functions URLs unless explicitly opted in:
+  - patient opt-in env: `EXPO_PUBLIC_ALLOW_LOCAL_FUNCTIONS_BASE_URL=true`
+  - CRC web still uses `VITE_USE_FUNCTIONS_EMULATOR=true` for deliberate emulator mode
+- Identified and resolved a real dependency gap from newer `jianhong2` work:
+  - `expo-camera` was referenced by the merged patient app but was not present in the validation environment
+  - installed it inside the safe patient merge worktree so the branch could be exported and checked correctly
+- Updated `TEAMMATE_CODE_SYNC_STEPS.md` for Git beginners so teammates now get:
+  - the correct `v2` root branch
+  - the correct `v2` patient submodule branch
+  - the required patient `npm install` step
+  - explicit guidance for when local functions emulator mode is allowed
+- Validation completed:
+  - `npm.cmd run lint` from `.merge-jianhong2-patient` (warnings only, no new errors)
+  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
+  - `node --check .merge-jianhong2-patient/src/components/GeminiChatbot.js`
+  - `node --check .merge-jianhong2-patient/src/pages/PatientHome.js`
+  - `node --check .merge-jianhong2-patient/src/services/firebaseFunctionHttp.js`
+  - `npm.cmd run build:crc` from `.merge-jianhong2-root`
+- Fetched newer upstream `origin/jianhong2` updates after the initial `v2` merge and verified:
+  - the patient repo did not contain newer source commits beyond the already merged `db3ea95`
+  - the root repo did contain newer call-related pointer commits plus one real code fix in `src/context/CallContext.jsx`
+- Applied the latest root `jianhong2` call acceptance state fix into the `v2` root branch without downgrading the patient app submodule pointer.

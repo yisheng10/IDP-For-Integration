@@ -307,7 +307,21 @@ export const CallProvider = ({ children }) => {
     const callDocRef = doc(db, 'calls', callDocId);
     const callSnap = await getDoc(callDocRef);
     const callData = callSnap.data();
-    
+    if (callData?.signalingMode === 'native-placeholder' || !callData?.offer) {
+      setCallType(callData?.callType || 'audio');
+      setLocalStream(null);
+      setRemoteStream(null);
+      await updateDoc(callDocRef, {
+        status: 'active',
+        acceptedAt: new Date().toISOString(),
+        acceptedBy: user?.uid || null,
+      });
+      if (user?.uid) {
+        await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current')).catch(() => {});
+      }
+      return;
+    }
+
     const isVideo = callData.callType === 'video';
     setCallType(callData.callType);
 
@@ -336,7 +350,15 @@ export const CallProvider = ({ children }) => {
     const answerDescription = await pc.createAnswer();
     await pc.setLocalDescription(answerDescription);
 
-    await updateDoc(callDocRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
+    await updateDoc(callDocRef, {
+      answer: { type: answerDescription.type, sdp: answerDescription.sdp },
+      status: 'active',
+      acceptedAt: new Date().toISOString(),
+      acceptedBy: user?.uid || null,
+    });
+    if (user?.uid) {
+      await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current')).catch(() => {});
+    }
 
     unsubscribeOfferCandidatesRef.current = onSnapshot(collection(callDocRef, 'offerCandidates'), (snapshot) => {
       snapshot.docChanges().forEach((change) => {
