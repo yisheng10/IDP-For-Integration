@@ -21,18 +21,23 @@ The new integration branch combines:
 - the latest `jianhong2` call UI changes
 - the latest `jianhong2` root call acceptance state fix
 - the patient-side RAG trace wiring fix
+- the patient-side grounded guidance alignment fix so the final answer uses the same retrieved CTCAE / protocol chunks as the reasoning trace
+- the patient-side duplicate-message cleanup so mirrored guidance messages no longer appear twice as easily
 - the Daily Health Report to AE Guidance handoff fix
 - the patient guidance timeline filtering fix so urgent alert thread noise does not appear as AE Guidance chat history
+- the `Final A2` CRC dropout operations board replica from `yisheng`
 
 In plain language:
 
 - the patient app keeps the newer `jianhong2` UI work
 - the patient app also keeps the newer patient reasoning trace and shared online guidance runtime
 - the patient app now passes real retrieval chunks into the patient reasoning trace instead of empty arrays
+- the patient app now sends grounded retrieval chunks into the final shared online guidance answer path instead of letting the trace and the final answer diverge
 - local patient web development now ignores accidental `localhost` Firebase Functions URLs unless a teammate explicitly opts in
 - Daily Health Report now expands AE Guidance and sends a proper auto-prompt containing symptoms, measurements, and flagged issues
 - the root web call context now records accepted call state consistently with the latest `jianhong2` behavior
 - the root repo keeps the newer Gemini key rotation and backend guidance fixes
+- the CRC dropout board now matches the newer `Replica A2 dropout operations board` implementation from `yisheng`
 
 ## Source Of Truth Branches
 
@@ -46,13 +51,14 @@ Teammates must sync to these branches:
 Expected submodule commits after sync:
 
 - Patient app submodule:
-  - commit: `bb0b27c`
+  - commit: `aa2809c`
 
 Do **not** continue development from:
 
 - `jianhong2`
 - `jianhong`
 - `yisheng`
+- `jianhong3`
 - any older personal branch that does not already point to this merge
 
 Those branches are now older baselines.
@@ -194,8 +200,25 @@ codex/merge-jianhong2-into-yisheng-v2
 Expected patient app commit:
 
 ```text
-bb0b27c
+aa2809c
 ```
+
+## Step 7B: If You Already Created `jianhong3` Or Another Personal Branch Earlier
+
+If you already created a branch such as `jianhong3` before this latest `v2` update, do **not** keep building on top of that older local branch until you rebase or recreate it from the current merge baseline.
+
+The safe beginner path is:
+
+1. finish syncing to `codex/merge-jianhong2-into-yisheng-v2`
+2. create a **new** fresh branch from that updated state
+3. move your unfinished work onto the new branch
+
+If you keep using an older personal branch without re-syncing first, you may miss:
+
+- the grounded patient guidance fix
+- the duplicate-message cleanup
+- the newer dropout `Final A2` board
+- the latest submodule pointer
 
 ## Step 8: Start Development From A New Personal Branch
 
@@ -230,9 +253,15 @@ After syncing, teammates should verify these points:
 
 - patient AE guidance opens normally
 - patient reasoning trace is visible again
+- patient AE guidance and reasoning trace now use the same grounded retrieval chunks
 - patient local development no longer bypasses the shared online guidance runtime by default
 - patient Daily Health Report can redirect into AE Guidance and auto-send the correct summary prompt
 - urgent alert auto-thread messages should not pollute the AE Guidance chat timeline
+- patient guidance messages should no longer duplicate as easily
+
+### CRC side additional expectation
+
+- the `Patient Disengagement Prediction` screen should now show the newer `Replica A2 dropout operations board` layout
 
 ### If you intentionally need the local Firebase Functions emulator
 
@@ -256,8 +285,11 @@ Only do this when you intentionally want local emulator behavior.
 If a teammate still sees:
 
 - no reasoning trace
+- a reasoning trace that says no excerpts were retrieved while the answer looks like it made up page numbers
+- duplicated patient guidance messages
 - old patient guidance behavior
 - outdated patient UI
+- the old dropout board layout
 
 then the most likely reason is:
 
@@ -273,6 +305,18 @@ git pull --ff-only origin codex/merge-jianhong2-into-yisheng-v2
 git submodule sync --recursive
 git submodule update --init --recursive
 npm install --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2"
+```
+
+Then verify again:
+
+```powershell
+git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2" rev-parse HEAD
+```
+
+Expected patient app commit:
+
+```text
+aa2809c
 ```
 
 ## If You Already Have Local Branches Based On Older Work

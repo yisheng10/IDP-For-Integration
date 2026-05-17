@@ -5856,3 +5856,19 @@ eady calculation.
 - Deployment result:
   - all seven guidance functions updated successfully
   - patient local web / Expo / emulator testing can now hit the repaired shared online grounded-answer backend instead of the older deployed logic
+
+## 2026-05-17 - teammate sync guide refreshed for latest merge v2 state
+
+- Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the newest `codex/merge-jianhong2-into-yisheng-v2` baseline with the current patient submodule commit:
+  - `aa2809c`
+- Added the latest merge-wave items to the guide:
+  - grounded patient guidance alignment between final answer and reasoning trace
+  - duplicate-message cleanup on patient AE Guidance
+  - `Final A2` dropout operations board replica from `yisheng`
+- Added a safer warning for teammates who already created older personal branches such as `jianhong3`:
+  - sync to the latest `v2` baseline first
+  - then create a fresh personal branch before continuing development
+- Expanded the teammate verification section so beginners know to re-check the patient submodule commit if they still see:
+  - old guidance behavior
+  - duplicated messages
+  - the old dropout board layout
