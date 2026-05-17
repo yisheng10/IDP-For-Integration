@@ -1,4 +1,4 @@
-# Team Sync Guide For The `jianhong2` Integration Merge v2
+# Team Sync Guide For The Stable Candidate Branch
 
 This document explains:
 
@@ -11,9 +11,11 @@ This guide is written for teammates who are not confident with Git.
 
 ## Important Update
 
-If you already synced `codex/merge-jianhong2-into-yisheng-v2` earlier today, sync again now.
+If you already synced `codex/merge-jianhong2-into-yisheng-v2` or any earlier test branch today, sync again now.
 
-The branch was updated again with:
+This stable candidate branch was cut from the fully tested `v2` integration state so the team can do a clean fresh-clone validation before anything is merged into `main`.
+
+It includes:
 
 - the Android patient guidance route-classifier auth fix
 - the patient guidance recovery path so a trace-stream failure does not immediately force the static safety fallback
@@ -21,7 +23,7 @@ The branch was updated again with:
 
 ## What Was Merged
 
-The new integration branch combines:
+The new stable candidate branch combines:
 
 - the current root integration work from `yisheng`
 - the root repo changes from `jianhong2`
@@ -55,9 +57,9 @@ In plain language:
 Teammates must sync to these branches:
 
 - Root integration repo:
-  - branch: `codex/merge-jianhong2-into-yisheng-v2`
+  - branch: `codex/stable-candidate-20260517-rc1`
 - Patient app submodule:
-  - branch: `codex/merge-jianhong2-into-yisheng-v2`
+  - branch: `codex/stable-candidate-20260517-rc1`
 
 Expected submodule commits after sync:
 
@@ -142,14 +144,14 @@ This updates:
 Run:
 
 ```powershell
-git checkout codex/merge-jianhong2-into-yisheng-v2
-git pull --ff-only origin codex/merge-jianhong2-into-yisheng-v2
+git checkout codex/stable-candidate-20260517-rc1
+git pull --ff-only origin codex/stable-candidate-20260517-rc1
 ```
 
 If Git says the branch does not exist locally, run:
 
 ```powershell
-git checkout -b codex/merge-jianhong2-into-yisheng-v2 origin/codex/merge-jianhong2-into-yisheng-v2
+git checkout -b codex/stable-candidate-20260517-rc1 origin/codex/stable-candidate-20260517-rc1
 ```
 
 ## Step 4: Sync And Update Submodules
@@ -190,7 +192,7 @@ git branch --show-current
 Expected result:
 
 ```text
-codex/merge-jianhong2-into-yisheng-v2
+codex/stable-candidate-20260517-rc1
 ```
 
 ## Step 7: Verify The Patient App Submodule Commit
@@ -205,7 +207,7 @@ git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" rev-parse HEAD
 The patient app branch should show:
 
 ```text
-codex/merge-jianhong2-into-yisheng-v2
+codex/stable-candidate-20260517-rc1
 ```
 
 Expected patient app commit:
@@ -220,7 +222,7 @@ If you already created a branch such as `jianhong3` before this latest `v2` upda
 
 The safe beginner path is:
 
-1. finish syncing to `codex/merge-jianhong2-into-yisheng-v2`
+1. finish syncing to `codex/stable-candidate-20260517-rc1`
 2. create a **new** fresh branch from that updated state
 3. move your unfinished work onto the new branch
 
@@ -319,8 +321,8 @@ The fix is usually to run again:
 
 ```powershell
 git fetch origin
-git checkout codex/merge-jianhong2-into-yisheng-v2
-git pull --ff-only origin codex/merge-jianhong2-into-yisheng-v2
+git checkout codex/stable-candidate-20260517-rc1
+git pull --ff-only origin codex/stable-candidate-20260517-rc1
 git submodule sync --recursive
 git submodule update --init --recursive
 npm install --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2"

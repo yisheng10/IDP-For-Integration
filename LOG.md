@@ -5930,3 +5930,17 @@ eady calculation.
 - Deployment completed to `traillight-4750b`:
   - created `sideEffectGuidanceTraceHttp`
   - updated `sideEffectGuidanceTraceStreamHttp`
+
+## 2026-05-17 - stable candidate branch prepared before any `main` merge
+
+- Created a new root stable candidate branch:
+  - `codex/stable-candidate-20260517-rc1`
+- Created a matching patient app stable candidate branch:
+  - `codex/stable-candidate-20260517-rc1`
+- Purpose:
+  - freeze the current verified integration state before touching `main`
+  - let the team run a fresh-clone validation in a clean folder first
+- Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the stable candidate branch instead of the older `v2` merge branch.
+- Added a new handoff document:
+  - `FRESH_CLONE_VALIDATION_STEPS.md`
+  - this explains exactly how to test a brand-new clone with submodule sync, environment bundles, credentials bundle, CRC web, patient web, and Android emulator
