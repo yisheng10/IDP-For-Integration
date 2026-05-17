@@ -5754,3 +5754,22 @@ eady calculation.
   - the patient repo did not contain newer source commits beyond the already merged `db3ea95`
   - the root repo did contain newer call-related pointer commits plus one real code fix in `src/context/CallContext.jsx`
 - Applied the latest root `jianhong2` call acceptance state fix into the `v2` root branch without downgrading the patient app submodule pointer.
+- Prepared the guidance deployment follow-up for the `v2` wave:
+  - confirmed the patient trace / RAG wiring fix is in the patient `v2` branch
+  - confirmed the local emulator fallback issue is handled by defaulting local patient guidance back to the shared online Firebase runtime unless explicitly opted in
+  - queued the Firebase guidance runtime redeploy so the shared patient-side retrieval path can use the configured SiliconFlow backend instead of silently degrading
+- Added the SiliconFlow retrieval secret into the local `functions/.env` deployment source without committing the secret.
+- Redeployed the guidance-related Firebase functions to `traillight-4750b` so patient-side retrieval and reasoning trace can use the shared online SiliconFlow-backed guidance backend:
+  - `sideEffectGuidanceChat`
+  - `sideEffectGuidanceChatHttp`
+  - `sideEffectGuidanceTraceStreamHttp`
+  - `retrieveGuidanceContext`
+  - `retrieveGuidanceContextHttp`
+  - `classifyGuidanceRoute`
+  - `classifyGuidanceRouteHttp`
+  - `ingestGuidanceDocument`
+  - `processPendingProtocolGuidanceIndex`
+  - `deleteGuidanceDocumentChunks`
+  - `deleteGuidanceDocumentChunksHttp`
+  - `suggestAppointmentDate`
+  - `suggestAppointmentDateHttp`
