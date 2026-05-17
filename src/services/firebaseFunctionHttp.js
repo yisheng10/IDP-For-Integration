@@ -2,20 +2,41 @@ import { auth } from '../firebase';
 
 const FUNCTIONS_REGION = 'us-central1';
 
+function shouldAllowLocalFunctionsBaseUrl() {
+  return import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === 'true';
+}
+
+function isLocalFunctionsUrl(value) {
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//i.test(String(value || '').trim());
+}
+
 function getFunctionsBaseUrl() {
   const projectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID || '').trim();
   if (!projectId) {
     throw new Error('Missing Firebase project ID.');
   }
 
-  const useEmulator =
-    typeof window !== 'undefined' && import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === 'true';
+  const explicitBaseUrl = String(import.meta.env.VITE_FIREBASE_FUNCTIONS_BASE_URL || '').trim();
+  const cloudBaseUrl = `https://${FUNCTIONS_REGION}-${projectId}.cloudfunctions.net`;
+
+  if (explicitBaseUrl) {
+    if (isLocalFunctionsUrl(explicitBaseUrl) && !shouldAllowLocalFunctionsBaseUrl()) {
+      console.warn(
+        'Ignoring local Firebase Functions base URL because VITE_USE_FUNCTIONS_EMULATOR is not enabled. Falling back to the shared online Firebase runtime.'
+      );
+      return cloudBaseUrl;
+    }
+
+    return explicitBaseUrl.replace(/\/+$/, '');
+  }
+
+  const useEmulator = typeof window !== 'undefined' && shouldAllowLocalFunctionsBaseUrl();
 
   if (useEmulator) {
     return `http://127.0.0.1:5001/${projectId}/${FUNCTIONS_REGION}`;
   }
 
-  return `https://${FUNCTIONS_REGION}-${projectId}.cloudfunctions.net`;
+  return cloudBaseUrl;
 }
 
 async function getCurrentUserIdToken() {

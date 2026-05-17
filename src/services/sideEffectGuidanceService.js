@@ -1,12 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 import { streamFunctionHttp } from './firebaseFunctionHttp';
-import {
-  GEMINI_API_KEY,
-  SIDE_EFFECT_GUIDANCE_MODEL,
-  SIDE_EFFECT_GUIDANCE_PROVIDER,
-} from '../config';
+import { SIDE_EFFECT_GUIDANCE_MODEL, SIDE_EFFECT_GUIDANCE_PROVIDER } from '../config';
 
 const callable = httpsCallable(functions, 'sideEffectGuidanceChat');
 
@@ -49,61 +44,6 @@ function mapErrorMessage(error) {
   return 'AI Error. Adverse Event Guidance is unavailable right now.';
 }
 
-function buildGeminiContents(messages = [], userMessage = '') {
-  const contents = messages
-    .filter((message) => message?.content)
-    .slice(-12)
-    .map((message) => ({
-      role: message.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(message.content) }],
-    }));
-
-  contents.push({
-    role: 'user',
-    parts: [{ text: String(userMessage || '') }],
-  });
-
-  return contents;
-}
-
-async function requestGuidanceViaGeminiBrowser(payload) {
-  if (!GEMINI_API_KEY) {
-    throw new Error(
-      'Gemini API key is not configured. Add VITE_GEMINI_API_KEY to your local .env.local and restart the CRC website.'
-    );
-  }
-
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({
-    model: SIDE_EFFECT_GUIDANCE_MODEL,
-    systemInstruction: payload.systemPrompt
-      ? {
-          role: 'system',
-          parts: [{ text: payload.systemPrompt }],
-        }
-      : undefined,
-    generationConfig: {
-      temperature: 0.35,
-      topP: 0.9,
-    },
-  });
-
-  const result = await model.generateContent({
-    contents: buildGeminiContents(payload.messages, payload.userMessage),
-  });
-
-  const text = result.response.text().trim();
-  if (!text) {
-    throw new Error('Gemini returned an empty guidance response.');
-  }
-
-  return {
-    text,
-    provider: 'gemini-browser',
-    model: SIDE_EFFECT_GUIDANCE_MODEL,
-  };
-}
-
 async function requestGuidanceViaCallable(payload) {
   const response = await callable(payload);
   return response.data;
@@ -111,8 +51,10 @@ async function requestGuidanceViaCallable(payload) {
 
 export async function requestSideEffectGuidance(payload) {
   try {
-    if (SIDE_EFFECT_GUIDANCE_PROVIDER === 'gemini-browser') {
-      return await requestGuidanceViaGeminiBrowser(payload);
+    if (SIDE_EFFECT_GUIDANCE_PROVIDER !== 'firebase-callable') {
+      throw new Error(
+        `Unsupported guidance provider "${SIDE_EFFECT_GUIDANCE_PROVIDER}". TrialLight guidance must use the shared online Firebase runtime.`
+      );
     }
 
     return await requestGuidanceViaCallable(payload);

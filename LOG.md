@@ -1,7 +1,7 @@
 # TrialLight Project Log
 
 ## Last Updated
-- Date: 2026-05-13
+- Date: 2026-05-16
 - Workspace: `D:\IDP For Integration`
 
 ## Current Objective
@@ -16,6 +16,39 @@
 - Production cloud functions: partially blocked by Firebase plan limitations.
 
 ## Completed Work
+### Patient Disengagement Prediction A2 Replica
+- Rebuilt the CRC-only `Patient Disengagement Prediction` module content area to closely match the selected `Final A2 — Split Operations Board` concept without changing the global CRC shell.
+- Reorganized the dropout module into four explicit layers:
+  - summary strip
+  - left `Risk-ranked patient queue`
+  - right briefing surface with current risk, model contract, explainability highlights, and recent-trend card
+  - lower `Intervention Case Timeline`
+  - detailed explainability board
+- Promoted the recent publish history into an A2-style compact trend card with:
+  - inline SVG chart
+  - current-vs-history de-duplication
+  - stable / rising / falling / mixed trend labeling
+  - latest-action / delta / week-trend summary
+- Promoted the intervention area into an `Intervention Case Timeline` work surface with:
+  - explicit case stages
+  - fixed observation / action / response / close-reason summary rows
+  - CRC action buttons retained in place
+  - recent case history restyled as operational timeline rows
+- Regrouped explainability into A2-style detailed sections while preserving the existing data contract:
+  - `Why this patient is flagged`
+  - `Risk change since last publish`
+  - `Challenger cross-check`
+  - `Data gaps affecting confidence`
+  - `What-if scenarios`
+  - `Patient stability hint`
+  - `Structured source completeness`
+  - technical audit sections
+- Kept `patient_daily_logs` presented as `optional fallback` rather than a core missing-data warning.
+- Expanded the CRC unit tests around publish-trend de-duplication, stable-trend classification, case wording, and challenger de-duplication.
+- Verification target for this UI overhaul remains:
+  - `npm.cmd run test:crc`
+  - `npm.cmd run build:crc`
+
 ### Shadow Proxy Evaluator Graceful Skip
 - Fixed the dropout shadow proxy evaluator so GitHub Actions no longer fails when the Supabase shadow monitoring table has not been provisioned yet.
 - `Patient-Dropout-Prediction/src/evaluate_shadow_proxies.py` now matches the publisher's graceful-degradation behavior:
@@ -32,6 +65,12 @@
 - Updated `.github/workflows/dropout-precompute.yml` to set:
   - `DROPOUT_REQUIRE_SHADOW_MONITORING=1`
 - This changes shadow monitoring from "optional skip if missing" to an expected runtime dependency for future workflow runs.
+- Tightened CRC intervention-case wording in `src/components/DropoutRiskPanel.jsx` so the panel now explains:
+  - `Case status`
+  - `Automatic 7-day observation`
+  - `CRC action`
+  - `Manual response`
+  with less status-code-like wording and a clearer explanation that CRC does not need to click again every day unless the action or manual response changes.
 
 ### Dropout QA Live-History Seed Script
 - Added `functions/scripts/seed-dropout-qa-live-history.mjs` for Patient Disengagement Prediction QA setup.
@@ -5580,3 +5619,381 @@ eady calculation.
   - structured `source_completeness`
 - Updated `.github/workflows/dropout-precompute.yml` so the scheduled/manual dropout workflow now runs the shadow proxy evaluator after publish, instead of only writing shadow rows and stopping there.
 - Also cleaned up the Pandas UTC deprecation warnings in the touched dropout backend paths by switching to `Timestamp.now('UTC')`.
+
+## 2026-05-15 - CRC disengagement panel semantics polished and risk-change explainability added
+
+- Refined `src/components/DropoutRiskPanel.jsx` so the CRC detail panel now presents intervention-case semantics more clearly:
+  - keeps the main case fields focused on status, automatic 7-day observation, CRC action, manual response, latest linked prediction, and last update
+  - shows `close_reason` explicitly when the most recent visible case is already closed
+  - shortens the manual guidance copy so CRC staff do not have to re-read repeated explanations on every patient
+  - formats recent case history in a compact `status / auto observation / close reason / timestamp` style
+- Downgraded legacy snapshot context to a secondary disclosure block instead of letting it compete with the dedicated explainability mirror.
+- Added a new risk-change block to the CRC explainability area that compares the current publish with the immediately previous publish and shows:
+  - previous publish timestamp
+  - previous risk state
+  - current risk state
+  - a short summary of whether risk moved higher, lower, or stayed broadly stable
+  - up to three plain-language reasons pulled from signal changes, missing-input changes, data-quality changes, and source-completeness changes
+- Extended the dropout explainability mirror contract in `.dropout-safe-worktree/src/crc_integration_contracts.py` with:
+  - `previous_published_at`
+  - `previous_risk_bucket`
+  - `previous_dropout_probability`
+  - `risk_change_direction`
+  - `risk_change_probability_delta`
+  - `risk_change_summary`
+  - `risk_change_reasons`
+- Updated `.dropout-safe-worktree/src/publish_dropout_snapshots.py` so each publish now reads the existing Firestore `current` snapshot plus the current explainability mirror before overwriting them, allowing the next explainability mirror to explain `current vs previous publish` safely.
+- Reclassified `patient_daily_logs` inside `.dropout-safe-worktree/src/explainability_summary.py` as an optional fallback source when it is simply unused, instead of presenting it as a core missing source to CRC users.
+- Plainly stated:
+  - this does not add a full multi-day trend module yet
+  - it only adds a bounded `current vs previous publish` explanation
+  - `patient_daily_logs` is still available as fallback evidence, but CRC should no longer read its absence as “the system is broken” or “the patient never logged in”
+
+## 2026-05-15 - CRC trend view and explainability sharpening added to Patient Disengagement Prediction
+
+- Added a bounded recent-publish history mirror to the dropout publish path so each live publish now writes both:
+  - `users/{uid}/dropout_predictions/current`
+  - `users/{uid}/dropout_predictions/{history_doc_id}`
+- Plainly stated:
+  - this gives the CRC workspace a safe way to show the recent publish timeline without doing any unbounded Firestore history scan
+  - the frontend only listens to a small, ordered window and filters out the `current` mirror document
+- Extended `src/services/dropoutService.js` with a bounded history listener for recent dropout publishes:
+  - `orderBy('published_at', 'desc')`
+  - `limit(...)`
+  - no bare collection scan
+- Updated `src/components/DropoutRiskPanel.jsx` with a new `Recent 7 publishes` card that shows:
+  - the latest visible publish state
+  - the recent sequence of published risk states
+  - the recommended action at each publish
+  - the point change versus the immediately prior publish
+- Tightened the trend card so it now really means seven visible publishes total, instead of accidentally showing the current publish plus seven more historical rows.
+- Continued the CRC detail-panel cleanup:
+  - case status, automatic 7-day observation, CRC action, manual response, latest linked prediction, case last updated, and close reason remain the main fields
+  - recent case history stays in short `status / automatic observation / close reason / timestamp` form
+  - extra explanatory copy is kept shorter so the operational panel reads lighter
+- Further reduced duplicate explainability wording by replacing the separate challenger-driver sections with a weaker merged `Challenger cross-check` block.
+- Sharpened patient-level explainability in `.dropout-safe-worktree/src/explainability_summary.py`:
+  - challenger bullets now group into broader operational themes instead of repeating near-identical engagement lines
+  - `what_if_scenarios` now mention more concrete operational changes such as stale vitals, unanswered follow-up loops, recent inactivity gaps, and near-term questionnaire completion
+  - `patient_stability_hint` now refers more concretely to the number and type of live sources that are actually supporting the current explanation
+- Kept `patient_daily_logs` in the explainability source-completeness view as an optional fallback rather than a core missing source.
+
+## 2026-05-15 - Patient Disengagement Prediction integration-freeze hardening
+
+- Upgraded `src/components/DropoutRiskPanel.jsx` so the CRC workspace now reads more like a continuous operations panel instead of a single-snapshot detail view:
+  - `Recent 7 publishes` now has an inline SVG mini trend chart plus a tighter timeline summary
+  - the trend block now classifies the visible window as `Rising`, `Falling`, `Mixed / volatile`, or `Building history`
+  - obvious jumps are now called out explicitly instead of leaving CRC to infer them from raw percentages
+- Froze the intervention-case wording more tightly in the CRC detail panel:
+  - automatic observation labels now stay on the fixed CRC-safe wording
+  - close reasons now render as explicit sentences such as `Closed automatically after re-engagement was observed`
+  - the panel guidance copy was shortened again so the case card reads lighter and more operational
+- Tightened the challenger cross-check and patient-level explainability content in `.dropout-safe-worktree/src/explainability_summary.py`:
+  - challenger support now prefers operational follow-up, symptom burden, and source-mix narrowing before falling back to repeated engagement-timing wording
+  - `what_if_scenarios` now use explicit directional prefixes:
+    - `Likely lower:`
+    - `Possibly stable:`
+    - `Uncertain:`
+  - `patient_stability_hint` now uses fixed patient-level states:
+    - `Stable`
+    - `Moderate`
+    - `Reduced-input`
+    - `Thin-history`
+  - each stability hint now cites concrete source-mix or history-depth evidence instead of staying purely template-driven
+- Added frontend helper coverage in `src/components/__tests__/dropoutRiskPanel.test.js` for:
+  - recent-publish window limits
+  - recent-publish ordering and delta handling
+  - intervention observation and close-reason wording
+  - `patient_daily_logs` optional-fallback wording
+  - challenger cross-check deduplication
+- Added backend unit coverage in `.dropout-safe-worktree/tests/test_explainability_summary.py` for:
+  - risk-change direction rules
+  - no-previous-publish empty-state handling
+  - challenger non-overlap preference
+  - what-if direction prefixes
+  - stability-hint category wording
+  - `patient_daily_logs` optional-fallback semantics
+  - history mirror document-id generation
+- Repaired `.dropout-safe-worktree/tests/test_module_service.py` so it no longer hardcodes the old external repository path and now safely skips when the legacy direct-scoring dataset columns are not present in the current deploy dataset.
+- Validation completed:
+  - `npm.cmd run build:crc`
+  - `npm.cmd run test:crc`
+  - `Patient-Dropout-Prediction\\env\\Scripts\\python.exe -m py_compile ...`
+  - `Patient-Dropout-Prediction\\env\\Scripts\\python.exe -m unittest discover -s .dropout-safe-worktree\\tests -p test_*.py`
+
+## 2026-05-15 - Gemini key registry Kuala Lumpur view and controlled rotation verification
+
+- Added a new Supabase migration file:
+  - `supabase/migrations/20260515_gemini_key_registry_kl_view.sql`
+- Created a read-only live view:
+  - `public.gemini_key_registry_kl_view`
+- The new view keeps the original `timestamptz` columns untouched for rotation logic and adds Kuala Lumpur 12-hour formatted display fields:
+  - `last_used_at_kl_12h`
+  - `last_failed_at_kl_12h`
+  - `unavailable_until_kl_12h`
+  - `created_at_kl_12h`
+  - `updated_at_kl_12h`
+- Explicitly did **not** convert the source columns into strings, because the key-pool rotation logic still depends on real timestamps for:
+  - cooldown windows
+  - next-day reset eligibility
+  - usage and failure ordering
+- Performed a minimal live Gemini key-pool smoke test against the official Firebase rotation helper, intentionally targeting keys with `last_used_at = null` first.
+- Verified that:
+  - `liqiuFriend-05` was selected from the never-used active pool
+  - the key returned a valid `OK` response through `gemini-2.5-flash-lite`
+  - `last_used_at` was updated successfully in the live registry
+- Plainly stated:
+  - this confirms the current online rotation chain is still functioning
+  - this does not yet prove every unused key is good
+  - it does prove that at least one never-used key can be picked up and used successfully by the shared production rotation path
+
+## 2026-05-16 - Locked local CRC and patient guidance paths back onto the shared online Gemini key pool
+
+- Hard-locked the CRC web guidance provider in `src/config.js` to `firebase-callable` so local `dev` / `preview` sessions can no longer silently switch into `gemini-browser` and bypass the shared `gemini_key_registry`.
+- Removed the browser-direct Gemini branch from `src/services/sideEffectGuidanceService.js`.
+- Hard-locked the patient app guidance provider in `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/config.js` to `firebase-callable` for the same reason.
+- Removed the browser-direct Gemini branch from `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/sideEffectGuidanceService.js`.
+- Updated `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` so patient local guidance no longer uses device-local Gemini calls for:
+  - direct answer generation
+  - local CTCAE embedding retrieval
+  - local structured extraction
+- Replaced the old local-answer path with the shared online callable guidance path and retained the existing rule-based safety fallback when streaming guidance fails.
+- Plainly stated:
+  - teammates running local CRC `npm run dev` / `npm run preview` should now hit the same shared online guidance backend as everyone else
+  - teammates running local patient Expo / web export should also stop bypassing the shared pool for the formal patient guidance path
+  - this change does not remove all historical Gemini-related code from the repo, but it removes the main live guidance bypass that could make the shared registry look “single-user”
+- Validation completed:
+  - `node --check src/services/sideEffectGuidanceService.js`
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/services/sideEffectGuidanceService.js`
+  - `node --check MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js`
+  - `npm.cmd run build:crc`
+  - `npm.cmd --prefix 'D:\\IDP For Integration\\MyClinicalApp_AndroidAPK_5Jan2026_2138\\MyClinicalApp2' run export:web`
+
+## 2026-05-16 - Safe jianhong2 merge branch for patient guidance alignment
+
+- Created safe merge worktrees and branches instead of touching the live `yisheng` branch directly:
+  - root: `codex/merge-jianhong2-into-yisheng`
+  - patient app: `codex/merge-jianhong2-into-yisheng`
+- Merged the patient app `origin/jianhong2` branch into the new patient merge branch.
+- Restored the patient-side detailed reasoning trace on top of the `jianhong2` UI changes by keeping the shared online Firebase guidance runtime and trace stream path as the source of truth.
+- Verified the patient merge branch still keeps:
+  - `firebase-callable` as the only formal guidance provider
+  - patient-side reasoning trace state and rendering
+  - the shared online key-pool-backed guidance path
+- Re-aligned patient guidance wording so newly added localized strings do not regress from `Adverse Event Guidance` back to `Side Effect Guidance`.
+- Added a temporary local `node_modules` junction and copied the patient `.env` into the temporary merge worktree only for validation.
+- Validation completed on the patient merge branch:
+  - `node --check .merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`
+  - `node --check .merge-jianhong2-patient/src/config.js`
+  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
+
+## 2026-05-17 - jianhong2 merge v2 alignment for patient AE Guidance, trace retrieval, and Daily Health Report handoff
+
+- Continued the safe merge on new `v2` branches instead of touching `yisheng` directly:
+  - root: `codex/merge-jianhong2-into-yisheng-v2`
+  - patient app: `codex/merge-jianhong2-into-yisheng-v2`
+- Merged the newer patient-side `origin/jianhong2` updates on top of the first safe merge and kept the newer call UI / home UI changes intact.
+- Reworked `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` so patient reasoning trace now sends the real retrieved `ctcaeChunks` and `protocolChunks` into the guidance trace stream instead of sending empty arrays.
+- Confirmed the patient answer-generation path and the patient trace path are now aligned again:
+  - patient answers can still use retrieved CTCAE / protocol evidence
+  - the patient trace can now show the same retrieval-backed evidence instead of incorrectly claiming no excerpts were retrieved
+- Filtered the patient guidance timeline so `urgent_alert` chat traffic no longer appears as if it were part of the AE Guidance conversation:
+  - keep `patient_guidance`
+  - keep CRC `direct_message`
+  - exclude unrelated urgent alert thread noise
+- Updated `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js` so Daily Health Report now:
+  - expands the AE Guidance tab before redirecting
+  - auto-sends a structured prompt built from symptoms, measurements, and flagged issues
+  - no longer relies on the old generic abnormal-vitals filler prompt
+- Updated patient `firebaseFunctionHttp.js` and root `src/services/firebaseFunctionHttp.js` so local development no longer silently uses `localhost` / `127.0.0.1` Firebase Functions URLs unless explicitly opted in:
+  - patient opt-in env: `EXPO_PUBLIC_ALLOW_LOCAL_FUNCTIONS_BASE_URL=true`
+  - CRC web still uses `VITE_USE_FUNCTIONS_EMULATOR=true` for deliberate emulator mode
+- Identified and resolved a real dependency gap from newer `jianhong2` work:
+  - `expo-camera` was referenced by the merged patient app but was not present in the validation environment
+  - installed it inside the safe patient merge worktree so the branch could be exported and checked correctly
+- Updated `TEAMMATE_CODE_SYNC_STEPS.md` for Git beginners so teammates now get:
+  - the correct `v2` root branch
+  - the correct `v2` patient submodule branch
+  - the required patient `npm install` step
+  - explicit guidance for when local functions emulator mode is allowed
+- Validation completed:
+  - `npm.cmd run lint` from `.merge-jianhong2-patient` (warnings only, no new errors)
+  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
+  - `node --check .merge-jianhong2-patient/src/components/GeminiChatbot.js`
+  - `node --check .merge-jianhong2-patient/src/pages/PatientHome.js`
+  - `node --check .merge-jianhong2-patient/src/services/firebaseFunctionHttp.js`
+  - `npm.cmd run build:crc` from `.merge-jianhong2-root`
+- Fetched newer upstream `origin/jianhong2` updates after the initial `v2` merge and verified:
+  - the patient repo did not contain newer source commits beyond the already merged `db3ea95`
+  - the root repo did contain newer call-related pointer commits plus one real code fix in `src/context/CallContext.jsx`
+- Applied the latest root `jianhong2` call acceptance state fix into the `v2` root branch without downgrading the patient app submodule pointer.
+- Prepared the guidance deployment follow-up for the `v2` wave:
+  - confirmed the patient trace / RAG wiring fix is in the patient `v2` branch
+  - confirmed the local emulator fallback issue is handled by defaulting local patient guidance back to the shared online Firebase runtime unless explicitly opted in
+  - queued the Firebase guidance runtime redeploy so the shared patient-side retrieval path can use the configured SiliconFlow backend instead of silently degrading
+- Added the SiliconFlow retrieval secret into the local `functions/.env` deployment source without committing the secret.
+- Redeployed the guidance-related Firebase functions to `traillight-4750b` so patient-side retrieval and reasoning trace can use the shared online SiliconFlow-backed guidance backend:
+  - `sideEffectGuidanceChat`
+  - `sideEffectGuidanceChatHttp`
+  - `sideEffectGuidanceTraceStreamHttp`
+  - `retrieveGuidanceContext`
+  - `retrieveGuidanceContextHttp`
+  - `classifyGuidanceRoute`
+  - `classifyGuidanceRouteHttp`
+  - `ingestGuidanceDocument`
+  - `processPendingProtocolGuidanceIndex`
+  - `deleteGuidanceDocumentChunks`
+  - `deleteGuidanceDocumentChunksHttp`
+  - `suggestAppointmentDate`
+  - `suggestAppointmentDateHttp`
+- Added a new teammate-facing English validation guide:
+  - `TEAMMATE_TESTING_CHECKLIST.md`
+  - this covers merge smoke test, regression test, patient AE Guidance, trace, retrieval, Daily Health Report handoff, chat, call UI, ePRO, dark mode, and Android emulator checks
+- Diagnosed local CRC white-screen testing on the root `v2` worktree:
+  - the preview server itself was healthy
+  - browser console showed `Missing Firebase env: VITE_FIREBASE_API_KEY`
+  - root `.env.local` existed but `.merge-jianhong2-root/.env.local` was missing
+- Restored local CRC merge-worktree testability by copying the root `.env.local` into `.merge-jianhong2-root/.env.local` without committing any secrets.
+
+## 2026-05-17 - patient guidance grounding alignment and duplicate-message cleanup on merge v2
+
+- Investigated Yun Hong's `codex/merge-jianhong2-into-yisheng-v2` findings around patient AE Guidance:
+  - duplicate user messages with the audit note inserted in the middle
+  - reasoning trace rendering correctly while grounded CTCAE / protocol retrieval appeared missing
+  - answers looking partially plausible but not reliably page-grounded
+- Verified with a live SiliconFlow + Supabase retrieval check that the backend retrieval layer itself is healthy for the hypoglycemia query:
+  - CTCAE retrieval returned chunks from `CTCAE v5.0`
+  - protocol retrieval returned chunks for `Protocol-Type 1 Diabetes Mellitus.pdf`
+  - this proved the main gap was client / answer-chain wiring, not missing indexed source data
+- Reworked patient guidance request flow in `.merge-jianhong2-patient`:
+  - switched `requestSideEffectGuidance(...)` to the shared online HTTP guidance endpoint instead of the patient-incompatible callable path
+  - added a shared backend `classifyGuidanceRouteHttp` client wrapper so patient retrieval routing now uses the same server-side routing logic as the guidance backend instead of a separate local prompt router
+  - strengthened patient chat deduplication so near-identical mirrored messages collapse when they share the same role/text/channel signature and land within a short timestamp window
+- Reworked shared guidance answer grounding in `.merge-jianhong2-root/functions/guidanceRuntime.js`:
+  - `runSideEffectGuidanceChat(...)` now accepts `ctcaeChunks`, `protocolChunks`, `routeDecision`, `routeReason`, and `protocolName`
+  - final guidance generation now receives the same grounded excerpt blocks that the trace stream sees
+  - final answer prompts now explicitly forbid invented page numbers and require exact use of retrieved citation labels
+  - trace-stream final answers now pass the normalized retrieval chunks into `runSideEffectGuidanceChat(...)` instead of generating from a disconnected raw routed prompt
+- Validation completed after the fix:
+  - `node --check .merge-jianhong2-patient/src/components/GeminiChatbot.js`
+  - `node --check .merge-jianhong2-patient/src/services/guidanceRetrievalService.js`
+  - `node --check .merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`
+  - `node --check .merge-jianhong2-root/functions/guidanceRuntime.js`
+  - `npm.cmd run lint` from `.merge-jianhong2-patient` (warnings only, no new errors)
+  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
+  - `npm.cmd run build:crc` from `.merge-jianhong2-root`
+- Important follow-up note:
+  - these grounding fixes now exist in the `v2` merge branches locally
+  - the patient app will only exhibit the full grounded-answer fix after the updated Firebase guidance functions are redeployed, because local patient guidance is intentionally locked to the shared online backend by default
+- Redeployed the grounded guidance function subset to `traillight-4750b` from the `v2` merge worktree after wiring the worktree to the local functions dependency set:
+  - `sideEffectGuidanceChat`
+  - `sideEffectGuidanceChatHttp`
+  - `sideEffectGuidanceTraceStreamHttp`
+  - `retrieveGuidanceContext`
+  - `retrieveGuidanceContextHttp`
+  - `classifyGuidanceRoute`
+  - `classifyGuidanceRouteHttp`
+- Deployment result:
+  - all seven guidance functions updated successfully
+  - patient local web / Expo / emulator testing can now hit the repaired shared online grounded-answer backend instead of the older deployed logic
+
+## 2026-05-17 - patient guidance route-classifier auth fixed for Android emulator
+
+- Diagnosed Jianhong's Android emulator error:
+  - `Guidance retrieval router failed: Error: Only CRC users can access guidance services.`
+- Root cause:
+  - patient guidance routing had been moved onto `classifyGuidanceRouteHttp`
+  - but the HTTP handler was still using the default CRC-only auth mode
+  - local patient web paths could appear fine when they did not hit that exact router path, but Android emulator patient guidance did
+- Fixed `functions/guidanceRuntime.js` so `classifyGuidanceRouteHttp` now uses:
+  - `patient_or_crc`
+- Plainly stated:
+  - this is a backend auth bug, not a teammate env-file sync mistake
+  - the fix requires a Firebase guidance function redeploy before Android emulator testing can pass
+
+## 2026-05-17 - patient trace-stream failure no longer forces safety fallback
+
+- Hardened `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` for Android / Expo guidance stability.
+- New behavior:
+  - patient AE Guidance still tries the live reasoning trace stream first
+  - if the trace stream fails, the app now immediately retries the same grounded request through the non-streaming shared online guidance endpoint
+  - only if both trace streaming and the normal grounded guidance request fail does the app fall back to the static safety message
+- Plainly stated:
+  - this reduces Android-emulator-specific risk where the user could otherwise get an unnecessary `Temporary guidance fallback` even though retrieval and the normal HTTP guidance path were still healthy
+
+## 2026-05-17 - teammate sync guide updated after Android patient guidance fix
+
+- Refreshed `TEAMMATE_CODE_SYNC_STEPS.md` again after the Android guidance repair wave.
+- Updated the expected patient app submodule commit to:
+  - `31f4e43`
+- Added a warning that teammates who already synced `v2` earlier the same day must sync again.
+- Added the new Android-specific verification expectations:
+  - no more `Only CRC users can access guidance services` on patient Android AE Guidance
+  - trace-stream failures should now try the grounded online guidance path before using the static fallback
+
+## 2026-05-17 - teammate sync guide refreshed for latest merge v2 state
+
+- Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the newest `codex/merge-jianhong2-into-yisheng-v2` baseline with the current patient submodule commit:
+  - `aa2809c`
+- Added the latest merge-wave items to the guide:
+  - grounded patient guidance alignment between final answer and reasoning trace
+  - duplicate-message cleanup on patient AE Guidance
+  - `Final A2` dropout operations board replica from `yisheng`
+- Added a safer warning for teammates who already created older personal branches such as `jianhong3`:
+  - sync to the latest `v2` baseline first
+  - then create a fresh personal branch before continuing development
+- Expanded the teammate verification section so beginners know to re-check the patient submodule commit if they still see:
+  - old guidance behavior
+  - duplicated messages
+  - the old dropout board layout
+
+## 2026-05-17 - Android patient reasoning trace now falls back to buffered trace delivery
+
+- Diagnosed the remaining Android emulator trace failure after grounded patient answers were already working:
+  - the guidance answer path was healthy
+  - the retrieval path was healthy
+  - but React Native / Expo on Android did not reliably expose a readable streamed HTTP response body for the NDJSON trace endpoint
+- Plainly stated:
+  - web could read the live trace stream
+  - Android could get the real answer, but the trace reader itself failed with `Streaming response body was not available.`
+- Added a new buffered Firebase HTTP endpoint in `.merge-jianhong2-root/functions/guidanceRuntime.js`:
+  - `sideEffectGuidanceTraceHttp`
+  - it reuses the same trace-generation logic as the stream endpoint, but returns the already-built trace event envelopes as normal JSON instead of requiring live stream support
+- Exported the new endpoint from `.merge-jianhong2-root/functions/index.js`.
+- Updated `.merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`:
+  - patient trace still tries `sideEffectGuidanceTraceStreamHttp` first
+  - if Android reports that the streaming response body is unavailable, the app now automatically retries through `sideEffectGuidanceTraceHttp`
+  - the returned buffered events are replayed through the same patient trace handlers, so the existing UI can render them without a separate Android-only code path
+- Expected result after redeploy:
+  - web keeps the live streaming trace
+  - Android emulator / future APK can still show the reasoning trace even when native fetch cannot consume the stream directly
+- Deployment completed to `traillight-4750b`:
+  - created `sideEffectGuidanceTraceHttp`
+  - updated `sideEffectGuidanceTraceStreamHttp`
+
+## 2026-05-17 - stable candidate branch prepared before any `main` merge
+
+- Created a new root stable candidate branch:
+  - `codex/stable-candidate-20260517-rc1`
+- Created a matching patient app stable candidate branch:
+  - `codex/stable-candidate-20260517-rc1`
+- Purpose:
+  - freeze the current verified integration state before touching `main`
+  - let the team run a fresh-clone validation in a clean folder first
+- Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the stable candidate branch instead of the older `v2` merge branch.
+- Added a new handoff document:
+  - `FRESH_CLONE_VALIDATION_STEPS.md`
+  - this explains exactly how to test a brand-new clone with submodule sync, environment bundles, credentials bundle, CRC web, patient web, and Android emulator
+
+## 2026-05-17 - stable candidate fresh-clone bug fixed for ghost external-skills submodule
+
+- Diagnosed the fresh-clone failure on the stable candidate branch:
+  - `git submodule update --init --recursive` failed with
+  - `fatal: No url found for submodule path 'external-skills/ui-ux-pro-max-skill' in .gitmodules`
+- Root cause:
+  - `external-skills/ui-ux-pro-max-skill` had been committed as a gitlink / submodule entry
+  - but `.gitmodules` did not contain any matching submodule URL
+- Fix applied to the stable candidate branch:
+  - moved the empty local ghost folder into `D:\99_回收站`
+  - removed the broken gitlink entry from the Git index
+- Updated teammate docs so the fresh-clone validation instructions now explicitly say this error should no longer appear on the repaired stable candidate branch.

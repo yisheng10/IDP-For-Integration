@@ -1,12 +1,12 @@
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 import admin from 'firebase-admin';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
+import { runGeminiWithKeyPool } from './geminiKeyRegistry.js';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -52,17 +52,6 @@ function requireEnv(name) {
     throw new HttpsError('failed-precondition', `${name} is not configured on the server.`);
   }
   return value;
-}
-
-function getGeminiClient() {
-  return new GoogleGenerativeAI(requireEnv('GEMINI_API_KEY'));
-}
-
-function getGenerationModel(model, options = {}) {
-  return getGeminiClient().getGenerativeModel({
-    model,
-    ...options,
-  });
 }
 
 function getSupabaseClient() {
@@ -279,7 +268,7 @@ async function ensureCrcAccessByUid(uid, token = {}) {
 
   try {
     const userSnapshot = await db.collection('users').doc(uid).get();
-    if (!userSnapshot.exists()) {
+    if (!userSnapshot.exists) {
       throw new HttpsError('permission-denied', 'CRC profile not found.');
     }
 
@@ -323,7 +312,7 @@ async function ensurePatientAccessByUid(uid, token = {}, requestedPatientUid = n
 
   try {
     const userSnapshot = await db.collection('users').doc(uid).get();
-    if (!userSnapshot.exists()) {
+    if (!userSnapshot.exists) {
       return fallbackProfile;
     }
 
@@ -351,26 +340,59 @@ async function assertAuthenticatedUser(request) {
   return ensureCrcAccessByUid(request.auth?.uid, request.auth?.token || {});
 }
 
-async function assertAuthenticatedHttpRequest(req) {
+async function decodeBearerIdToken(req, unauthenticatedMessage = 'Sign in before using CRC guidance services.') {
   const authorizationHeader = String(req.get('authorization') || '').trim();
   if (!authorizationHeader.toLowerCase().startsWith('bearer ')) {
-    throw new HttpsError('unauthenticated', 'Sign in before using CRC guidance services.');
+    throw new HttpsError('unauthenticated', unauthenticatedMessage);
   }
 
   const idToken = authorizationHeader.slice(7).trim();
   if (!idToken) {
-    throw new HttpsError('unauthenticated', 'Sign in before using CRC guidance services.');
+    throw new HttpsError('unauthenticated', unauthenticatedMessage);
   }
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    return ensureCrcAccessByUid(decodedToken.uid, decodedToken);
+    return await admin.auth().verifyIdToken(idToken);
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
     }
-    throw new HttpsError('unauthenticated', 'Sign in before using CRC guidance services.');
+    throw new HttpsError('unauthenticated', unauthenticatedMessage);
   }
+}
+
+async function assertAuthenticatedHttpRequest(req, accessMode = 'crc') {
+  const safeAccessMode = String(accessMode || 'crc').trim().toLowerCase();
+  const unauthenticatedMessage =
+    safeAccessMode === 'patient'
+      ? 'Sign in before using patient guidance services.'
+      : safeAccessMode === 'patient_or_crc'
+        ? 'Sign in before using guidance services.'
+        : 'Sign in before using CRC guidance services.';
+
+  const decodedToken = await decodeBearerIdToken(req, unauthenticatedMessage);
+
+  if (safeAccessMode === 'patient') {
+    return ensurePatientAccessByUid(decodedToken.uid, decodedToken);
+  }
+
+  if (safeAccessMode === 'patient_or_crc') {
+    try {
+      return await ensureCrcAccessByUid(decodedToken.uid, decodedToken);
+    } catch (error) {
+      if (!(error instanceof HttpsError)) {
+        throw error;
+      }
+
+      if (!['permission-denied', 'not-found'].includes(String(error.code || '').toLowerCase())) {
+        throw error;
+      }
+
+      return ensurePatientAccessByUid(decodedToken.uid, decodedToken);
+    }
+  }
+
+  return ensureCrcAccessByUid(decodedToken.uid, decodedToken);
 }
 
 function parseHttpJsonBody(req) {
@@ -432,7 +454,7 @@ function sendHttpJsonError(res, error, action = 'Request') {
   });
 }
 
-async function handleAuthedJsonRequest(req, res, handler, action = 'Request') {
+async function handleAuthedJsonRequest(req, res, handler, action = 'Request', accessMode = 'crc') {
   if (req.method !== 'POST') {
     res.status(405).json({
       error: {
@@ -444,7 +466,7 @@ async function handleAuthedJsonRequest(req, res, handler, action = 'Request') {
   }
 
   try {
-    await assertAuthenticatedHttpRequest(req);
+    await assertAuthenticatedHttpRequest(req, accessMode);
     const payload = parseHttpJsonBody(req);
     const result = await handler(payload);
     res.status(200).json({ result });
@@ -466,28 +488,12 @@ function buildTraceOrigin(traceAudience) {
 }
 
 async function assertAuthenticatedGuidanceTraceHttpRequest(req, traceAudience, patientUid = null) {
-  const authorizationHeader = String(req.get('authorization') || '').trim();
-  if (!authorizationHeader.toLowerCase().startsWith('bearer ')) {
-    throw new HttpsError(
-      'unauthenticated',
-      traceAudience === TRACE_AUDIENCE_PATIENT
-        ? 'Sign in before using patient guidance services.'
-        : 'Sign in before using CRC guidance services.'
-    );
-  }
-
-  const idToken = authorizationHeader.slice(7).trim();
-  if (!idToken) {
-    throw new HttpsError(
-      'unauthenticated',
-      traceAudience === TRACE_AUDIENCE_PATIENT
-        ? 'Sign in before using patient guidance services.'
-        : 'Sign in before using CRC guidance services.'
-    );
-  }
-
+  const unauthenticatedMessage =
+    traceAudience === TRACE_AUDIENCE_PATIENT
+      ? 'Sign in before using patient guidance services.'
+      : 'Sign in before using CRC guidance services.';
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await decodeBearerIdToken(req, unauthenticatedMessage);
     if (traceAudience === TRACE_AUDIENCE_PATIENT) {
       return ensurePatientAccessByUid(decodedToken.uid, decodedToken, patientUid);
     }
@@ -832,6 +838,61 @@ function buildTraceSourceLabel(entry = {}, sourceTypeFallback = 'source') {
 
 function buildTraceCitationLabel(entry = {}, sourceTypeFallback = 'source') {
   return `[${buildTraceSourceLabel(entry, sourceTypeFallback)} Page ${entry.page || 'Unknown'}]`;
+}
+
+function buildGroundedGuidanceExcerptBlock(rows = [], sourceType = 'source') {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return 'None';
+  }
+
+  return rows
+    .slice(0, TRACE_SOURCE_EXCERPT_LIMIT)
+    .map((entry) => {
+      const citationLabel = buildTraceCitationLabel(entry, sourceType);
+      const excerptText = sanitizeGuidanceText(entry.content || '');
+      return `${citationLabel}\n${excerptText}`;
+    })
+    .join('\n\n');
+}
+
+function buildGroundedGuidanceUserMessage({
+  userMessage,
+  routeDecision = 'skip',
+  routeReason = '',
+  protocolName = null,
+  ctcaeChunks = [],
+  protocolChunks = [],
+}) {
+  const groundedCtcae = normalizeGuidanceRows(ctcaeChunks, 'ctcae');
+  const groundedProtocol = normalizeGuidanceRows(protocolChunks, 'protocol');
+  const resolvedProtocolName = String(protocolName || '').trim() || 'Not assigned';
+
+  return `
+Latest user message:
+${String(userMessage || '').trim()}
+
+Grounding status:
+- routeDecision: ${String(routeDecision || 'skip').trim() || 'skip'}
+- routeReason: ${String(routeReason || '').trim() || 'None'}
+- activeProtocol: ${resolvedProtocolName}
+- CTCAE excerpts retrieved: ${groundedCtcae.length}
+- Protocol excerpts retrieved: ${groundedProtocol.length}
+
+Grounding rules:
+- Use the retrieved excerpts below as the authoritative source for any CTCAE or protocol-backed statement.
+- Only cite a page when it appears in the retrieved excerpt label exactly as shown.
+- Never invent a page number, citation, protocol excerpt, or CTCAE excerpt.
+- If no relevant excerpts were retrieved for a source, say that source could not be confirmed for this message.
+- Use protocol excerpts for study-specific actions, escalation, and patient instructions.
+- Use CTCAE excerpts for toxicity definitions, grading concepts, and severity framing.
+- If grounded retrieval is missing, give a cautious patient-safe answer and clearly say grounded retrieval was unavailable.
+
+=== CTCAE EXCERPTS ===
+${buildGroundedGuidanceExcerptBlock(groundedCtcae, 'ctcae')}
+
+=== PROTOCOL EXCERPTS ===
+${buildGroundedGuidanceExcerptBlock(groundedProtocol, 'protocol')}
+  `.trim();
 }
 
 function buildTraceSourceExcerpts(rows = [], sourceType, relevanceReason) {
@@ -1379,22 +1440,28 @@ async function runStructuredGuidanceReasoningTrace(payload = {}) {
   }
 
   try {
-    const model = getGenerationModel(modelName, {
-      systemInstruction: systemPrompt
-        ? {
-            role: 'system',
-            parts: [{ text: systemPrompt }],
-          }
-        : undefined,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.2,
-        topP: 0.8,
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName,
+      modelOptions: {
+        systemInstruction: systemPrompt
+          ? {
+              role: 'system',
+              parts: [{ text: systemPrompt }],
+            }
+          : undefined,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+          topP: 0.8,
+        },
       },
-    });
-
-    const result = await model.generateContent({
-      contents: buildGeminiContents(messages, userMessage),
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Structured reasoning generation',
+      task: async ({ model }) =>
+        model.generateContent({
+          contents: buildGeminiContents(messages, userMessage),
+        }),
     });
 
     return parseJsonResponse(result?.response?.text?.());
@@ -1899,6 +1966,12 @@ async function runSideEffectGuidanceTraceStream(payload = {}, requesterProfile, 
       systemPrompt: normalized.systemPrompt,
       messages: normalized.messages,
       userMessage: normalized.routedPrompt,
+      routeDecision: normalized.routeDecision,
+      routeReason: normalized.routeReason,
+      protocolName: normalized.protocolName,
+      traceAudience: normalized.traceAudience,
+      ctcaeChunks: normalized.ctcaeChunks,
+      protocolChunks: normalized.protocolChunks,
       model: GUIDANCE_MODEL,
     });
 
@@ -2078,32 +2151,93 @@ async function runSideEffectGuidanceTraceStream(payload = {}, requesterProfile, 
   }
 }
 
+async function runSideEffectGuidanceTraceBuffered(payload = {}, requesterProfile) {
+  const capturedChunks = [];
+  const mockResponse = {
+    write(chunk) {
+      capturedChunks.push(String(chunk || ''));
+    },
+  };
+
+  await runSideEffectGuidanceTraceStream(payload, requesterProfile, mockResponse);
+
+  const events = capturedChunks
+    .join('')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return {
+    events,
+  };
+}
+
 async function runSideEffectGuidanceChat(payload = {}) {
   const systemPrompt = String(payload.systemPrompt || '');
   const userMessage = String(payload.userMessage || '').trim();
   const messages = Array.isArray(payload.messages) ? payload.messages : [];
   const modelName = String(payload.model || GUIDANCE_MODEL || '').trim() || GUIDANCE_MODEL;
+  const routeDecision = String(payload.routeDecision || 'skip').trim().toLowerCase() || 'skip';
+  const routeReason = String(payload.routeReason || '').trim();
+  const protocolName = String(payload.protocolName || '').trim() || null;
+  const traceAudience = normalizeTraceAudience(payload.traceAudience || payload.audience || null);
+  const normalizedCtcaeChunks = normalizeGuidanceRows(
+    Array.isArray(payload.ctcaeChunks) ? payload.ctcaeChunks : [],
+    'ctcae'
+  );
+  const normalizedProtocolChunks = normalizeGuidanceRows(
+    Array.isArray(payload.protocolChunks) ? payload.protocolChunks : [],
+    'protocol'
+  );
+  const groundedSourceMask = joinTraceSourceMask(normalizedCtcaeChunks, normalizedProtocolChunks);
 
   if (!userMessage) {
     throw new HttpsError('invalid-argument', 'userMessage is required.');
   }
 
   try {
-    const model = getGenerationModel(modelName, {
-      systemInstruction: systemPrompt
-        ? {
-            role: 'system',
-            parts: [{ text: systemPrompt }],
-          }
-        : undefined,
-      generationConfig: {
-        temperature: 0.35,
-        topP: 0.9,
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName,
+      modelOptions: {
+        systemInstruction: systemPrompt
+          ? {
+              role: 'system',
+              parts: [{ text: systemPrompt }],
+            }
+          : undefined,
+        generationConfig: {
+          temperature: 0.35,
+          topP: 0.9,
+        },
       },
-    });
-
-    const result = await model.generateContent({
-      contents: buildGeminiContents(messages, userMessage),
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Guidance generation',
+      task: async ({ model }) =>
+        model.generateContent({
+          contents: buildGeminiContents(
+            messages,
+            groundedSourceMask === 'none' && routeDecision === 'skip'
+              ? userMessage
+              : buildGroundedGuidanceUserMessage({
+                  userMessage,
+                  routeDecision,
+                  routeReason,
+                  protocolName,
+                  ctcaeChunks: normalizedCtcaeChunks,
+                  protocolChunks: normalizedProtocolChunks,
+                  traceAudience,
+                })
+          ),
+        }),
     });
 
     const text = String(result?.response?.text?.() || '').trim();
@@ -2115,6 +2249,7 @@ async function runSideEffectGuidanceChat(payload = {}) {
       text,
       provider: 'firebase-callable',
       model: modelName,
+      sourceMask: groundedSourceMask,
     };
   } catch (error) {
     console.error('sideEffectGuidanceChat failed:', error);
@@ -2196,25 +2331,31 @@ async function runClassifyGuidanceRoute(payload = {}) {
   }
 
   try {
-    const model = getGenerationModel(ROUTER_MODEL, {
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.1,
-        topP: 0.1,
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName: ROUTER_MODEL,
+      modelOptions: {
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          topP: 0.1,
+        },
       },
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Guidance routing',
+      task: async ({ model }) =>
+        model.generateContent(
+          buildGuidanceRoutePrompt({
+            userText,
+            previousUserMessage,
+            previousModelMessage,
+            hasPatientContext,
+            hasProtocolScope,
+            previousTurnUsedRetrieval,
+            cachedSourcesAvailable,
+          })
+        ),
     });
-
-    const result = await model.generateContent(
-      buildGuidanceRoutePrompt({
-        userText,
-        previousUserMessage,
-        previousModelMessage,
-        hasPatientContext,
-        hasProtocolScope,
-        previousTurnUsedRetrieval,
-        cachedSourcesAvailable,
-      })
-    );
 
     return normalizeRouterDecision(parseJsonResponse(result.response.text()), {
       hasProtocolScope,
@@ -2266,16 +2407,22 @@ OUTPUT JSON FORMAT:
   `.trim();
 
   try {
-    const model = getGenerationModel(APPOINTMENT_MODEL, {
-      generationConfig: {
-        responseMimeType: 'application/json',
+    const result = await runGeminiWithKeyPool({
+      supabase: getSupabaseClient(),
+      modelName: APPOINTMENT_MODEL,
+      modelOptions: {
+        generationConfig: {
+          responseMimeType: 'application/json',
+        },
       },
+      runtimeLabel: 'firebase-guidance',
+      actionLabel: 'Appointment guidance generation',
+      task: async ({ model }) =>
+        model.generateContent([
+          { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
+          prompt,
+        ]),
     });
-
-    const result = await model.generateContent([
-      { inlineData: { data: base64Data, mimeType: 'application/pdf' } },
-      prompt,
-    ]);
 
     const parsed = parseJsonResponse(result?.response?.text?.());
     return {
@@ -2355,9 +2502,39 @@ export const sideEffectGuidanceTraceStreamHttp = onRequest(
   }
 );
 
+export const sideEffectGuidanceTraceHttp = onRequest(
+  { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
+  async (req, res) => {
+    if (req.method !== 'POST') {
+      res.status(405).json({
+        error: {
+          status: 'method-not-allowed',
+          message: 'Only POST requests are supported.',
+        },
+      });
+      return;
+    }
+
+    try {
+      const payload = parseHttpJsonBody(req);
+      const traceAudience = normalizeTraceAudience(payload.traceAudience);
+      const requesterProfile = await assertAuthenticatedGuidanceTraceHttpRequest(
+        req,
+        traceAudience,
+        String(payload.patientUid || '').trim() || null
+      );
+      const result = await runSideEffectGuidanceTraceBuffered(payload, requesterProfile);
+      res.status(200).json({ result });
+    } catch (error) {
+      sendHttpJsonError(res, error, 'Guidance trace generation');
+    }
+  }
+);
+
 export const sideEffectGuidanceChatHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runSideEffectGuidanceChat, 'Guidance generation')
+  async (req, res) =>
+    handleAuthedJsonRequest(req, res, runSideEffectGuidanceChat, 'Guidance generation', 'patient_or_crc')
 );
 
 export const retrieveGuidanceContext = onCall(
@@ -2370,7 +2547,8 @@ export const retrieveGuidanceContext = onCall(
 
 export const retrieveGuidanceContextHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 120, memory: '512MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runRetrieveGuidanceContext, 'Guidance retrieval')
+  async (req, res) =>
+    handleAuthedJsonRequest(req, res, runRetrieveGuidanceContext, 'Guidance retrieval', 'patient_or_crc')
 );
 
 export const classifyGuidanceRoute = onCall(
@@ -2383,7 +2561,14 @@ export const classifyGuidanceRoute = onCall(
 
 export const classifyGuidanceRouteHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 60, memory: '256MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runClassifyGuidanceRoute, 'Guidance routing')
+  async (req, res) =>
+    handleAuthedJsonRequest(
+      req,
+      res,
+      runClassifyGuidanceRoute,
+      'Guidance routing',
+      'patient_or_crc'
+    )
 );
 
 export const ingestGuidanceDocument = onCall(
@@ -2537,5 +2722,11 @@ export const suggestAppointmentDate = onCall(
 export const suggestAppointmentDateHttp = onRequest(
   { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
   async (req, res) =>
-    handleAuthedJsonRequest(req, res, runSuggestAppointmentDate, 'Appointment guidance generation')
+    handleAuthedJsonRequest(
+      req,
+      res,
+      runSuggestAppointmentDate,
+      'Appointment guidance generation',
+      'patient_or_crc'
+    )
 );

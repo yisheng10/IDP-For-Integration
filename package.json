@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build:crc": "vite build",
+    "test:crc": "vitest run src/components/__tests__/dropoutRiskPanel.test.js",
     "build:patient-web": "npm --prefix \"MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2\" run export:web",
     "build:shareable": "npm run build:crc && npm run build:patient-web",
     "build": "vite build",
@@ -36,6 +37,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^3.2.4"
   }
 }
