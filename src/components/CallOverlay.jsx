@@ -1,257 +1,567 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCall } from '../context/CallContext';
 
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const formatDuration = (seconds) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+};
+
+const Icon = ({ name, size = 24, rotate = false }) => {
+  const paths = {
+    chevronDown: 'M7 10l5 5 5-5',
+    call: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.6a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.48-1.2a2 2 0 0 1 2.11-.45c.83.3 1.7.51 2.6.63A2 2 0 0 1 22 16.92z',
+    mic: 'M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z M19 10v1a7 7 0 0 1-14 0v-1 M12 18v4 M8 22h8',
+    micOff: 'M2 2l20 20 M9 9v2a3 3 0 0 0 5.12 2.12 M15 9.34V5a3 3 0 0 0-5.94-.6 M17 10v1a6.97 6.97 0 0 1-1.6 4.45 M5 10v1a7 7 0 0 0 10.3 6.18 M12 18v4 M8 22h8',
+    video: 'M15 10l4.55-2.28A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.9L15 14 M3 7h12v10H3z',
+    videoOff: 'M2 2l20 20 M15 10l4.55-2.28A1 1 0 0 1 21 8.62v6.76 M15 14v3H6.17 M3 7h4.17',
+    speaker: 'M11 5L6 9H3v6h3l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14',
+    speakerOff: 'M2 2l20 20 M11 5L6 9H3v6h3l5 4v-7 M16 9.5a5 5 0 0 1-.5 5.5 M19.07 4.93a10 10 0 0 1 1.3 11.7',
+    settings: 'M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.34.52.6.9.7.18.05.37.08.56.08H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z',
+    user: 'M20 21a8 8 0 1 0-16 0 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  };
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={rotate ? { transform: 'rotate(135deg)' } : undefined}
+    >
+      <path d={paths[name]} />
+    </svg>
+  );
+};
+
+const CallButton = ({ icon, label, onClick, active = false, off = false, danger = false, success = false, rotate = false }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    onClick={onClick}
+    style={{
+      ...styles.controlButton,
+      ...(active ? styles.controlButtonActive : null),
+      ...(off ? styles.controlButtonOff : null),
+      ...(danger ? styles.controlButtonDanger : null),
+      ...(success ? styles.controlButtonSuccess : null),
+    }}
+  >
+    <span style={styles.controlHalo} />
+    <Icon name={icon} size={danger || success ? 27 : 24} rotate={rotate} />
+  </button>
+);
+
 const CallOverlay = () => {
-  const { 
-    callStatus, callType, otherUserName, answerCall, endCall, 
-    remoteStream, localStream, 
-    devices, selectedAudioInput, selectedVideoInput, selectedAudioOutput,
-    switchAudioInput, switchVideoInput, setSelectedAudioOutput 
+  const {
+    callStatus,
+    callType,
+    otherUserName,
+    answerCall,
+    endCall,
+    remoteStream,
+    localStream,
+    devices,
+    selectedAudioInput,
+    selectedVideoInput,
+    selectedAudioOutput,
+    switchAudioInput,
+    switchVideoInput,
+    setSelectedAudioOutput,
+    isMicrophoneMuted,
+    isCameraEnabled,
+    toggleMute,
+    toggleCamera,
   } = useCall();
-  
+
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
-  const audioRef = useRef(null); 
-  
-  // --- ROBUST AUDIO MANAGEMENT (FIXED) ---
-  // We use JS Audio objects instead of HTML tags to prevent "Ghost Loops"
+  const audioRef = useRef(null);
   const ringtoneRef = useRef(new Audio('/sounds/ringtone.mp3'));
   const ringbackRef = useRef(new Audio('/sounds/ringback.mp3'));
+  const dragRef = useRef({ dragging: false, offsetX: 0, offsetY: 0, moved: false });
 
   const [showSettings, setShowSettings] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
+  const [durationSeconds, setDurationSeconds] = useState(0);
+  const [position, setPosition] = useState(() => ({
+    x: Math.max(24, window.innerWidth - 420),
+    y: 96,
+  }));
 
-  // Group devices for UI
-  const audioInputs = devices.filter(d => d.kind === 'audioinput');
-  const videoInputs = devices.filter(d => d.kind === 'videoinput');
-  const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+  const audioInputs = devices.filter((device) => device.kind === 'audioinput');
+  const videoInputs = devices.filter((device) => device.kind === 'videoinput');
+  const audioOutputs = devices.filter((device) => device.kind === 'audiooutput');
+  const isVideo = callType === 'video';
+  const isActive = callStatus === 'active';
+  const isIncoming = callStatus === 'incoming';
+  const displayName = otherUserName || 'Patient';
 
-  // 1. SETUP AUDIO LOOPS
   useEffect(() => {
+    const ringtone = ringtoneRef.current;
+    const ringback = ringbackRef.current;
     ringtoneRef.current.loop = true;
     ringbackRef.current.loop = true;
-    
-    // Safety cleanup on unmount
     return () => {
-      ringtoneRef.current.pause();
-      ringbackRef.current.pause();
+      ringtone.pause();
+      ringback.pause();
     };
   }, []);
 
-  // 2. MANAGE RINGTONE / RINGBACK PLAYBACK
   useEffect(() => {
-    const handleSound = async () => {
-      // RESET BOTH FIRST
-      ringtoneRef.current.pause();
-      ringbackRef.current.pause();
-      ringtoneRef.current.currentTime = 0;
-      ringbackRef.current.currentTime = 0;
+    const ringtone = ringtoneRef.current;
+    const ringback = ringbackRef.current;
 
-      try {
-        if (callStatus === 'incoming') {
-          await ringtoneRef.current.play();
-        } else if (callStatus === 'calling') {
-          await ringbackRef.current.play();
-        }
-      } catch (e) {
-        console.warn("Audio Autoplay Blocked (User interaction needed):", e);
-      }
-    };
+    ringtone.pause();
+    ringback.pause();
+    ringtone.currentTime = 0;
+    ringback.currentTime = 0;
 
-    handleSound();
+    const nextSound = callStatus === 'incoming' ? ringtone : callStatus === 'calling' ? ringback : null;
+    if (nextSound) {
+      nextSound.play().catch((error) => console.warn('Audio autoplay blocked:', error));
+    }
 
-    // Cleanup when status changes (Double safety)
+    if (callStatus === 'idle') {
+      window.setTimeout(() => {
+        setIsMinimized(false);
+        setShowSettings(false);
+      }, 0);
+    }
+
     return () => {
-      ringtoneRef.current.pause();
-      ringbackRef.current.pause();
+      ringtone.pause();
+      ringback.pause();
     };
   }, [callStatus]);
 
-  // 3. APPLY SPEAKER SELECTION
+  useEffect(() => {
+    if (!isActive) {
+      window.setTimeout(() => setDurationSeconds(0), 0);
+      return undefined;
+    }
+    const intervalId = setInterval(() => setDurationSeconds((current) => current + 1), 1000);
+    return () => clearInterval(intervalId);
+  }, [isActive]);
+
   useEffect(() => {
     const attachSink = (element) => {
-        if (selectedAudioOutput && element && typeof element.setSinkId === 'function') {
-            element.setSinkId(selectedAudioOutput).catch(err => console.warn('Failed to set sinkId', err));
-        }
+      if (selectedAudioOutput && element && typeof element.setSinkId === 'function') {
+        element.setSinkId(selectedAudioOutput).catch((error) => console.warn('Failed to set sinkId', error));
+      }
     };
-    
-    // Apply to Streams
+
     attachSink(audioRef.current);
     attachSink(remoteVideoRef.current);
-    
-    // Apply to Ringtones
     attachSink(ringtoneRef.current);
     attachSink(ringbackRef.current);
   }, [selectedAudioOutput, callStatus]);
 
-  // 4. ATTACH CALL STREAMS (Voice/Video)
   useEffect(() => {
-    if (callStatus === 'active') {
-      if (remoteVideoRef.current && remoteStream) {
-        remoteVideoRef.current.srcObject = remoteStream;
-      }
-      if (localVideoRef.current && localStream) {
-        localVideoRef.current.srcObject = localStream;
-        localVideoRef.current.muted = true; // Always mute self
-      }
-      
-      // Explicitly play audio stream to overcome "doesn't play" bugs
-      if (callType === 'audio' && audioRef.current && remoteStream) {
-        audioRef.current.srcObject = remoteStream;
-        audioRef.current.play().catch(e => console.error("Stream Play Error:", e));
-      }
+    const volume = isSpeakerEnabled ? 1 : 0;
+    [audioRef.current, remoteVideoRef.current, ringtoneRef.current, ringbackRef.current].forEach((element) => {
+      if (element) element.volume = volume;
+    });
+  }, [isSpeakerEnabled, callStatus]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play?.().catch((error) => console.warn('Remote video play blocked:', error));
     }
-  }, [remoteStream, localStream, callStatus, callType]);
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.muted = true;
+      localVideoRef.current.play?.().catch((error) => console.warn('Local video play blocked:', error));
+    }
+    if (audioRef.current && remoteStream) {
+      audioRef.current.srcObject = remoteStream;
+      audioRef.current.play().catch((error) => console.warn('Stream audio play blocked:', error));
+    }
+  }, [remoteStream, localStream, callStatus]);
+
+  const statusLabel = useMemo(() => {
+    if (isIncoming) return isVideo ? 'Incoming video call' : 'Incoming voice call';
+    if (isActive) return formatDuration(durationSeconds);
+    return 'Calling...';
+  }, [durationSeconds, isActive, isIncoming, isVideo]);
+
+  const startDrag = (event) => {
+    dragRef.current = {
+      dragging: true,
+      moved: false,
+      offsetX: event.clientX - position.x,
+      offsetY: event.clientY - position.y,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const moveDrag = (event) => {
+    if (!dragRef.current.dragging) return;
+    const width = isMinimized ? 78 : 360;
+    const height = isMinimized ? 78 : 520;
+    const nextX = clamp(event.clientX - dragRef.current.offsetX, 16, window.innerWidth - width - 16);
+    const nextY = clamp(event.clientY - dragRef.current.offsetY, 16, window.innerHeight - height - 16);
+    dragRef.current.moved = true;
+    setPosition({ x: nextX, y: nextY });
+  };
+
+  const endDrag = () => {
+    dragRef.current.dragging = false;
+  };
 
   if (callStatus === 'idle') return null;
 
-  const isVideo = callType === 'video';
+  if (isMinimized) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Restore call window"
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onDoubleClick={() => setIsMinimized(false)}
+        onClick={() => {
+          if (!dragRef.current.moved) setIsMinimized(false);
+        }}
+        style={{ ...styles.minimizedBubble, left: position.x, top: position.y }}
+      >
+        <Icon name={isVideo ? 'video' : 'call'} size={24} />
+        <span style={styles.bubblePulse} />
+      </div>
+    );
+  }
 
   return (
-    <div style={styles.overlay}>
-      
-      {/* SETTINGS MODAL */}
-      {showSettings && (
-        <div style={styles.settingsModal}>
-           <div style={styles.settingsHeader}>
-              <span>Call Settings</span>
-              <button onClick={() => setShowSettings(false)} style={styles.closeBtn}>✕</button>
-           </div>
-           
-           <div style={styles.settingRow}>
-             <label>Microphone:</label>
-             <select onChange={(e) => switchAudioInput(e.target.value)} value={selectedAudioInput}>
-               {audioInputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || 'Default Mic'}</option>)}
-             </select>
-           </div>
+    <section
+      style={{ ...styles.callWindow, left: position.x, top: position.y }}
+      aria-label="CRC call window"
+    >
+      <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
 
-           {isVideo && (
-             <div style={styles.settingRow}>
-               <label>Camera:</label>
-               <select onChange={(e) => switchVideoInput(e.target.value)} value={selectedVideoInput}>
-                 {videoInputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || 'Default Camera'}</option>)}
-               </select>
-             </div>
-           )}
-
-           {audioOutputs.length > 0 && (
-             <div style={styles.settingRow}>
-               <label>Speaker:</label>
-               <select onChange={(e) => setSelectedAudioOutput(e.target.value)} value={selectedAudioOutput}>
-                 {audioOutputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || 'Default Speaker'}</option>)}
-               </select>
-             </div>
-           )}
+      <header
+        style={styles.callHeader}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+      >
+        <button type="button" onClick={() => setIsMinimized(true)} style={styles.topButton} aria-label="Minimize call">
+          <Icon name="chevronDown" size={23} />
+        </button>
+        <div style={styles.identityBlock}>
+          <strong style={styles.calleeName}>{displayName}</strong>
+          <span style={styles.statusText}>{statusLabel}</span>
         </div>
-      )}
+      </header>
 
-      {/* VIDEO MODE */}
-      {isVideo && callStatus === 'active' ? (
-        <div style={styles.videoContainer}>
+      <div style={styles.stage}>
+        {isVideo && remoteStream ? (
           <video ref={remoteVideoRef} autoPlay playsInline style={styles.remoteVideo} />
+        ) : (
+          <div style={styles.avatarWrap}>
+            <Icon name="user" size={86} />
+          </div>
+        )}
+
+        {isVideo && localStream ? (
           <video ref={localVideoRef} autoPlay playsInline muted style={styles.localVideo} />
+        ) : null}
+      </div>
+
+      {isIncoming ? (
+        <div style={styles.incomingActions}>
+          <CallButton icon="call" label="Accept call" onClick={answerCall} success />
+          <CallButton icon="call" label="Decline call" onClick={() => endCall(true)} danger rotate />
         </div>
       ) : (
-        /* AUDIO MODE OR INCOMING */
-        <div style={styles.card}>
-          {/* Main Voice Stream */}
-          <audio ref={audioRef} autoPlay playsInline style={{display:'none'}} />
-          
-          <div style={styles.avatar}>👤</div>
-          
-          <h2 style={{margin: '10px 0', color: '#333'}}>
-            {callStatus === 'incoming' 
-              ? (isVideo ? 'Incoming Video Call...' : 'Incoming Voice Call...') 
-              : (callStatus === 'active' ? 'Connected' : 'Calling...')}
-          </h2>
-          <p style={{fontSize: '18px', fontWeight: 'bold', color: '#007bff'}}>{otherUserName}</p>
-
-          <div style={styles.controls}>
-            {callStatus === 'incoming' && (
-              <button onClick={answerCall} style={styles.btnAnswer}>
-                {isVideo ? '📹 Accept' : '📞 Accept'}
-              </button>
-            )}
-            <button onClick={() => endCall(true)} style={styles.btnDecline}>
-              {callStatus === 'incoming' ? 'Decline' : 'End Call'}
-            </button>
-          </div>
+        <div style={styles.bottomDock}>
+          <CallButton icon="chevronDown" label="Minimize call" onClick={() => setIsMinimized(true)} off />
+          <CallButton
+            icon={isCameraEnabled ? 'video' : 'videoOff'}
+            label={isCameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+            onClick={toggleCamera}
+            off={!isCameraEnabled}
+          />
+          <CallButton
+            icon={isSpeakerEnabled ? 'speaker' : 'speakerOff'}
+            label={isSpeakerEnabled ? 'Speaker on' : 'Speaker off'}
+            onClick={() => setIsSpeakerEnabled((current) => !current)}
+            off={!isSpeakerEnabled}
+          />
+          <CallButton
+            icon={isMicrophoneMuted ? 'micOff' : 'mic'}
+            label={isMicrophoneMuted ? 'Unmute microphone' : 'Mute microphone'}
+            onClick={toggleMute}
+            off={isMicrophoneMuted}
+          />
+          <CallButton icon="call" label="End call" onClick={() => endCall(true)} danger rotate />
         </div>
       )}
 
-      {/* CONTROLS OVERLAY (Mute, Settings, End) */}
-      {callStatus === 'active' && (
-        <div style={styles.floatingControls}>
-           <button onClick={() => setShowSettings(!showSettings)} style={styles.controlBtn} title="Settings">⚙️</button>
-           <button onClick={() => endCall(true)} style={styles.endBtn}>End</button>
+      <button type="button" onClick={() => setShowSettings((current) => !current)} style={styles.settingsButton} aria-label="Call settings">
+        <Icon name="settings" size={19} />
+      </button>
+
+      {showSettings ? (
+        <div style={styles.settingsPanel}>
+          <div style={styles.settingsTitle}>Call settings</div>
+          <label style={styles.settingRow}>
+            <span>Microphone</span>
+            <select onChange={(event) => switchAudioInput(event.target.value)} value={selectedAudioInput} style={styles.select}>
+              {audioInputs.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>{device.label || 'Default microphone'}</option>
+              ))}
+            </select>
+          </label>
+          {isVideo ? (
+            <label style={styles.settingRow}>
+              <span>Camera</span>
+              <select onChange={(event) => switchVideoInput(event.target.value)} value={selectedVideoInput} style={styles.select}>
+                {videoInputs.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>{device.label || 'Default camera'}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {audioOutputs.length > 0 ? (
+            <label style={styles.settingRow}>
+              <span>Speaker output</span>
+              <select onChange={(event) => setSelectedAudioOutput(event.target.value)} value={selectedAudioOutput} style={styles.select}>
+                {audioOutputs.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>{device.label || 'Default speaker'}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
-      )}
-    </div>
+      ) : null}
+    </section>
   );
 };
 
 const styles = {
-  overlay: {
-    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-    backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 11000,
-    display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column'
+  callWindow: {
+    position: 'fixed',
+    width: '360px',
+    height: '520px',
+    borderRadius: '28px',
+    overflow: 'hidden',
+    zIndex: 11000,
+    background: '#073c34',
+    boxShadow: '0 28px 70px rgba(0,0,0,0.34)',
+    border: '1px solid rgba(255,255,255,0.16)',
   },
-  videoContainer: {
-    position: 'relative', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: 'black'
+  callHeader: {
+    height: '132px',
+    padding: '20px 22px 16px',
+    background: '#01372f',
+    color: '#fff',
+    cursor: 'grab',
+    userSelect: 'none',
   },
-  remoteVideo: { width: '100%', height: '100%', objectFit: 'cover' },
+  topButton: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '24px',
+    border: '0',
+    background: 'rgba(10,10,10,0.42)',
+    color: '#fff',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+    transition: 'background-color 180ms ease, transform 180ms ease',
+  },
+  identityBlock: {
+    display: 'grid',
+    justifyItems: 'center',
+    gap: '6px',
+    marginTop: '8px',
+  },
+  calleeName: {
+    maxWidth: '280px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontSize: '28px',
+    lineHeight: 1.1,
+    textShadow: '0 2px 10px rgba(0,0,0,0.4)',
+  },
+  statusText: {
+    fontSize: '15px',
+    fontWeight: 700,
+    color: 'rgba(255,255,255,0.74)',
+  },
+  stage: {
+    position: 'relative',
+    height: '294px',
+    background: '#154f46',
+    display: 'grid',
+    placeItems: 'center',
+  },
+  remoteVideo: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    background: '#001b18',
+  },
   localVideo: {
-    position: 'absolute', bottom: '100px', right: '20px', 
-    width: '120px', height: '160px', borderRadius: '10px', 
-    border: '2px solid white', backgroundColor: '#333', objectFit: 'cover', zIndex: 2
+    position: 'absolute',
+    right: '18px',
+    bottom: '18px',
+    width: '104px',
+    height: '148px',
+    borderRadius: '18px',
+    objectFit: 'cover',
+    background: '#001b18',
+    border: '1px solid rgba(255,255,255,0.32)',
   },
-  card: {
-    backgroundColor: 'white', padding: '30px', borderRadius: '20px',
-    textAlign: 'center', width: '300px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+  avatarWrap: {
+    width: '154px',
+    height: '154px',
+    borderRadius: '77px',
+    display: 'grid',
+    placeItems: 'center',
+    color: '#d7ebe8',
+    background: '#003b33',
+    border: '1px solid rgba(255,255,255,0.24)',
   },
-  avatar: {
-    width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#eee',
-    margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center',
-    fontSize: '40px'
+  bottomDock: {
+    position: 'absolute',
+    left: '22px',
+    right: '22px',
+    bottom: '18px',
+    minHeight: '76px',
+    borderRadius: '28px',
+    padding: '10px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    background: 'rgba(99,99,99,0.76)',
   },
-  controls: {
-    display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '25px'
+  incomingActions: {
+    position: 'absolute',
+    left: '0',
+    right: '0',
+    bottom: '34px',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '22px',
   },
-  btnAnswer: {
-    backgroundColor: '#28a745', color: 'white', border: 'none',
-    width: '60px', height: '60px', borderRadius: '50%', cursor: 'pointer',
-    fontSize: '12px', fontWeight: 'bold'
+  controlButton: {
+    position: 'relative',
+    width: '54px',
+    height: '54px',
+    borderRadius: '27px',
+    border: '0',
+    color: '#050505',
+    background: '#fff',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+    overflow: 'hidden',
+    transition: 'background-color 220ms ease, color 220ms ease, transform 180ms ease',
   },
-  btnDecline: {
-    backgroundColor: '#dc3545', color: 'white', border: 'none',
-    width: '60px', height: '60px', borderRadius: '50%', cursor: 'pointer',
-    fontSize: '12px', fontWeight: 'bold'
+  controlButtonActive: {
+    background: '#fff',
+    color: '#050505',
   },
-  floatingControls: {
-    position: 'absolute', bottom: '30px', left: '0', right: '0', 
-    display: 'flex', justifyContent: 'center', gap: '15px', zIndex: 3
+  controlButtonOff: {
+    background: '#050505',
+    color: '#fff',
   },
-  controlBtn: {
-    width: '50px', height: '50px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)',
-    color: 'white', border: '1px solid white', fontSize: '20px', cursor: 'pointer',
-    backdropFilter: 'blur(5px)'
+  controlButtonDanger: {
+    background: '#ef003f',
+    color: '#fff',
   },
-  endBtn: {
-     backgroundColor: '#dc3545', color: 'white', border: 'none',
-     padding: '0 30px', height: '50px', borderRadius: '25px', 
-     fontSize: '16px', fontWeight: 'bold', cursor: 'pointer'
+  controlButtonSuccess: {
+    background: '#19a85b',
+    color: '#fff',
   },
-  settingsModal: {
-    position: 'absolute', top: '20px', right: '20px', 
-    backgroundColor: 'white', padding: '15px', borderRadius: '10px',
-    width: '250px', zIndex: 12000, color: '#333',
-    boxShadow: '0 5px 15px rgba(0,0,0,0.3)'
+  controlHalo: {
+    position: 'absolute',
+    inset: 0,
+    background: '#fff',
+    opacity: 0,
+    transition: 'opacity 180ms ease',
   },
-  settingsHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: '10px', fontWeight: 'bold', borderBottom: '1px solid #eee', paddingBottom:'5px'
+  settingsButton: {
+    position: 'absolute',
+    top: '18px',
+    right: '18px',
+    width: '42px',
+    height: '42px',
+    borderRadius: '21px',
+    border: '0',
+    background: 'rgba(5,5,5,0.34)',
+    color: '#fff',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
   },
-  closeBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize:'16px' },
-  settingRow: { marginBottom: '10px', display: 'flex', flexDirection: 'column', textAlign: 'left', fontSize:'12px' },
+  settingsPanel: {
+    position: 'absolute',
+    top: '66px',
+    right: '16px',
+    width: '245px',
+    padding: '14px',
+    borderRadius: '16px',
+    background: '#fff',
+    color: '#17201f',
+    boxShadow: '0 18px 42px rgba(0,0,0,0.28)',
+    display: 'grid',
+    gap: '12px',
+  },
+  settingsTitle: {
+    fontWeight: 800,
+    fontSize: '14px',
+  },
+  settingRow: {
+    display: 'grid',
+    gap: '5px',
+    fontSize: '12px',
+    fontWeight: 700,
+  },
+  select: {
+    width: '100%',
+    border: '1px solid #d8dfdd',
+    borderRadius: '10px',
+    padding: '8px',
+    fontSize: '12px',
+  },
+  minimizedBubble: {
+    position: 'fixed',
+    width: '78px',
+    height: '78px',
+    borderRadius: '22px',
+    zIndex: 11000,
+    display: 'grid',
+    placeItems: 'center',
+    color: '#fff',
+    background: '#063b33',
+    boxShadow: '0 18px 50px rgba(0,0,0,0.3)',
+    border: '1px solid rgba(255,255,255,0.18)',
+    cursor: 'grab',
+  },
+  bubblePulse: {
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    width: '10px',
+    height: '10px',
+    borderRadius: '5px',
+    background: '#2ee66f',
+  },
 };
 
 export default CallOverlay;

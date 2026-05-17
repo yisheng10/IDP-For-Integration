@@ -22,6 +22,8 @@ export const CallProvider = ({ children }) => {
   const [selectedAudioInput, setSelectedAudioInput] = useState('');
   const [selectedVideoInput, setSelectedVideoInput] = useState('');
   const [selectedAudioOutput, setSelectedAudioOutput] = useState('');
+  const [isMicrophoneMuted, setIsMicrophoneMuted] = useState(false);
+  const [isCameraEnabled, setIsCameraEnabled] = useState(true);
 
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
@@ -105,6 +107,8 @@ export const CallProvider = ({ children }) => {
 
     setLocalStream(null);
     setRemoteStream(null);
+    setIsMicrophoneMuted(false);
+    setIsCameraEnabled(true);
     localStreamRef.current = null;
     peerConnection.current = null;
     
@@ -244,6 +248,8 @@ export const CallProvider = ({ children }) => {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     setLocalStream(stream);
     localStreamRef.current = stream;
+    setIsMicrophoneMuted(false);
+    setIsCameraEnabled(isVideo);
 
     const pc = new RTCPeerConnection(servers);
     peerConnection.current = pc;
@@ -333,6 +339,8 @@ export const CallProvider = ({ children }) => {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     setLocalStream(stream);
     localStreamRef.current = stream;
+    setIsMicrophoneMuted(false);
+    setIsCameraEnabled(isVideo);
 
     const pc = new RTCPeerConnection(servers);
     peerConnection.current = pc;
@@ -367,12 +375,35 @@ export const CallProvider = ({ children }) => {
     });
   };
 
+  const toggleMute = useCallback(() => {
+    const audioTrack = localStreamRef.current?.getAudioTracks?.()[0];
+    if (!audioTrack) {
+      setIsMicrophoneMuted(true);
+      return;
+    }
+    const nextMuted = audioTrack.enabled;
+    audioTrack.enabled = !nextMuted;
+    setIsMicrophoneMuted(nextMuted);
+  }, []);
+
+  const toggleCamera = useCallback(() => {
+    const videoTrack = localStreamRef.current?.getVideoTracks?.()[0];
+    if (!videoTrack) {
+      setIsCameraEnabled(false);
+      return;
+    }
+    const nextEnabled = !videoTrack.enabled;
+    videoTrack.enabled = nextEnabled;
+    setIsCameraEnabled(nextEnabled);
+  }, []);
+
   return (
     <CallContext.Provider value={{ 
         user, callStatus, callType, startCall, answerCall, endCall, 
         localStream, remoteStream, otherUserName,
         devices, selectedAudioInput, selectedVideoInput, selectedAudioOutput,
-        switchAudioInput, switchVideoInput, setSelectedAudioOutput
+        switchAudioInput, switchVideoInput, setSelectedAudioOutput,
+        isMicrophoneMuted, isCameraEnabled, toggleMute, toggleCamera
     }}>
       {children}
     </CallContext.Provider>
