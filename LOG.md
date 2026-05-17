@@ -5944,3 +5944,16 @@ eady calculation.
 - Added a new handoff document:
   - `FRESH_CLONE_VALIDATION_STEPS.md`
   - this explains exactly how to test a brand-new clone with submodule sync, environment bundles, credentials bundle, CRC web, patient web, and Android emulator
+
+## 2026-05-17 - stable candidate fresh-clone bug fixed for ghost external-skills submodule
+
+- Diagnosed the fresh-clone failure on the stable candidate branch:
+  - `git submodule update --init --recursive` failed with
+  - `fatal: No url found for submodule path 'external-skills/ui-ux-pro-max-skill' in .gitmodules`
+- Root cause:
+  - `external-skills/ui-ux-pro-max-skill` had been committed as a gitlink / submodule entry
+  - but `.gitmodules` did not contain any matching submodule URL
+- Fix applied to the stable candidate branch:
+  - moved the empty local ghost folder into `D:\99_回收站`
+  - removed the broken gitlink entry from the Git index
+- Updated teammate docs so the fresh-clone validation instructions now explicitly say this error should no longer appear on the repaired stable candidate branch.

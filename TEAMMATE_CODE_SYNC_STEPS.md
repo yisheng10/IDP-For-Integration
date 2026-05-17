@@ -20,6 +20,7 @@ It includes:
 - the Android patient guidance route-classifier auth fix
 - the patient guidance recovery path so a trace-stream failure does not immediately force the static safety fallback
 - the Android buffered trace fallback so reasoning trace can still render when native streaming is unavailable
+- the stable-candidate cleanup that removes the broken ghost submodule entry under `external-skills/ui-ux-pro-max-skill`
 
 ## What Was Merged
 

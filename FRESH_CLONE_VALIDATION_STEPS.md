@@ -70,6 +70,14 @@ git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
+This step should complete without the old error:
+
+```text
+fatal: No url found for submodule path 'external-skills/ui-ux-pro-max-skill' in .gitmodules
+```
+
+If you still see that exact error, it usually means you cloned an older branch state before the stable-candidate cleanup was pushed. Re-clone the stable candidate branch again instead of continuing with that broken checkout.
+
 ## Step 4: Verify The Root Branch
 
 ```powershell
