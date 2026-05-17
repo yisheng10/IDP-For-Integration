@@ -5927,3 +5927,6 @@ eady calculation.
 - Expected result after redeploy:
   - web keeps the live streaming trace
   - Android emulator / future APK can still show the reasoning trace even when native fetch cannot consume the stream directly
+- Deployment completed to `traillight-4750b`:
+  - created `sideEffectGuidanceTraceHttp`
+  - updated `sideEffectGuidanceTraceStreamHttp`
