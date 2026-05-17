@@ -5881,6 +5881,16 @@ eady calculation.
 - Plainly stated:
   - this reduces Android-emulator-specific risk where the user could otherwise get an unnecessary `Temporary guidance fallback` even though retrieval and the normal HTTP guidance path were still healthy
 
+## 2026-05-17 - teammate sync guide updated after Android patient guidance fix
+
+- Refreshed `TEAMMATE_CODE_SYNC_STEPS.md` again after the Android guidance repair wave.
+- Updated the expected patient app submodule commit to:
+  - `31f4e43`
+- Added a warning that teammates who already synced `v2` earlier the same day must sync again.
+- Added the new Android-specific verification expectations:
+  - no more `Only CRC users can access guidance services` on patient Android AE Guidance
+  - trace-stream failures should now try the grounded online guidance path before using the static fallback
+
 ## 2026-05-17 - teammate sync guide refreshed for latest merge v2 state
 
 - Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the newest `codex/merge-jianhong2-into-yisheng-v2` baseline with the current patient submodule commit:

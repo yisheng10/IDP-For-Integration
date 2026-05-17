@@ -9,6 +9,15 @@ This document explains:
 
 This guide is written for teammates who are not confident with Git.
 
+## Important Update
+
+If you already synced `codex/merge-jianhong2-into-yisheng-v2` earlier today, sync again now.
+
+The branch was updated again with:
+
+- the Android patient guidance route-classifier auth fix
+- the patient guidance recovery path so a trace-stream failure does not immediately force the static safety fallback
+
 ## What Was Merged
 
 The new integration branch combines:
@@ -51,7 +60,7 @@ Teammates must sync to these branches:
 Expected submodule commits after sync:
 
 - Patient app submodule:
-  - commit: `aa2809c`
+  - commit: `31f4e43`
 
 Do **not** continue development from:
 
@@ -217,6 +226,7 @@ If you keep using an older personal branch without re-syncing first, you may mis
 
 - the grounded patient guidance fix
 - the duplicate-message cleanup
+- the Android patient guidance recovery fix
 - the newer dropout `Final A2` board
 - the latest submodule pointer
 
@@ -254,10 +264,12 @@ After syncing, teammates should verify these points:
 - patient AE guidance opens normally
 - patient reasoning trace is visible again
 - patient AE guidance and reasoning trace now use the same grounded retrieval chunks
+- Android emulator patient guidance should no longer be blocked by the old CRC-only route-classifier auth bug
 - patient local development no longer bypasses the shared online guidance runtime by default
 - patient Daily Health Report can redirect into AE Guidance and auto-send the correct summary prompt
 - urgent alert auto-thread messages should not pollute the AE Guidance chat timeline
 - patient guidance messages should no longer duplicate as easily
+- if trace streaming fails on Android, the app should still try the normal grounded online guidance path before falling back to the static safety message
 
 ### CRC side additional expectation
 
@@ -287,6 +299,8 @@ If a teammate still sees:
 - no reasoning trace
 - a reasoning trace that says no excerpts were retrieved while the answer looks like it made up page numbers
 - duplicated patient guidance messages
+- Android saying `Only CRC users can access guidance services.`
+- Android dropping straight into `Temporary guidance fallback` even though retrieval is otherwise healthy
 - old patient guidance behavior
 - outdated patient UI
 - the old dropout board layout
@@ -316,7 +330,7 @@ git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2" rev-parse HEAD
 Expected patient app commit:
 
 ```text
-aa2809c
+31f4e43
 ```
 
 ## If You Already Have Local Branches Based On Older Work
