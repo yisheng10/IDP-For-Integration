@@ -6012,3 +6012,15 @@ eady calculation.
   - the team can now stop using the old integration merge branches as their working baseline
   - future feature branches should be cut from `main` in the root repo and from `main` in the patient repo
   - teammate docs now explicitly explain that a submodule may land in detached `HEAD` after `git submodule update`, and that patient developers should `checkout main` before branching
+
+## 2026-05-17 - shortened teammate sync guide into post-main workflow
+
+- Rewrote `TEAMMATE_CODE_SYNC_STEPS.md` into a shorter post-main workflow guide.
+- The guide now clearly separates two use cases:
+  - `FRESH_CLONE_VALIDATION_STEPS.md` for brand-new clones
+  - `TEAMMATE_CODE_SYNC_STEPS.md` for existing local checkouts that need to move back onto `main`
+- Simplified the workflow explanation to the new team habit:
+  - sync root repo to `main`
+  - sync submodules
+  - if editing patient code, switch the patient submodule to `main`
+  - create new personal branches from `main`

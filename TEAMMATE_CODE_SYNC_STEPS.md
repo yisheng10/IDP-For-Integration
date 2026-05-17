@@ -1,204 +1,115 @@
-# Team Sync Guide For The Mainline Baseline
+# Post-Main Workflow For Existing Local Checkouts
 
-This document explains:
+Use this guide only if you already have a local TrialLight checkout and now need to move back onto the official team baseline.
 
-1. what was merged into the new integration branch
-2. which branches teammates must use
-3. the exact commands to run
-4. how to verify that the full codebase was updated correctly
+If you are starting from a brand-new folder, use `FRESH_CLONE_VALIDATION_STEPS.md` instead.
 
-This guide is written for teammates who are not confident with Git.
+## Official Team Baseline
 
-## Important Update
+- Root integration repo: `main`
+- Patient app repo: `main`
 
-If you already synced `codex/stable-candidate-20260517-rc1` or any earlier test branch today, sync again now.
+Expected patient app commit after submodule sync:
 
-The previously validated stable candidate has now been merged into the formal team baseline.
+```text
+a7a4a33
+```
+
+## What This Means In Plain Language
+
+After the stable candidate was validated, the team baseline moved to `main`.
+
+From now on:
+
+1. sync the root repo to `main`
+2. sync submodules
+3. if you will edit patient app code, switch the patient submodule onto its `main`
+4. create your own new feature branch
+
+Do not keep building on older branches such as:
+
+- `yisheng`
+- `jianhong2`
+- `jianhong3`
+- `codex/merge-jianhong2-into-yisheng-v2`
+- `codex/stable-candidate-20260517-rc1`
+
+## Important Git Note
+
+This project is not one single repo.
 
 It includes:
 
-- the Android patient guidance route-classifier auth fix
-- the patient guidance recovery path so a trace-stream failure does not immediately force the static safety fallback
-- the Android buffered trace fallback so reasoning trace can still render when native streaming is unavailable
-- the stable-candidate cleanup that removes the broken ghost submodule entry under `external-skills/ui-ux-pro-max-skill`
+- root repo: `IDP-For-Integration`
+- patient app submodule: `IDP_PatientApp`
+- dropout submodule: `Patient-Dropout-Prediction`
 
-## What Was Merged
+So:
 
-The new mainline baseline combines:
-
-- the current root integration work from `yisheng`
-- the root repo changes from `jianhong2`
-- the current patient guidance runtime fixes that force local development to use the shared online backend
-- the patient-side detailed reasoning trace path
-- the patient app UI and UX changes from `jianhong2`
-- the latest `jianhong2` call UI changes
-- the latest `jianhong2` root call acceptance state fix
-- the patient-side RAG trace wiring fix
-- the patient-side grounded guidance alignment fix so the final answer uses the same retrieved CTCAE / protocol chunks as the reasoning trace
-- the patient-side duplicate-message cleanup so mirrored guidance messages no longer appear twice as easily
-- the Android patient buffered trace fallback so reasoning trace no longer depends on native NDJSON stream support
-- the Daily Health Report to AE Guidance handoff fix
-- the patient guidance timeline filtering fix so urgent alert thread noise does not appear as AE Guidance chat history
-- the `Final A2` CRC dropout operations board replica from `yisheng`
-
-In plain language:
-
-- the patient app keeps the newer `jianhong2` UI work
-- the patient app also keeps the newer patient reasoning trace and shared online guidance runtime
-- the patient app now passes real retrieval chunks into the patient reasoning trace instead of empty arrays
-- the patient app now sends grounded retrieval chunks into the final shared online guidance answer path instead of letting the trace and the final answer diverge
-- local patient web development now ignores accidental `localhost` Firebase Functions URLs unless a teammate explicitly opts in
-- Daily Health Report now expands AE Guidance and sends a proper auto-prompt containing symptoms, measurements, and flagged issues
-- the root web call context now records accepted call state consistently with the latest `jianhong2` behavior
-- the root repo keeps the newer Gemini key rotation and backend guidance fixes
-- the CRC dropout board now matches the newer `Replica A2 dropout operations board` implementation from `yisheng`
-
-## Source Of Truth Branches
-
-Teammates must sync to these branches:
-
-- Root integration repo:
-  - branch: `main`
-- Patient app submodule:
-  - branch: `main`
-
-Expected submodule commits after sync:
-
-- Patient app submodule:
-  - commit: `a7a4a33`
-
-Do **not** continue development from:
-
-- `jianhong2`
-- `jianhong`
-- `yisheng`
-- `jianhong3`
-- any older personal branch that does not already point to this merge
-
-Those branches are now older baselines.
-
-## Important Git Concept
-
-This project is **not** one single Git repo.
-
-It contains:
-
-- one root repo: `IDP-For-Integration`
-- one patient app submodule: `IDP_PatientApp`
-- one dropout prediction submodule: `Patient-Dropout-Prediction`
-
-This means:
-
-- pulling only the root repo is **not enough**
+- updating only the root repo is not enough
 - you must also update submodules
 
-If you skip the submodule update step, you may get:
-
-- old patient app code
-- missing reasoning trace
-- outdated UI
-- wrong backend behavior
-
-## Before You Start
-
-If you already have local changes on your machine, do **one** of these first:
-
-### Option A: commit your local work
-
-If your local work matters, commit it to your own branch first.
-
-### Option B: stash your local work
-
-If you are not ready to commit it yet:
-
-```powershell
-git stash push -m "my-local-work-before-jianhong2-merge-sync"
-```
-
-Do **not** hard reset and do **not** delete files.
-
-## Step 1: Go To The Root Integration Repo
-
-Open a terminal and run:
+## Step 1: Go To Your Existing Root Checkout
 
 ```powershell
 cd /d "D:\IDP For Integration"
 ```
 
-## Step 2: Fetch The Latest Remote Branches
+## Step 2: Save Any Local Work First
 
-Run:
+If you already have unfinished local work, do one of these first:
+
+- commit it to your own branch
+- or stash it
+
+Example stash command:
+
+```powershell
+git stash push -m "my-local-work-before-switching-to-main"
+```
+
+Do not hard reset and do not delete files.
+
+## Step 3: Sync The Root Repo To `main`
 
 ```powershell
 git fetch origin
-git submodule foreach --recursive git fetch origin
-```
-
-This updates:
-
-- the root repo branch list
-- the patient submodule branch list
-- the dropout submodule branch list
-
-## Step 3: Switch The Root Repo To The New Integration Branch
-
-Run:
-
-```powershell
 git checkout main
 git pull --ff-only origin main
 ```
 
-If Git says the branch does not exist locally, run:
+If `main` does not exist locally yet:
 
 ```powershell
 git checkout -b main origin/main
 ```
 
-## Step 4: Sync And Update Submodules
-
-This step is mandatory.
-
-Run:
+## Step 4: Sync Submodules
 
 ```powershell
 git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-This makes the root repo pull the exact patient app commit and dropout submodule commit that belong to this integration branch.
-
 ## Step 5: Install Patient App Dependencies
-
-This step is now required because the merged patient app includes the `expo-camera` dependency used by the newer call UI.
-
-Run:
 
 ```powershell
 npm install --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2"
 ```
 
-Do not skip this step.
-
-If you skip it, the patient app may fail to start or export and you may see missing plugin errors for `expo-camera`.
-
-## Step 6: Verify The Root Branch
-
-Run:
+## Step 6: Verify The Root Repo
 
 ```powershell
 git branch --show-current
 ```
 
-Expected result:
+Expected:
 
 ```text
 main
 ```
 
-## Step 7: Verify The Patient App Submodule Commit
-
-Run:
+## Step 7: Verify The Patient Submodule
 
 ```powershell
 git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" branch --show-current
@@ -207,53 +118,36 @@ git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" rev-parse HEAD
 
 Important:
 
-- after `git submodule update --init --recursive`, Git may leave the patient submodule in a detached `HEAD` state
-- this is normal for submodules
-- the most important verification here is the commit hash
+- after `git submodule update --init --recursive`, the patient submodule may land in detached `HEAD`
+- this is normal
+- the critical check is the commit hash
 
-If you specifically want the patient repo to sit on its formal `main` branch before doing new work, run:
+Expected patient commit:
+
+```text
+a7a4a33
+```
+
+## Step 8: If You Will Edit Patient App Code
+
+If you only need to run the code, you can stop after Step 7.
+
+If you will actually edit patient app code, run this first:
 
 ```powershell
 git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" checkout main
 git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" pull --ff-only origin main
 ```
 
-Then the patient app branch should show:
+Why:
 
-```text
-main
-```
+- submodule sync gives you the correct commit
+- but it may not put you on a writable branch
+- `checkout main` puts the patient repo back onto its official development baseline
 
-Expected patient app commit:
+## Step 9: Create New Branches For New Work
 
-```text
-a7a4a33
-```
-
-## Step 7B: If You Already Created `jianhong3` Or Another Personal Branch Earlier
-
-If you already created a branch such as `jianhong3` before this latest `v2` update, do **not** keep building on top of that older local branch until you rebase or recreate it from the current merge baseline.
-
-The safe beginner path is:
-
-1. finish syncing to `main`
-2. create a **new** fresh branch from that updated state
-3. move your unfinished work onto the new branch
-
-If you keep using an older personal branch without re-syncing first, you may miss:
-
-- the grounded patient guidance fix
-- the duplicate-message cleanup
-- the Android patient guidance recovery fix
-- the Android buffered trace fallback
-- the newer dropout `Final A2` board
-- the latest submodule pointer
-
-## Step 8: Start Development From A New Personal Branch
-
-After syncing, do **not** keep developing directly on the integration branch.
-
-Create your own branch from the synced state.
+Do not develop directly on `main`.
 
 ### Root repo
 
@@ -261,130 +155,30 @@ Create your own branch from the synced state.
 git checkout -b <your-new-root-branch>
 ```
 
-### Patient app submodule
+### Patient app repo
 
-If you will edit patient app code, also create a new patient-app branch:
+Only if you will edit patient app code:
 
 ```powershell
-git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" checkout main
-git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" pull --ff-only origin main
 git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2" checkout -b <your-new-patient-branch>
 ```
 
-## Step 9: Quick Functional Checks
+## Step 10: Quick Sanity Check
 
-After syncing, teammates should verify these points:
+After syncing:
 
-### CRC side
-
-- CRC guidance still runs through the shared online backend
-- local `npm run dev` or `npm run preview` should not silently fall back to browser-direct Gemini
-
-### Patient side
-
-- patient AE guidance opens normally
-- patient reasoning trace is visible again
-- patient AE guidance and reasoning trace now use the same grounded retrieval chunks
-- Android emulator patient guidance should no longer be blocked by the old CRC-only route-classifier auth bug
-- patient local development no longer bypasses the shared online guidance runtime by default
-- patient Daily Health Report can redirect into AE Guidance and auto-send the correct summary prompt
-- urgent alert auto-thread messages should not pollute the AE Guidance chat timeline
-- patient guidance messages should no longer duplicate as easily
-- if trace streaming fails on Android, the app should still try the normal grounded online guidance path before falling back to the static safety message
-- if Android cannot consume the live stream body, patient reasoning trace should still render through the buffered trace endpoint
-
-### CRC side additional expectation
-
-- the `Patient Disengagement Prediction` screen should now show the newer `Replica A2 dropout operations board` layout
-
-### If you intentionally need the local Firebase Functions emulator
-
-By default, this merge branch ignores local `localhost` / `127.0.0.1` Firebase Functions base URLs for patient guidance, because that path caused teammates to bypass the shared online backend.
-
-If you really need to test a local functions emulator, explicitly set:
-
-```text
-EXPO_PUBLIC_ALLOW_LOCAL_FUNCTIONS_BASE_URL=true
-```
-
-Only do this when you intentionally want local emulator behavior.
-
-### Shared backend behavior
-
-- local devices should now contribute to the shared Gemini key rotation usage path
-- patient reasoning trace should no longer disappear just because a teammate is running locally
-
-## If Something Looks Wrong
-
-If a teammate still sees:
-
-- no reasoning trace
-- a reasoning trace that says no excerpts were retrieved while the answer looks like it made up page numbers
-- duplicated patient guidance messages
-- Android saying `Only CRC users can access guidance services.`
-- Android dropping straight into `Temporary guidance fallback` even though retrieval is otherwise healthy
-- Android showing `Streaming response body was not available.` while the normal answer already succeeded
-- old patient guidance behavior
-- outdated patient UI
-- the old dropout board layout
-
-then the most likely reason is:
-
-- they updated the root repo
-- but did **not** update submodules correctly
-
-The fix is usually to run again:
-
-```powershell
-git fetch origin
-git checkout main
-git pull --ff-only origin main
-git submodule sync --recursive
-git submodule update --init --recursive
-npm install --prefix "D:\IDP For Integration\MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2"
-```
-
-Then verify again:
-
-```powershell
-git -C "MyClinicalApp_AndroidAPK_5Jan2026_2138\MyClinicalApp2" rev-parse HEAD
-```
-
-Expected patient app commit:
-
-```text
-a7a4a33
-```
-
-## If You Already Have Local Branches Based On Older Work
-
-If your old local branch is based on:
-
-- `jianhong2`
-- `jianhong`
-- `yisheng`
-
-do not continue adding new work there.
-
-Instead:
-
-1. sync to the new integration branch first
-2. create a fresh new branch from it
-3. re-apply your unfinished local work carefully
-
-## If You Change A Submodule Later
-
-Remember this rule:
-
-1. commit and push the submodule branch first
-2. return to the root repo
-3. stage the updated submodule pointer in the root repo
-4. commit and push the root repo
-
-If you skip step 2 to 4, other teammates will not receive the correct submodule version.
+- CRC web should still run from the shared backend
+- patient AE Guidance should still open normally
+- patient reasoning trace should still be available
+- patient Android emulator should not show the old CRC-only auth error
 
 ## Final Reminder
 
-The root repo and the patient app submodule must move together.
+The correct new habit is:
 
-If a teammate updates only one of them, they may think the merge is broken even when the code on GitHub is already correct.
+1. sync root repo to `main`
+2. sync submodules
+3. if editing patient code, switch patient repo to `main`
+4. create new personal branches from `main`
+
+That is the post-main workflow.
