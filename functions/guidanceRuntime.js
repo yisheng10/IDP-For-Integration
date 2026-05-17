@@ -840,6 +840,61 @@ function buildTraceCitationLabel(entry = {}, sourceTypeFallback = 'source') {
   return `[${buildTraceSourceLabel(entry, sourceTypeFallback)} Page ${entry.page || 'Unknown'}]`;
 }
 
+function buildGroundedGuidanceExcerptBlock(rows = [], sourceType = 'source') {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return 'None';
+  }
+
+  return rows
+    .slice(0, TRACE_SOURCE_EXCERPT_LIMIT)
+    .map((entry) => {
+      const citationLabel = buildTraceCitationLabel(entry, sourceType);
+      const excerptText = sanitizeGuidanceText(entry.content || '');
+      return `${citationLabel}\n${excerptText}`;
+    })
+    .join('\n\n');
+}
+
+function buildGroundedGuidanceUserMessage({
+  userMessage,
+  routeDecision = 'skip',
+  routeReason = '',
+  protocolName = null,
+  ctcaeChunks = [],
+  protocolChunks = [],
+}) {
+  const groundedCtcae = normalizeGuidanceRows(ctcaeChunks, 'ctcae');
+  const groundedProtocol = normalizeGuidanceRows(protocolChunks, 'protocol');
+  const resolvedProtocolName = String(protocolName || '').trim() || 'Not assigned';
+
+  return `
+Latest user message:
+${String(userMessage || '').trim()}
+
+Grounding status:
+- routeDecision: ${String(routeDecision || 'skip').trim() || 'skip'}
+- routeReason: ${String(routeReason || '').trim() || 'None'}
+- activeProtocol: ${resolvedProtocolName}
+- CTCAE excerpts retrieved: ${groundedCtcae.length}
+- Protocol excerpts retrieved: ${groundedProtocol.length}
+
+Grounding rules:
+- Use the retrieved excerpts below as the authoritative source for any CTCAE or protocol-backed statement.
+- Only cite a page when it appears in the retrieved excerpt label exactly as shown.
+- Never invent a page number, citation, protocol excerpt, or CTCAE excerpt.
+- If no relevant excerpts were retrieved for a source, say that source could not be confirmed for this message.
+- Use protocol excerpts for study-specific actions, escalation, and patient instructions.
+- Use CTCAE excerpts for toxicity definitions, grading concepts, and severity framing.
+- If grounded retrieval is missing, give a cautious patient-safe answer and clearly say grounded retrieval was unavailable.
+
+=== CTCAE EXCERPTS ===
+${buildGroundedGuidanceExcerptBlock(groundedCtcae, 'ctcae')}
+
+=== PROTOCOL EXCERPTS ===
+${buildGroundedGuidanceExcerptBlock(groundedProtocol, 'protocol')}
+  `.trim();
+}
+
 function buildTraceSourceExcerpts(rows = [], sourceType, relevanceReason) {
   return rows.slice(0, TRACE_SOURCE_EXCERPT_LIMIT).map((entry) => ({
     sourceType,
@@ -1911,6 +1966,12 @@ async function runSideEffectGuidanceTraceStream(payload = {}, requesterProfile, 
       systemPrompt: normalized.systemPrompt,
       messages: normalized.messages,
       userMessage: normalized.routedPrompt,
+      routeDecision: normalized.routeDecision,
+      routeReason: normalized.routeReason,
+      protocolName: normalized.protocolName,
+      traceAudience: normalized.traceAudience,
+      ctcaeChunks: normalized.ctcaeChunks,
+      protocolChunks: normalized.protocolChunks,
       model: GUIDANCE_MODEL,
     });
 
@@ -2095,6 +2156,19 @@ async function runSideEffectGuidanceChat(payload = {}) {
   const userMessage = String(payload.userMessage || '').trim();
   const messages = Array.isArray(payload.messages) ? payload.messages : [];
   const modelName = String(payload.model || GUIDANCE_MODEL || '').trim() || GUIDANCE_MODEL;
+  const routeDecision = String(payload.routeDecision || 'skip').trim().toLowerCase() || 'skip';
+  const routeReason = String(payload.routeReason || '').trim();
+  const protocolName = String(payload.protocolName || '').trim() || null;
+  const traceAudience = normalizeTraceAudience(payload.traceAudience || payload.audience || null);
+  const normalizedCtcaeChunks = normalizeGuidanceRows(
+    Array.isArray(payload.ctcaeChunks) ? payload.ctcaeChunks : [],
+    'ctcae'
+  );
+  const normalizedProtocolChunks = normalizeGuidanceRows(
+    Array.isArray(payload.protocolChunks) ? payload.protocolChunks : [],
+    'protocol'
+  );
+  const groundedSourceMask = joinTraceSourceMask(normalizedCtcaeChunks, normalizedProtocolChunks);
 
   if (!userMessage) {
     throw new HttpsError('invalid-argument', 'userMessage is required.');
@@ -2120,7 +2194,20 @@ async function runSideEffectGuidanceChat(payload = {}) {
       actionLabel: 'Guidance generation',
       task: async ({ model }) =>
         model.generateContent({
-          contents: buildGeminiContents(messages, userMessage),
+          contents: buildGeminiContents(
+            messages,
+            groundedSourceMask === 'none' && routeDecision === 'skip'
+              ? userMessage
+              : buildGroundedGuidanceUserMessage({
+                  userMessage,
+                  routeDecision,
+                  routeReason,
+                  protocolName,
+                  ctcaeChunks: normalizedCtcaeChunks,
+                  protocolChunks: normalizedProtocolChunks,
+                  traceAudience,
+                })
+          ),
         }),
     });
 
@@ -2133,6 +2220,7 @@ async function runSideEffectGuidanceChat(payload = {}) {
       text,
       provider: 'firebase-callable',
       model: modelName,
+      sourceMask: groundedSourceMask,
     };
   } catch (error) {
     console.error('sideEffectGuidanceChat failed:', error);

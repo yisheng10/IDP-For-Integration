@@ -5814,3 +5814,34 @@ eady calculation.
   - browser console showed `Missing Firebase env: VITE_FIREBASE_API_KEY`
   - root `.env.local` existed but `.merge-jianhong2-root/.env.local` was missing
 - Restored local CRC merge-worktree testability by copying the root `.env.local` into `.merge-jianhong2-root/.env.local` without committing any secrets.
+
+## 2026-05-17 - patient guidance grounding alignment and duplicate-message cleanup on merge v2
+
+- Investigated Yun Hong's `codex/merge-jianhong2-into-yisheng-v2` findings around patient AE Guidance:
+  - duplicate user messages with the audit note inserted in the middle
+  - reasoning trace rendering correctly while grounded CTCAE / protocol retrieval appeared missing
+  - answers looking partially plausible but not reliably page-grounded
+- Verified with a live SiliconFlow + Supabase retrieval check that the backend retrieval layer itself is healthy for the hypoglycemia query:
+  - CTCAE retrieval returned chunks from `CTCAE v5.0`
+  - protocol retrieval returned chunks for `Protocol-Type 1 Diabetes Mellitus.pdf`
+  - this proved the main gap was client / answer-chain wiring, not missing indexed source data
+- Reworked patient guidance request flow in `.merge-jianhong2-patient`:
+  - switched `requestSideEffectGuidance(...)` to the shared online HTTP guidance endpoint instead of the patient-incompatible callable path
+  - added a shared backend `classifyGuidanceRouteHttp` client wrapper so patient retrieval routing now uses the same server-side routing logic as the guidance backend instead of a separate local prompt router
+  - strengthened patient chat deduplication so near-identical mirrored messages collapse when they share the same role/text/channel signature and land within a short timestamp window
+- Reworked shared guidance answer grounding in `.merge-jianhong2-root/functions/guidanceRuntime.js`:
+  - `runSideEffectGuidanceChat(...)` now accepts `ctcaeChunks`, `protocolChunks`, `routeDecision`, `routeReason`, and `protocolName`
+  - final guidance generation now receives the same grounded excerpt blocks that the trace stream sees
+  - final answer prompts now explicitly forbid invented page numbers and require exact use of retrieved citation labels
+  - trace-stream final answers now pass the normalized retrieval chunks into `runSideEffectGuidanceChat(...)` instead of generating from a disconnected raw routed prompt
+- Validation completed after the fix:
+  - `node --check .merge-jianhong2-patient/src/components/GeminiChatbot.js`
+  - `node --check .merge-jianhong2-patient/src/services/guidanceRetrievalService.js`
+  - `node --check .merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`
+  - `node --check .merge-jianhong2-root/functions/guidanceRuntime.js`
+  - `npm.cmd run lint` from `.merge-jianhong2-patient` (warnings only, no new errors)
+  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
+  - `npm.cmd run build:crc` from `.merge-jianhong2-root`
+- Important follow-up note:
+  - these grounding fixes now exist in the `v2` merge branches locally
+  - the patient app will only exhibit the full grounded-answer fix after the updated Firebase guidance functions are redeployed, because local patient guidance is intentionally locked to the shared online backend by default
