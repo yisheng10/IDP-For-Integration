@@ -5845,3 +5845,14 @@ eady calculation.
 - Important follow-up note:
   - these grounding fixes now exist in the `v2` merge branches locally
   - the patient app will only exhibit the full grounded-answer fix after the updated Firebase guidance functions are redeployed, because local patient guidance is intentionally locked to the shared online backend by default
+- Redeployed the grounded guidance function subset to `traillight-4750b` from the `v2` merge worktree after wiring the worktree to the local functions dependency set:
+  - `sideEffectGuidanceChat`
+  - `sideEffectGuidanceChatHttp`
+  - `sideEffectGuidanceTraceStreamHttp`
+  - `retrieveGuidanceContext`
+  - `retrieveGuidanceContextHttp`
+  - `classifyGuidanceRoute`
+  - `classifyGuidanceRouteHttp`
+- Deployment result:
+  - all seven guidance functions updated successfully
+  - patient local web / Expo / emulator testing can now hit the repaired shared online grounded-answer backend instead of the older deployed logic
