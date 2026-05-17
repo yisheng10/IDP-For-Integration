@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import WindowPaginationControls from './WindowPaginationControls';
 import {
   buildDropoutInterventionPredictionSignature,
@@ -494,11 +494,13 @@ function sortDropoutRows(left, right) {
   return String(left.patientName || '').localeCompare(String(right.patientName || ''));
 }
 
-function MetricCard({ label, value, tone = 'default' }) {
+function MetricCard({ label, value, tone = 'default', supportingCopy = '', trailingMeta = '' }) {
   return (
     <div className={`dropout-dashboard__metric dropout-dashboard__metric--${tone}`}>
       <span>{label}</span>
       <strong>{value}</strong>
+      {supportingCopy ? <small>{supportingCopy}</small> : null}
+      {trailingMeta ? <div className="dropout-dashboard__metricMeta">{trailingMeta}</div> : null}
     </div>
   );
 }
@@ -633,6 +635,7 @@ function getRiskBucketTone(bucket) {
 function formatRecentTrendDirectionLabel(direction) {
   if (direction === 'rising') return 'Rising';
   if (direction === 'falling') return 'Falling';
+  if (direction === 'stable') return 'Stable';
   if (direction === 'mixed / volatile') return 'Mixed / volatile';
   return 'Building history';
 }
@@ -650,17 +653,41 @@ function buildTrendHeadline(trendDirection, currentCount) {
   if (trendDirection === 'falling') {
     return `Recent publishes are trending downward across the visible ${currentCount}-publish window.`;
   }
+  if (trendDirection === 'stable') {
+    return `Recent publishes are holding broadly steady across the visible ${currentCount}-publish window.`;
+  }
   if (currentCount > 1) {
     return `Recent publishes are moving in both directions across the visible ${currentCount}-publish window.`;
   }
   return 'Only one published disengagement snapshot is available so far.';
 }
 
+function buildPublishIdentityKey(entry = {}) {
+  return [
+    String(entry?.published_at || '').trim().toLowerCase(),
+    String(entry?.model_version || '').trim().toLowerCase(),
+    String(getProbabilityNumber(entry?.dropout_probability) ?? '').trim().toLowerCase(),
+    String(entry?.risk_bucket || '').trim().toLowerCase(),
+    String(entry?.subject_id || entry?.subjectId || '').trim().toLowerCase(),
+  ].join('|');
+}
+
 export function buildRecentPublishTrendData(rows = [], currentEntry = null) {
   const historyRows = Array.isArray(rows) ? rows : [];
-  const timelineRows = [...historyRows]
+  const currentIdentityKey = currentEntry ? buildPublishIdentityKey(currentEntry) : '';
+  const dedupedHistoryRows = [];
+  const seenHistoryKeys = new Set();
+  [...historyRows]
     .sort((left, right) => new Date(right.published_at || 0).getTime() - new Date(left.published_at || 0).getTime())
-    .slice(0, Math.max(RECENT_PUBLISH_HISTORY_LIMIT - 1, 0));
+    .forEach((entry) => {
+      const identityKey = buildPublishIdentityKey(entry);
+      if (!identityKey || identityKey === currentIdentityKey || seenHistoryKeys.has(identityKey)) {
+        return;
+      }
+      seenHistoryKeys.add(identityKey);
+      dedupedHistoryRows.push(entry);
+    });
+  const timelineRows = dedupedHistoryRows.slice(0, Math.max(RECENT_PUBLISH_HISTORY_LIMIT - 1, 0));
   const visibleRows = currentEntry ? [currentEntry, ...timelineRows] : timelineRows;
   const chronologicalRows = [...visibleRows].sort(
     (left, right) => new Date(left.published_at || 0).getTime() - new Date(right.published_at || 0).getTime()
@@ -684,6 +711,8 @@ export function buildRecentPublishTrendData(rows = [], currentEntry = null) {
   let trendDirection = 'mixed / volatile';
   if (chronologicalRows.length < 2) {
     trendDirection = 'building';
+  } else if (higherCount === 0 && lowerCount === 0) {
+    trendDirection = 'stable';
   } else if (higherCount >= 2 && lowerCount === 0) {
     trendDirection = 'rising';
   } else if (lowerCount >= 2 && higherCount === 0) {
@@ -719,23 +748,639 @@ export function buildRecentPublishTrendData(rows = [], currentEntry = null) {
     headline,
     jumpSummary,
     latestDelta,
+    netDelta,
   };
 }
 
-function RecentPublishTrendSection({ rows, currentEntry }) {
+function getTrendDirectionTone(direction) {
+  if (direction === 'rising') return 'warning';
+  if (direction === 'falling') return 'success';
+  if (direction === 'stable') return 'default';
+  return 'default';
+}
+
+function formatWeekTrendLabel(delta) {
+  if (delta == null) return 'No week baseline';
+  const prefix = delta > 0 ? '+' : '';
+  return `${prefix}${(delta * 100).toFixed(1)} pts`;
+}
+
+function truncateSignalItems(items = [], limitCount = 3) {
+  return (Array.isArray(items) ? items : []).filter(Boolean).slice(0, limitCount);
+}
+
+function scrollToSection(ref) {
+  ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderInlineActionButton(label, onClick) {
+  return (
+    <button type="button" className="dropout-dashboard__inlineLink" onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
+function HighlightSummaryCard({
+  title,
+  badge = '',
+  badgeTone = 'default',
+  summary = '',
+  items = [],
+  ctaLabel = '',
+  onCtaClick = null,
+}) {
+  const visibleItems = truncateSignalItems(items, 3);
+
+  return (
+    <div className="dropout-dashboard__highlightCard">
+      <div className="dropout-dashboard__highlightHeader">
+        <strong>{title}</strong>
+        {badge ? <span className={`metric-pill metric-pill--${badgeTone}`}>{badge}</span> : null}
+      </div>
+      {summary ? <div className="dropout-dashboard__highlightSummary">{summary}</div> : null}
+      {visibleItems.length ? (
+        <ul className="dropout-dashboard__highlightList">
+          {visibleItems.map((item) => (
+            <li key={`${title}-${item}`}>{item}</li>
+          ))}
+        </ul>
+      ) : null}
+      {ctaLabel && onCtaClick ? renderInlineActionButton(ctaLabel, onCtaClick) : null}
+    </div>
+  );
+}
+
+function addDaysToDate(value, days) {
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  if (Number.isNaN(nextValue.getTime())) {
+    return null;
+  }
+  const cloned = new Date(nextValue);
+  cloned.setDate(cloned.getDate() + days);
+  return cloned;
+}
+
+function buildInterventionTimelineStages(caseEntry = {}) {
+  const actionCode = String(caseEntry?.action_taken_code || caseEntry?.action_taken || '').trim().toLowerCase();
+  const manualResult = String(caseEntry?.contact_result_status || caseEntry?.manual_result || '').trim().toLowerCase();
+  const proxyStatus = getDropoutInterventionProxyStatus(caseEntry);
+  const closeReason = String(caseEntry?.close_reason || '').trim().toLowerCase();
+
+  const openedAt = caseEntry?.opened_at || caseEntry?.created_at || null;
+  const observationAt = caseEntry?.anchor_prediction_published_at || caseEntry?.latest_prediction_published_at || openedAt;
+  const actionAt = caseEntry?.action_taken_at || null;
+  const responseAt = caseEntry?.contact_result_recorded_at || null;
+  const autoEvaluationAt =
+    caseEntry?.proxy_reengagement_evaluated_at ||
+    caseEntry?.closed_at ||
+    addDaysToDate(observationAt, Number(caseEntry?.proxy_window_days) || 0);
+
+  return [
+    {
+      key: 'opened',
+      label: 'Case opened',
+      timestamp: openedAt,
+      state: openedAt ? 'complete' : 'pending',
+      tone: 'success',
+    },
+    {
+      key: 'observation',
+      label: 'Observation window open',
+      timestamp: observationAt,
+      state: observationAt ? 'complete' : 'pending',
+      tone: 'brand',
+    },
+    {
+      key: 'action',
+      label: 'Outreach attempted',
+      timestamp: actionCode === 'outreach_attempted' ? actionAt : null,
+      caption: actionCode === 'monitor_only' ? 'Monitor only selected' : '',
+      state: actionCode === 'outreach_attempted' ? 'complete' : actionCode === 'monitor_only' ? 'active' : 'pending',
+      tone: actionCode === 'outreach_attempted' ? 'brand' : 'default',
+    },
+    {
+      key: 'response',
+      label: manualResult === 'responded' ? 'Responded' : 'No response yet',
+      timestamp: responseAt,
+      state: manualResult ? 'active' : 'pending',
+      tone: manualResult === 'responded' ? 'success' : manualResult === 'no_response_yet' ? 'danger' : 'default',
+    },
+    {
+      key: 'auto',
+      label:
+        closeReason === 'manual_crc_close'
+          ? 'Closed'
+          : proxyStatus === 'reengaged_observed'
+            ? 'Re-engagement observed'
+            : proxyStatus === 'no_reengagement_observed'
+              ? 'No re-engagement observed'
+              : proxyStatus === 'source_incomplete'
+                ? 'Source data incomplete'
+                : 'Auto evaluation in progress',
+      timestamp: autoEvaluationAt,
+      caption:
+        closeReason === 'manual_crc_close'
+          ? 'Closed manually by CRC'
+          : proxyStatus === 'window_open'
+            ? `Due by ${formatDateTimeValue(autoEvaluationAt, 'N/A')}`
+            : '',
+      state:
+        closeReason === 'manual_crc_close' || proxyStatus === 'reengaged_observed' || proxyStatus === 'no_reengagement_observed'
+          ? 'complete'
+          : proxyStatus === 'source_incomplete' || proxyStatus === 'window_open'
+            ? 'active'
+            : 'pending',
+      tone:
+        closeReason === 'manual_crc_close'
+          ? 'default'
+          : proxyStatus === 'reengaged_observed'
+            ? 'success'
+            : proxyStatus === 'no_reengagement_observed' || proxyStatus === 'source_incomplete'
+              ? 'warning'
+              : 'default',
+    },
+  ];
+}
+
+function InterventionTimelineSection({
+  caseEntry,
+  isPreparing,
+  canUseCaseLoop,
+  canMutate,
+  canClose,
+  isUpdating,
+  actionValue,
+  resultValue,
+  proxyStatusValue,
+  lifecycleStatusValue,
+  closeReasonValue,
+  recentCases,
+  onAction,
+  onResult,
+  onClose,
+  errorMessage = '',
+  mutationError = '',
+  sectionRef = null,
+}) {
+  const stages = buildInterventionTimelineStages(caseEntry || {});
+  const historyRows = (Array.isArray(recentCases) ? recentCases : []).slice(0, 4);
+
+  return (
+    <section ref={sectionRef} className="dropout-dashboard__timelineCard">
+      <div className="dropout-dashboard__cardHeader">
+        <div>
+          <strong>Intervention Case Timeline</strong>
+        </div>
+        <span className={`metric-pill metric-pill--${getInterventionLifecycleTone(isPreparing ? 'open' : lifecycleStatusValue)}`}>
+          {isPreparing
+            ? 'Preparing case'
+            : formatWorkflowValueLabel(lifecycleStatusValue, canUseCaseLoop ? 'No open case' : 'Not available')}
+        </span>
+      </div>
+
+      <div className="dropout-dashboard__timelineRail">
+        {stages.map((stage, index) => (
+          <div key={stage.key} className={`dropout-dashboard__timelineStage dropout-dashboard__timelineStage--${stage.state}`}>
+            {index < stages.length - 1 ? <div className="dropout-dashboard__timelineConnector" /> : null}
+            <div className={`dropout-dashboard__timelineDot dropout-dashboard__timelineDot--${stage.tone}`}>
+              {stage.state === 'complete' ? '✓' : index + 1}
+            </div>
+            <div className="dropout-dashboard__timelineLabel">{stage.label}</div>
+            <div className="dropout-dashboard__timelineMeta">{formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A')}</div>
+            {stage.caption ? <div className="dropout-dashboard__timelineCaption">{stage.caption}</div> : null}
+          </div>
+        ))}
+      </div>
+
+      <div className="dropout-dashboard__timelineStatusGrid">
+        <div>
+          <span>Case status</span>
+          <strong>{isPreparing ? 'Preparing open case' : formatWorkflowValueLabel(lifecycleStatusValue, 'Not available')}</strong>
+        </div>
+        <div>
+          <span>Observation window</span>
+          <strong>{formatInterventionProxyStatusLabel(proxyStatusValue)}</strong>
+        </div>
+        <div>
+          <span>CRC action</span>
+          <strong>{formatWorkflowValueLabel(actionValue, 'Not recorded')}</strong>
+        </div>
+        <div>
+          <span>Manual response</span>
+          <strong>{formatWorkflowValueLabel(resultValue, 'Not recorded')}</strong>
+        </div>
+        <div>
+          <span>Close reason</span>
+          <strong>{closeReasonValue ? formatInterventionCloseReasonLabel(closeReasonValue) : '—'}</strong>
+        </div>
+      </div>
+
+      <div className="dropout-dashboard__timelineMetaGrid">
+        <div>
+          <span>Last linked prediction</span>
+          <strong>{formatDateTimeValue(caseEntry?.latest_prediction_published_at, 'No linked prediction yet')}</strong>
+        </div>
+        <div>
+          <span>Last case update</span>
+          <strong>{formatDateTimeValue(caseEntry?.updated_at || caseEntry?.created_at, 'Draft')}</strong>
+        </div>
+        <div>
+          <span>Source case history</span>
+          <strong>{caseEntry?.anchor_prediction_published_at ? `Open (${formatDateTimeValue(caseEntry.anchor_prediction_published_at)})` : 'No anchor yet'}</strong>
+        </div>
+      </div>
+
+      {errorMessage ? (
+        <div className="info-banner" style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}>
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {mutationError ? (
+        <div className="info-banner" style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}>
+          {mutationError}
+        </div>
+      ) : null}
+
+      <div className="dropout-dashboard__timelineActions">
+        {INTERVENTION_ACTION_BUTTONS.map((actionOption) => (
+          <button
+            key={actionOption.value}
+            type="button"
+            className={`btn ${actionValue === actionOption.value ? 'btn-primary' : 'btn-secondary'} btn-small`}
+            disabled={!canMutate || isUpdating}
+            onClick={() => onAction(actionOption.value)}
+          >
+            {actionOption.label}
+          </button>
+        ))}
+        {INTERVENTION_RESULT_BUTTONS.map((resultOption) => (
+          <button
+            key={resultOption.value}
+            type="button"
+            className={`btn ${resultValue === resultOption.value ? 'btn-primary' : 'btn-secondary'} btn-small`}
+            disabled={!canMutate || isUpdating}
+            onClick={() => onResult(resultOption.value)}
+          >
+            {resultOption.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="btn btn-secondary btn-small"
+          disabled={!canClose || isUpdating}
+          onClick={onClose}
+        >
+          Close case
+        </button>
+      </div>
+
+      <div className="section-note section-note--spaced">
+        {canMutate
+          ? isUpdating
+            ? 'Saving the latest intervention case update...'
+            : 'Update this case only when the CRC action or manual response changes.'
+          : 'Automatic observation updates here automatically.'}
+      </div>
+
+      <div className="dropout-dashboard__historyBlock">
+        <div className="dropout-dashboard__historyHeader">
+          <strong>Recent case history</strong>
+          <span className="section-note">Latest 4 visible case events</span>
+        </div>
+        <div className="dropout-dashboard__historyRows">
+          {historyRows.length ? (
+            historyRows.map((caseHistoryEntry) => {
+              const sourceNote =
+                caseHistoryEntry?.last_synced_by_name
+                  ? `CRC: ${caseHistoryEntry.last_synced_by_name}`
+                  : caseHistoryEntry?.sync_source === 'crc_panel_case_loop'
+                    ? 'Automatic (daily sync)'
+                    : '';
+              return (
+                <div key={caseHistoryEntry.id || caseHistoryEntry.case_id || formatInterventionHistoryEntry(caseHistoryEntry)} className="dropout-dashboard__historyRow">
+                  <div className="dropout-dashboard__historyTime">
+                    {formatDateTimeValue(caseHistoryEntry?.updated_at || caseHistoryEntry?.created_at, 'No timestamp')}
+                  </div>
+                  <div className="dropout-dashboard__historySummary">
+                    {formatInterventionHistoryEntry(caseHistoryEntry)}
+                  </div>
+                  <div className="dropout-dashboard__historySource">{sourceNote || '—'}</div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="section-note">No recent intervention case history is available yet.</div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RecentPublishQueueTrendBadge({ direction = '' }) {
+  if (!direction || direction === 'building') return null;
+  return (
+    <span className={`metric-pill metric-pill--${getTrendDirectionTone(direction)}`}>
+      {formatRecentTrendDirectionLabel(direction)}
+    </span>
+  );
+}
+
+function CurrentRiskBriefCard({ entry, trendData, onTakeAction }) {
+  const delta = trendData?.latestDelta ?? null;
+  const trendDirection = trendData?.trendDirection || 'building';
+  return (
+    <div className="dropout-dashboard__currentRiskCard">
+      <div className="dropout-dashboard__cardHeader">
+        <div>
+          <strong>Current risk</strong>
+          <div className="dropout-dashboard__cardSubtitle">This publish</div>
+        </div>
+        <span className={`dropout-card__bucket dropout-card__bucket--${String(entry?.risk_bucket || 'low').toLowerCase()}`}>
+          {renderSnapshotStateLabel(entry)}
+        </span>
+      </div>
+      <div className="dropout-dashboard__currentRiskTopline">
+        <div className="dropout-dashboard__currentRiskValue">{formatSnapshotProbabilityPercent(entry)}</div>
+        <div className="dropout-dashboard__currentRiskMeta">
+          <div>
+            <span>Risk</span>
+            <strong>{renderSnapshotStateLabel(entry)}</strong>
+          </div>
+          <div>
+            <span>Confidence</span>
+            <strong>{getConfidenceLabel(entry?.data_quality_flags)}</strong>
+          </div>
+        </div>
+      </div>
+      <div className="dropout-dashboard__currentRiskActionRow">
+        <div>
+          <span>Recommended action</span>
+          <strong>{formatRecommendedAction(entry)}</strong>
+        </div>
+        <button type="button" className="btn btn-primary btn-small" onClick={onTakeAction}>
+          Take action
+        </button>
+      </div>
+      <div className="dropout-dashboard__currentRiskFooter">
+        <span>Last publish: {formatDateTimeValue(entry?.published_at, 'N/A')}</span>
+        <span>{formatTrendDeltaLabel(delta)}</span>
+        <span className={`metric-pill metric-pill--${getTrendDirectionTone(trendDirection)}`}>
+          {formatRecentTrendDirectionLabel(trendDirection)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ModelContractBriefCard({ entry }) {
+  return (
+    <div className="dropout-dashboard__modelCard">
+      <div className="dropout-dashboard__cardHeader">
+        <div>
+          <strong>Model contract</strong>
+        </div>
+      </div>
+      <div className="dropout-dashboard__modelGrid">
+        <span>Stage</span>
+        <strong>{entry?.routed_stage || 'N/A'}</strong>
+        <span>Prediction horizon</span>
+        <strong>{entry?.pred_horizon_days || 'N/A'} days</strong>
+        <span>History window</span>
+        <strong>{entry?.history_window_days || 'N/A'} days</strong>
+        <span>Model version</span>
+        <strong>{entry?.model_version || 'N/A'}</strong>
+      </div>
+    </div>
+  );
+}
+
+function QueueRow({ entry, rank, isSelected, onSelect, trendDirection = '' }) {
+  return (
+    <button
+      type="button"
+      className={`dropout-dashboard__queueRow ${isSelected ? 'dropout-dashboard__queueRow--selected' : ''}`}
+      onClick={onSelect}
+    >
+      <div className="dropout-dashboard__queueRowRank">{rank}</div>
+      <div className="dropout-dashboard__queueRowBody">
+        <div className="dropout-dashboard__queueRowTop">
+          <div>
+            <div className="dropout-dashboard__queuePatientName">{entry.patientName}</div>
+            <div className="dropout-dashboard__queuePatientMeta">{entry.subjectId}</div>
+          </div>
+          <div className="dropout-dashboard__queueBadges">
+            <span className={`dropout-card__bucket dropout-card__bucket--${String(entry?.risk_bucket || 'low').toLowerCase()}`}>
+              {renderSnapshotStateLabel(entry)}
+            </span>
+            <RecentPublishQueueTrendBadge direction={trendDirection} />
+          </div>
+        </div>
+        <div className="dropout-dashboard__queueStats">
+          <div>
+            <span>Risk probability</span>
+            <strong>{formatSnapshotProbabilityPercent(entry)}</strong>
+          </div>
+          <div>
+            <span>Recommended action</span>
+            <strong>{formatRecommendedAction(entry)}</strong>
+          </div>
+        </div>
+        <div className="dropout-dashboard__queueFoot">
+          <span>Last publish: {entry.published_at ? new Date(entry.published_at).toLocaleString() : 'Not published'}</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function formatHighlightBadgeText(status, items = []) {
+  if (status) {
+    return formatStatusLabel(status);
+  }
+  if (!items.length) {
+    return 'None';
+  }
+  return `${items.length} noted`;
+}
+
+function deriveDataGapBadge(items = []) {
+  return !items.length ? 'None' : 'Review';
+}
+
+function deriveDataGapTone(items = []) {
+  return !items.length ? 'success' : 'warning';
+}
+
+function getDetailedGridClassName(index) {
+  if (index < 4) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--quarter';
+  if (index < 6) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--half';
+  if (index < 9) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--third';
+  return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--third';
+}
+
+function formatScoredBreakdown(scoredCount, loadedCount) {
+  if (!Number.isFinite(scoredCount) || loadedCount <= 0) {
+    return '';
+  }
+  return `${((scoredCount / loadedCount) * 100).toFixed(1)}% of loaded`;
+}
+
+function formatSubsetBreakdown(count, total) {
+  if (!Number.isFinite(count) || !Number.isFinite(total) || total <= 0) {
+    return '';
+  }
+  return `${((count / total) * 100).toFixed(1)}% of scored`;
+}
+
+function buildDetailedExplainabilitySections({
+  explainabilityRiskChangeSummary,
+  activeExplainabilityPayload,
+  activeEntry,
+  explainabilityRiskChangeReasons,
+  explainabilityWhyFlagged,
+  explainabilityChallengerCrossCheck,
+  explainabilityMissingInputs,
+  explainabilityRiskReduction,
+  explainabilityWhatIfScenarios,
+  explainabilityPatientStabilityHint,
+  explainabilitySourceCompleteness,
+  explainabilityModelAgreement,
+  explainabilityConfidence,
+  explainabilityMissingRequiredSections,
+  explainabilitySourceErrors,
+}) {
+  return [
+    ({ className }) => (
+      <div className={className}>
+        <RiskChangeSection
+          summary={explainabilityRiskChangeSummary}
+          direction={activeExplainabilityPayload?.risk_change_direction}
+          previousPublishedAt={activeExplainabilityPayload?.previous_published_at}
+          previousRiskBucket={activeExplainabilityPayload?.previous_risk_bucket}
+          previousProbability={activeExplainabilityPayload?.previous_dropout_probability}
+          currentRiskBucket={activeExplainabilityPayload?.risk_bucket || activeEntry?.risk_bucket}
+          currentProbability={activeExplainabilityPayload?.disengagement_probability ?? activeEntry?.dropout_probability}
+          reasons={explainabilityRiskChangeReasons}
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection title="Why this patient is flagged" items={explainabilityWhyFlagged} emptyLabel="Why flagged: missing" />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="Challenger cross-check"
+          items={explainabilityChallengerCrossCheck}
+          emptyLabel="No patient-level challenger cross-check was published for this snapshot."
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="Data gaps affecting confidence"
+          items={explainabilityMissingInputs}
+          emptyLabel="Missing or weak inputs: missing"
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="What might reduce disengagement risk"
+          items={explainabilityRiskReduction}
+          emptyLabel="What could reduce risk: missing"
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="What-if scenarios"
+          items={explainabilityWhatIfScenarios}
+          emptyLabel="No patient-level what-if scenarios were published for this snapshot."
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="Patient stability hint"
+          items={explainabilityPatientStabilityHint ? [explainabilityPatientStabilityHint] : []}
+          emptyLabel="No patient-level stability hint was published for this snapshot."
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="Structured source completeness"
+          items={explainabilitySourceCompleteness}
+          emptyLabel="No structured source completeness summary was published for this snapshot."
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <StatusSummarySection
+          title="Model agreement"
+          status={explainabilityModelAgreement.status}
+          summary={explainabilityModelAgreement.summary}
+          emptyLabel="Model agreement: not published in this workflow scope"
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <StatusSummarySection
+          title="Confidence and stability"
+          status={explainabilityConfidence.status}
+          summary={explainabilityConfidence.summary}
+          emptyLabel="Confidence and stability: limited / not published"
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="Missing mirror sections"
+          items={explainabilityMissingRequiredSections}
+          emptyLabel="No required mirror sections are missing."
+        />
+      </div>
+    ),
+    ({ className }) => (
+      <div className={className}>
+        <DetailSection
+          title="Live source read errors"
+          items={explainabilitySourceErrors}
+          emptyLabel="No live source read errors were reported for this mirror."
+        />
+      </div>
+    ),
+  ];
+}
+
+function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onViewDetailedTrend = null }) {
   const trendData = buildRecentPublishTrendData(rows, currentEntry);
-  const { visibleRows, chronologicalRows, trendDirection, headline, jumpSummary } = trendData;
+  const { chronologicalRows, trendDirection, headline, jumpSummary, latestDelta, netDelta } = trendData;
 
   if (!currentEntry) {
     return null;
   }
 
-  const chartWidth = 360;
-  const chartHeight = 92;
-  const leftPadding = 16;
-  const rightPadding = 12;
-  const topPadding = 12;
-  const bottomPadding = 14;
+  const chartWidth = 480;
+  const chartHeight = 136;
+  const leftPadding = 22;
+  const rightPadding = 18;
+  const topPadding = 18;
+  const bottomPadding = 26;
   const usableWidth = chartWidth - leftPadding - rightPadding;
   const usableHeight = chartHeight - topPadding - bottomPadding;
   const chartPoints = chronologicalRows.map((entry, index) => {
@@ -753,96 +1398,119 @@ function RecentPublishTrendSection({ rows, currentEntry }) {
     };
   });
   const polylinePoints = chartPoints.map((point) => `${point.x},${point.y}`).join(' ');
+  const latestAction = formatRecommendedAction(currentEntry);
 
   return (
-    <div className="dropout-card dropout-card--soft" style={{ marginTop: '18px' }}>
-      <div className="dropout-card__header">
-        <strong>Recent 7 publishes</strong>
-        <span className="metric-pill">{visibleRows.length} visible</span>
-      </div>
-      <div className="section-note section-note--dense">
-        {headline || 'This trend view will fill in as more published disengagement snapshots accumulate for this patient.'}
-      </div>
-      <div className="dropout-dashboard__statusHeader" style={{ marginTop: '10px' }}>
-        <span className={`metric-pill metric-pill--${trendDirection === 'rising' ? 'warning' : trendDirection === 'falling' ? 'success' : 'default'}`}>
+    <section ref={sectionRef} className="dropout-dashboard__trendCard">
+      <div className="dropout-dashboard__cardHeader">
+        <div>
+          <strong>Recent 7 publishes</strong>
+          <div className="dropout-dashboard__cardSubtitle">Risk trend</div>
+        </div>
+        <span className={`metric-pill metric-pill--${getTrendDirectionTone(trendDirection)}`}>
           {formatRecentTrendDirectionLabel(trendDirection)}
         </span>
-        {jumpSummary ? <span className="section-note section-note--dense">{jumpSummary}</span> : null}
       </div>
-      <div style={{ marginTop: '12px', border: '1px solid var(--border)', borderRadius: '18px', padding: '10px 12px', background: 'rgba(255,255,255,0.55)' }}>
-        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="104" aria-label="Recent disengagement publish trend">
-          <line x1={leftPadding} y1={topPadding} x2={chartWidth - rightPadding} y2={topPadding} stroke="rgba(40, 72, 104, 0.12)" strokeWidth="1" />
-          <line x1={leftPadding} y1={chartHeight - bottomPadding} x2={chartWidth - rightPadding} y2={chartHeight - bottomPadding} stroke="rgba(40, 72, 104, 0.16)" strokeWidth="1" />
+      <div className="dropout-dashboard__trendHeadline">
+        {headline || 'This trend view will fill in as more published disengagement snapshots accumulate for this patient.'}
+      </div>
+      <div className="dropout-dashboard__trendLayout">
+        <div className="dropout-dashboard__trendChartSurface">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="184" aria-label="Recent disengagement publish trend">
+            <line x1={leftPadding} y1={topPadding} x2={chartWidth - rightPadding} y2={topPadding} stroke="rgba(33, 74, 111, 0.12)" strokeWidth="1" />
+            <line x1={leftPadding} y1={chartHeight / 2} x2={chartWidth - rightPadding} y2={chartHeight / 2} stroke="rgba(33, 74, 111, 0.08)" strokeWidth="1" />
+            <line
+              x1={leftPadding}
+              y1={chartHeight - bottomPadding}
+              x2={chartWidth - rightPadding}
+              y2={chartHeight - bottomPadding}
+              stroke="rgba(33, 74, 111, 0.18)"
+              strokeWidth="1"
+            />
           {polylinePoints ? (
             <polyline
               fill="none"
-              stroke="rgba(25, 79, 128, 0.42)"
-              strokeWidth="2.5"
+              stroke="rgba(47, 96, 146, 0.44)"
+              strokeWidth="2.6"
               strokeLinejoin="round"
               strokeLinecap="round"
               points={polylinePoints}
             />
           ) : null}
-          {chartPoints.map((point) => (
-            <g key={point.key}>
-              {point.isCurrent ? (
-                <circle cx={point.x} cy={point.y} r="7.5" fill="rgba(36, 104, 162, 0.12)" stroke="none" />
-              ) : null}
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r={point.isCurrent ? 4.8 : 3.6}
-                fill={point.color}
-                stroke="#ffffff"
-                strokeWidth={point.isCurrent ? 2 : 1.5}
-              />
-            </g>
-          ))}
-        </svg>
+          {chartPoints.map((point, index) => {
+            const label = `${(point.probability * 100).toFixed(1)}%`;
+            const entry = chronologicalRows[index];
+            return (
+              <g key={point.key}>
+                <text
+                  x={point.x}
+                  y={Math.max(point.y - 10, 10)}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="rgba(38, 62, 86, 0.88)"
+                  fontWeight="700"
+                >
+                  {label}
+                </text>
+                {point.isCurrent ? (
+                  <circle cx={point.x} cy={point.y} r="8" fill="rgba(27, 92, 151, 0.14)" stroke="none" />
+                ) : null}
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={point.isCurrent ? 4.8 : 4}
+                  fill={point.color}
+                  stroke="#ffffff"
+                  strokeWidth={point.isCurrent ? 2.2 : 1.6}
+                />
+                <text
+                  x={point.x}
+                  y={chartHeight - 8}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="rgba(76, 99, 122, 0.94)"
+                >
+                  {entry?.published_at ? new Date(entry.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'N/A'}
+                </text>
+                <text
+                  x={point.x}
+                  y={chartHeight - 18}
+                  textAnchor="middle"
+                  fontSize="9"
+                  fill="rgba(98, 120, 143, 0.86)"
+                >
+                  {entry?.published_at ? new Date(entry.published_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
+                </text>
+              </g>
+            );
+          })}
+          </svg>
+          <div className="dropout-dashboard__trendLegend">
+            <span><i style={{ background: getRiskBucketTone('high') }} />High (≥ 60%)</span>
+            <span><i style={{ background: getRiskBucketTone('medium') }} />Medium (30–59%)</span>
+            <span><i style={{ background: getRiskBucketTone('low') }} />Low (&lt; 30%)</span>
+          </div>
+        </div>
+        <aside className="dropout-dashboard__trendMeta">
+          <div className="dropout-dashboard__trendMetaRow">
+            <span>Latest action</span>
+            <strong>{latestAction}</strong>
+          </div>
+          <div className="dropout-dashboard__trendMetaRow">
+            <span>Change vs prior</span>
+            <strong>{formatTrendDeltaLabel(latestDelta)}</strong>
+          </div>
+          <div className="dropout-dashboard__trendMetaRow">
+            <span>Trend vs week</span>
+            <strong className={netDelta != null && netDelta > 0 ? 'text-red' : netDelta != null && netDelta < 0 ? 'text-green' : ''}>
+              {formatWeekTrendLabel(netDelta)}
+            </strong>
+          </div>
+          {jumpSummary ? <div className="dropout-dashboard__trendJump">{jumpSummary}</div> : null}
+          {onViewDetailedTrend ? renderInlineActionButton('View full trend', onViewDetailedTrend) : null}
+        </aside>
       </div>
-      <div className="dropout-card__metric" style={{ marginTop: '10px' }}>
-        Latest publish: {formatRiskStateLabel(currentEntry?.risk_bucket, currentEntry?.dropout_probability)}
-      </div>
-      <div className="dropout-card__metric">
-        Latest action: {formatRecommendedAction(currentEntry)}
-      </div>
-
-      <div style={{ marginTop: '12px', display: 'grid', gap: '10px' }}>
-        {visibleRows.map((entry, index, rowsWithCurrent) => {
-          const previousEntry = rowsWithCurrent[index + 1] || null;
-          const delta = previousEntry
-            ? getProbabilityDelta(entry?.dropout_probability, previousEntry?.dropout_probability)
-            : null;
-          const direction = getTrendDirection(delta);
-          return (
-            <div
-              key={`trend-${entry?.id || entry?.published_at || index}`}
-              className="dropout-dashboard__detailSection"
-              style={{ marginBottom: 0 }}
-            >
-              <div className="dropout-dashboard__statusHeader">
-                <strong>{index === 0 ? 'Current publish' : `Previous publish ${index}`}</strong>
-                <span className={`metric-pill metric-pill--${getRiskChangeDirectionTone(direction)}`}>
-                  {direction ? formatRiskChangeDirectionLabel(direction) : 'Anchor'}
-                </span>
-              </div>
-              <div className="dropout-card__metric">
-                {formatDateTimeValue(entry?.published_at, 'Not published')}
-              </div>
-              <div className="dropout-card__metric">
-                Risk: {formatRiskStateLabel(entry?.risk_bucket, entry?.dropout_probability)}
-              </div>
-              <div className="dropout-card__metric">
-                Action: {formatRecommendedAction(entry)}
-              </div>
-              <div className="section-note section-note--dense">
-                {formatTrendDeltaLabel(delta)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    </section>
   );
 }
 
@@ -851,6 +1519,9 @@ export default function DropoutRiskPanel({
   currentUser = null,
   onOpenPatients,
 }) {
+  const trendSectionRef = useRef(null);
+  const interventionSectionRef = useRef(null);
+  const explainabilitySectionRef = useRef(null);
   const [snapshotRows, setSnapshotRows] = useState([]);
   const [fallbackSnapshotRows, setFallbackSnapshotRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -964,6 +1635,10 @@ export default function DropoutRiskPanel({
   const activeEntry = useMemo(
     () => visibleRows.find((entry) => entry.userId === selectedUserId) || visibleRows[0] || filteredRows[0] || null,
     [filteredRows, selectedUserId, visibleRows]
+  );
+  const activeTrendData = useMemo(
+    () => buildRecentPublishTrendData(recentPublishHistory, activeEntry),
+    [activeEntry, recentPublishHistory]
   );
 
   useEffect(() => {
@@ -1099,6 +1774,33 @@ export default function DropoutRiskPanel({
     }),
     [summary]
   );
+  const fallbackMetricSnapshot = useMemo(() => {
+    const scoredRows = visibleSourceRows.filter((entry) => !isEarlyHistorySnapshot(entry));
+    const highRiskRows = scoredRows.filter((entry) => String(entry?.risk_bucket || '').trim().toLowerCase() === 'high');
+    const actionableRows = scoredRows.filter((entry) => isActionableSnapshot(entry));
+    const probabilityValues = scoredRows
+      .map((entry) => getProbabilityNumber(entry?.dropout_probability))
+      .filter((value) => value != null);
+
+    return {
+      scoredCount: scoredRows.length,
+      highRiskCount: highRiskRows.length,
+      actionableCount: actionableRows.length,
+      averageProbability: probabilityValues.length
+        ? probabilityValues.reduce((sum, value) => sum + value, 0) / probabilityValues.length
+        : null,
+    };
+  }, [visibleSourceRows]);
+  const effectiveSummaryMetrics = useMemo(
+    () => ({
+      scoredCount: dashboardMetrics.scoredCount ?? fallbackMetricSnapshot.scoredCount,
+      highRiskCount: dashboardMetrics.highRiskCount ?? fallbackMetricSnapshot.highRiskCount,
+      actionableCount: dashboardMetrics.actionableCount ?? fallbackMetricSnapshot.actionableCount,
+      averageProbability: dashboardMetrics.averageProbability ?? fallbackMetricSnapshot.averageProbability,
+      publishedAt: dashboardMetrics.publishedAt,
+    }),
+    [dashboardMetrics, fallbackMetricSnapshot]
+  );
 
   const explainabilityWhyFlagged = useMemo(() => {
     return buildSignalLines(activeExplainabilityPayload?.why_flagged);
@@ -1206,6 +1908,43 @@ export default function DropoutRiskPanel({
   const loadedRowsLabel = isUsingFallbackRows
     ? `${filteredRows.length} fallback rows`
     : `${filteredRows.length} loaded`;
+  const visibleDetailedExplainabilitySections = useMemo(
+    () =>
+      buildDetailedExplainabilitySections({
+        explainabilityRiskChangeSummary,
+        activeExplainabilityPayload,
+        activeEntry,
+        explainabilityRiskChangeReasons,
+        explainabilityWhyFlagged,
+        explainabilityChallengerCrossCheck,
+        explainabilityMissingInputs,
+        explainabilityRiskReduction,
+        explainabilityWhatIfScenarios,
+        explainabilityPatientStabilityHint,
+        explainabilitySourceCompleteness,
+        explainabilityModelAgreement,
+        explainabilityConfidence,
+        explainabilityMissingRequiredSections,
+        explainabilitySourceErrors,
+      }),
+    [
+      activeEntry,
+      activeExplainabilityPayload,
+      explainabilityChallengerCrossCheck,
+      explainabilityConfidence,
+      explainabilityMissingInputs,
+      explainabilityMissingRequiredSections,
+      explainabilityModelAgreement,
+      explainabilityPatientStabilityHint,
+      explainabilityRiskChangeReasons,
+      explainabilityRiskChangeSummary,
+      explainabilityRiskReduction,
+      explainabilitySourceCompleteness,
+      explainabilitySourceErrors,
+      explainabilityWhatIfScenarios,
+      explainabilityWhyFlagged,
+    ]
+  );
   useEffect(() => {
     if (!shouldAutoSyncActiveInterventionCase || isUpdatingInterventionCase || !activeEntry?.userId) {
       return undefined;
@@ -1331,6 +2070,41 @@ export default function DropoutRiskPanel({
       isDropoutInterventionCaseOpen(activeInterventionCase) &&
       !isUpdatingInterventionCase
   );
+  const previousExplainabilityRiskLabel = formatRiskStateLabel(
+    activeExplainabilityPayload?.previous_risk_bucket,
+    activeExplainabilityPayload?.previous_dropout_probability
+  );
+  const currentExplainabilityRiskLabel = formatRiskStateLabel(
+    activeExplainabilityPayload?.risk_bucket || activeEntry?.risk_bucket,
+    activeExplainabilityPayload?.disengagement_probability ?? activeEntry?.dropout_probability
+  );
+  const riskChangeHighlightSummary = explainabilityRiskChangeSummary
+    ? `${previousExplainabilityRiskLabel} → ${currentExplainabilityRiskLabel}`
+    : activeExplainabilityReady
+      ? 'No prior publish available for comparison.'
+      : 'Loading explainability summary...';
+  const riskChangeHighlightItems = explainabilityRiskChangeSummary
+    ? [
+        formatTrendDeltaLabel(activeTrendData?.latestDelta ?? null),
+        `Previous: ${formatDateTimeValue(activeExplainabilityPayload?.previous_published_at, 'No prior publish')}`,
+      ]
+    : [];
+  const whyFlaggedHighlightSummary = explainabilityWhyFlagged.length
+    ? ''
+    : activeExplainabilityReady
+      ? 'No patient-level flags were published for this snapshot.'
+      : 'Loading explainability summary...';
+  const challengerHighlightStatus = activeExplainabilityPayload?.model_agreement?.status || '';
+  const challengerHighlightSummary = explainabilityChallengerCrossCheck.length
+    ? explainabilityChallengerCrossCheck[0]
+    : activeExplainabilityReady
+      ? 'No challenger cross-check was published for this snapshot.'
+      : 'Loading explainability summary...';
+  const dataGapHighlightSummary = explainabilityMissingInputs.length
+    ? explainabilityMissingInputs[0]
+    : activeExplainabilityReady
+      ? 'No missing-input issues were reported for the current snapshot.'
+      : 'Loading explainability summary...';
 
   const content = (() => {
     if (error) {
@@ -1357,57 +2131,83 @@ export default function DropoutRiskPanel({
 
     return (
       <>
-        {summary ? (
-          <div className="dropout-dashboard__metrics">
-            <MetricCard label="Scored patients" value={dashboardMetrics.scoredCount ?? 'N/A'} />
-            <MetricCard label="High-risk patients" value={dashboardMetrics.highRiskCount ?? 'N/A'} tone="warning" />
-            <MetricCard label="Actionable patients" value={dashboardMetrics.actionableCount ?? 'N/A'} tone="brand" />
-            <MetricCard
-              label="Average risk"
-              value={
-                dashboardMetrics.averageProbability == null
-                  ? 'N/A'
-                  : formatProbabilityPercent(dashboardMetrics.averageProbability)
-              }
-            />
+        <div className="dropout-dashboard__hero">
+          <div>
+            <h3 className="mt-0">Patient Disengagement Prediction</h3>
+            <div className="section-note">
+              CRC-only module for continuous risk monitoring, intervention case management, and explainability.
+            </div>
           </div>
-        ) : null}
+          <span className="metric-pill">CRC only</span>
+        </div>
+
+        <div className="dropout-dashboard__metrics">
+          <MetricCard
+            label="Scored patients"
+            value={effectiveSummaryMetrics.scoredCount ?? 'N/A'}
+            supportingCopy={formatScoredBreakdown(effectiveSummaryMetrics.scoredCount, visibleSourceRows.length)}
+          />
+          <MetricCard
+            label="High-risk patients"
+            value={effectiveSummaryMetrics.highRiskCount ?? 'N/A'}
+            tone="warning"
+            supportingCopy={formatSubsetBreakdown(effectiveSummaryMetrics.highRiskCount, effectiveSummaryMetrics.scoredCount)}
+          />
+          <MetricCard
+            label="Actionable patients"
+            value={effectiveSummaryMetrics.actionableCount ?? 'N/A'}
+            tone="brand"
+            supportingCopy={formatSubsetBreakdown(effectiveSummaryMetrics.actionableCount, effectiveSummaryMetrics.scoredCount)}
+          />
+          <MetricCard
+            label="Average risk"
+            value={
+              effectiveSummaryMetrics.averageProbability == null
+                ? 'N/A'
+                : formatProbabilityPercent(effectiveSummaryMetrics.averageProbability)
+            }
+            supportingCopy="Across all scored"
+            trailingMeta={
+              effectiveSummaryMetrics.publishedAt
+                ? `Snapshot as of ${formatDateTimeValue(effectiveSummaryMetrics.publishedAt)}`
+                : ''
+            }
+          />
+        </div>
 
         <div className="section-note section-note--spaced">
           {summary
-            ? `Summary cards reflect the latest published full disengagement dashboard summary${
-                dashboardMetrics.publishedAt
-                  ? ` from ${new Date(dashboardMetrics.publishedAt).toLocaleString()}`
+            ? `Summary cards reflect the latest published disengagement dashboard summary${
+                effectiveSummaryMetrics.publishedAt
+                  ? ` from ${formatDateTimeValue(effectiveSummaryMetrics.publishedAt)}`
                   : ''
               }. ${
                 isUsingFallbackRows
-                  ? 'The ranked list below is temporarily showing the latest available current-snapshot rows while the loaded patient window catches up.'
-                  : 'The ranked list below remains paginated from the currently loaded patient window.'
+                  ? 'The ranked list is temporarily using fallback current-snapshot rows while the loaded patient window catches up.'
+                  : 'The ranked list below remains paginated from the current loaded patient window.'
               }`
             : summaryReady
               ? `No published disengagement summary is available yet. ${
                   isUsingFallbackRows
-                    ? 'The ranked list below is temporarily showing the latest available current-snapshot rows while the dashboard summary is still missing.'
+                    ? 'Fallback current-snapshot rows are being shown while the dashboard summary is still missing.'
                     : 'This workspace will stay empty until the next published snapshot is available.'
                 }`
               : 'Loading the latest published disengagement dashboard summary...'}
         </div>
 
-        <div className="dropout-dashboard__layout">
-          <div className="dropout-dashboard__listCard">
-            <div className="section-header section-header--tight">
+        <div className="dropout-dashboard__a2Layout">
+          <aside className="dropout-dashboard__queuePanel">
+            <div className="dropout-dashboard__queueHeader">
               <div>
-                <h3 className="mt-0">Risk-ranked patients</h3>
+                <h4 className="mt-0">Risk-ranked patient queue</h4>
               </div>
-              <div className="dropout-dashboard__detailActions">
-                <span className="metric-pill">{loadedRowsLabel}</span>
-              </div>
+              <span className="metric-pill">{loadedRowsLabel}</span>
             </div>
 
             <input
               type="text"
               className="dropout-dashboard__search"
-              placeholder="Search patient name, subject ID, or email"
+              placeholder="Search patients, IDs, or email"
               value={searchQuery}
               onChange={(event) => {
                 setSearchQuery(event.target.value);
@@ -1415,50 +2215,35 @@ export default function DropoutRiskPanel({
               }}
             />
 
-            <WindowPaginationControls
-              page={effectiveSnapshotPage}
-              pageSize={snapshotPageSize}
-              onPageChange={setSnapshotPage}
-              onPageSizeChange={(value) => {
-                setSnapshotPageSize(value);
-                setSnapshotPage(1);
-              }}
-              canGoNext={canGoToNextSnapshotPage}
-              hideNote
-            />
+            <div className="dropout-dashboard__queueControls">
+              <div className="dropout-dashboard__queueSortChip">Sorted by risk (high → low)</div>
+              <WindowPaginationControls
+                page={effectiveSnapshotPage}
+                pageSize={snapshotPageSize}
+                onPageChange={setSnapshotPage}
+                onPageSizeChange={(value) => {
+                  setSnapshotPageSize(value);
+                  setSnapshotPage(1);
+                }}
+                canGoNext={canGoToNextSnapshotPage}
+                hideNote
+              />
+            </div>
 
-            <div className="dropout-dashboard__list">
+            <div className="dropout-dashboard__queueList">
               {visibleRows.length ? (
-                visibleRows.map((entry) => {
+                visibleRows.map((entry, index) => {
                   const isSelected = entry.userId === activeEntry?.userId;
+                  const absoluteRank = (effectiveSnapshotPage - 1) * snapshotPageSize + index + 1;
                   return (
-                    <button
+                    <QueueRow
                       key={entry.userId}
-                      type="button"
-                      className={`dropout-dashboard__row ${isSelected ? 'dropout-dashboard__row--selected' : ''}`}
-                      onClick={() => setSelectedUserId(entry.userId)}
-                    >
-                      <div className="dropout-dashboard__rowTop">
-                        <div>
-                          <div className="dropout-dashboard__patientName">{entry.patientName}</div>
-                          <div className="dropout-dashboard__rowMeta">{entry.patientEmail || 'No email recorded'}</div>
-                        </div>
-                        <span className="dropout-card__bucket">{renderSnapshotStateLabel(entry)}</span>
-                      </div>
-
-                      <div className="dropout-dashboard__rowStats">
-                        <span>Subject ID: {entry.subjectId}</span>
-                        <span>Risk: {formatSnapshotProbabilityPercent(entry)}</span>
-                      </div>
-
-                      <div className="dropout-dashboard__rowStats">
-                        <span>Action: {formatRecommendedAction(entry)}</span>
-                      </div>
-
-                      <div className="dropout-dashboard__rowStats">
-                        <span>{entry.published_at ? new Date(entry.published_at).toLocaleString() : 'Not published'}</span>
-                      </div>
-                    </button>
+                      entry={entry}
+                      rank={absoluteRank}
+                      isSelected={isSelected}
+                      trendDirection={isSelected ? activeTrendData?.trendDirection : ''}
+                      onSelect={() => setSelectedUserId(entry.userId)}
+                    />
                   );
                 })
               ) : (
@@ -1469,49 +2254,81 @@ export default function DropoutRiskPanel({
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="dropout-dashboard__detailCard">
+            <div className="dropout-dashboard__queueFooter">
+              <span>
+                {filteredRows.length
+                  ? `${(effectiveSnapshotPage - 1) * snapshotPageSize + 1}-${Math.min(effectiveSnapshotPage * snapshotPageSize, filteredRows.length)} of ${filteredRows.length}`
+                  : '0 results'}
+              </span>
+            </div>
+          </aside>
+
+          <section className="dropout-dashboard__workspacePanel">
             {activeEntry ? (
               <>
-                <div className="section-header">
+                <div className="dropout-dashboard__workspaceHeader">
                   <div>
                     <h3 className="mt-0">Patient disengagement detail</h3>
                   </div>
-                  <div className="dropout-dashboard__detailActions">
-                    <button className="btn btn-secondary btn-small" onClick={openPatientRoster} disabled={!activeEntry.patient}>
-                      Open Patient
-                    </button>
-                  </div>
+                  <button className="btn btn-secondary btn-small" onClick={openPatientRoster} disabled={!activeEntry.patient}>
+                    Open Patient
+                  </button>
                 </div>
 
-                <div className="dropout-dashboard__detailSummary">
-                  <div className="dropout-card">
-                    <div className="dropout-card__header">
-                      <strong>{activeEntry.patientName}</strong>
-                      <span className="dropout-card__bucket">{renderSnapshotStateLabel(activeEntry)}</span>
-                    </div>
-                    <div className="dropout-card__metric">Subject ID: {activeEntry.subjectId}</div>
-                    <div className="dropout-card__metric">Risk probability: {formatSnapshotProbabilityDecimal(activeEntry)}</div>
-                    <div className="dropout-card__metric">Confidence: {getConfidenceLabel(activeEntry.data_quality_flags)}</div>
-                    <div className="dropout-card__metric">Recommended action: {formatRecommendedAction(activeEntry)}</div>
-                    <div className="dropout-card__metric">Action priority score: {activeEntry.action_priority_score ?? 'N/A'}</div>
-                    <div className="dropout-card__metric">Primary CRC: {activeEntry.primaryCrcName}</div>
-                    <div className="dropout-card__metric">
-                      Last published: {activeEntry.published_at ? new Date(activeEntry.published_at).toLocaleString() : 'N/A'}
-                    </div>
-                  </div>
-
-                  <div className="dropout-card dropout-card--soft">
-                    <strong>Model contract</strong>
-                    <div className="dropout-card__metric">Stage: {activeEntry.routed_stage || 'N/A'}</div>
-                    <div className="dropout-card__metric">Prediction horizon: {activeEntry.pred_horizon_days || 'N/A'} days</div>
-                    <div className="dropout-card__metric">History window: {activeEntry.history_window_days || 'N/A'} days</div>
-                    <div className="dropout-card__metric">Model version: {activeEntry.model_version || 'N/A'}</div>
-                  </div>
+                <div className="dropout-dashboard__briefTopRow">
+                  <CurrentRiskBriefCard
+                    entry={activeEntry}
+                    trendData={activeTrendData}
+                    onTakeAction={() => scrollToSection(interventionSectionRef)}
+                  />
+                  <ModelContractBriefCard entry={activeEntry} />
                 </div>
 
-                <RecentPublishTrendSection rows={recentPublishHistory} currentEntry={activeEntry} />
+                <div className="dropout-dashboard__highlightGrid">
+                  <HighlightSummaryCard
+                    title="Risk change since last publish"
+                    badge={explainabilityRiskChangeSummary ? formatRiskChangeDirectionLabel(activeExplainabilityPayload?.risk_change_direction) : 'Pending'}
+                    badgeTone={getRiskChangeDirectionTone(activeExplainabilityPayload?.risk_change_direction)}
+                    summary={riskChangeHighlightSummary}
+                    items={riskChangeHighlightItems}
+                    ctaLabel="View trend"
+                    onCtaClick={() => scrollToSection(explainabilitySectionRef)}
+                  />
+                  <HighlightSummaryCard
+                    title="Why flagged"
+                    items={explainabilityWhyFlagged}
+                    summary={whyFlaggedHighlightSummary}
+                    ctaLabel="View details"
+                    onCtaClick={() => scrollToSection(explainabilitySectionRef)}
+                  />
+                  <HighlightSummaryCard
+                    title="Challenger cross-check"
+                    badge={formatHighlightBadgeText(challengerHighlightStatus)}
+                    badgeTone={challengerHighlightStatus ? (String(challengerHighlightStatus).toLowerCase() === 'aligned' ? 'success' : 'default') : 'default'}
+                    summary={challengerHighlightSummary}
+                    items={explainabilityChallengerCrossCheck.slice(1)}
+                    ctaLabel="View details"
+                    onCtaClick={() => scrollToSection(explainabilitySectionRef)}
+                  />
+                  <HighlightSummaryCard
+                    title="Data gaps affecting confidence"
+                    badge={deriveDataGapBadge(explainabilityMissingInputs)}
+                    badgeTone={deriveDataGapTone(explainabilityMissingInputs)}
+                    summary={dataGapHighlightSummary}
+                    items={explainabilityMissingInputs.slice(1)}
+                    ctaLabel="View details"
+                    onCtaClick={() => scrollToSection(explainabilitySectionRef)}
+                  />
+                </div>
+
+                <RecentPublishTrendSection
+                  rows={recentPublishHistory}
+                  currentEntry={activeEntry}
+                  sectionRef={trendSectionRef}
+                  onViewDetailedTrend={() => scrollToSection(explainabilitySectionRef)}
+                />
+
                 {recentPublishHistoryError ? (
                   <div
                     className="info-banner"
@@ -1520,318 +2337,108 @@ export default function DropoutRiskPanel({
                     {recentPublishHistoryError}
                   </div>
                 ) : null}
+
                 {!recentPublishHistoryError && recentPublishHistoryReady && recentPublishHistory.length === 0 ? (
                   <div className="section-note section-note--spaced">
                     Recent-publish trend history will appear here after more published disengagement snapshots accumulate for this patient.
                   </div>
                 ) : null}
 
-                <div className="dropout-card dropout-card--soft" style={{ marginTop: '18px' }}>
-                  <div className="dropout-card__header">
-                    <strong>Intervention case</strong>
-                    <span
-                      className={`metric-pill metric-pill--${getInterventionLifecycleTone(
-                        isPreparingInterventionCase ? 'open' : interventionCaseStatusValue
-                      )}`}
-                    >
-                      {isPreparingInterventionCase
-                        ? 'Preparing case'
-                        : formatWorkflowValueLabel(
-                            interventionCaseStatusValue,
-                            canUseInterventionCaseLoop ? 'No open case' : 'Not available'
-                          )}
-                    </span>
-                  </div>
-                  <div className="dropout-card__metric">
-                    Case status:{' '}
-                    {isPreparingInterventionCase
-                      ? 'Preparing an open case from the latest prediction'
-                      : formatWorkflowValueLabel(
-                          interventionCaseStatusValue,
-                          canUseInterventionCaseLoop ? 'No visible case yet' : 'Not available for this patient'
-                        )}
-                  </div>
-                  <div className="dropout-card__metric">
-                    Automatic 7-day observation:{' '}
-                    <span className={`metric-pill metric-pill--${getInterventionCaseStatusTone(interventionCaseProxyStatusValue)}`}>
-                      {formatInterventionProxyStatusLabel(interventionCaseProxyStatusValue)}
-                    </span>
-                  </div>
-                  <div className="dropout-card__metric">
-                    CRC action: {formatWorkflowValueLabel(interventionCaseActionValue, 'Not recorded')}
-                  </div>
-                  <div className="dropout-card__metric">
-                    Manual response: {formatWorkflowValueLabel(interventionCaseResultValue, 'Not recorded')}
-                  </div>
-                  {interventionCaseCloseReasonValue ? (
-                    <div className="dropout-card__metric">
-                      Close reason: {formatInterventionCloseReasonLabel(interventionCaseCloseReasonValue)}
-                    </div>
-                  ) : null}
-                  <div className="dropout-card__metric">
-                    Latest linked prediction:{' '}
-                    {formatDateTimeValue(
-                      displayedInterventionCase?.latest_prediction_published_at || activeEntry?.published_at,
-                      'No linked prediction yet'
-                    )}
-                  </div>
-                  <div className="dropout-card__metric">
-                    Case last updated:{' '}
-                    {formatDateTimeValue(
-                      displayedInterventionCase?.updated_at || displayedInterventionCase?.created_at,
-                      displayedInterventionCase ? 'Draft' : 'No case timestamp'
-                    )}
-                  </div>
-
-                  {openInterventionCaseCount > 1 ? (
-                    <div
-                      className="info-banner"
-                      style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}
-                    >
-                      More than one open intervention case is visible for this patient. The CRC UI will keep updating only the most recent open case until the data is cleaned up.
-                    </div>
-                  ) : null}
-
-                  {interventionCaseError ? (
-                    <div
-                      className="info-banner"
-                      style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}
-                    >
-                      {interventionCaseError}
-                    </div>
-                  ) : null}
-
-                  {interventionCaseMutationError ? (
-                    <div
-                      className="info-banner"
-                      style={{ marginTop: '14px', background: 'var(--warning-soft)', borderColor: '#f0d6a9', color: 'var(--warning)' }}
-                    >
-                      {interventionCaseMutationError}
-                    </div>
-                  ) : null}
-
-                  <div className="section-note section-note--spaced">
-                    Automatic observation updates here automatically.
-                  </div>
-
-                  <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
-                    {INTERVENTION_ACTION_BUTTONS.map((actionOption) => (
-                      <button
-                        key={actionOption.value}
-                        type="button"
-                        className={`btn ${
-                          interventionCaseActionValue === actionOption.value ? 'btn-primary' : 'btn-secondary'
-                        } btn-small`}
-                        disabled={!canMutateInterventionCase || isUpdatingInterventionCase}
-                        onClick={() => handleInterventionCaseMutation({ actionTaken: actionOption.value })}
-                      >
-                        {actionOption.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
-                    {INTERVENTION_RESULT_BUTTONS.map((resultOption) => (
-                      <button
-                        key={resultOption.value}
-                        type="button"
-                        className={`btn ${
-                          interventionCaseResultValue === resultOption.value ? 'btn-primary' : 'btn-secondary'
-                        } btn-small`}
-                        disabled={!canMutateInterventionCase || isUpdatingInterventionCase}
-                        onClick={() => handleInterventionCaseMutation({ manualResult: resultOption.value })}
-                      >
-                        {resultOption.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {canCloseInterventionCase ? (
-                    <div className="workspace-actionStrip" style={{ marginTop: '12px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-small"
-                        onClick={handleInterventionCaseClose}
-                        disabled={isUpdatingInterventionCase}
-                      >
-                        Close case
-                      </button>
-                    </div>
-                  ) : null}
-
-                  <div className="section-note section-note--spaced">
-                    {canMutateInterventionCase
-                      ? isUpdatingInterventionCase
-                        ? 'Saving the latest intervention case update...'
-                        : 'Update this case only when the CRC action or manual response changes.'
-                      : !currentUser?.uid
-                        ? 'CRC identity is required before intervention actions can be recorded.'
-                        : isEarlyHistorySnapshot(activeEntry)
-                          ? 'An intervention case becomes available after this patient has a published scored snapshot.'
-                          : !activeInterventionCase && !activeEntry?.isActionable
-                            ? 'There is no open intervention case, and the current snapshot is not actionable enough to open one from this panel.'
-                          : 'Intervention case controls are temporarily unavailable.'}
-                  </div>
-
-                  {recentInterventionCasePreview.length ? (
-                    <DetailSection
-                      title="Recent case history"
-                      items={recentInterventionCasePreviewLines}
-                      emptyLabel="No recent intervention case history is available yet."
-                    />
-                  ) : null}
-                </div>
+                <InterventionTimelineSection
+                  caseEntry={displayedInterventionCase}
+                  isPreparing={isPreparingInterventionCase}
+                  canUseCaseLoop={canUseInterventionCaseLoop}
+                  canMutate={canMutateInterventionCase}
+                  canClose={canCloseInterventionCase}
+                  isUpdating={isUpdatingInterventionCase}
+                  actionValue={interventionCaseActionValue}
+                  resultValue={interventionCaseResultValue}
+                  proxyStatusValue={interventionCaseProxyStatusValue}
+                  lifecycleStatusValue={interventionCaseStatusValue}
+                  closeReasonValue={interventionCaseCloseReasonValue}
+                  recentCases={recentInterventionCases}
+                  onAction={(actionTaken) => handleInterventionCaseMutation({ actionTaken })}
+                  onResult={(manualResult) => handleInterventionCaseMutation({ manualResult })}
+                  onClose={handleInterventionCaseClose}
+                  errorMessage={interventionCaseError || (openInterventionCaseCount > 1
+                    ? 'More than one open intervention case is visible for this patient. The CRC UI will keep updating only the most recent open case until the data is cleaned up.'
+                    : '')}
+                  mutationError={interventionCaseMutationError}
+                  sectionRef={interventionSectionRef}
+                />
 
                 {isEarlyHistorySnapshot(activeEntry) ? (
                   <div className="info-banner section-note--spaced">{buildEarlyHistorySummary(activeEntry)}</div>
                 ) : null}
 
-                <details className="dropout-dashboard__detailSection" style={{ marginTop: '18px' }}>
+                <details className="dropout-dashboard__legacyContext">
                   <summary>
                     <strong>Legacy operational context</strong>
                   </summary>
-                  <DetailSection
-                    title="Legacy snapshot signals"
-                    items={legacyExplanationSignals}
-                    emptyLabel="No legacy explanation signals were included in the current snapshot payload."
-                  />
-                  <DetailSection
-                    title="Legacy snapshot input gaps"
-                    items={legacyMissingInputs}
-                    emptyLabel="No legacy missing-input issues were reported for the current snapshot."
-                  />
-                  <DetailSection
-                    title="Legacy snapshot data-quality flags"
-                    items={legacyDataQualityFlags}
-                    emptyLabel="No legacy data-quality flags were reported for the current snapshot."
-                  />
+                  <div className="dropout-dashboard__legacyGrid">
+                    <DetailSection
+                      title="Legacy snapshot signals"
+                      items={legacyExplanationSignals}
+                      emptyLabel="No legacy explanation signals were included in the current snapshot payload."
+                    />
+                    <DetailSection
+                      title="Legacy snapshot input gaps"
+                      items={legacyMissingInputs}
+                      emptyLabel="No legacy missing-input issues were reported for the current snapshot."
+                    />
+                    <DetailSection
+                      title="Legacy snapshot data-quality flags"
+                      items={legacyDataQualityFlags}
+                      emptyLabel="No legacy data-quality flags were reported for the current snapshot."
+                    />
+                  </div>
                 </details>
 
-                <div className="section-header section-header--tight section-header--spaced">
-                  <div>
-                    <h3 className="mt-0">Explainability summary</h3>
-                    <div className="section-note">
-                      CRC-facing summary from the dedicated explainability mirror. Legacy current-snapshot fields are shown above as operational context only.
+                <section ref={explainabilitySectionRef} className="dropout-dashboard__detailedExplainability">
+                  <div className="dropout-dashboard__detailedHeader">
+                    <div>
+                      <h3 className="mt-0">Explainability Summary <span className="dropout-dashboard__inlineQualifier">(detailed)</span></h3>
                     </div>
                   </div>
-                </div>
 
-                {activeExplainabilityPayload ? (
-                  <>
-                    <div className="info-banner section-note--spaced">
-                      Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
-                      {explainabilityBlockedReasons.length ? (
-                        <div className="section-note section-note--dense">
-                          Blocked or partial reason: {explainabilityBlockedReasons.join('; ')}
-                        </div>
-                      ) : null}
+                  {activeExplainabilityPayload ? (
+                    <>
+                      <div className="info-banner section-note--spaced">
+                        Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
+                        {explainabilityBlockedReasons.length ? (
+                          <div className="section-note section-note--dense">
+                            Blocked or partial reason: {explainabilityBlockedReasons.join('; ')}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="dropout-dashboard__detailedGrid">
+                        {visibleDetailedExplainabilitySections.map((renderSection, index) =>
+                          renderSection({ className: getDetailedGridClassName(index) })
+                        )}
+                      </div>
+                    </>
+                  ) : activeExplainabilityReady && activeExplainabilityUserId === activeEntry?.userId ? (
+                    <div className="empty-panel">
+                      Explainability mirror has not been published for this patient.
+                      <div className="section-note section-note--spaced">
+                        The current prediction snapshot can still be shown above, but CRC should not treat legacy snapshot fields as a dedicated explainability mirror.
+                      </div>
                     </div>
-                    <div className="dropout-dashboard__explainabilityGrid">
-                      <RiskChangeSection
-                        summary={explainabilityRiskChangeSummary}
-                        direction={activeExplainabilityPayload?.risk_change_direction}
-                        previousPublishedAt={activeExplainabilityPayload?.previous_published_at}
-                        previousRiskBucket={activeExplainabilityPayload?.previous_risk_bucket}
-                        previousProbability={activeExplainabilityPayload?.previous_dropout_probability}
-                        currentRiskBucket={activeExplainabilityPayload?.risk_bucket || activeEntry?.risk_bucket}
-                        currentProbability={
-                          activeExplainabilityPayload?.disengagement_probability ?? activeEntry?.dropout_probability
-                        }
-                        reasons={explainabilityRiskChangeReasons}
-                      />
-                      <DetailSection
-                        title="Why this patient is flagged"
-                        items={explainabilityWhyFlagged}
-                        emptyLabel="Why flagged: missing"
-                      />
-                      <DetailSection
-                        title="Challenger cross-check"
-                        items={explainabilityChallengerCrossCheck}
-                        emptyLabel="No patient-level challenger cross-check was published for this snapshot."
-                      />
-                      <DetailSection
-                        title="Data gaps affecting confidence"
-                        items={explainabilityMissingInputs}
-                        emptyLabel="Missing or weak inputs: missing"
-                      />
-                      <DetailSection
-                        title="What might reduce disengagement risk"
-                        items={explainabilityRiskReduction}
-                        emptyLabel="What could reduce risk: missing"
-                      />
-                      <DetailSection
-                        title="What-if scenarios"
-                        items={explainabilityWhatIfScenarios}
-                        emptyLabel="No patient-level what-if scenarios were published for this snapshot."
-                      />
-                      <DetailSection
-                        title="Patient stability hint"
-                        items={explainabilityPatientStabilityHint ? [explainabilityPatientStabilityHint] : []}
-                        emptyLabel="No patient-level stability hint was published for this snapshot."
-                      />
-                      <DetailSection
-                        title="Structured source completeness"
-                        items={explainabilitySourceCompleteness}
-                        emptyLabel="No structured source completeness summary was published for this snapshot."
-                      />
-                      <StatusSummarySection
-                        title="Model agreement"
-                        status={explainabilityModelAgreement.status}
-                        summary={explainabilityModelAgreement.summary}
-                        emptyLabel="Model agreement: not published in this workflow scope"
-                      />
-                      <StatusSummarySection
-                        title="Confidence and stability"
-                        status={explainabilityConfidence.status}
-                        summary={explainabilityConfidence.summary}
-                        emptyLabel="Confidence and stability: limited / not published"
-                      />
-                      <DetailSection
-                        title="Missing mirror sections"
-                        items={explainabilityMissingRequiredSections}
-                        emptyLabel="No required mirror sections are missing."
-                      />
-                      <DetailSection
-                        title="Live source read errors"
-                        items={explainabilitySourceErrors}
-                        emptyLabel="No live source read errors were reported for this mirror."
-                      />
+                  ) : (
+                    <div className="empty-panel">
+                      Loading explainability summary...
                     </div>
-                  </>
-                ) : activeExplainabilityReady && activeExplainabilityUserId === activeEntry?.userId ? (
-                  <div className="empty-panel">
-                    Explainability mirror has not been published for this patient.
-                    <div className="section-note section-note--spaced">
-                      The current prediction snapshot can still be shown above, but CRC should not treat legacy snapshot fields as a dedicated explainability mirror.
-                    </div>
-                  </div>
-                ) : (
-                  <div className="empty-panel">
-                    Loading explainability summary...
-                  </div>
-                )}
+                  )}
+                </section>
               </>
             ) : (
               <div className="empty-panel">Select a ranked patient to inspect the current disengagement snapshot.</div>
             )}
-          </div>
+          </section>
         </div>
       </>
     );
   })();
 
-  return (
-    <div className="card workspace-card intelligence-card intelligence-card--dropout">
-      <div className="section-header">
-        <div>
-          <h3 className="mt-0">Patient Disengagement Prediction</h3>
-          <div className="section-note">
-            Dedicated CRC-only workspace sourced from live Firestore snapshots. Published summaries appear when available, and ranked rows stay paginated inside the loaded patient window.
-          </div>
-        </div>
-        <span className="metric-pill">CRC only</span>
-      </div>
-      {content}
-    </div>
-  );
+  return <div className="card workspace-card intelligence-card intelligence-card--dropout">{content}</div>;
 }

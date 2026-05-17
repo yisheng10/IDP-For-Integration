@@ -1,7 +1,7 @@
 # TrialLight Project Log
 
 ## Last Updated
-- Date: 2026-05-13
+- Date: 2026-05-16
 - Workspace: `D:\IDP For Integration`
 
 ## Current Objective
@@ -16,6 +16,39 @@
 - Production cloud functions: partially blocked by Firebase plan limitations.
 
 ## Completed Work
+### Patient Disengagement Prediction A2 Replica
+- Rebuilt the CRC-only `Patient Disengagement Prediction` module content area to closely match the selected `Final A2 — Split Operations Board` concept without changing the global CRC shell.
+- Reorganized the dropout module into four explicit layers:
+  - summary strip
+  - left `Risk-ranked patient queue`
+  - right briefing surface with current risk, model contract, explainability highlights, and recent-trend card
+  - lower `Intervention Case Timeline`
+  - detailed explainability board
+- Promoted the recent publish history into an A2-style compact trend card with:
+  - inline SVG chart
+  - current-vs-history de-duplication
+  - stable / rising / falling / mixed trend labeling
+  - latest-action / delta / week-trend summary
+- Promoted the intervention area into an `Intervention Case Timeline` work surface with:
+  - explicit case stages
+  - fixed observation / action / response / close-reason summary rows
+  - CRC action buttons retained in place
+  - recent case history restyled as operational timeline rows
+- Regrouped explainability into A2-style detailed sections while preserving the existing data contract:
+  - `Why this patient is flagged`
+  - `Risk change since last publish`
+  - `Challenger cross-check`
+  - `Data gaps affecting confidence`
+  - `What-if scenarios`
+  - `Patient stability hint`
+  - `Structured source completeness`
+  - technical audit sections
+- Kept `patient_daily_logs` presented as `optional fallback` rather than a core missing-data warning.
+- Expanded the CRC unit tests around publish-trend de-duplication, stable-trend classification, case wording, and challenger de-duplication.
+- Verification target for this UI overhaul remains:
+  - `npm.cmd run test:crc`
+  - `npm.cmd run build:crc`
+
 ### Shadow Proxy Evaluator Graceful Skip
 - Fixed the dropout shadow proxy evaluator so GitHub Actions no longer fails when the Supabase shadow monitoring table has not been provisioned yet.
 - `Patient-Dropout-Prediction/src/evaluate_shadow_proxies.py` now matches the publisher's graceful-degradation behavior:

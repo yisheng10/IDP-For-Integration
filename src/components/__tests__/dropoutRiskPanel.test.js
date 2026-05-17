@@ -1,12 +1,30 @@
-import { describe, expect, it } from 'vitest';
-import {
-  buildChallengerCrossCheckItems,
-  buildRecentPublishTrendData,
-  formatInterventionCloseReasonLabel,
-  formatInterventionHistoryEntry,
-  formatInterventionProxyStatusLabel,
-  formatSourceCompletenessStatus,
-} from '../DropoutRiskPanel.jsx';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+let buildChallengerCrossCheckItems;
+let buildRecentPublishTrendData;
+let formatInterventionCloseReasonLabel;
+let formatInterventionHistoryEntry;
+let formatInterventionProxyStatusLabel;
+let formatSourceCompletenessStatus;
+
+beforeAll(async () => {
+  vi.stubEnv('VITE_FIREBASE_API_KEY', 'test-api-key');
+  vi.stubEnv('VITE_FIREBASE_AUTH_DOMAIN', 'test-auth-domain');
+  vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'test-project-id');
+  vi.stubEnv('VITE_FIREBASE_STORAGE_BUCKET', 'test-storage-bucket');
+  vi.stubEnv('VITE_FIREBASE_MESSAGING_SENDER_ID', 'test-messaging-sender-id');
+  vi.stubEnv('VITE_FIREBASE_APP_ID', 'test-app-id');
+  vi.stubEnv('VITE_FIREBASE_MEASUREMENT_ID', 'test-measurement-id');
+  vi.stubEnv('VITE_USE_FUNCTIONS_EMULATOR', 'false');
+
+  const module = await import('../DropoutRiskPanel.jsx');
+  buildChallengerCrossCheckItems = module.buildChallengerCrossCheckItems;
+  buildRecentPublishTrendData = module.buildRecentPublishTrendData;
+  formatInterventionCloseReasonLabel = module.formatInterventionCloseReasonLabel;
+  formatInterventionHistoryEntry = module.formatInterventionHistoryEntry;
+  formatInterventionProxyStatusLabel = module.formatInterventionProxyStatusLabel;
+  formatSourceCompletenessStatus = module.formatSourceCompletenessStatus;
+});
 
 function buildPublishEntry(index, probability, bucket = 'low') {
   const publishedAt = new Date(Date.UTC(2026, 4, 15, 9, 0, index)).toISOString();
@@ -31,6 +49,40 @@ describe('buildRecentPublishTrendData', () => {
     expect(result.visibleRows[0].id).toBe(currentEntry.id);
   });
 
+  it('drops history rows that duplicate the current publish identity', () => {
+    const currentEntry = {
+      ...buildPublishEntry(4, 0.74, 'high'),
+      history_doc_id: 'publish-4',
+      model_version: 'model_stage_3_29_single.pth',
+      subject_id: 'TL-S1',
+    };
+    const duplicateHistoryEntry = {
+      ...currentEntry,
+      id: 'history-duplicate',
+    };
+    const historyRows = [
+      duplicateHistoryEntry,
+      {
+        ...buildPublishEntry(3, 0.59, 'high'),
+        history_doc_id: 'publish-3',
+        model_version: 'model_stage_3_29_single.pth',
+        subject_id: 'TL-S1',
+      },
+      {
+        ...buildPublishEntry(2, 0.41, 'medium'),
+        history_doc_id: 'publish-2',
+        model_version: 'model_stage_3_29_single.pth',
+        subject_id: 'TL-S1',
+      },
+    ];
+
+    const result = buildRecentPublishTrendData(historyRows, currentEntry);
+
+    expect(result.visibleRows).toHaveLength(3);
+    expect(new Set(result.visibleRows.map((entry) => entry.published_at)).size).toBe(3);
+    expect(result.visibleRows[1].id).toBe('publish-3');
+  });
+
   it('sorts publishes into a rising trend and computes the latest delta against the prior publish', () => {
     const currentEntry = buildPublishEntry(4, 0.74, 'high');
     const historyRows = [
@@ -44,6 +96,19 @@ describe('buildRecentPublishTrendData', () => {
     expect(result.trendDirection).toBe('rising');
     expect(result.latestDelta).toBeCloseTo(0.15, 5);
     expect(result.chronologicalRows.at(-1).id).toBe(currentEntry.id);
+  });
+
+  it('marks a window as stable when all visible publish movements stay inside the stable threshold', () => {
+    const currentEntry = buildPublishEntry(4, 0.657, 'high');
+    const historyRows = [
+      buildPublishEntry(3, 0.6569, 'high'),
+      buildPublishEntry(2, 0.6567, 'high'),
+      buildPublishEntry(1, 0.6568, 'high'),
+    ];
+
+    const result = buildRecentPublishTrendData(historyRows, currentEntry);
+
+    expect(result.trendDirection).toBe('stable');
   });
 
   it('marks a window as mixed when publishes move in both directions', () => {
