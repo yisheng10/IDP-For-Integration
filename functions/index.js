@@ -31,6 +31,7 @@ import {
   finalizeUploadedProtocolTemplate,
   reconcileProtocolDropoutTrialBinding,
 } from './protocolStaticContextRuntime.js';
+import { createLiveKitCallTokenHttp } from './livekitRuntime.js';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -167,6 +168,7 @@ export {
   sideEffectGuidanceTraceStreamHttp,
   classifyGuidanceRoute,
   classifyGuidanceRouteHttp,
+  createLiveKitCallTokenHttp,
   retrieveGuidanceContext,
   retrieveGuidanceContextHttp,
   ingestGuidanceDocument,
