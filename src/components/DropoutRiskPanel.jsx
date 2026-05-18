@@ -1259,7 +1259,6 @@ function InterventionTimelineSection({
 
 function CurrentRiskBriefCard({ entry, trendData, onOpenPatient, canOpenPatient }) {
   const delta = trendData?.latestDelta ?? null;
-  const trendDirection = trendData?.trendDirection || 'building';
   return (
     <div className="dropout-dashboard__currentRiskCard">
       <div className="dropout-dashboard__cardHeader">
@@ -1296,9 +1295,6 @@ function CurrentRiskBriefCard({ entry, trendData, onOpenPatient, canOpenPatient 
       <div className="dropout-dashboard__currentRiskFooter">
         <span>Last publish: {formatDateTimeValue(entry?.published_at, 'N/A')}</span>
         <span>{formatTrendDeltaLabel(delta)}</span>
-        <span className={`metric-pill metric-pill--${getTrendDirectionTone(trendDirection)}`}>
-          {formatRecentTrendDirectionLabel(trendDirection)}
-        </span>
       </div>
     </div>
   );
@@ -1537,7 +1533,7 @@ function buildDetailedExplainabilitySections({
 
 function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onViewDetailedTrend = null }) {
   const trendData = buildRecentPublishTrendData(rows, currentEntry);
-  const { chronologicalRows, trendDirection, headline, jumpSummary, latestDelta, netDelta } = trendData;
+  const { chronologicalRows, trendDirection, jumpSummary, latestDelta, netDelta } = trendData;
 
   if (!currentEntry) {
     return null;
@@ -1572,15 +1568,13 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
     <section ref={sectionRef} className="dropout-dashboard__trendCard">
       <div className="dropout-dashboard__cardHeader">
         <div>
-          <strong>Recent 7 publishes</strong>
-          <div className="dropout-dashboard__cardSubtitle">Risk trend</div>
+          <strong>
+            Recent 7 publishes <span className="dropout-dashboard__inlineQualifier">(risk trend)</span>
+          </strong>
         </div>
         <span className={`metric-pill metric-pill--${getTrendDirectionTone(trendDirection)}`}>
           {formatRecentTrendDirectionLabel(trendDirection)}
         </span>
-      </div>
-      <div className="dropout-dashboard__trendHeadline">
-        {headline || 'This trend view will fill in as more published disengagement snapshots accumulate for this patient.'}
       </div>
       <div className="dropout-dashboard__trendLayout">
         <div className="dropout-dashboard__trendChartSurface">
@@ -1653,11 +1647,6 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
             );
           })}
           </svg>
-          <div className="dropout-dashboard__trendLegend">
-            <span><i style={{ background: getRiskBucketTone('high') }} />High (≥ 60%)</span>
-            <span><i style={{ background: getRiskBucketTone('medium') }} />Medium (30–59%)</span>
-            <span><i style={{ background: getRiskBucketTone('low') }} />Low (&lt; 30%)</span>
-          </div>
         </div>
         <aside className="dropout-dashboard__trendMeta">
           <div className="dropout-dashboard__trendMetaRow">
@@ -1677,6 +1666,11 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
           {jumpSummary ? <div className="dropout-dashboard__trendJump">{jumpSummary}</div> : null}
           {onViewDetailedTrend ? renderInlineActionButton('View full trend', onViewDetailedTrend) : null}
         </aside>
+      </div>
+      <div className="dropout-dashboard__trendLegend">
+        <span><i style={{ background: getRiskBucketTone('high') }} />High (≥ 60%)</span>
+        <span><i style={{ background: getRiskBucketTone('medium') }} />Medium (30–59%)</span>
+        <span><i style={{ background: getRiskBucketTone('low') }} />Low (&lt; 30%)</span>
       </div>
     </section>
   );
