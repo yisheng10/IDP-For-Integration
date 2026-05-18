@@ -10144,3 +10144,866 @@ body {
     text-align: left;
   }
 }
+
+/* Patient Disengagement A2 density pass: keep sidebar and summary metric cards unchanged. */
+#patient-disengagement,
+#patient-disengagement * {
+  box-sizing: border-box;
+}
+
+#patient-disengagement {
+  overflow-x: clip;
+}
+
+#patient-disengagement .dropout-board-root.intelligence-card--dropout {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#patient-disengagement .dropout-dashboard__a2Layout,
+#patient-disengagement .dropout-dashboard__workspacePanel,
+#patient-disengagement .dropout-dashboard__detailedExplainability,
+#patient-disengagement .dropout-dashboard__detailedGrid,
+#patient-disengagement .dropout-dashboard__detailCell {
+  min-width: 0;
+}
+
+#patient-disengagement .dropout-dashboard__a2Layout {
+  gap: 12px !important;
+}
+
+#patient-disengagement .dropout-dashboard__queuePanel {
+  padding: 11px !important;
+}
+
+#patient-disengagement .dropout-dashboard__queueHeader,
+#patient-disengagement .dropout-dashboard__queueControls,
+#patient-disengagement .dropout-dashboard__queuePanel .history-pagination {
+  margin-bottom: 8px;
+}
+
+#patient-disengagement .dropout-dashboard__queueList {
+  gap: 7px;
+  margin-top: 7px;
+  padding-right: 2px;
+}
+
+#patient-disengagement .dropout-dashboard__queueRow {
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 6px;
+  min-height: 0;
+  padding: 9px 10px !important;
+}
+
+#patient-disengagement .dropout-dashboard__queueRowBody {
+  gap: 6px;
+}
+
+#patient-disengagement .dropout-dashboard__queueRowTop {
+  gap: 8px;
+}
+
+#patient-disengagement .dropout-dashboard__queuePatientName {
+  font-size: 0.9rem;
+  line-height: 1.16;
+}
+
+#patient-disengagement .dropout-dashboard__queuePatientMeta {
+  margin-top: 2px;
+  font-size: 0.69rem;
+}
+
+#patient-disengagement .dropout-dashboard__queueBadges {
+  gap: 4px;
+}
+
+#patient-disengagement .dropout-dashboard__queueStats {
+  gap: 5px;
+}
+
+#patient-disengagement .dropout-dashboard__queueStats span,
+#patient-disengagement .dropout-dashboard__queueFoot {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+#patient-disengagement .dropout-dashboard__queueStats strong {
+  margin-top: 1px;
+  font-size: 0.78rem;
+  line-height: 1.22;
+}
+
+#patient-disengagement .dropout-dashboard__queueProbability {
+  font-size: 0.82rem !important;
+}
+
+#patient-disengagement .dropout-dashboard__queueAction {
+  font-size: 0.72rem !important;
+  line-height: 1.25 !important;
+}
+
+#patient-disengagement .dropout-dashboard__queueFoot {
+  margin-top: 2px;
+}
+
+#patient-disengagement .dropout-dashboard__queueFooter {
+  margin-top: 7px;
+  padding-top: 7px;
+  font-size: 0.74rem;
+}
+
+#patient-disengagement .dropout-dashboard__briefTopRow,
+#patient-disengagement .dropout-dashboard__highlightGrid,
+#patient-disengagement .dropout-dashboard__detailedGrid,
+#patient-disengagement .dropout-dashboard__timelineStatusGrid,
+#patient-disengagement .dropout-dashboard__timelineMetaGrid {
+  gap: 8px !important;
+}
+
+#patient-disengagement .dropout-dashboard__currentRiskCard,
+#patient-disengagement .dropout-dashboard__modelCard,
+#patient-disengagement .dropout-dashboard__trendCard,
+#patient-disengagement .dropout-dashboard__timelineCard,
+#patient-disengagement .dropout-dashboard__detailedExplainability {
+  padding: 12px !important;
+}
+
+#patient-disengagement .dropout-dashboard__highlightCard {
+  min-height: 128px;
+  padding: 10px !important;
+  gap: 7px;
+}
+
+#patient-disengagement .dropout-dashboard__highlightTitle,
+#patient-disengagement .dropout-dashboard__sectionTitle {
+  gap: 6px;
+}
+
+#patient-disengagement .dropout-dashboard__panelIcon {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+  border-radius: 7px;
+}
+
+#patient-disengagement .dropout-dashboard__highlightTitle strong,
+#patient-disengagement .dropout-dashboard__sectionTitle strong {
+  font-size: 0.82rem;
+  line-height: 1.18;
+}
+
+#patient-disengagement .dropout-dashboard__highlightSummary {
+  font-size: 0.75rem;
+  line-height: 1.34;
+  -webkit-line-clamp: 3;
+}
+
+#patient-disengagement .dropout-dashboard__highlightList,
+#patient-disengagement .dropout-dashboard__detailList {
+  padding-left: 14px;
+}
+
+#patient-disengagement .dropout-dashboard__highlightList li,
+#patient-disengagement .dropout-dashboard__detailList li {
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  line-height: 1.32;
+}
+
+#patient-disengagement .dropout-dashboard__inlineLink {
+  font-size: 0.74rem;
+}
+
+#patient-disengagement .dropout-dashboard__trendCard {
+  margin-top: 10px;
+}
+
+#patient-disengagement .dropout-dashboard__trendHeadline {
+  margin-top: 4px;
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
+#patient-disengagement .dropout-dashboard__trendLayout {
+  gap: 10px;
+  margin-top: 8px;
+}
+
+#patient-disengagement .dropout-dashboard__trendChartSurface {
+  min-height: 190px;
+  padding: 7px 10px 8px;
+}
+
+#patient-disengagement .dropout-dashboard__trendChartSurface svg {
+  height: 148px;
+}
+
+#patient-disengagement .dropout-dashboard__trendLegend {
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 0.69rem;
+}
+
+#patient-disengagement .dropout-dashboard__trendMeta {
+  gap: 6px;
+}
+
+#patient-disengagement .dropout-dashboard__trendMetaRow,
+#patient-disengagement .dropout-dashboard__trendJump {
+  padding: 8px 10px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineCard {
+  margin-top: 10px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineRail {
+  gap: 8px;
+  margin-top: 10px;
+  padding: 7px 2px 0;
+}
+
+#patient-disengagement .dropout-dashboard__timelineConnector {
+  top: 20px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineDot {
+  width: 30px;
+  height: 30px;
+  font-size: 0.7rem;
+}
+
+#patient-disengagement .dropout-dashboard__timelineLabel {
+  font-size: 0.73rem;
+  line-height: 1.18;
+}
+
+#patient-disengagement .dropout-dashboard__timelineMeta,
+#patient-disengagement .dropout-dashboard__timelineCaption {
+  font-size: 0.67rem;
+  line-height: 1.22;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid,
+#patient-disengagement .dropout-dashboard__timelineMetaGrid {
+  margin-top: 8px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid > div,
+#patient-disengagement .dropout-dashboard__timelineMetaGrid > div {
+  min-height: 46px;
+  padding: 7px 8px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineActions {
+  gap: 6px;
+  margin-top: 9px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineActions .btn {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 0.72rem;
+}
+
+#patient-disengagement .dropout-dashboard__historyBlock {
+  margin-top: 9px;
+  padding: 9px;
+}
+
+#patient-disengagement .dropout-dashboard__historyRows {
+  gap: 5px;
+  margin-top: 6px;
+}
+
+#patient-disengagement .dropout-dashboard__historyRow {
+  gap: 8px;
+  padding-top: 6px;
+}
+
+#patient-disengagement .dropout-dashboard__historyTime,
+#patient-disengagement .dropout-dashboard__historySource {
+  font-size: 0.69rem;
+  line-height: 1.24;
+}
+
+#patient-disengagement .dropout-dashboard__historySummary {
+  font-size: 0.73rem;
+  line-height: 1.3;
+}
+
+#patient-disengagement .dropout-dashboard__legacyContext {
+  margin-top: 8px;
+  padding: 0 10px;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#patient-disengagement .dropout-dashboard__legacyContext summary {
+  min-height: 0;
+  padding: 8px 0;
+  font-size: 0.78rem;
+}
+
+#patient-disengagement .dropout-dashboard__detailedExplainability {
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+#patient-disengagement .dropout-dashboard__detailedHeader {
+  margin-bottom: 8px;
+}
+
+#patient-disengagement .dropout-dashboard__detailedHeader strong {
+  font-size: 0.92rem;
+}
+
+#patient-disengagement .dropout-dashboard__inlineQualifier {
+  font-size: 0.76rem;
+}
+
+#patient-disengagement .dropout-dashboard__detailedExplainability > .info-banner {
+  min-height: 0;
+  margin-bottom: 8px !important;
+  padding: 9px 12px !important;
+  border-radius: 8px !important;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+#patient-disengagement .dropout-dashboard__detailCell {
+  align-content: start;
+  min-height: 0;
+  padding: 10px !important;
+  overflow: hidden;
+}
+
+#patient-disengagement .dropout-dashboard__detailCell--action {
+  min-height: 0;
+}
+
+#patient-disengagement .dropout-dashboard__detailSection {
+  gap: 7px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#patient-disengagement .dropout-dashboard__detailSection h4 {
+  margin-bottom: 5px !important;
+  font-size: 0.82rem !important;
+  line-height: 1.18 !important;
+}
+
+#patient-disengagement .dropout-dashboard__detailSection p,
+#patient-disengagement .dropout-dashboard__detailSection .section-note,
+#patient-disengagement .dropout-card__metric {
+  font-size: 0.74rem;
+  line-height: 1.32;
+}
+
+#patient-disengagement .dropout-card__metric {
+  margin-top: 3px;
+  color: #4e6680;
+}
+
+#patient-disengagement .dropout-dashboard__detailSection a,
+#patient-disengagement .dropout-dashboard__detailSection button {
+  margin-top: 4px;
+}
+
+#patient-disengagement .dropout-dashboard__statusHeader {
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+#patient-disengagement .dropout-dashboard__statusHeader strong {
+  font-size: 0.82rem;
+}
+
+#patient-disengagement .dropout-dashboard__statusBadge,
+#patient-disengagement .dropout-card__bucket,
+#patient-disengagement .metric-pill {
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 0.68rem;
+}
+
+@media (max-width: 1440px) {
+  #patient-disengagement .dropout-dashboard__a2Layout {
+    grid-template-columns: minmax(292px, 30%) minmax(0, 70%) !important;
+  }
+
+  #patient-disengagement .dropout-dashboard__highlightGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  #patient-disengagement .dropout-dashboard__highlightTitle strong,
+  #patient-disengagement .dropout-dashboard__sectionTitle strong {
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 1180px) {
+  #patient-disengagement .dropout-dashboard__highlightGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Patient Disengagement viewport stability fixes: prevent zoom-return distortion and horizontal overflow. */
+#patient-disengagement .dropout-dashboard__a2Layout {
+  align-items: stretch !important;
+  overflow-x: clip;
+}
+
+#patient-disengagement .dropout-dashboard__queuePanel {
+  position: relative !important;
+  display: grid !important;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  align-self: stretch;
+  top: auto !important;
+  height: 100% !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+#patient-disengagement .dropout-dashboard__queueList {
+  min-height: 0;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+#patient-disengagement .dropout-dashboard__queueRow {
+  min-height: 114px;
+  align-content: start;
+}
+
+#patient-disengagement .dropout-dashboard__workspacePanel,
+#patient-disengagement .dropout-dashboard__timelineCard,
+#patient-disengagement .dropout-dashboard__timelineRail,
+#patient-disengagement .dropout-dashboard__historyBlock,
+#patient-disengagement .dropout-dashboard__detailedExplainability {
+  overflow-x: hidden;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid > div,
+#patient-disengagement .dropout-dashboard__timelineMetaGrid > div,
+#patient-disengagement .dropout-dashboard__historyRow > div {
+  min-width: 0;
+}
+
+#patient-disengagement .dropout-dashboard__historyRow {
+  grid-template-columns: minmax(116px, 148px) minmax(0, 1fr) minmax(96px, 132px);
+}
+
+#patient-disengagement .dropout-dashboard__historySummary,
+#patient-disengagement .dropout-dashboard__historySource {
+  overflow-wrap: anywhere;
+}
+
+#patient-disengagement .dropout-dashboard__metric:has(.dropout-dashboard__metricMetaPrimary) {
+  grid-template-columns: minmax(0, 1fr) minmax(118px, 0.84fr);
+}
+
+#patient-disengagement .dropout-dashboard__metric .dropout-dashboard__metricMeta {
+  min-width: 118px;
+  padding-left: 12px;
+  gap: 2px;
+}
+
+#patient-disengagement .dropout-dashboard__metric .dropout-dashboard__metricMetaTitle,
+#patient-disengagement .dropout-dashboard__metric .dropout-dashboard__metricMetaSecondary {
+  font-size: 0.72rem;
+  line-height: 1.18;
+}
+
+#patient-disengagement .dropout-dashboard__metric .dropout-dashboard__metricMetaTitle {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+
+#patient-disengagement .dropout-dashboard__metric .dropout-dashboard__metricMetaPrimary {
+  color: var(--dropout-navy);
+  font-size: 0.82rem;
+  line-height: 1.14;
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+#patient-disengagement .dropout-dashboard__metric .dropout-dashboard__metricMetaSecondary {
+  white-space: nowrap;
+}
+
+@media (max-width: 1320px) {
+  #patient-disengagement .dropout-dashboard__historyRow {
+    grid-template-columns: minmax(104px, 136px) minmax(0, 1fr) minmax(84px, 120px);
+  }
+}
+
+@media (max-width: 1280px) {
+  #patient-disengagement .dropout-dashboard__a2Layout {
+    align-items: start !important;
+  }
+
+  #patient-disengagement .dropout-dashboard__queuePanel {
+    height: auto !important;
+  }
+}
+
+/* Intervention Case Timeline target structure. */
+#patient-disengagement .dropout-dashboard__timelineCard {
+  margin-top: 10px;
+  padding: 18px 18px 16px !important;
+  border: 1px solid #dbe6f2 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(18, 48, 78, 0.055) !important;
+  overflow: hidden;
+}
+
+#patient-disengagement .dropout-dashboard__timelineCard .dropout-dashboard__cardHeader {
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineCard .dropout-dashboard__cardHeader strong {
+  color: #0d2e51 !important;
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+#patient-disengagement .dropout-dashboard__timelineCard > .metric-pill {
+  flex: 0 0 auto;
+}
+
+#patient-disengagement .dropout-dashboard__timelineRail {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  align-items: start;
+  margin: 0;
+  padding: 4px 8px 18px;
+  overflow: visible;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  text-align: center;
+}
+
+#patient-disengagement .dropout-dashboard__timelineConnector {
+  position: absolute;
+  top: 20px;
+  left: calc(50% + 24px);
+  width: calc(100% - 48px);
+  height: 4px;
+  border-radius: 999px;
+  background: #a9bfd6;
+  transform: none;
+  z-index: 0;
+}
+
+#patient-disengagement .dropout-dashboard__timelineDot {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 900;
+  box-shadow: 0 0 0 3px #dce9f6, 0 10px 18px rgba(20, 62, 105, 0.12);
+}
+
+#patient-disengagement .dropout-dashboard__timelineDot span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.68);
+  line-height: 1;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--opened .dropout-dashboard__timelineDot {
+  background: #2c9b73;
+  box-shadow: 0 0 0 3px #bfe7d8, 0 10px 18px rgba(33, 128, 94, 0.16);
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--observation .dropout-dashboard__timelineDot,
+#patient-disengagement .dropout-dashboard__timelineStage--action .dropout-dashboard__timelineDot {
+  background: #115d9d;
+  box-shadow: 0 0 0 3px #cadcf0, 0 10px 18px rgba(23, 85, 147, 0.16);
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--response .dropout-dashboard__timelineDot {
+  background: #cf2f28;
+  box-shadow: 0 0 0 3px #f2c8c4, 0 10px 18px rgba(174, 45, 38, 0.14);
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--auto .dropout-dashboard__timelineDot {
+  background: #9ba8b7;
+  box-shadow: 0 0 0 3px #d8e1ec, 0 0 0 7px rgba(183, 197, 214, 0.42);
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--auto.dropout-dashboard__timelineStage--active .dropout-dashboard__timelineDot,
+#patient-disengagement .dropout-dashboard__timelineStage--auto.dropout-dashboard__timelineStage--complete .dropout-dashboard__timelineDot {
+  background: #7f8fa2;
+}
+
+#patient-disengagement .dropout-dashboard__timelineLabel {
+  max-width: 12ch;
+  color: #0f3156;
+  font-size: 0.82rem;
+  line-height: 1.22;
+  font-weight: 900;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--opened .dropout-dashboard__timelineLabel {
+  color: #17835f;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--response .dropout-dashboard__timelineLabel {
+  color: #d02922;
+}
+
+#patient-disengagement .dropout-dashboard__timelineMeta,
+#patient-disengagement .dropout-dashboard__timelineCaption {
+  max-width: 15ch;
+  color: #58708a;
+  font-size: 0.76rem;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 4px;
+  overflow: hidden;
+  border: 1px solid #dfe8f2;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid > div {
+  min-height: 60px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid > div + div {
+  border-left: 1px solid #e2eaf3;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid span,
+#patient-disengagement .dropout-dashboard__timelineMetaGrid span {
+  display: block;
+  color: #667c93;
+  font-size: 0.72rem;
+  line-height: 1.24;
+  font-weight: 700;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStatusGrid strong,
+#patient-disengagement .dropout-dashboard__timelineMetaGrid strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f3156;
+  font-size: 0.86rem;
+  line-height: 1.24;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+#patient-disengagement .dropout-dashboard__timelineMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 26px;
+  margin-top: 18px;
+  padding: 0 6px;
+}
+
+#patient-disengagement .dropout-dashboard__timelineMetaGrid > div {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#patient-disengagement .dropout-dashboard__timelineActions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 0;
+}
+
+#patient-disengagement .dropout-dashboard__timelineActionButton {
+  min-height: 44px;
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px !important;
+  border-color: #cfe0f3 !important;
+  background: #ffffff !important;
+  color: #0b5fa4 !important;
+  font-size: 0.76rem !important;
+  font-weight: 900;
+  box-shadow: none !important;
+}
+
+#patient-disengagement .dropout-dashboard__timelineActionButton.btn-primary {
+  border-color: #0c5ea8 !important;
+  background: #075ca5 !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(7, 92, 165, 0.18) !important;
+}
+
+#patient-disengagement .dropout-dashboard__timelineActionButton--danger {
+  border-color: #f2c7c5 !important;
+  background: #fff7f6 !important;
+  color: #d12e27 !important;
+}
+
+#patient-disengagement .dropout-dashboard__timelineActionIcon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  font-size: 0.66rem;
+  line-height: 1;
+  font-weight: 900;
+  text-transform: lowercase;
+}
+
+#patient-disengagement .dropout-dashboard__timelineCard > .section-note--spaced {
+  margin-top: 12px !important;
+  color: #6e8298;
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
+#patient-disengagement .dropout-dashboard__historyBlock {
+  margin-top: 18px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid #e0e8f1;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#patient-disengagement .dropout-dashboard__historyHeader {
+  margin-bottom: 12px;
+}
+
+#patient-disengagement .dropout-dashboard__historyHeader strong {
+  color: #0d2e51;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+#patient-disengagement .dropout-dashboard__historyHeader .section-note {
+  color: #6d8298;
+  font-size: 0.72rem;
+}
+
+#patient-disengagement .dropout-dashboard__historyRows {
+  display: grid;
+  gap: 0;
+  margin-top: 0;
+}
+
+#patient-disengagement .dropout-dashboard__historyRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr) minmax(170px, 240px);
+  gap: 24px;
+  align-items: start;
+  padding: 6px 0 6px 36px;
+  border-top: 0;
+}
+
+#patient-disengagement .dropout-dashboard__historyRow::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #075ca5;
+  box-shadow: 0 0 0 3px #e5f0fb;
+}
+
+#patient-disengagement .dropout-dashboard__historyTime,
+#patient-disengagement .dropout-dashboard__historySummary,
+#patient-disengagement .dropout-dashboard__historySource {
+  color: #2d4d6e;
+  font-size: 0.76rem;
+  line-height: 1.32;
+  font-weight: 700;
+}
+
+#patient-disengagement .dropout-dashboard__historySource {
+  color: #294765;
+  text-align: left;
+}
+
+#patient-disengagement .dropout-dashboard__historyExpand {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #075ca5;
+  font-size: 0.78rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+#patient-disengagement .dropout-dashboard__historyExpand:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1180px) {
+  #patient-disengagement .dropout-dashboard__timelineStatusGrid,
+  #patient-disengagement .dropout-dashboard__timelineActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #patient-disengagement .dropout-dashboard__timelineStatusGrid > div + div {
+    border-left: 0;
+    border-top: 1px solid #e2eaf3;
+  }
+
+  #patient-disengagement .dropout-dashboard__timelineMetaGrid,
+  #patient-disengagement .dropout-dashboard__historyRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}

@@ -1068,7 +1068,10 @@ function InterventionTimelineSection({
   sectionRef = null,
 }) {
   const stages = buildInterventionTimelineStages(caseEntry || {});
-  const historyRows = (Array.isArray(recentCases) ? recentCases : []).slice(0, 4);
+  const [showFullHistory, setShowFullHistory] = useState(false);
+  const allHistoryRows = Array.isArray(recentCases) ? recentCases : [];
+  const historyRows = (showFullHistory ? allHistoryRows : allHistoryRows.slice(0, 4));
+  const hasMoreHistory = allHistoryRows.length > 4;
 
   return (
     <section ref={sectionRef} className="dropout-dashboard__timelineCard">
@@ -1085,10 +1088,16 @@ function InterventionTimelineSection({
 
       <div className="dropout-dashboard__timelineRail">
         {stages.map((stage, index) => (
-          <div key={stage.key} className={`dropout-dashboard__timelineStage dropout-dashboard__timelineStage--${stage.state}`}>
+          <div
+            key={stage.key}
+            className={`dropout-dashboard__timelineStage dropout-dashboard__timelineStage--${stage.state} dropout-dashboard__timelineStage--${stage.key}`}
+          >
             {index < stages.length - 1 ? <div className="dropout-dashboard__timelineConnector" /> : null}
-            <div className={`dropout-dashboard__timelineDot dropout-dashboard__timelineDot--${stage.tone}`}>
-              {stage.state === 'complete' ? '✓' : index + 1}
+            <div
+              className={`dropout-dashboard__timelineDot dropout-dashboard__timelineDot--${stage.tone}`}
+              aria-label={`${stage.label}: ${formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A')}`}
+            >
+              <span>{stage.state === 'complete' ? '✓' : index + 1}</span>
             </div>
             <div className="dropout-dashboard__timelineLabel">{stage.label}</div>
             <div className="dropout-dashboard__timelineMeta">{formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A')}</div>
@@ -1152,10 +1161,11 @@ function InterventionTimelineSection({
           <button
             key={actionOption.value}
             type="button"
-            className={`btn ${actionValue === actionOption.value ? 'btn-primary' : 'btn-secondary'} btn-small`}
+            className={`btn ${actionValue === actionOption.value ? 'btn-primary' : 'btn-secondary'} btn-small dropout-dashboard__timelineActionButton`}
             disabled={!canMutate || isUpdating}
             onClick={() => onAction(actionOption.value)}
           >
+            <span className="dropout-dashboard__timelineActionIcon" aria-hidden="true">i</span>
             {actionOption.label}
           </button>
         ))}
@@ -1163,19 +1173,21 @@ function InterventionTimelineSection({
           <button
             key={resultOption.value}
             type="button"
-            className={`btn ${resultValue === resultOption.value ? 'btn-primary' : 'btn-secondary'} btn-small`}
+            className={`btn ${resultValue === resultOption.value ? 'btn-primary' : 'btn-secondary'} btn-small dropout-dashboard__timelineActionButton`}
             disabled={!canMutate || isUpdating}
             onClick={() => onResult(resultOption.value)}
           >
+            <span className="dropout-dashboard__timelineActionIcon" aria-hidden="true">i</span>
             {resultOption.label}
           </button>
         ))}
         <button
           type="button"
-          className="btn btn-secondary btn-small"
+          className="btn btn-secondary btn-small dropout-dashboard__timelineActionButton dropout-dashboard__timelineActionButton--danger"
           disabled={!canClose || isUpdating}
           onClick={onClose}
         >
+          <span className="dropout-dashboard__timelineActionIcon" aria-hidden="true">i</span>
           Close case
         </button>
       </div>
@@ -1218,6 +1230,15 @@ function InterventionTimelineSection({
             <div className="section-note">No recent intervention case history is available yet.</div>
           )}
         </div>
+        {hasMoreHistory ? (
+          <button
+            type="button"
+            className="dropout-dashboard__historyExpand"
+            onClick={() => setShowFullHistory((value) => !value)}
+          >
+            {showFullHistory ? 'Show recent case history' : 'View full case timeline'}
+          </button>
+        ) : null}
       </div>
     </section>
   );
@@ -1666,7 +1687,6 @@ export default function DropoutRiskPanel({
   const trendSectionRef = useRef(null);
   const interventionSectionRef = useRef(null);
   const explainabilitySectionRef = useRef(null);
-  const workspacePanelRef = useRef(null);
   const [snapshotRows, setSnapshotRows] = useState([]);
   const [fallbackSnapshotRows, setFallbackSnapshotRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1687,7 +1707,6 @@ export default function DropoutRiskPanel({
   const [interventionCaseError, setInterventionCaseError] = useState('');
   const [isUpdatingInterventionCase, setIsUpdatingInterventionCase] = useState(false);
   const [interventionCaseMutationError, setInterventionCaseMutationError] = useState('');
-  const [queuePanelHeight, setQueuePanelHeight] = useState(null);
 
   const loadedUserIds = useMemo(() => patients.map((patient) => patient.id).filter(Boolean), [patients]);
   const loadedUserSignature = useMemo(() => loadedUserIds.join('|'), [loadedUserIds]);
@@ -1786,35 +1805,6 @@ export default function DropoutRiskPanel({
     () => buildRecentPublishTrendData(recentPublishHistory, activeEntry),
     [activeEntry, recentPublishHistory]
   );
-
-  useEffect(() => {
-    const node = workspacePanelRef.current;
-    if (!node || typeof window === 'undefined') return undefined;
-
-    const syncQueueHeight = () => {
-      const nextHeight = Math.ceil(node.getBoundingClientRect().height);
-      if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
-      setQueuePanelHeight((currentHeight) => (
-        Math.abs((currentHeight || 0) - nextHeight) > 1 ? nextHeight : currentHeight
-      ));
-    };
-
-    syncQueueHeight();
-    window.addEventListener('resize', syncQueueHeight);
-
-    let resizeObserver = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(syncQueueHeight);
-      resizeObserver.observe(node);
-    }
-
-    return () => {
-      window.removeEventListener('resize', syncQueueHeight);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-    };
-  }, [activeEntry?.userId]);
 
   useEffect(() => {
     if (!activeEntry?.userId) {
@@ -2280,10 +2270,6 @@ export default function DropoutRiskPanel({
     : activeExplainabilityReady
       ? 'No missing-input issues were reported for the current snapshot.'
       : 'Loading explainability summary...';
-  const queuePanelStyle = queuePanelHeight
-    ? { '--dropout-queue-panel-height': `${queuePanelHeight}px` }
-    : undefined;
-
   const content = (() => {
     if (error) {
       return (
@@ -2342,7 +2328,7 @@ export default function DropoutRiskPanel({
         </div>
 
         <div className="dropout-dashboard__a2Layout">
-          <aside className="dropout-dashboard__queuePanel" style={queuePanelStyle}>
+          <aside className="dropout-dashboard__queuePanel">
             <div className="dropout-dashboard__queueHeader">
               <div>
                 <h4 className="mt-0">Risk-ranked patient queue</h4>
@@ -2409,7 +2395,7 @@ export default function DropoutRiskPanel({
             </div>
           </aside>
 
-          <section className="dropout-dashboard__workspacePanel" ref={workspacePanelRef}>
+          <section className="dropout-dashboard__workspacePanel">
             {activeEntry ? (
               <>
                 <div className="dropout-dashboard__briefTopRow">
