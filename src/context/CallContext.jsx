@@ -53,6 +53,7 @@ export const CallProvider = ({ children }) => {
   const otherUserIdRef = useRef(null);
   const callTypeRef = useRef('audio');
   const prevStatusRef = useRef('idle');
+  const playEndedSoundRef = useRef(false);
 
   const answerRef = useRef(new Audio('/sounds/answered.mp3'));
   const endedRef = useRef(new Audio('/sounds/ended.mp3'));
@@ -119,6 +120,7 @@ export const CallProvider = ({ children }) => {
       const data = snapshot.data();
       if (!data || data.status === 'ended') {
         if (statusRef.current !== 'idle') {
+          playEndedSoundRef.current = true;
           disconnectLiveKitRoom();
           resetCallControls(false);
           updateStatus('idle');
@@ -225,6 +227,7 @@ export const CallProvider = ({ children }) => {
     clearCallDocListener();
     await disconnectLiveKitRoom();
     resetCallControls(false);
+    playEndedSoundRef.current = true;
     updateStatus('idle');
 
     const currentCallDocId = callDocIdRef.current || callDocId;
@@ -296,7 +299,10 @@ export const CallProvider = ({ children }) => {
     if (curr === 'active' && prev !== 'active') {
       playSound(answerRef);
     } else if (curr === 'idle' && prev !== 'idle') {
-      playSound(endedRef);
+      if (playEndedSoundRef.current) {
+        playSound(endedRef);
+      }
+      playEndedSoundRef.current = false;
     }
 
     prevStatusRef.current = curr;
