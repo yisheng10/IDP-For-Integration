@@ -125,6 +125,20 @@ export const CallProvider = ({ children }) => {
           resetCallControls(false);
           updateStatus('idle');
         }
+        const cleanupIds = [
+          auth.currentUser?.uid,
+          user?.uid,
+          data?.callerId,
+          data?.calleeId,
+          otherUserIdRef.current,
+        ].filter(Boolean);
+        Promise.all(
+          [...new Set(cleanupIds)].map((uid) => deleteDoc(doc(db, 'users', uid, 'active_call', 'current')).catch(() => {}))
+        );
+        callDocIdRef.current = null;
+        otherUserIdRef.current = null;
+        setCallDocId(null);
+        setOtherUserName('');
         return;
       }
 
@@ -138,7 +152,7 @@ export const CallProvider = ({ children }) => {
         updateStatus('active');
       }
     });
-  }, [clearCallDocListener, disconnectLiveKitRoom, resetCallControls, updateStatus]);
+  }, [clearCallDocListener, disconnectLiveKitRoom, resetCallControls, updateStatus, user]);
 
   const connectLiveKitRoom = useCallback(async ({ nextCallDocId, displayName, isVideo, activateOnConnect = false }) => {
     await disconnectLiveKitRoom();

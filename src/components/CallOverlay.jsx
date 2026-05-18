@@ -12,6 +12,7 @@ const formatDuration = (seconds) => {
 const Icon = ({ name, size = 24, rotate = false }) => {
   const paths = {
     chevronDown: 'M7 10l5 5 5-5',
+    chevronUp: 'M7 14l5-5 5 5',
     call: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.6a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.48-1.2a2 2 0 0 1 2.11-.45c.83.3 1.7.51 2.6.63A2 2 0 0 1 22 16.92z',
     mic: 'M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z M19 10v1a7 7 0 0 1-14 0v-1 M12 18v4 M8 22h8',
     micOff: 'M2 2l20 20 M9 9v2a3 3 0 0 0 5.12 2.12 M15 9.34V5a3 3 0 0 0-5.94-.6 M17 10v1a6.97 6.97 0 0 1-1.6 4.45 M5 10v1a7 7 0 0 0 10.3 6.18 M12 18v4 M8 22h8',
@@ -277,7 +278,15 @@ const CallOverlay = () => {
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
       >
-        <button type="button" onClick={() => setIsMinimized(true)} style={styles.topButton} aria-label="Minimize call">
+        <button
+          type="button"
+          onClick={() => {
+            setShowSettings(false);
+            setIsMinimized(true);
+          }}
+          style={styles.topButton}
+          aria-label="Minimize call"
+        >
           <Icon name="chevronDown" size={23} />
         </button>
         <div style={styles.identityBlock}>
@@ -301,7 +310,12 @@ const CallOverlay = () => {
       </div>
 
       <div style={styles.bottomDock}>
-        <CallButton icon="chevronDown" label="Minimize call" onClick={() => setIsMinimized(true)} off />
+        <CallButton
+          icon="chevronUp"
+          label={showSettings ? 'Hide call settings' : 'Show call settings'}
+          onClick={() => setShowSettings((current) => !current)}
+          off={showSettings}
+        />
         <CallButton
           icon={isCameraEnabled ? 'video' : 'videoOff'}
           label={isCameraEnabled ? 'Turn camera off' : 'Turn camera on'}
@@ -322,10 +336,6 @@ const CallOverlay = () => {
         />
         <CallButton icon="call" label="End call" onClick={() => endCall(true)} danger rotate />
       </div>
-
-      <button type="button" onClick={() => setShowSettings((current) => !current)} style={styles.settingsButton} aria-label="Call settings">
-        <Icon name="settings" size={19} />
-      </button>
 
       {showSettings ? (
         <div style={styles.settingsPanel}>
@@ -582,32 +592,19 @@ const styles = {
     opacity: 0,
     transition: 'opacity 180ms ease',
   },
-  settingsButton: {
-    position: 'absolute',
-    top: '18px',
-    right: '18px',
-    width: '42px',
-    height: '42px',
-    borderRadius: '21px',
-    border: '0',
-    background: 'rgba(5,5,5,0.34)',
-    color: '#fff',
-    display: 'grid',
-    placeItems: 'center',
-    cursor: 'pointer',
-  },
   settingsPanel: {
     position: 'absolute',
-    top: '66px',
-    right: '16px',
-    width: '245px',
-    padding: '14px',
-    borderRadius: '16px',
+    left: '22px',
+    right: '22px',
+    bottom: '108px',
+    padding: '16px',
+    borderRadius: '22px',
     background: '#fff',
     color: '#17201f',
     boxShadow: '0 18px 42px rgba(0,0,0,0.28)',
     display: 'grid',
     gap: '12px',
+    zIndex: 2,
   },
   settingsTitle: {
     fontWeight: 800,
