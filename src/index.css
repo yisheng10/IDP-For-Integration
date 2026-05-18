@@ -11007,3 +11007,60 @@ body {
     gap: 8px;
   }
 }
+
+/* Intervention timeline fine tuning: aligned stage text, no duplicate auto due date, stable queue scroll. */
+#patient-disengagement .dropout-dashboard__timelineLabel {
+  min-height: 2.55em;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--opened .dropout-dashboard__timelineLabel,
+#patient-disengagement .dropout-dashboard__timelineStage--response .dropout-dashboard__timelineLabel {
+  align-items: center;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--response .dropout-dashboard__timelineLabel {
+  max-width: none;
+  white-space: nowrap;
+}
+
+#patient-disengagement .dropout-dashboard__timelineMeta,
+#patient-disengagement .dropout-dashboard__timelineCaption {
+  min-height: 2.6em;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--auto .dropout-dashboard__timelineCaption {
+  max-width: 13ch;
+}
+
+#patient-disengagement .dropout-dashboard__queuePanel {
+  overflow: hidden !important;
+}
+
+#patient-disengagement .dropout-dashboard__queueList {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-gutter: stable;
+  padding-bottom: 6px;
+}
+
+#patient-disengagement .dropout-dashboard__queueBadges {
+  justify-content: flex-end;
+}
+
+@media (min-width: 981px) {
+  #patient-disengagement .dropout-dashboard__a2Layout {
+    align-items: stretch !important;
+  }
+
+  #patient-disengagement .dropout-dashboard__queuePanel {
+    align-self: stretch;
+    height: 100% !important;
+    max-height: none !important;
+  }
+}

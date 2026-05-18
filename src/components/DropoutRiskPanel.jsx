@@ -1086,24 +1086,29 @@ function InterventionTimelineSection({
         </span>
       </div>
 
-      <div className="dropout-dashboard__timelineRail">
-        {stages.map((stage, index) => (
-          <div
-            key={stage.key}
-            className={`dropout-dashboard__timelineStage dropout-dashboard__timelineStage--${stage.state} dropout-dashboard__timelineStage--${stage.key}`}
-          >
-            {index < stages.length - 1 ? <div className="dropout-dashboard__timelineConnector" /> : null}
+        <div className="dropout-dashboard__timelineRail">
+        {stages.map((stage, index) => {
+          const timestampLabel = formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A');
+          const shouldShowTimestamp = !(stage.key === 'auto' && stage.caption);
+          const stageAccessibleLabel = [stage.label, shouldShowTimestamp ? timestampLabel : '', stage.caption].filter(Boolean).join(', ');
+          return (
             <div
-              className={`dropout-dashboard__timelineDot dropout-dashboard__timelineDot--${stage.tone}`}
-              aria-label={`${stage.label}: ${formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A')}`}
+              key={stage.key}
+              className={`dropout-dashboard__timelineStage dropout-dashboard__timelineStage--${stage.state} dropout-dashboard__timelineStage--${stage.key}`}
             >
-              <span>{stage.state === 'complete' ? '✓' : index + 1}</span>
+              {index < stages.length - 1 ? <div className="dropout-dashboard__timelineConnector" /> : null}
+              <div
+                className={`dropout-dashboard__timelineDot dropout-dashboard__timelineDot--${stage.tone}`}
+                aria-label={stageAccessibleLabel}
+              >
+                <span>{stage.state === 'complete' ? '✓' : index + 1}</span>
+              </div>
+              <div className="dropout-dashboard__timelineLabel">{stage.label}</div>
+              {shouldShowTimestamp ? <div className="dropout-dashboard__timelineMeta">{timestampLabel}</div> : null}
+              {stage.caption ? <div className="dropout-dashboard__timelineCaption">{stage.caption}</div> : null}
             </div>
-            <div className="dropout-dashboard__timelineLabel">{stage.label}</div>
-            <div className="dropout-dashboard__timelineMeta">{formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A')}</div>
-            {stage.caption ? <div className="dropout-dashboard__timelineCaption">{stage.caption}</div> : null}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="dropout-dashboard__timelineStatusGrid">
@@ -1244,15 +1249,6 @@ function InterventionTimelineSection({
   );
 }
 
-function RecentPublishQueueTrendBadge({ direction = '' }) {
-  if (!direction || direction === 'building') return null;
-  return (
-    <span className={`metric-pill metric-pill--${getTrendDirectionTone(direction)}`}>
-      {formatRecentTrendDirectionLabel(direction)}
-    </span>
-  );
-}
-
 function CurrentRiskBriefCard({ entry, trendData, onOpenPatient, canOpenPatient }) {
   const delta = trendData?.latestDelta ?? null;
   const trendDirection = trendData?.trendDirection || 'building';
@@ -1322,7 +1318,7 @@ function ModelContractBriefCard({ entry }) {
   );
 }
 
-function QueueRow({ entry, rank, isSelected, onSelect, trendDirection = '' }) {
+function QueueRow({ entry, rank, isSelected, onSelect }) {
   return (
     <button
       type="button"
@@ -1340,7 +1336,6 @@ function QueueRow({ entry, rank, isSelected, onSelect, trendDirection = '' }) {
             <span className={`dropout-card__bucket dropout-card__bucket--${String(entry?.risk_bucket || 'low').toLowerCase()}`}>
               {renderSnapshotStateLabel(entry)}
             </span>
-            <RecentPublishQueueTrendBadge direction={trendDirection} />
           </div>
         </div>
         <div className="dropout-dashboard__queueStats">
@@ -2372,7 +2367,6 @@ export default function DropoutRiskPanel({
                       entry={entry}
                       rank={absoluteRank}
                       isSelected={isSelected}
-                      trendDirection={isSelected ? activeTrendData?.trendDirection : ''}
                       onSelect={() => setSelectedUserId(entry.userId)}
                     />
                   );
