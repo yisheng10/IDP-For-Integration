@@ -111,9 +111,17 @@ const CallOverlay = () => {
   useEffect(() => {
     const ringtone = ringtoneRef.current;
     const ringback = ringbackRef.current;
-    ringtoneRef.current.loop = true;
-    ringbackRef.current.loop = true;
+    const restartLoop = (event) => {
+      event.currentTarget.currentTime = 0;
+      event.currentTarget.play().catch((error) => console.warn('Audio loop restart blocked:', error));
+    };
+    ringtone.loop = true;
+    ringback.loop = true;
+    ringtone.addEventListener('ended', restartLoop);
+    ringback.addEventListener('ended', restartLoop);
     return () => {
+      ringtone.removeEventListener('ended', restartLoop);
+      ringback.removeEventListener('ended', restartLoop);
       ringtone.pause();
       ringback.pause();
     };
