@@ -539,11 +539,113 @@ function MetricCard({
   );
 }
 
+function DashboardIcon({ type = 'info' }) {
+  const commonProps = {
+    width: '16',
+    height: '16',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': 'true',
+  };
+
+  if (type === 'trend') {
+    return (
+      <svg {...commonProps}>
+        <path d="M3 17l6-6 4 4 8-9" />
+        <path d="M14 6h7v7" />
+      </svg>
+    );
+  }
+  if (type === 'target') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </svg>
+    );
+  }
+  if (type === 'shield') {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z" />
+        <path d="M9 12l2 2 4-5" />
+      </svg>
+    );
+  }
+  if (type === 'alert') {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+        <path d="M10.3 4.3L2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" />
+      </svg>
+    );
+  }
+  if (type === 'spark') {
+    return (
+      <svg {...commonProps}>
+        <path d="M13 2L4 14h7l-1 8 10-13h-7l0-7z" />
+      </svg>
+    );
+  }
+  if (type === 'link') {
+    return (
+      <svg {...commonProps}>
+        <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+        <path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1" />
+      </svg>
+    );
+  }
+  if (type === 'database') {
+    return (
+      <svg {...commonProps}>
+        <ellipse cx="12" cy="5" rx="7" ry="3" />
+        <path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5" />
+        <path d="M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...commonProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8h.01M11 12h1v5h1" />
+    </svg>
+  );
+}
+
+function getExplainabilityIcon(title = '') {
+  const normalized = String(title || '').toLowerCase();
+  if (normalized.includes('risk change')) return 'trend';
+  if (normalized.includes('why')) return 'target';
+  if (normalized.includes('challenger') || normalized.includes('model')) return 'shield';
+  if (normalized.includes('data') || normalized.includes('missing') || normalized.includes('source')) return 'database';
+  if (normalized.includes('reduce') || normalized.includes('what-if')) return 'spark';
+  if (normalized.includes('stability') || normalized.includes('confidence')) return 'shield';
+  return 'info';
+}
+
+function SectionTitle({ title, icon = 'info' }) {
+  return (
+    <div className="dropout-dashboard__sectionTitle">
+      <span className="dropout-dashboard__panelIcon">
+        <DashboardIcon type={icon} />
+      </span>
+      <strong>{title}</strong>
+    </div>
+  );
+}
+
 function DetailSection({ title, items, emptyLabel }) {
+  const icon = getExplainabilityIcon(title);
   if (!items.length) {
     return (
       <div className="dropout-dashboard__detailSection">
-        <strong>{title}</strong>
+        <SectionTitle title={title} icon={icon} />
         <div className="section-note">{emptyLabel}</div>
       </div>
     );
@@ -551,7 +653,7 @@ function DetailSection({ title, items, emptyLabel }) {
 
   return (
     <div className="dropout-dashboard__detailSection">
-      <strong>{title}</strong>
+      <SectionTitle title={title} icon={icon} />
       <ul className="dropout-dashboard__detailList">
         {items.map((item) => (
           <li key={`${title}-${item}`}>{item}</li>
@@ -568,10 +670,11 @@ function formatStatusLabel(status) {
 }
 
 function StatusSummarySection({ title, status, summary, emptyLabel }) {
+  const icon = getExplainabilityIcon(title);
   if (!summary) {
     return (
       <div className="dropout-dashboard__detailSection">
-        <strong>{title}</strong>
+        <SectionTitle title={title} icon={icon} />
         <div className="section-note">{emptyLabel}</div>
       </div>
     );
@@ -580,7 +683,7 @@ function StatusSummarySection({ title, status, summary, emptyLabel }) {
   return (
     <div className="dropout-dashboard__detailSection">
       <div className="dropout-dashboard__statusHeader">
-        <strong>{title}</strong>
+        <SectionTitle title={title} icon={icon} />
         <span className={`dropout-dashboard__statusBadge dropout-dashboard__statusBadge--${String(status || 'unavailable').toLowerCase()}`}>
           {formatStatusLabel(status)}
         </span>
@@ -604,7 +707,7 @@ function RiskChangeSection({
     return (
       <div className="dropout-dashboard__detailSection">
         <div className="dropout-dashboard__statusHeader">
-          <strong>Risk change since last publish</strong>
+          <SectionTitle title="Risk change since last publish" icon="trend" />
           <span className="metric-pill">No prior publish</span>
         </div>
         <div className="section-note">
@@ -617,7 +720,7 @@ function RiskChangeSection({
   return (
     <div className="dropout-dashboard__detailSection">
       <div className="dropout-dashboard__statusHeader">
-        <strong>Risk change since last publish</strong>
+        <SectionTitle title="Risk change since last publish" icon="trend" />
         <span className={`metric-pill metric-pill--${getRiskChangeDirectionTone(direction)}`}>
           {formatRiskChangeDirectionLabel(direction)}
         </span>
@@ -819,6 +922,8 @@ function HighlightSummaryCard({
   title,
   badge = '',
   badgeTone = 'default',
+  icon = 'info',
+  accent = 'default',
   summary = '',
   items = [],
   ctaLabel = '',
@@ -827,9 +932,14 @@ function HighlightSummaryCard({
   const visibleItems = truncateSignalItems(items, 2);
 
   return (
-    <div className="dropout-dashboard__highlightCard">
+    <div className={`dropout-dashboard__highlightCard dropout-dashboard__highlightCard--${accent}`}>
       <div className="dropout-dashboard__highlightHeader">
-        <strong>{title}</strong>
+        <div className="dropout-dashboard__highlightTitle">
+          <span className="dropout-dashboard__panelIcon">
+            <DashboardIcon type={icon} />
+          </span>
+          <strong>{title}</strong>
+        </div>
         {badge ? <span className={`metric-pill metric-pill--${badgeTone}`}>{badge}</span> : null}
       </div>
       {summary ? <div className="dropout-dashboard__highlightSummary">{summary}</div> : null}
@@ -1215,11 +1325,11 @@ function QueueRow({ entry, rank, isSelected, onSelect, trendDirection = '' }) {
         <div className="dropout-dashboard__queueStats">
           <div>
             <span>Risk probability</span>
-            <strong>{formatSnapshotProbabilityPercent(entry)}</strong>
+            <strong className="dropout-dashboard__queueProbability">{formatSnapshotProbabilityPercent(entry)}</strong>
           </div>
           <div>
             <span>Recommended action</span>
-            <strong>{formatRecommendedAction(entry)}</strong>
+            <strong className="dropout-dashboard__queueAction">{formatRecommendedAction(entry)}</strong>
           </div>
         </div>
         <div className="dropout-dashboard__queueFoot">
@@ -1250,7 +1360,7 @@ function deriveDataGapTone(items = []) {
 
 function getDetailedGridClassName(index) {
   if (index < 4) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--quarter';
-  if (index < 6) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--half';
+  if (index < 6) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--half dropout-dashboard__detailCell--action';
   if (index < 9) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--third';
   return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--third';
 }
@@ -2315,6 +2425,8 @@ export default function DropoutRiskPanel({
                 <div className="dropout-dashboard__highlightGrid">
                   <HighlightSummaryCard
                     title="Risk change since last publish"
+                    icon="trend"
+                    accent="trend"
                     badge={explainabilityRiskChangeSummary ? formatRiskChangeDirectionLabel(activeExplainabilityPayload?.risk_change_direction) : 'Pending'}
                     badgeTone={getRiskChangeDirectionTone(activeExplainabilityPayload?.risk_change_direction)}
                     summary={riskChangeHighlightSummary}
@@ -2324,6 +2436,8 @@ export default function DropoutRiskPanel({
                   />
                   <HighlightSummaryCard
                     title="Why flagged"
+                    icon="target"
+                    accent="flagged"
                     items={explainabilityWhyFlagged}
                     summary={whyFlaggedHighlightSummary}
                     ctaLabel="View details"
@@ -2331,6 +2445,8 @@ export default function DropoutRiskPanel({
                   />
                   <HighlightSummaryCard
                     title="Challenger cross-check"
+                    icon="shield"
+                    accent="model"
                     badge={formatHighlightBadgeText(challengerHighlightStatus)}
                     badgeTone={challengerHighlightStatus ? (String(challengerHighlightStatus).toLowerCase() === 'aligned' ? 'success' : 'default') : 'default'}
                     summary={challengerHighlightSummary}
@@ -2340,6 +2456,8 @@ export default function DropoutRiskPanel({
                   />
                   <HighlightSummaryCard
                     title="Data gaps affecting confidence"
+                    icon="database"
+                    accent="data"
                     badge={deriveDataGapBadge(explainabilityMissingInputs)}
                     badgeTone={deriveDataGapTone(explainabilityMissingInputs)}
                     summary={dataGapHighlightSummary}
