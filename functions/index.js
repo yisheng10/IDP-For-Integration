@@ -42,6 +42,7 @@ const db = admin.firestore();
 const WEB_PUSH_PUBLIC_KEY = process.env.WEB_PUSH_PUBLIC_KEY || '';
 const WEB_PUSH_PRIVATE_KEY = process.env.WEB_PUSH_PRIVATE_KEY || '';
 const WEB_PUSH_CONTACT_EMAIL = process.env.WEB_PUSH_CONTACT_EMAIL || '';
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 if (WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY && WEB_PUSH_CONTACT_EMAIL) {
   webpush.setVapidDetails(
@@ -77,6 +78,133 @@ async function markPushAttempt(ref, signature, count) {
     { merge: true }
   );
 }
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function buildIncomingCallSignature(activeCall) {
+  return `${activeCall?.callId || 'unknown'}:${activeCall?.callerId || 'unknown'}:${activeCall?.callType || 'audio'}`;
+}
+
+async function sendExpoPushMessages(messages) {
+  if (!messages.length) return [];
+
+  const responses = [];
+  for (const chunk of chunkArray(messages, 100)) {
+    const response = await fetch(EXPO_PUSH_URL, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(chunk),
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.errors?.[0]?.message || `Expo push failed with status ${response.status}.`);
+    }
+    responses.push(payload);
+  }
+
+  return responses;
+}
+
+export const sendIncomingCallPushNotification = onDocumentWritten(
+  'users/{userId}/active_call/current',
+  async (event) => {
+    const afterSnapshot = event.data.after;
+    if (!afterSnapshot.exists) {
+      return;
+    }
+
+    const activeCall = afterSnapshot.data() || {};
+    if (activeCall.type !== 'offer' || !activeCall.callId || !activeCall.callerId) {
+      return;
+    }
+
+    const signature = buildIncomingCallSignature(activeCall);
+    if (activeCall.notification_state?.last_push_signature === signature) {
+      return;
+    }
+
+    const tokenSnapshot = await db
+      .collection('users')
+      .doc(event.params.userId)
+      .collection('expo_push_tokens')
+      .get();
+
+    if (tokenSnapshot.empty) {
+      await afterSnapshot.ref.set(
+        {
+          notification_state: {
+            last_push_signature: signature,
+            last_push_attempt_at: new Date().toISOString(),
+            last_push_recipient_count: 0,
+          },
+        },
+        { merge: true }
+      );
+      return;
+    }
+
+    const callerName = String(activeCall.callerName || 'TrialLight CRC').trim();
+    const isVideo = activeCall.callType === 'video';
+    const messages = tokenSnapshot.docs
+      .map((tokenDoc) => String(tokenDoc.get('token') || '').trim())
+      .filter((token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
+      .map((token) => ({
+        to: token,
+        sound: 'default',
+        priority: 'high',
+        channelId: 'incoming-calls',
+        title: isVideo ? 'Incoming TrialLight video call' : 'Incoming TrialLight call',
+        body: `${callerName} is calling you.`,
+        data: {
+          type: 'incoming-call',
+          callId: activeCall.callId,
+          callerId: activeCall.callerId,
+          callerName,
+          callType: activeCall.callType || 'audio',
+          signalingMode: activeCall.signalingMode || 'livekit',
+          livekitRoomName: activeCall.livekitRoomName || null,
+        },
+      }));
+
+    try {
+      await sendExpoPushMessages(messages);
+      await afterSnapshot.ref.set(
+        {
+          notification_state: {
+            last_push_signature: signature,
+            last_push_attempt_at: new Date().toISOString(),
+            last_push_recipient_count: messages.length,
+          },
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('Incoming call push delivery failed:', error);
+      await afterSnapshot.ref.set(
+        {
+          notification_state: {
+            last_push_signature: signature,
+            last_push_attempt_at: new Date().toISOString(),
+            last_push_recipient_count: 0,
+            last_push_error: error?.message || 'Expo push delivery failed.',
+          },
+        },
+        { merge: true }
+      );
+    }
+  }
+);
 
 export const sendIncidentPushNotifications = onDocumentWritten(
   'incident_records/{incidentId}',
