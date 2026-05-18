@@ -6,7 +6,10 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  query,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
@@ -27,6 +30,69 @@ function streamFromTracks(tracks) {
 
 function getDisplayName(currentUser, fallback = 'TrialLight user') {
   return currentUser?.displayName || currentUser?.email?.split('@')[0] || fallback;
+}
+
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const INCOMING_CALL_CATEGORY_ID = 'incoming-call';
+
+async function sendIncomingCallPushFallback({
+  calleeId,
+  callDocId,
+  callerId,
+  callerName,
+  callType,
+  livekitRoomName = null,
+}) {
+  if (!calleeId || !callDocId || !callerId) return;
+
+  const tokenQuery = query(
+    collection(db, 'users', calleeId, 'expo_push_tokens'),
+    limit(20)
+  );
+  const tokenSnapshot = await getDocs(tokenQuery);
+  const tokens = tokenSnapshot.docs
+    .map((tokenDoc) => String(tokenDoc.get('token') || '').trim())
+    .filter((token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['));
+
+  if (!tokens.length) {
+    console.warn(`No Expo push tokens found for patient ${calleeId}. Open the patient app once to register notifications.`);
+    return;
+  }
+
+  const isVideo = callType === 'video';
+  const messages = tokens.map((token) => ({
+    to: token,
+    sound: 'default',
+    priority: 'high',
+    channelId: 'incoming-calls',
+    categoryId: INCOMING_CALL_CATEGORY_ID,
+    title: isVideo ? 'Incoming TrialLight video call' : 'Incoming TrialLight call',
+    body: `${callerName || 'TrialLight CRC'} is calling you.`,
+    data: {
+      type: 'incoming-call',
+      callId: callDocId,
+      callerId,
+      callerName: callerName || 'TrialLight CRC',
+      callType: callType || 'audio',
+      signalingMode: 'livekit',
+      livekitRoomName,
+    },
+  }));
+
+  const response = await fetch(EXPO_PUSH_URL, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip, deflate',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(messages),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.errors?.[0]?.message || `Expo push failed with status ${response.status}.`);
+  }
 }
 
 export const CallProvider = ({ children }) => {
@@ -430,6 +496,29 @@ export const CallProvider = ({ children }) => {
       await setDoc(activeCallRef, {
         livekitRoomName: liveKitSession.roomName,
       }, { merge: true });
+
+      window.setTimeout(() => {
+        getDoc(activeCallRef)
+          .then((activeCallSnapshot) => {
+            const notificationState = activeCallSnapshot.data()?.notification_state || {};
+            const serverPushAlreadySent =
+              String(notificationState.last_push_signature || '').includes(callDocRef.id) &&
+              Number(notificationState.last_push_recipient_count || 0) > 0;
+            if (serverPushAlreadySent) return null;
+
+            return sendIncomingCallPushFallback({
+              calleeId,
+              callDocId: callDocRef.id,
+              callerId: currentUser.uid,
+              callerName,
+              callType: nextCallType,
+              livekitRoomName: liveKitSession.roomName,
+            });
+          })
+          .catch((error) => {
+            console.warn('CRC incoming call push fallback failed:', error?.message || error);
+          });
+      }, 1500);
     } catch (error) {
       await updateDoc(callDocRef, {
         status: 'ended',
