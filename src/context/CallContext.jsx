@@ -1,23 +1,42 @@
+import { Room, RoomEvent, Track } from 'livekit-client';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { db, auth } from '../firebase';
-import { 
-  collection, addDoc, onSnapshot, doc, updateDoc, setDoc, deleteDoc, getDoc 
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  setDoc,
+  updateDoc,
 } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { fetchLiveKitCallToken } from '../services/liveKitCallService';
 
+/* eslint-disable react-refresh/only-export-components */
 const CallContext = createContext();
 
 export const useCall = () => useContext(CallContext);
 
+function streamFromTracks(tracks) {
+  const mediaTracks = tracks
+    .map((track) => track?.mediaStreamTrack)
+    .filter(Boolean);
+  return mediaTracks.length ? new MediaStream(mediaTracks) : null;
+}
+
+function getDisplayName(currentUser, fallback = 'TrialLight user') {
+  return currentUser?.displayName || currentUser?.email?.split('@')[0] || fallback;
+}
+
 export const CallProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [callStatus, setCallStatus] = useState('idle'); 
-  const [callType, setCallType] = useState('audio'); 
+  const [callStatus, setCallStatus] = useState('idle');
+  const [callType, setCallType] = useState('audio');
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [callDocId, setCallDocId] = useState(null);
   const [otherUserName, setOtherUserName] = useState('');
-
-  // --- DEVICE STATES ---
   const [devices, setDevices] = useState([]);
   const [selectedAudioInput, setSelectedAudioInput] = useState('');
   const [selectedVideoInput, setSelectedVideoInput] = useState('');
@@ -25,137 +44,241 @@ export const CallProvider = ({ children }) => {
   const [isMicrophoneMuted, setIsMicrophoneMuted] = useState(false);
   const [isCameraEnabled, setIsCameraEnabled] = useState(true);
 
-  const peerConnection = useRef(null);
-  const localStreamRef = useRef(null);
-  const unsubscribeCallRef = useRef(null);
-  const unsubscribeAnswerListenerRef = useRef(null);
-  const unsubscribeAnswerCandidatesRef = useRef(null);
-  const unsubscribeOfferCandidatesRef = useRef(null);
-  
-  const statusRef = useRef('idle'); 
-  const prevStatusRef = useRef('idle'); // Track history for sound transitions
+  const liveKitRoomRef = useRef(null);
+  const remoteTracksRef = useRef([]);
+  const unsubscribeActiveCallRef = useRef(null);
+  const unsubscribeCallDocRef = useRef(null);
+  const statusRef = useRef('idle');
+  const callDocIdRef = useRef(null);
+  const otherUserIdRef = useRef(null);
+  const callTypeRef = useRef('audio');
+  const prevStatusRef = useRef('idle');
 
-  const candidateQueue = useRef([]); 
-
-  const clearNegotiationListeners = () => {
-    if (unsubscribeAnswerListenerRef.current) {
-      unsubscribeAnswerListenerRef.current();
-      unsubscribeAnswerListenerRef.current = null;
-    }
-    if (unsubscribeAnswerCandidatesRef.current) {
-      unsubscribeAnswerCandidatesRef.current();
-      unsubscribeAnswerCandidatesRef.current = null;
-    }
-    if (unsubscribeOfferCandidatesRef.current) {
-      unsubscribeOfferCandidatesRef.current();
-      unsubscribeOfferCandidatesRef.current = null;
-    }
-  };
-
-  // --- SHORT NOTIFICATION SOUNDS (Managed Here) ---
-  // Ringtone/Ringback are now in CallOverlay for better reliability
   const answerRef = useRef(new Audio('/sounds/answered.mp3'));
   const endedRef = useRef(new Audio('/sounds/ended.mp3'));
 
-  const servers = {
-    iceServers: [
-      { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
-      { urls: 'stun:global.stun.twilio.com:3478' }
-    ],
-  };
-
   const updateStatus = useCallback((status) => {
-    prevStatusRef.current = statusRef.current; 
+    prevStatusRef.current = statusRef.current;
     statusRef.current = status;
     setCallStatus(status);
   }, []);
 
-  const addCandidateToPC = useCallback((candidate) => {
-    const pc = peerConnection.current;
-    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-      pc.addIceCandidate(candidate).catch(e => console.error(e));
-    } else {
-      candidateQueue.current.push(candidate);
+  const syncLocalTracks = useCallback((room) => {
+    const tracks = Array.from(room?.localParticipant?.trackPublications?.values?.() || [])
+      .map((publication) => publication?.track)
+      .filter(Boolean);
+    setLocalStream(streamFromTracks(tracks));
+  }, []);
+
+  const syncRemoteTracks = useCallback((room) => {
+    const tracks = [];
+    const participants = Array.from(room?.remoteParticipants?.values?.() || []);
+    participants.forEach((participant) => {
+      Array.from(participant?.trackPublications?.values?.() || []).forEach((publication) => {
+        const track = publication?.track || publication?.audioTrack || publication?.videoTrack;
+        if (publication?.isSubscribed && track) tracks.push(track);
+      });
+    });
+    remoteTracksRef.current = tracks;
+    setRemoteStream(streamFromTracks(tracks));
+  }, []);
+
+  const clearCallDocListener = useCallback(() => {
+    if (unsubscribeCallDocRef.current) {
+      unsubscribeCallDocRef.current();
+      unsubscribeCallDocRef.current = null;
     }
   }, []);
 
-  const listenForIncomingCalls = useCallback((uid) => {
-    const signalDoc = doc(db, 'users', uid, 'active_call', 'current');
-    if (unsubscribeCallRef.current) {
-      unsubscribeCallRef.current();
-      unsubscribeCallRef.current = null;
+  const disconnectLiveKitRoom = useCallback(async () => {
+    const room = liveKitRoomRef.current;
+    liveKitRoomRef.current = null;
+    remoteTracksRef.current = [];
+    setLocalStream(null);
+    setRemoteStream(null);
+    if (room) {
+      try {
+        await room.disconnect();
+      } catch {
+        // Ignore room cleanup failures.
+      }
+      room.removeAllListeners();
     }
-    unsubscribeCallRef.current = onSnapshot(signalDoc, async (snapshot) => {
+  }, []);
+
+  const resetCallControls = useCallback((isVideo = false) => {
+    setIsMicrophoneMuted(false);
+    setIsCameraEnabled(Boolean(isVideo));
+  }, []);
+
+  const attachCallDocListener = useCallback((nextCallDocId) => {
+    clearCallDocListener();
+    if (!nextCallDocId) return;
+
+    unsubscribeCallDocRef.current = onSnapshot(doc(db, 'calls', nextCallDocId), (snapshot) => {
+      const data = snapshot.data();
+      if (!data || data.status === 'ended') {
+        if (statusRef.current !== 'idle') {
+          disconnectLiveKitRoom();
+          resetCallControls(false);
+          updateStatus('idle');
+        }
+        return;
+      }
+
+      if (data.callType === 'audio' || data.callType === 'video') {
+        callTypeRef.current = data.callType;
+        setCallType(data.callType);
+        setIsCameraEnabled(data.callType === 'video');
+      }
+
+      if (data.status === 'active' || data.status === 'accepted' || data.acceptedAt) {
+        updateStatus('active');
+      }
+    });
+  }, [clearCallDocListener, disconnectLiveKitRoom, resetCallControls, updateStatus]);
+
+  const connectLiveKitRoom = useCallback(async ({ nextCallDocId, displayName, isVideo, activateOnConnect = false }) => {
+    await disconnectLiveKitRoom();
+    const liveKitSession = await fetchLiveKitCallToken({
+      callId: nextCallDocId,
+      displayName,
+    });
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+    });
+
+    liveKitRoomRef.current = room;
+    remoteTracksRef.current = [];
+
+    room.on(RoomEvent.LocalTrackPublished, () => {
+      syncLocalTracks(room);
+    });
+    room.on(RoomEvent.LocalTrackUnpublished, () => {
+      syncLocalTracks(room);
+    });
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind !== Track.Kind.Audio && track.kind !== Track.Kind.Video) return;
+      syncRemoteTracks(room);
+    });
+    room.on(RoomEvent.TrackUnsubscribed, () => {
+      syncRemoteTracks(room);
+    });
+    room.on(RoomEvent.ParticipantDisconnected, () => {
+      syncRemoteTracks(room);
+    });
+    room.on(RoomEvent.Disconnected, () => {
+      if (statusRef.current !== 'idle') updateStatus('idle');
+      setLocalStream(null);
+      setRemoteStream(null);
+    });
+
+    await room.connect(liveKitSession.livekitUrl, liveKitSession.token);
+    await room.localParticipant.setMicrophoneEnabled(true, selectedAudioInput ? { deviceId: selectedAudioInput } : undefined);
+    await room.localParticipant.setCameraEnabled(Boolean(isVideo), selectedVideoInput ? { deviceId: selectedVideoInput } : undefined);
+    syncLocalTracks(room);
+    syncRemoteTracks(room);
+    resetCallControls(isVideo);
+
+    if (activateOnConnect) {
+      updateStatus('active');
+    }
+
+    return liveKitSession;
+  }, [
+    disconnectLiveKitRoom,
+    resetCallControls,
+    selectedAudioInput,
+    selectedVideoInput,
+    syncLocalTracks,
+    syncRemoteTracks,
+    updateStatus,
+  ]);
+
+  const listenForIncomingCalls = useCallback((uid) => {
+    if (unsubscribeActiveCallRef.current) {
+      unsubscribeActiveCallRef.current();
+      unsubscribeActiveCallRef.current = null;
+    }
+
+    const signalDoc = doc(db, 'users', uid, 'active_call', 'current');
+    unsubscribeActiveCallRef.current = onSnapshot(signalDoc, (snapshot) => {
       const data = snapshot.data();
       if (!data) return;
       if (data.callerId === uid) return;
       if (statusRef.current === 'calling' || statusRef.current === 'active') return;
+      if (data.type !== 'offer') return;
 
-      if (data.type === 'offer') {
-        setCallDocId(data.callId); 
-        setOtherUserName(data.callerName || 'Unknown');
-        setCallType(data.callType || 'audio');
-        updateStatus('incoming'); 
-      }
+      callDocIdRef.current = data.callId || null;
+      otherUserIdRef.current = data.callerId || null;
+      setCallDocId(data.callId);
+      setOtherUserName(data.callerName || 'Unknown');
+      callTypeRef.current = data.callType === 'video' ? 'video' : 'audio';
+      setCallType(callTypeRef.current);
+      resetCallControls(callTypeRef.current === 'video');
+      updateStatus('incoming');
     });
-  }, [updateStatus]);
+  }, [resetCallControls, updateStatus]);
 
   const endCall = useCallback(async (notifyOthers = true) => {
-    if (localStreamRef.current) localStreamRef.current.getTracks().forEach((track) => track.stop());
-    if (peerConnection.current) peerConnection.current.close();
-    clearNegotiationListeners();
+    clearCallDocListener();
+    await disconnectLiveKitRoom();
+    resetCallControls(false);
+    updateStatus('idle');
 
-    setLocalStream(null);
-    setRemoteStream(null);
-    setIsMicrophoneMuted(false);
-    setIsCameraEnabled(true);
-    localStreamRef.current = null;
-    peerConnection.current = null;
-    
-    updateStatus('idle'); 
+    const currentCallDocId = callDocIdRef.current || callDocId;
+    const currentOtherUserId = otherUserIdRef.current;
+    callDocIdRef.current = null;
+    otherUserIdRef.current = null;
     setCallDocId(null);
-    candidateQueue.current = [];
+    setOtherUserName('');
 
-    if (notifyOthers && callDocId) {
+    if (notifyOthers && currentCallDocId) {
       try {
-        await updateDoc(doc(db, 'calls', callDocId), { status: 'ended' });
-        if (user?.uid) await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current'));
+        await updateDoc(doc(db, 'calls', currentCallDocId), {
+          status: 'ended',
+          endedAt: new Date().toISOString(),
+        });
       } catch {
-        // Ignore cleanup failures.
+        // Ignore if the call document was already closed.
       }
     }
-  }, [callDocId, updateStatus, user]);
+
+    const cleanupIds = [user?.uid, currentOtherUserId].filter(Boolean);
+    await Promise.all(
+      cleanupIds.map((uid) => deleteDoc(doc(db, 'users', uid, 'active_call', 'current')).catch(() => {}))
+    );
+  }, [callDocId, clearCallDocListener, disconnectLiveKitRoom, resetCallControls, updateStatus, user]);
 
   useEffect(() => {
     answerRef.current.loop = false;
     endedRef.current.loop = false;
 
-    const unsubAuth = auth.onAuthStateChanged(async (u) => {
-      setUser(u);
-      if (u) {
-        try {
-          if (u.uid) await deleteDoc(doc(db, 'users', u.uid, 'active_call', 'current'));
-        } catch {
-          // Ignore cleanup failures.
-        }
-        listenForIncomingCalls(u.uid);
+    const unsubscribeAuth = auth.onAuthStateChanged(async (nextUser) => {
+      setUser(nextUser);
+      if (nextUser?.uid) {
+        listenForIncomingCalls(nextUser.uid);
       }
     });
 
-    navigator.mediaDevices.enumerateDevices().then(setDevices).catch(console.error);
-    navigator.mediaDevices.addEventListener('devicechange', () => {
-      navigator.mediaDevices.enumerateDevices().then(setDevices).catch(console.error);
-    });
+    navigator.mediaDevices?.enumerateDevices?.().then(setDevices).catch(console.error);
+    const refreshDevices = () => {
+      navigator.mediaDevices?.enumerateDevices?.().then(setDevices).catch(console.error);
+    };
+    navigator.mediaDevices?.addEventListener?.('devicechange', refreshDevices);
 
     return () => {
-      unsubAuth();
-      if (unsubscribeCallRef.current) {
-        unsubscribeCallRef.current();
-        unsubscribeCallRef.current = null;
+      unsubscribeAuth();
+      navigator.mediaDevices?.removeEventListener?.('devicechange', refreshDevices);
+      if (unsubscribeActiveCallRef.current) {
+        unsubscribeActiveCallRef.current();
+        unsubscribeActiveCallRef.current = null;
       }
-      clearNegotiationListeners();
+      clearCallDocListener();
+      disconnectLiveKitRoom();
     };
-  }, [listenForIncomingCalls]);
+  }, [clearCallDocListener, disconnectLiveKitRoom, listenForIncomingCalls]);
 
   useEffect(() => {
     const curr = callStatus;
@@ -163,11 +286,11 @@ export const CallProvider = ({ children }) => {
 
     const playSound = (audioRef) => {
       if (selectedAudioOutput && typeof audioRef.current.setSinkId === 'function') {
-        audioRef.current.setSinkId(selectedAudioOutput).catch(e => console.warn(e));
+        audioRef.current.setSinkId(selectedAudioOutput).catch((error) => console.warn(error));
       }
-      audioRef.current.volume = 1.0; 
+      audioRef.current.volume = 1;
       audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => console.warn("Audio blocked (User Interaction Required):", e));
+      audioRef.current.play().catch((error) => console.warn('Audio blocked:', error));
     };
 
     if (curr === 'active' && prev !== 'active') {
@@ -179,231 +302,184 @@ export const CallProvider = ({ children }) => {
     prevStatusRef.current = curr;
   }, [callStatus, selectedAudioOutput]);
 
+  const startCall = async (calleeId, calleeName, isVideo = false) => {
+    const currentUser = auth.currentUser || user;
+    if (!currentUser?.uid) throw new Error('CRC call requires an authenticated user.');
+    if (!calleeId) return alert('User ID missing.');
+    if (calleeId === currentUser.uid) return alert('Cannot call yourself.');
+
+    clearCallDocListener();
+    const nextCallType = isVideo ? 'video' : 'audio';
+    setOtherUserName(calleeName || 'Patient');
+    setCallType(nextCallType);
+    callTypeRef.current = nextCallType;
+    updateStatus('calling');
+
+    const callerName = getDisplayName(currentUser, 'CRC');
+    const callDocRef = await addDoc(collection(db, 'calls'), {
+      callerId: currentUser.uid,
+      callerName,
+      calleeId,
+      calleeName: calleeName || 'Patient',
+      status: 'offering',
+      callType: nextCallType,
+      signalingMode: 'livekit',
+      timestamp: new Date().toISOString(),
+    });
+
+    callDocIdRef.current = callDocRef.id;
+    otherUserIdRef.current = calleeId;
+    setCallDocId(callDocRef.id);
+    attachCallDocListener(callDocRef.id);
+
+    const liveKitSession = await connectLiveKitRoom({
+      nextCallDocId: callDocRef.id,
+      displayName: callerName,
+      isVideo,
+      activateOnConnect: false,
+    });
+
+    await setDoc(doc(db, 'users', calleeId, 'active_call', 'current'), {
+      type: 'offer',
+      callerName,
+      callerId: currentUser.uid,
+      callType: nextCallType,
+      callId: callDocRef.id,
+      signalingMode: 'livekit',
+      livekitRoomName: liveKitSession.roomName,
+    });
+  };
+
+  const answerCall = async () => {
+    const currentUser = auth.currentUser || user;
+    const currentCallDocId = callDocIdRef.current || callDocId;
+    if (!currentCallDocId) return;
+
+    clearCallDocListener();
+    const callDocRef = doc(db, 'calls', currentCallDocId);
+    const callSnapshot = await getDoc(callDocRef);
+    const callData = callSnapshot.data() || {};
+    const nextCallType = callData.callType === 'video' ? 'video' : 'audio';
+    callTypeRef.current = nextCallType;
+    setCallType(nextCallType);
+    otherUserIdRef.current = callData.callerId || otherUserIdRef.current;
+    attachCallDocListener(currentCallDocId);
+
+    await connectLiveKitRoom({
+      nextCallDocId: currentCallDocId,
+      displayName: getDisplayName(currentUser, 'CRC'),
+      isVideo: nextCallType === 'video',
+      activateOnConnect: true,
+    });
+    await updateDoc(callDocRef, {
+      status: 'active',
+      acceptedAt: new Date().toISOString(),
+      acceptedBy: currentUser?.uid || null,
+    });
+    if (currentUser?.uid) {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'active_call', 'current')).catch(() => {});
+    }
+  };
+
+  const toggleMute = useCallback(async () => {
+    const activeRoom = liveKitRoomRef.current;
+    if (!activeRoom) {
+      setIsMicrophoneMuted(true);
+      return;
+    }
+
+    const nextMuted = !isMicrophoneMuted;
+    try {
+      await activeRoom.localParticipant.setMicrophoneEnabled(!nextMuted, selectedAudioInput ? { deviceId: selectedAudioInput } : undefined);
+      syncLocalTracks(activeRoom);
+      setIsMicrophoneMuted(nextMuted);
+    } catch (error) {
+      console.error('Microphone toggle failed', error);
+      setIsMicrophoneMuted(true);
+    }
+  }, [isMicrophoneMuted, selectedAudioInput, syncLocalTracks]);
+
+  const toggleCamera = useCallback(async () => {
+    const activeRoom = liveKitRoomRef.current;
+    if (!activeRoom) {
+      setIsCameraEnabled(false);
+      return;
+    }
+
+    const nextEnabled = !isCameraEnabled;
+    const nextCallType = nextEnabled ? 'video' : 'audio';
+    try {
+      await activeRoom.localParticipant.setCameraEnabled(nextEnabled, selectedVideoInput ? { deviceId: selectedVideoInput } : undefined);
+      syncLocalTracks(activeRoom);
+      setIsCameraEnabled(nextEnabled);
+      setCallType(nextCallType);
+      callTypeRef.current = nextCallType;
+
+      const currentCallDocId = callDocIdRef.current || callDocId;
+      if (currentCallDocId) {
+        await updateDoc(doc(db, 'calls', currentCallDocId), { callType: nextCallType }).catch(() => {});
+      }
+      if (otherUserIdRef.current) {
+        await setDoc(
+          doc(db, 'users', otherUserIdRef.current, 'active_call', 'current'),
+          { callType: nextCallType },
+          { merge: true }
+        ).catch(() => {});
+      }
+    } catch (error) {
+      console.error('Camera toggle failed', error);
+      setIsCameraEnabled(false);
+    }
+  }, [callDocId, isCameraEnabled, selectedVideoInput, syncLocalTracks]);
+
   const switchAudioInput = async (deviceId) => {
     setSelectedAudioInput(deviceId);
-    if ((callStatus === 'active' || callStatus === 'calling') && localStreamRef.current) {
-        try {
-           const newStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } });
-           const newTrack = newStream.getAudioTracks()[0];
-           const oldTrack = localStreamRef.current.getAudioTracks()[0];
-           if (oldTrack) { localStreamRef.current.removeTrack(oldTrack); oldTrack.stop(); }
-           localStreamRef.current.addTrack(newTrack);
-           setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
-           if (peerConnection.current) {
-               const sender = peerConnection.current.getSenders().find(s => s.track.kind === 'audio');
-               if (sender) sender.replaceTrack(newTrack);
-           }
-        } catch (e) { console.error("Mic Switch Error", e); }
+    const activeRoom = liveKitRoomRef.current;
+    if (!activeRoom || isMicrophoneMuted) return;
+    try {
+      await activeRoom.localParticipant.setMicrophoneEnabled(true, deviceId ? { deviceId } : undefined);
+      syncLocalTracks(activeRoom);
+      setIsMicrophoneMuted(false);
+    } catch (error) {
+      console.error('Mic switch error', error);
     }
   };
 
   const switchVideoInput = async (deviceId) => {
     setSelectedVideoInput(deviceId);
-    if ((callStatus === 'active' || callStatus === 'calling') && callType === 'video' && localStreamRef.current) {
-        try {
-           const newStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId }, width: 1280, height: 720 } });
-           const newTrack = newStream.getVideoTracks()[0];
-           const oldTrack = localStreamRef.current.getVideoTracks()[0];
-           if (oldTrack) { localStreamRef.current.removeTrack(oldTrack); oldTrack.stop(); }
-           localStreamRef.current.addTrack(newTrack);
-           setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
-           if (peerConnection.current) {
-               const sender = peerConnection.current.getSenders().find(s => s.track.kind === 'video');
-               if (sender) sender.replaceTrack(newTrack);
-           }
-        } catch (e) { console.error("Cam Switch Error", e); }
+    const activeRoom = liveKitRoomRef.current;
+    if (!activeRoom || !isCameraEnabled) return;
+    try {
+      await activeRoom.localParticipant.setCameraEnabled(true, deviceId ? { deviceId } : undefined);
+      syncLocalTracks(activeRoom);
+      setIsCameraEnabled(true);
+    } catch (error) {
+      console.error('Camera switch error', error);
     }
   };
-
-  // --- GLOBAL CALL MONITOR ---
-  useEffect(() => {
-    let unsubCallDoc = null;
-    if (callDocId) {
-      unsubCallDoc = onSnapshot(doc(db, 'calls', callDocId), (snapshot) => {
-        const data = snapshot.data();
-        if (!data || data.status === 'ended') {
-          if (statusRef.current !== 'idle') endCall(false);
-        }
-      });
-    }
-    return () => { if (unsubCallDoc) unsubCallDoc(); };
-  }, [callDocId, endCall]);
-
-  // --- START CALL ---
-  const startCall = async (calleeId, calleeName, isVideo = false) => {
-    if (!calleeId) return alert("User ID missing.");
-    if (calleeId === user.uid) return alert("Cannot call yourself.");
-
-    updateStatus('calling'); 
-    setOtherUserName(calleeName);
-    setCallType(isVideo ? 'video' : 'audio');
-    candidateQueue.current = [];
-    clearNegotiationListeners();
-
-    const constraints = {
-        audio: selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : true,
-        video: isVideo ? (selectedVideoInput ? { deviceId: { exact: selectedVideoInput }, width: 1280, height: 720 } : { width: 1280, height: 720 }) : false
-    };
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    setLocalStream(stream);
-    localStreamRef.current = stream;
-    setIsMicrophoneMuted(false);
-    setIsCameraEnabled(isVideo);
-
-    const pc = new RTCPeerConnection(servers);
-    peerConnection.current = pc;
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-    pc.ontrack = (event) => { if (event.streams[0]) setRemoteStream(event.streams[0]); };
-
-    const callDocRef = await addDoc(collection(db, 'calls'), {
-      callerId: user.uid,
-      callerName: user.email.split('@')[0], 
-      calleeId: calleeId,
-      calleeName: calleeName,
-      status: 'offering',
-      callType: isVideo ? 'video' : 'audio', 
-      timestamp: new Date().toISOString()
-    });
-    setCallDocId(callDocRef.id);
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) addDoc(collection(callDocRef, 'offerCandidates'), event.candidate.toJSON());
-    };
-
-    const offerDescription = await pc.createOffer();
-    await pc.setLocalDescription(offerDescription);
-
-    await updateDoc(callDocRef, { offer: { sdp: offerDescription.sdp, type: offerDescription.type } });
-
-    await setDoc(doc(db, 'users', calleeId, 'active_call', 'current'), {
-      type: 'offer',
-      callerName: user.email.split('@')[0],
-      callerId: user.uid,
-      callType: isVideo ? 'video' : 'audio', 
-      callId: callDocRef.id
-    });
-
-    unsubscribeAnswerListenerRef.current = onSnapshot(callDocRef, (snapshot) => {
-      const data = snapshot.data();
-      if (!pc.currentRemoteDescription && data?.answer) {
-        const answerDescription = new RTCSessionDescription(data.answer);
-        pc.setRemoteDescription(answerDescription).then(() => {
-           candidateQueue.current.forEach(c => pc.addIceCandidate(c).catch(console.error));
-           candidateQueue.current = [];
-        });
-        updateStatus('active'); 
-      }
-    });
-
-    unsubscribeAnswerCandidatesRef.current = onSnapshot(collection(callDocRef, 'answerCandidates'), (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') addCandidateToPC(new RTCIceCandidate(change.doc.data()));
-      });
-    });
-  };
-
-  // --- ANSWER CALL ---
-  const answerCall = async () => {
-    updateStatus('active'); 
-    candidateQueue.current = [];
-    clearNegotiationListeners();
-
-    const callDocRef = doc(db, 'calls', callDocId);
-    const callSnap = await getDoc(callDocRef);
-    const callData = callSnap.data();
-    if (callData?.signalingMode === 'native-placeholder' || !callData?.offer) {
-      setCallType(callData?.callType || 'audio');
-      setLocalStream(null);
-      setRemoteStream(null);
-      await updateDoc(callDocRef, {
-        status: 'active',
-        acceptedAt: new Date().toISOString(),
-        acceptedBy: user?.uid || null,
-      });
-      if (user?.uid) {
-        await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current')).catch(() => {});
-      }
-      return;
-    }
-
-    const isVideo = callData.callType === 'video';
-    setCallType(callData.callType);
-
-    const constraints = {
-        audio: selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : true,
-        video: isVideo ? (selectedVideoInput ? { deviceId: { exact: selectedVideoInput }, width: 1280, height: 720 } : { width: 1280, height: 720 }) : false
-    };
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    setLocalStream(stream);
-    localStreamRef.current = stream;
-    setIsMicrophoneMuted(false);
-    setIsCameraEnabled(isVideo);
-
-    const pc = new RTCPeerConnection(servers);
-    peerConnection.current = pc;
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-    pc.ontrack = (event) => { if (event.streams[0]) setRemoteStream(event.streams[0]); };
-    pc.onicecandidate = (event) => {
-      if (event.candidate) addDoc(collection(callDocRef, 'answerCandidates'), event.candidate.toJSON());
-    };
-
-    await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
-    candidateQueue.current.forEach(c => pc.addIceCandidate(c).catch(console.error));
-    candidateQueue.current = [];
-
-    const answerDescription = await pc.createAnswer();
-    await pc.setLocalDescription(answerDescription);
-
-    await updateDoc(callDocRef, {
-      answer: { type: answerDescription.type, sdp: answerDescription.sdp },
-      status: 'active',
-      acceptedAt: new Date().toISOString(),
-      acceptedBy: user?.uid || null,
-    });
-    if (user?.uid) {
-      await deleteDoc(doc(db, 'users', user.uid, 'active_call', 'current')).catch(() => {});
-    }
-
-    unsubscribeOfferCandidatesRef.current = onSnapshot(collection(callDocRef, 'offerCandidates'), (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') addCandidateToPC(new RTCIceCandidate(change.doc.data()));
-      });
-    });
-  };
-
-  const toggleMute = useCallback(() => {
-    const audioTrack = localStreamRef.current?.getAudioTracks?.()[0];
-    if (!audioTrack) {
-      setIsMicrophoneMuted(true);
-      return;
-    }
-    const nextMuted = audioTrack.enabled;
-    audioTrack.enabled = !nextMuted;
-    setIsMicrophoneMuted(nextMuted);
-  }, []);
-
-  const toggleCamera = useCallback(() => {
-    const videoTrack = localStreamRef.current?.getVideoTracks?.()[0];
-    if (!videoTrack) {
-      setIsCameraEnabled(false);
-      return;
-    }
-    const nextEnabled = !videoTrack.enabled;
-    videoTrack.enabled = nextEnabled;
-    setIsCameraEnabled(nextEnabled);
-  }, []);
 
   return (
-    <CallContext.Provider value={{ 
-        user, callStatus, callType, startCall, answerCall, endCall, 
-        localStream, remoteStream, otherUserName,
-        devices, selectedAudioInput, selectedVideoInput, selectedAudioOutput,
-        switchAudioInput, switchVideoInput, setSelectedAudioOutput,
-        isMicrophoneMuted, isCameraEnabled, toggleMute, toggleCamera
+    <CallContext.Provider value={{
+      user,
+      callStatus,
+      callType,
+      startCall,
+      answerCall,
+      endCall,
+      localStream,
+      remoteStream,
+      otherUserName,
+      devices,
+      selectedAudioInput,
+      selectedVideoInput,
+      selectedAudioOutput,
+      switchAudioInput,
+      switchVideoInput,
+      setSelectedAudioOutput,
+      isMicrophoneMuted,
+      isCameraEnabled,
+      toggleMute,
+      toggleCamera,
     }}>
       {children}
     </CallContext.Provider>
