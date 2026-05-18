@@ -901,6 +901,7 @@ function getTrendDirectionTone(direction) {
   if (direction === 'rising') return 'warning';
   if (direction === 'falling') return 'success';
   if (direction === 'stable') return 'default';
+  if (direction === 'mixed / volatile') return 'warning';
   return 'default';
 }
 
@@ -1546,7 +1547,7 @@ function buildDetailedExplainabilitySections({
   ];
 }
 
-function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onViewDetailedTrend = null }) {
+function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
   const trendData = buildRecentPublishTrendData(rows, currentEntry);
   const { chronologicalRows, trendDirection, latestDelta, netDelta } = trendData;
 
@@ -1555,11 +1556,11 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
   }
 
   const chartWidth = 760;
-  const chartHeight = 228;
+  const chartHeight = 214;
   const leftPadding = 42;
   const rightPadding = 38;
-  const topPadding = 42;
-  const bottomPadding = 74;
+  const topPadding = 34;
+  const bottomPadding = 68;
   const usableWidth = chartWidth - leftPadding - rightPadding;
   const usableHeight = chartHeight - topPadding - bottomPadding;
   const chartPoints = chronologicalRows.map((entry, index) => {
@@ -1593,22 +1594,20 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
       </div>
       <div className="dropout-dashboard__trendLayout">
         <div className="dropout-dashboard__trendChartSurface">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="254" aria-label="Recent disengagement publish trend">
-            <line x1={leftPadding} y1={topPadding} x2={chartWidth - rightPadding} y2={topPadding} stroke="rgba(33, 74, 111, 0.12)" strokeWidth="1" />
-            <line x1={leftPadding} y1={chartHeight / 2} x2={chartWidth - rightPadding} y2={chartHeight / 2} stroke="rgba(33, 74, 111, 0.08)" strokeWidth="1" />
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="238" aria-label="Recent disengagement publish trend">
             <line
               x1={leftPadding}
               y1={chartHeight - bottomPadding}
               x2={chartWidth - rightPadding}
               y2={chartHeight - bottomPadding}
-              stroke="rgba(33, 74, 111, 0.18)"
-              strokeWidth="1"
+              stroke="rgba(33, 74, 111, 0.2)"
+              strokeWidth="1.2"
             />
           {polylinePoints ? (
             <polyline
               fill="none"
-              stroke="rgba(190, 87, 82, 0.48)"
-              strokeWidth="2.6"
+              stroke="rgba(184, 89, 86, 0.5)"
+              strokeWidth="2.8"
               strokeLinejoin="round"
               strokeLinecap="round"
               points={polylinePoints}
@@ -1621,10 +1620,10 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
               <g key={point.key}>
                 <text
                   x={point.x}
-                  y={Math.max(point.y - 10, 10)}
+                  y={Math.max(point.y - 12, 14)}
                   textAnchor="middle"
-                  fontSize="12"
-                  fill="rgba(38, 62, 86, 0.88)"
+                  fontSize="14"
+                  fill="rgba(28, 53, 79, 0.9)"
                   fontWeight="800"
                 >
                   {label}
@@ -1642,20 +1641,20 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
                 />
                 <text
                   x={point.x}
-                  y={chartHeight - 40}
+                  y={chartHeight - 34}
                   textAnchor="middle"
-                  fontSize="12"
-                  fill="rgba(76, 99, 122, 0.94)"
+                  fontSize="13"
+                  fill="rgba(48, 70, 94, 0.95)"
                   fontWeight="800"
                 >
                   {entry?.published_at ? new Date(entry.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'N/A'}
                 </text>
                 <text
                   x={point.x}
-                  y={chartHeight - 20}
+                  y={chartHeight - 16}
                   textAnchor="middle"
-                  fontSize="12"
-                  fill="rgba(98, 120, 143, 0.86)"
+                  fontSize="13"
+                  fill="rgba(48, 70, 94, 0.9)"
                   fontWeight="700"
                 >
                   {entry?.published_at ? new Date(entry.published_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
@@ -1680,7 +1679,6 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
               {formatWeekTrendLabel(netDelta)}
             </strong>
           </div>
-          {onViewDetailedTrend ? renderInlineActionButton('View full trend', onViewDetailedTrend) : null}
         </aside>
       </div>
       <div className="dropout-dashboard__trendLegend">
@@ -2511,7 +2509,6 @@ export default function DropoutRiskPanel({
                   rows={recentPublishHistory}
                   currentEntry={activeEntry}
                   sectionRef={trendSectionRef}
-                  onViewDetailedTrend={() => scrollToSection(explainabilitySectionRef)}
                 />
 
                 {recentPublishHistoryError ? (
