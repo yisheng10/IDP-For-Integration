@@ -43,6 +43,7 @@ export const CallProvider = ({ children }) => {
   const [selectedAudioOutput, setSelectedAudioOutput] = useState('');
   const [isMicrophoneMuted, setIsMicrophoneMuted] = useState(false);
   const [isCameraEnabled, setIsCameraEnabled] = useState(true);
+  const [callConnectedAt, setCallConnectedAt] = useState(null);
 
   const liveKitRoomRef = useRef(null);
   const remoteTracksRef = useRef([]);
@@ -125,6 +126,7 @@ export const CallProvider = ({ children }) => {
           resetCallControls(false);
           updateStatus('idle');
         }
+        setCallConnectedAt(null);
         const cleanupIds = [
           auth.currentUser?.uid,
           user?.uid,
@@ -149,6 +151,7 @@ export const CallProvider = ({ children }) => {
       }
 
       if (data.status === 'active' || data.status === 'accepted' || data.acceptedAt) {
+        setCallConnectedAt(data.acceptedAt || data.connectedAt || null);
         updateStatus('active');
       }
     });
@@ -186,6 +189,7 @@ export const CallProvider = ({ children }) => {
     });
     room.on(RoomEvent.Disconnected, () => {
       if (statusRef.current !== 'idle') updateStatus('idle');
+      setCallConnectedAt(null);
       setLocalStream(null);
       setRemoteStream(null);
     });
@@ -241,6 +245,7 @@ export const CallProvider = ({ children }) => {
     clearCallDocListener();
     await disconnectLiveKitRoom();
     resetCallControls(false);
+    setCallConnectedAt(null);
     playEndedSoundRef.current = true;
     updateStatus('idle');
 
@@ -330,6 +335,7 @@ export const CallProvider = ({ children }) => {
 
     clearCallDocListener();
     const nextCallType = isVideo ? 'video' : 'audio';
+    setCallConnectedAt(null);
     setOtherUserName(calleeName || 'Patient');
     setCallType(nextCallType);
     callTypeRef.current = nextCallType;
@@ -407,9 +413,11 @@ export const CallProvider = ({ children }) => {
       isVideo: nextCallType === 'video',
       activateOnConnect: true,
     });
+    const acceptedAt = new Date().toISOString();
+    setCallConnectedAt(acceptedAt);
     await updateDoc(callDocRef, {
       status: 'active',
-      acceptedAt: new Date().toISOString(),
+      acceptedAt,
       acceptedBy: currentUser?.uid || null,
     });
     if (currentUser?.uid) {
@@ -499,6 +507,7 @@ export const CallProvider = ({ children }) => {
       user,
       callStatus,
       callType,
+      callConnectedAt,
       startCall,
       answerCall,
       endCall,
@@ -516,7 +525,7 @@ export const CallProvider = ({ children }) => {
       isCameraEnabled,
       toggleMute,
       toggleCamera,
-    }}>
+  }}>
       {children}
     </CallContext.Provider>
   );

@@ -65,6 +65,7 @@ const CallOverlay = () => {
   const {
     callStatus,
     callType,
+    callConnectedAt,
     otherUserName,
     answerCall,
     endCall,
@@ -146,13 +147,22 @@ const CallOverlay = () => {
   }, [callStatus]);
 
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || !callConnectedAt) {
       window.setTimeout(() => setDurationSeconds(0), 0);
       return undefined;
     }
-    const intervalId = setInterval(() => setDurationSeconds((current) => current + 1), 1000);
+    const updateDuration = () => {
+      const connectedAtMs = new Date(callConnectedAt).getTime();
+      if (Number.isNaN(connectedAtMs)) {
+        setDurationSeconds(0);
+        return;
+      }
+      setDurationSeconds(Math.max(0, Math.floor((Date.now() - connectedAtMs) / 1000)));
+    };
+    updateDuration();
+    const intervalId = setInterval(updateDuration, 1000);
     return () => clearInterval(intervalId);
-  }, [isActive]);
+  }, [callConnectedAt, isActive]);
 
   useEffect(() => {
     const attachSink = (element) => {
