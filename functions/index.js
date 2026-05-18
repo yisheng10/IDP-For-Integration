@@ -122,44 +122,11 @@ async function getPatientExpoPushTokens(userId) {
     .collection('users')
     .doc(userId)
     .collection('expo_push_tokens')
-    .limit(50)
     .get();
 
   return tokenSnapshot.docs
     .map((tokenDoc) => String(tokenDoc.get('token') || '').trim())
     .filter((token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['));
-}
-
-async function getPatientFcmTokens(userId) {
-  const tokenSnapshot = await db
-    .collection('users')
-    .doc(userId)
-    .collection('fcm_tokens')
-    .limit(50)
-    .get();
-
-  return tokenSnapshot.docs
-    .map((tokenDoc) => String(tokenDoc.get('token') || '').trim())
-    .filter(Boolean);
-}
-
-async function sendFcmDataMessages(tokens, data) {
-  if (!tokens.length) return [];
-
-  const responses = [];
-  for (const chunk of chunkArray(tokens, 500)) {
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens: chunk,
-      data: Object.fromEntries(
-        Object.entries(data).map(([key, value]) => [key, value == null ? '' : String(value)])
-      ),
-      android: {
-        priority: 'high',
-      },
-    });
-    responses.push(response);
-  }
-  return responses;
 }
 
 export const sendIncomingCallPushNotification = onDocumentWritten(
@@ -180,12 +147,9 @@ export const sendIncomingCallPushNotification = onDocumentWritten(
       return;
     }
 
-    const [expoTokens, fcmTokens] = await Promise.all([
-      getPatientExpoPushTokens(event.params.userId),
-      getPatientFcmTokens(event.params.userId),
-    ]);
+    const tokens = await getPatientExpoPushTokens(event.params.userId);
 
-    if (!expoTokens.length && !fcmTokens.length) {
+    if (!tokens.length) {
       await afterSnapshot.ref.set(
         {
           notification_state: {
@@ -201,16 +165,7 @@ export const sendIncomingCallPushNotification = onDocumentWritten(
 
     const callerName = String(activeCall.callerName || 'TrialLight CRC').trim();
     const isVideo = activeCall.callType === 'video';
-    const notificationData = {
-      type: 'incoming-call',
-      callId: activeCall.callId,
-      callerId: activeCall.callerId,
-      callerName,
-      callType: activeCall.callType || 'audio',
-      signalingMode: activeCall.signalingMode || 'livekit',
-      livekitRoomName: activeCall.livekitRoomName || '',
-    };
-    const expoMessages = expoTokens.map((token) => ({
+    const messages = tokens.map((token) => ({
       to: token,
       sound: 'default',
       priority: 'high',
@@ -218,20 +173,25 @@ export const sendIncomingCallPushNotification = onDocumentWritten(
       categoryId: INCOMING_CALL_CATEGORY_ID,
       title: isVideo ? 'Incoming TrialLight video call' : 'Incoming TrialLight call',
       body: `${callerName} is calling you.`,
-      data: notificationData,
+      data: {
+        type: 'incoming-call',
+        callId: activeCall.callId,
+        callerId: activeCall.callerId,
+        callerName,
+        callType: activeCall.callType || 'audio',
+        signalingMode: activeCall.signalingMode || 'livekit',
+        livekitRoomName: activeCall.livekitRoomName || null,
+      },
     }));
 
     try {
-      await Promise.all([
-        sendFcmDataMessages(fcmTokens, notificationData),
-        sendExpoPushMessages(expoMessages),
-      ]);
+      await sendExpoPushMessages(messages);
       await afterSnapshot.ref.set(
         {
           notification_state: {
             last_push_signature: signature,
             last_push_attempt_at: new Date().toISOString(),
-            last_push_recipient_count: fcmTokens.length + expoMessages.length,
+            last_push_recipient_count: messages.length,
           },
         },
         { merge: true }
@@ -266,38 +226,30 @@ export const sendPatientMessagePushNotification = onDocumentCreated(
       return;
     }
 
-    const [expoTokens, fcmTokens] = await Promise.all([
-      getPatientExpoPushTokens(event.params.userId),
-      getPatientFcmTokens(event.params.userId),
-    ]);
-    if (!expoTokens.length && !fcmTokens.length) {
+    const tokens = await getPatientExpoPushTokens(event.params.userId);
+    if (!tokens.length) {
       return;
     }
 
     const senderName = String(message.senderName || 'CRC').trim();
     const body = messageText.length > 160 ? `${messageText.slice(0, 157)}...` : messageText;
-    const notificationData = {
-      type: 'crc-message',
-      alertId: event.params.alertId,
-      messageId: event.params.messageId,
-      senderName,
-      body,
-    };
-    const expoMessages = expoTokens.map((token) => ({
+    const messages = tokens.map((token) => ({
       to: token,
       sound: 'default',
       priority: 'high',
       channelId: 'default',
       title: senderName,
       body,
-      data: notificationData,
+      data: {
+        type: 'crc-message',
+        alertId: event.params.alertId,
+        messageId: event.params.messageId,
+        senderName,
+      },
     }));
 
     try {
-      await Promise.all([
-        sendFcmDataMessages(fcmTokens, notificationData),
-        sendExpoPushMessages(expoMessages),
-      ]);
+      await sendExpoPushMessages(messages);
     } catch (error) {
       console.error('Patient message push delivery failed:', error);
     }
