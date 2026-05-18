@@ -29,6 +29,8 @@ const MAX_RECENT_PUBLISH_HISTORY_LIMIT = 14;
 const DEFAULT_RECENT_INTERVENTION_CASE_LIMIT = 6;
 const MAX_RECENT_INTERVENTION_CASE_LIMIT = 20;
 const DEFAULT_DROPOUT_PROXY_WINDOW_DAYS = 7;
+const DROPOUT_INTERVENTION_CASE_SEMANTIC_VERSION = 'dropout_intervention_case_v2';
+const DROPOUT_PROXY_OBSERVATION_WINDOW_BASIS = 'latest_prediction_published_at';
 const CLOSED_DROPOUT_INTERVENTION_STATUSES = new Set(['closed']);
 const MANUAL_DROPOUT_INTERVENTION_ACTIONS = new Set([
   'outreach_attempted',
@@ -44,6 +46,13 @@ const READ_ONLY_DROPOUT_PROXY_STATUSES = new Set([
   'no_reengagement_observed',
   'source_incomplete',
 ]);
+const SOURCE_INCOMPLETE_REASON_LABELS = {
+  reduced_input_mode: 'upstream engagement inputs are missing',
+  side_effect_signal_missing: 'structured side-effect evidence is missing',
+  insufficient_history_no_score: 'recent history is not mature enough to score',
+  stage_model_operational_fallback: 'the scorer used a stage fallback path',
+  trial_id_derived_from_subject_id: 'trial linkage was derived indirectly',
+};
 
 function isLocalHostname(hostname) {
   return hostname === 'localhost' || hostname === '127.0.0.1';
@@ -91,15 +100,40 @@ function hasUsableDropoutPrediction(prediction = {}) {
 }
 
 function hasIncompletePredictionSources(prediction = {}) {
-  const flags = Array.isArray(prediction?.data_quality_flags)
-    ? prediction.data_quality_flags.map((entry) => normalizeWorkflowValue(entry))
-    : [];
+  const flags = getDropoutPredictionQualityFlags(prediction);
 
   return (
     flags.includes('reduced_input_mode') ||
     flags.includes('side_effect_signal_missing') ||
     flags.includes('insufficient_history_no_score')
   );
+}
+
+function getDropoutPredictionQualityFlags(prediction = {}) {
+  return Array.isArray(prediction?.data_quality_flags)
+    ? prediction.data_quality_flags.map((entry) => normalizeWorkflowValue(entry)).filter(Boolean)
+    : [];
+}
+
+function getDropoutPredictionMissingInputs(prediction = {}) {
+  return Array.isArray(prediction?.missing_inputs_summary)
+    ? prediction.missing_inputs_summary.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : [];
+}
+
+function buildSourceIncompleteReasons(prediction = {}) {
+  const flagReasons = getDropoutPredictionQualityFlags(prediction)
+    .map((flag) => SOURCE_INCOMPLETE_REASON_LABELS[flag])
+    .filter(Boolean);
+  const missingInputReasons = getDropoutPredictionMissingInputs(prediction)
+    .slice(0, 3)
+    .map((entry) => `missing input: ${entry}`);
+  return Array.from(new Set([...flagReasons, ...missingInputReasons]));
+}
+
+function buildSourceIncompleteReason(prediction = {}) {
+  const reasons = buildSourceIncompleteReasons(prediction);
+  return reasons.length ? reasons[0] : null;
 }
 
 function normalizeDropoutInterventionAction(value) {
@@ -137,6 +171,8 @@ export function buildDropoutInterventionPredictionSignature(prediction = {}, pat
     pred_horizon_days: getFiniteNumber(prediction?.pred_horizon_days),
     history_window_days: getFiniteNumber(prediction?.history_window_days),
     is_actionable: isActionableDropoutPrediction(prediction),
+    data_quality_flags: getDropoutPredictionQualityFlags(prediction),
+    source_incomplete_reason: buildSourceIncompleteReason(prediction),
   });
 }
 
@@ -148,6 +184,7 @@ function buildDropoutInterventionPredictionFields(prediction = {}, patient = nul
   const routedStage = String(prediction?.routed_stage || '').trim() || null;
   const predHorizonDays = getFiniteNumber(prediction?.pred_horizon_days);
   const historyWindowDays = getFiniteNumber(prediction?.history_window_days);
+  const sourceIncompleteReasons = buildSourceIncompleteReasons(prediction);
 
   return {
     patient_uid: prediction?.userId || patient?.id || '',
@@ -171,17 +208,36 @@ function buildDropoutInterventionPredictionFields(prediction = {}, patient = nul
     latest_prediction_history_window_days: historyWindowDays,
     latest_history_window_days: historyWindowDays,
     latest_is_actionable: isActionableDropoutPrediction(prediction),
+    latest_prediction_data_quality_flags: getDropoutPredictionQualityFlags(prediction),
+    latest_source_incomplete_reason: sourceIncompleteReasons[0] || null,
+    latest_source_incomplete_reasons: sourceIncompleteReasons,
   };
 }
 
 function buildDropoutInterventionAnchorFields(prediction = {}, patient = null) {
   const latestFields = buildDropoutInterventionPredictionFields(prediction, patient);
   return {
+    anchor_prediction_ref: latestFields.latest_prediction_ref,
+    anchor_prediction_signature: latestFields.latest_prediction_signature,
     anchor_prediction_published_at: latestFields.latest_prediction_published_at,
     anchor_prediction_model_version: latestFields.latest_prediction_model_version,
     anchor_prediction_risk_bucket: latestFields.latest_prediction_risk_bucket,
     anchor_prediction_probability: latestFields.latest_prediction_probability,
     anchor_recommended_action: latestFields.latest_recommended_action,
+    anchor_source_incomplete_reason: latestFields.latest_source_incomplete_reason,
+    anchor_source_incomplete_reasons: latestFields.latest_source_incomplete_reasons,
+  };
+}
+
+function buildDropoutInterventionSemanticFields(prediction = {}, proxyStatus = '') {
+  const sourceIncompleteReasons = buildSourceIncompleteReasons(prediction);
+  return {
+    case_semantic_version: DROPOUT_INTERVENTION_CASE_SEMANTIC_VERSION,
+    proxy_observation_window_days: DEFAULT_DROPOUT_PROXY_WINDOW_DAYS,
+    proxy_observation_window_basis: DROPOUT_PROXY_OBSERVATION_WINDOW_BASIS,
+    proxy_observation_window_status: proxyStatus || null,
+    source_incomplete_reason: sourceIncompleteReasons[0] || null,
+    source_incomplete_reasons: sourceIncompleteReasons,
   };
 }
 
@@ -641,7 +697,9 @@ export async function updateActiveDropoutInterventionCase({
   const defaultProxyStatus = hasIncompletePredictionSources(prediction) ? 'source_incomplete' : 'window_open';
 
   if (activeCase?.id) {
+    const effectiveProxyStatus = getDropoutInterventionProxyStatus(activeCase) || defaultProxyStatus;
     const updates = {
+      ...buildDropoutInterventionSemanticFields(prediction, effectiveProxyStatus),
       ...predictionFields,
       updated_at: serverTimestamp(),
       last_synced_by_uid: actorUid,
@@ -689,6 +747,7 @@ export async function updateActiveDropoutInterventionCase({
   const caseRef = doc(collection(db, 'users', userId, 'dropout_intervention_cases'));
   const payload = {
     case_id: caseRef.id,
+    ...buildDropoutInterventionSemanticFields(prediction, defaultProxyStatus),
     patient_uid: userId,
     status: 'open',
     opened_at: serverTimestamp(),
@@ -736,6 +795,9 @@ export async function closeDropoutInterventionCase({ userId, caseId, currentUser
     status: 'closed',
     closed_at: serverTimestamp(),
     close_reason: 'manual_crc_close',
+    closed_by_uid: currentUser?.uid || null,
+    closed_by_name: currentUser?.name || null,
+    case_semantic_version: DROPOUT_INTERVENTION_CASE_SEMANTIC_VERSION,
     updated_at: serverTimestamp(),
     last_synced_by_uid: currentUser?.uid || null,
     last_synced_by_name: currentUser?.name || null,
