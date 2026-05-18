@@ -55,6 +55,7 @@ export const CallProvider = ({ children }) => {
   const callTypeRef = useRef('audio');
   const prevStatusRef = useRef('idle');
   const playEndedSoundRef = useRef(false);
+  const intentionalDisconnectRef = useRef(false);
 
   const answerRef = useRef(new Audio('/sounds/answered.mp3'));
   const endedRef = useRef(new Audio('/sounds/ended.mp3'));
@@ -92,8 +93,9 @@ export const CallProvider = ({ children }) => {
     }
   }, []);
 
-  const disconnectLiveKitRoom = useCallback(async () => {
+  const disconnectLiveKitRoom = useCallback(async (intentional = true) => {
     const room = liveKitRoomRef.current;
+    intentionalDisconnectRef.current = intentional;
     liveKitRoomRef.current = null;
     remoteTracksRef.current = [];
     setLocalStream(null);
@@ -186,12 +188,35 @@ export const CallProvider = ({ children }) => {
     });
     room.on(RoomEvent.ParticipantDisconnected, () => {
       syncRemoteTracks(room);
+      const currentCallDocId = callDocIdRef.current;
+      if (currentCallDocId && statusRef.current !== 'idle') {
+        updateDoc(doc(db, 'calls', currentCallDocId), {
+          status: 'ended',
+          endedAt: new Date().toISOString(),
+          endReason: 'peer-disconnected',
+        }).catch(() => {});
+      }
     });
     room.on(RoomEvent.Disconnected, () => {
+      const wasIntentional = intentionalDisconnectRef.current;
       if (statusRef.current !== 'idle') updateStatus('idle');
       setCallConnectedAt(null);
       setLocalStream(null);
       setRemoteStream(null);
+      if (!wasIntentional) {
+        const currentCallDocId = callDocIdRef.current;
+        const currentOtherUserId = otherUserIdRef.current;
+        if (currentCallDocId) {
+          updateDoc(doc(db, 'calls', currentCallDocId), {
+            status: 'ended',
+            endedAt: new Date().toISOString(),
+            endReason: 'crc-disconnected',
+          }).catch(() => {});
+        }
+        [auth.currentUser?.uid, currentOtherUserId].filter(Boolean).forEach((uid) => {
+          deleteDoc(doc(db, 'users', uid, 'active_call', 'current')).catch(() => {});
+        });
+      }
     });
 
     await room.connect(liveKitSession.livekitUrl, liveKitSession.token);
@@ -272,6 +297,31 @@ export const CallProvider = ({ children }) => {
       cleanupIds.map((uid) => deleteDoc(doc(db, 'users', uid, 'active_call', 'current')).catch(() => {}))
     );
   }, [callDocId, clearCallDocListener, disconnectLiveKitRoom, resetCallControls, updateStatus, user]);
+
+  useEffect(() => {
+    const endCallOnExit = () => {
+      if (statusRef.current === 'idle') return;
+      const currentCallDocId = callDocIdRef.current || callDocId;
+      const currentOtherUserId = otherUserIdRef.current;
+      if (currentCallDocId) {
+        updateDoc(doc(db, 'calls', currentCallDocId), {
+          status: 'ended',
+          endedAt: new Date().toISOString(),
+          endReason: 'crc-window-exit',
+        }).catch(() => {});
+      }
+      [auth.currentUser?.uid, user?.uid, currentOtherUserId].filter(Boolean).forEach((uid) => {
+        deleteDoc(doc(db, 'users', uid, 'active_call', 'current')).catch(() => {});
+      });
+    };
+
+    window.addEventListener('pagehide', endCallOnExit);
+    window.addEventListener('beforeunload', endCallOnExit);
+    return () => {
+      window.removeEventListener('pagehide', endCallOnExit);
+      window.removeEventListener('beforeunload', endCallOnExit);
+    };
+  }, [callDocId, user]);
 
   useEffect(() => {
     answerRef.current.loop = false;
