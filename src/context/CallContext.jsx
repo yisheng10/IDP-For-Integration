@@ -409,16 +409,17 @@ export const CallProvider = ({ children }) => {
     attachCallDocListener(callDocRef.id);
 
     const activeCallRef = doc(db, 'users', calleeId, 'active_call', 'current');
-    await setDoc(activeCallRef, {
-      type: 'offer',
-      callerName,
-      callerId: currentUser.uid,
-      callType: nextCallType,
-      callId: callDocRef.id,
-      signalingMode: 'livekit',
-    });
 
     try {
+      await setDoc(activeCallRef, {
+        type: 'offer',
+        callerName,
+        callerId: currentUser.uid,
+        callType: nextCallType,
+        callId: callDocRef.id,
+        signalingMode: 'livekit',
+      });
+
       const liveKitSession = await connectLiveKitRoom({
         nextCallDocId: callDocRef.id,
         displayName: callerName,
