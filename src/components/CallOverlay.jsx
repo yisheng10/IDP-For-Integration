@@ -221,6 +221,28 @@ const CallOverlay = () => {
 
   if (callStatus === 'idle') return null;
 
+  if (isIncoming) {
+    return (
+      <section style={styles.incomingBanner} aria-label={statusLabel} role="dialog">
+        <div style={styles.incomingIcon}>
+          <Icon name={isVideo ? 'video' : 'call'} size={22} />
+        </div>
+        <div style={styles.incomingCopy}>
+          <span style={styles.incomingEyebrow}>{isVideo ? 'Incoming video call' : 'Incoming voice call'}</span>
+          <strong style={styles.incomingName}>{displayName}</strong>
+        </div>
+        <div style={styles.incomingBannerActions}>
+          <button type="button" onClick={() => endCall(true)} style={{ ...styles.bannerButton, ...styles.bannerDecline }}>
+            Decline
+          </button>
+          <button type="button" onClick={answerCall} style={{ ...styles.bannerButton, ...styles.bannerAccept }}>
+            Accept
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   if (isMinimized) {
     return (
       <div
@@ -278,35 +300,28 @@ const CallOverlay = () => {
         ) : null}
       </div>
 
-      {isIncoming ? (
-        <div style={styles.incomingActions}>
-          <CallButton icon="call" label="Accept call" onClick={answerCall} success />
-          <CallButton icon="call" label="Decline call" onClick={() => endCall(true)} danger rotate />
-        </div>
-      ) : (
-        <div style={styles.bottomDock}>
-          <CallButton icon="chevronDown" label="Minimize call" onClick={() => setIsMinimized(true)} off />
-          <CallButton
-            icon={isCameraEnabled ? 'video' : 'videoOff'}
-            label={isCameraEnabled ? 'Turn camera off' : 'Turn camera on'}
-            onClick={toggleCamera}
-            off={!isCameraEnabled}
-          />
-          <CallButton
-            icon={isSpeakerEnabled ? 'speaker' : 'speakerOff'}
-            label={isSpeakerEnabled ? 'Speaker on' : 'Speaker off'}
-            onClick={() => setIsSpeakerEnabled((current) => !current)}
-            off={!isSpeakerEnabled}
-          />
-          <CallButton
-            icon={isMicrophoneMuted ? 'micOff' : 'mic'}
-            label={isMicrophoneMuted ? 'Unmute microphone' : 'Mute microphone'}
-            onClick={toggleMute}
-            off={isMicrophoneMuted}
-          />
-          <CallButton icon="call" label="End call" onClick={() => endCall(true)} danger rotate />
-        </div>
-      )}
+      <div style={styles.bottomDock}>
+        <CallButton icon="chevronDown" label="Minimize call" onClick={() => setIsMinimized(true)} off />
+        <CallButton
+          icon={isCameraEnabled ? 'video' : 'videoOff'}
+          label={isCameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+          onClick={toggleCamera}
+          off={!isCameraEnabled}
+        />
+        <CallButton
+          icon={isSpeakerEnabled ? 'speaker' : 'speakerOff'}
+          label={isSpeakerEnabled ? 'Speaker on' : 'Speaker off'}
+          onClick={() => setIsSpeakerEnabled((current) => !current)}
+          off={!isSpeakerEnabled}
+        />
+        <CallButton
+          icon={isMicrophoneMuted ? 'micOff' : 'mic'}
+          label={isMicrophoneMuted ? 'Unmute microphone' : 'Mute microphone'}
+          onClick={toggleMute}
+          off={isMicrophoneMuted}
+        />
+        <CallButton icon="call" label="End call" onClick={() => endCall(true)} danger rotate />
+      </div>
 
       <button type="button" onClick={() => setShowSettings((current) => !current)} style={styles.settingsButton} aria-label="Call settings">
         <Icon name="settings" size={19} />
@@ -457,6 +472,78 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     gap: '22px',
+  },
+  incomingBanner: {
+    position: 'fixed',
+    top: '18px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 'min(520px, calc(100vw - 32px))',
+    minHeight: '78px',
+    zIndex: 12000,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    padding: '12px 14px',
+    borderRadius: '22px',
+    background: 'rgba(4, 58, 50, 0.96)',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.18)',
+    boxShadow: '0 22px 60px rgba(0,0,0,0.28)',
+  },
+  incomingIcon: {
+    flex: '0 0 auto',
+    width: '48px',
+    height: '48px',
+    borderRadius: '24px',
+    display: 'grid',
+    placeItems: 'center',
+    background: 'rgba(255,255,255,0.12)',
+    color: '#dff8f4',
+  },
+  incomingCopy: {
+    flex: 1,
+    minWidth: 0,
+    display: 'grid',
+    gap: '2px',
+  },
+  incomingEyebrow: {
+    fontSize: '12px',
+    fontWeight: 800,
+    color: 'rgba(223,248,244,0.76)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  incomingName: {
+    fontSize: '18px',
+    lineHeight: 1.2,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  incomingBannerActions: {
+    flex: '0 0 auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  bannerButton: {
+    minWidth: '86px',
+    minHeight: '48px',
+    border: '0',
+    borderRadius: '24px',
+    padding: '0 18px',
+    color: '#fff',
+    fontSize: '14px',
+    fontWeight: 800,
+    cursor: 'pointer',
+    transition: 'transform 160ms ease, filter 160ms ease',
+  },
+  bannerDecline: {
+    background: '#ef003f',
+  },
+  bannerAccept: {
+    background: '#19a85b',
   },
   controlButton: {
     position: 'relative',
