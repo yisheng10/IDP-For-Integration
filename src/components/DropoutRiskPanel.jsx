@@ -1072,6 +1072,17 @@ function InterventionTimelineSection({
   const allHistoryRows = Array.isArray(recentCases) ? recentCases : [];
   const historyRows = (showFullHistory ? allHistoryRows : allHistoryRows.slice(0, 4));
   const hasMoreHistory = allHistoryRows.length > 4;
+  const renderStageLabel = (stage) => {
+    if (stage?.key === 'auto') {
+      return (
+        <>
+          <span>Auto evaluation</span>
+          <span>in progress</span>
+        </>
+      );
+    }
+    return stage.label;
+  };
 
   return (
     <section ref={sectionRef} className="dropout-dashboard__timelineCard">
@@ -1103,7 +1114,7 @@ function InterventionTimelineSection({
               >
                 <span>{stage.state === 'complete' ? '✓' : index + 1}</span>
               </div>
-              <div className="dropout-dashboard__timelineLabel">{stage.label}</div>
+              <div className="dropout-dashboard__timelineLabel">{renderStageLabel(stage)}</div>
               {shouldShowTimestamp ? <div className="dropout-dashboard__timelineMeta">{timestampLabel}</div> : null}
               {stage.caption ? <div className="dropout-dashboard__timelineCaption">{stage.caption}</div> : null}
             </div>
@@ -1170,7 +1181,6 @@ function InterventionTimelineSection({
             disabled={!canMutate || isUpdating}
             onClick={() => onAction(actionOption.value)}
           >
-            <span className="dropout-dashboard__timelineActionIcon" aria-hidden="true">i</span>
             {actionOption.label}
           </button>
         ))}
@@ -1182,7 +1192,6 @@ function InterventionTimelineSection({
             disabled={!canMutate || isUpdating}
             onClick={() => onResult(resultOption.value)}
           >
-            <span className="dropout-dashboard__timelineActionIcon" aria-hidden="true">i</span>
             {resultOption.label}
           </button>
         ))}
@@ -1192,7 +1201,6 @@ function InterventionTimelineSection({
           disabled={!canClose || isUpdating}
           onClick={onClose}
         >
-          <span className="dropout-dashboard__timelineActionIcon" aria-hidden="true">i</span>
           Close case
         </button>
       </div>

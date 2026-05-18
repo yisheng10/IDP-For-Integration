@@ -10887,20 +10887,6 @@ body {
   color: #d12e27 !important;
 }
 
-#patient-disengagement .dropout-dashboard__timelineActionIcon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 2px solid currentColor;
-  font-size: 0.66rem;
-  line-height: 1;
-  font-weight: 900;
-  text-transform: lowercase;
-}
-
 #patient-disengagement .dropout-dashboard__timelineCard > .section-note--spaced {
   margin-top: 12px !important;
   color: #6e8298;
@@ -11038,6 +11024,22 @@ body {
   max-width: 13ch;
 }
 
+#patient-disengagement .dropout-dashboard__timelineStage--auto .dropout-dashboard__timelineLabel {
+  display: grid;
+  align-items: center;
+  align-content: center;
+  gap: 0;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--auto .dropout-dashboard__timelineLabel span {
+  display: block;
+}
+
+#patient-disengagement .dropout-dashboard__workspacePanel,
+#patient-disengagement .dropout-dashboard__queuePanel {
+  min-height: 0 !important;
+}
+
 #patient-disengagement .dropout-dashboard__queuePanel {
   overflow: hidden !important;
 }
@@ -11047,6 +11049,10 @@ body {
   overflow-x: hidden !important;
   scrollbar-gutter: stable;
   padding-bottom: 6px;
+}
+
+#patient-disengagement .dropout-dashboard__queueList > .dropout-dashboard__queueRow {
+  flex: 0 0 auto;
 }
 
 #patient-disengagement .dropout-dashboard__queueBadges {
@@ -11060,6 +11066,8 @@ body {
 
   #patient-disengagement .dropout-dashboard__queuePanel {
     align-self: stretch;
+    display: grid !important;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
     height: 100% !important;
     max-height: none !important;
   }
