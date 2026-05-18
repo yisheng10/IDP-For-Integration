@@ -118,6 +118,22 @@ function formatDateTimeValue(value, emptyLabel = 'N/A') {
   return Number.isNaN(nextValue.getTime()) ? emptyLabel : nextValue.toLocaleString();
 }
 
+function formatDateOnlyValue(value, emptyLabel = 'N/A') {
+  if (!value) return emptyLabel;
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(nextValue.getTime())
+    ? emptyLabel
+    : nextValue.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatTimeOnlyValue(value, emptyLabel = 'N/A') {
+  if (!value) return emptyLabel;
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(nextValue.getTime())
+    ? emptyLabel
+    : nextValue.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+}
+
 function formatWorkflowValueLabel(value, emptyLabel = 'Not recorded') {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return emptyLabel;
@@ -494,13 +510,31 @@ function sortDropoutRows(left, right) {
   return String(left.patientName || '').localeCompare(String(right.patientName || ''));
 }
 
-function MetricCard({ label, value, tone = 'default', supportingCopy = '', trailingMeta = '' }) {
+function MetricCard({
+  label,
+  value,
+  tone = 'default',
+  supportingCopy = '',
+  trailingMeta = '',
+  metaTitle = '',
+  metaPrimary = '',
+  metaSecondary = '',
+}) {
   return (
     <div className={`dropout-dashboard__metric dropout-dashboard__metric--${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {supportingCopy ? <small>{supportingCopy}</small> : null}
-      {trailingMeta ? <div className="dropout-dashboard__metricMeta">{trailingMeta}</div> : null}
+      <div className="dropout-dashboard__metricBody">
+        <label>{label}</label>
+        <strong>{value}</strong>
+        {supportingCopy ? <small>{supportingCopy}</small> : null}
+      </div>
+      {metaTitle || metaPrimary || metaSecondary || trailingMeta ? (
+        <div className="dropout-dashboard__metricMeta">
+          {metaTitle ? <span className="dropout-dashboard__metricMetaTitle">{metaTitle}</span> : null}
+          {metaPrimary ? <strong className="dropout-dashboard__metricMetaPrimary">{metaPrimary}</strong> : null}
+          {metaSecondary ? <span className="dropout-dashboard__metricMetaSecondary">{metaSecondary}</span> : null}
+          {!metaTitle && !metaPrimary && !metaSecondary && trailingMeta ? <span>{trailingMeta}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -790,7 +824,7 @@ function HighlightSummaryCard({
   ctaLabel = '',
   onCtaClick = null,
 }) {
-  const visibleItems = truncateSignalItems(items, 3);
+  const visibleItems = truncateSignalItems(items, 2);
 
   return (
     <div className="dropout-dashboard__highlightCard">
@@ -1088,7 +1122,7 @@ function RecentPublishQueueTrendBadge({ direction = '' }) {
   );
 }
 
-function CurrentRiskBriefCard({ entry, trendData, onTakeAction }) {
+function CurrentRiskBriefCard({ entry, trendData, onOpenPatient, canOpenPatient }) {
   const delta = trendData?.latestDelta ?? null;
   const trendDirection = trendData?.trendDirection || 'building';
   return (
@@ -1120,8 +1154,8 @@ function CurrentRiskBriefCard({ entry, trendData, onTakeAction }) {
           <span>Recommended action</span>
           <strong>{formatRecommendedAction(entry)}</strong>
         </div>
-        <button type="button" className="btn btn-primary btn-small" onClick={onTakeAction}>
-          Take action
+        <button type="button" className="btn btn-primary btn-small" onClick={onOpenPatient} disabled={!canOpenPatient}>
+          Open Patient
         </button>
       </div>
       <div className="dropout-dashboard__currentRiskFooter">
@@ -1522,6 +1556,7 @@ export default function DropoutRiskPanel({
   const trendSectionRef = useRef(null);
   const interventionSectionRef = useRef(null);
   const explainabilitySectionRef = useRef(null);
+  const workspacePanelRef = useRef(null);
   const [snapshotRows, setSnapshotRows] = useState([]);
   const [fallbackSnapshotRows, setFallbackSnapshotRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1542,6 +1577,7 @@ export default function DropoutRiskPanel({
   const [interventionCaseError, setInterventionCaseError] = useState('');
   const [isUpdatingInterventionCase, setIsUpdatingInterventionCase] = useState(false);
   const [interventionCaseMutationError, setInterventionCaseMutationError] = useState('');
+  const [queuePanelHeight, setQueuePanelHeight] = useState(null);
 
   const loadedUserIds = useMemo(() => patients.map((patient) => patient.id).filter(Boolean), [patients]);
   const loadedUserSignature = useMemo(() => loadedUserIds.join('|'), [loadedUserIds]);
@@ -1640,6 +1676,35 @@ export default function DropoutRiskPanel({
     () => buildRecentPublishTrendData(recentPublishHistory, activeEntry),
     [activeEntry, recentPublishHistory]
   );
+
+  useEffect(() => {
+    const node = workspacePanelRef.current;
+    if (!node || typeof window === 'undefined') return undefined;
+
+    const syncQueueHeight = () => {
+      const nextHeight = Math.ceil(node.getBoundingClientRect().height);
+      if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+      setQueuePanelHeight((currentHeight) => (
+        Math.abs((currentHeight || 0) - nextHeight) > 1 ? nextHeight : currentHeight
+      ));
+    };
+
+    syncQueueHeight();
+    window.addEventListener('resize', syncQueueHeight);
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(syncQueueHeight);
+      resizeObserver.observe(node);
+    }
+
+    return () => {
+      window.removeEventListener('resize', syncQueueHeight);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [activeEntry?.userId]);
 
   useEffect(() => {
     if (!activeEntry?.userId) {
@@ -2105,6 +2170,9 @@ export default function DropoutRiskPanel({
     : activeExplainabilityReady
       ? 'No missing-input issues were reported for the current snapshot.'
       : 'Loading explainability summary...';
+  const queuePanelStyle = queuePanelHeight
+    ? { '--dropout-queue-panel-height': `${queuePanelHeight}px` }
+    : undefined;
 
   const content = (() => {
     if (error) {
@@ -2131,16 +2199,6 @@ export default function DropoutRiskPanel({
 
     return (
       <>
-        <div className="dropout-dashboard__hero">
-          <div>
-            <h3 className="mt-0">Patient Disengagement Prediction</h3>
-            <div className="section-note">
-              CRC-only module for continuous risk monitoring, intervention case management, and explainability.
-            </div>
-          </div>
-          <span className="metric-pill">CRC only</span>
-        </div>
-
         <div className="dropout-dashboard__metrics">
           <MetricCard
             label="Scored patients"
@@ -2167,36 +2225,14 @@ export default function DropoutRiskPanel({
                 : formatProbabilityPercent(effectiveSummaryMetrics.averageProbability)
             }
             supportingCopy="Across all scored"
-            trailingMeta={
-              effectiveSummaryMetrics.publishedAt
-                ? `Snapshot as of ${formatDateTimeValue(effectiveSummaryMetrics.publishedAt)}`
-                : ''
-            }
+            metaTitle={effectiveSummaryMetrics.publishedAt ? 'Snapshot as of' : ''}
+            metaPrimary={effectiveSummaryMetrics.publishedAt ? formatDateOnlyValue(effectiveSummaryMetrics.publishedAt) : ''}
+            metaSecondary={effectiveSummaryMetrics.publishedAt ? `${formatTimeOnlyValue(effectiveSummaryMetrics.publishedAt)} GMT+8` : ''}
           />
         </div>
 
-        <div className="section-note section-note--spaced">
-          {summary
-            ? `Summary cards reflect the latest published disengagement dashboard summary${
-                effectiveSummaryMetrics.publishedAt
-                  ? ` from ${formatDateTimeValue(effectiveSummaryMetrics.publishedAt)}`
-                  : ''
-              }. ${
-                isUsingFallbackRows
-                  ? 'The ranked list is temporarily using fallback current-snapshot rows while the loaded patient window catches up.'
-                  : 'The ranked list below remains paginated from the current loaded patient window.'
-              }`
-            : summaryReady
-              ? `No published disengagement summary is available yet. ${
-                  isUsingFallbackRows
-                    ? 'Fallback current-snapshot rows are being shown while the dashboard summary is still missing.'
-                    : 'This workspace will stay empty until the next published snapshot is available.'
-                }`
-              : 'Loading the latest published disengagement dashboard summary...'}
-        </div>
-
         <div className="dropout-dashboard__a2Layout">
-          <aside className="dropout-dashboard__queuePanel">
+          <aside className="dropout-dashboard__queuePanel" style={queuePanelStyle}>
             <div className="dropout-dashboard__queueHeader">
               <div>
                 <h4 className="mt-0">Risk-ranked patient queue</h4>
@@ -2216,7 +2252,6 @@ export default function DropoutRiskPanel({
             />
 
             <div className="dropout-dashboard__queueControls">
-              <div className="dropout-dashboard__queueSortChip">Sorted by risk (high → low)</div>
               <WindowPaginationControls
                 page={effectiveSnapshotPage}
                 pageSize={snapshotPageSize}
@@ -2264,23 +2299,15 @@ export default function DropoutRiskPanel({
             </div>
           </aside>
 
-          <section className="dropout-dashboard__workspacePanel">
+          <section className="dropout-dashboard__workspacePanel" ref={workspacePanelRef}>
             {activeEntry ? (
               <>
-                <div className="dropout-dashboard__workspaceHeader">
-                  <div>
-                    <h3 className="mt-0">Patient disengagement detail</h3>
-                  </div>
-                  <button className="btn btn-secondary btn-small" onClick={openPatientRoster} disabled={!activeEntry.patient}>
-                    Open Patient
-                  </button>
-                </div>
-
                 <div className="dropout-dashboard__briefTopRow">
                   <CurrentRiskBriefCard
                     entry={activeEntry}
                     trendData={activeTrendData}
-                    onTakeAction={() => scrollToSection(interventionSectionRef)}
+                    onOpenPatient={openPatientRoster}
+                    canOpenPatient={Boolean(activeEntry.patient)}
                   />
                   <ModelContractBriefCard entry={activeEntry} />
                 </div>
@@ -2366,79 +2393,83 @@ export default function DropoutRiskPanel({
                   mutationError={interventionCaseMutationError}
                   sectionRef={interventionSectionRef}
                 />
-
-                {isEarlyHistorySnapshot(activeEntry) ? (
-                  <div className="info-banner section-note--spaced">{buildEarlyHistorySummary(activeEntry)}</div>
-                ) : null}
-
-                <details className="dropout-dashboard__legacyContext">
-                  <summary>
-                    <strong>Legacy operational context</strong>
-                  </summary>
-                  <div className="dropout-dashboard__legacyGrid">
-                    <DetailSection
-                      title="Legacy snapshot signals"
-                      items={legacyExplanationSignals}
-                      emptyLabel="No legacy explanation signals were included in the current snapshot payload."
-                    />
-                    <DetailSection
-                      title="Legacy snapshot input gaps"
-                      items={legacyMissingInputs}
-                      emptyLabel="No legacy missing-input issues were reported for the current snapshot."
-                    />
-                    <DetailSection
-                      title="Legacy snapshot data-quality flags"
-                      items={legacyDataQualityFlags}
-                      emptyLabel="No legacy data-quality flags were reported for the current snapshot."
-                    />
-                  </div>
-                </details>
-
-                <section ref={explainabilitySectionRef} className="dropout-dashboard__detailedExplainability">
-                  <div className="dropout-dashboard__detailedHeader">
-                    <div>
-                      <h3 className="mt-0">Explainability Summary <span className="dropout-dashboard__inlineQualifier">(detailed)</span></h3>
-                    </div>
-                  </div>
-
-                  {activeExplainabilityPayload ? (
-                    <>
-                      <div className="info-banner section-note--spaced">
-                        Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
-                        {explainabilityBlockedReasons.length ? (
-                          <div className="section-note section-note--dense">
-                            Blocked or partial reason: {explainabilityBlockedReasons.join('; ')}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="dropout-dashboard__detailedGrid">
-                        {visibleDetailedExplainabilitySections.map((renderSection, index) =>
-                          renderSection({ className: getDetailedGridClassName(index) })
-                        )}
-                      </div>
-                    </>
-                  ) : activeExplainabilityReady && activeExplainabilityUserId === activeEntry?.userId ? (
-                    <div className="empty-panel">
-                      Explainability mirror has not been published for this patient.
-                      <div className="section-note section-note--spaced">
-                        The current prediction snapshot can still be shown above, but CRC should not treat legacy snapshot fields as a dedicated explainability mirror.
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="empty-panel">
-                      Loading explainability summary...
-                    </div>
-                  )}
-                </section>
               </>
             ) : (
               <div className="empty-panel">Select a ranked patient to inspect the current disengagement snapshot.</div>
             )}
           </section>
         </div>
+
+        {activeEntry ? (
+          <>
+            {isEarlyHistorySnapshot(activeEntry) ? (
+              <div className="info-banner section-note--spaced">{buildEarlyHistorySummary(activeEntry)}</div>
+            ) : null}
+
+            <details className="dropout-dashboard__legacyContext">
+              <summary>
+                <strong>Legacy operational context</strong>
+              </summary>
+              <div className="dropout-dashboard__legacyGrid">
+                <DetailSection
+                  title="Legacy snapshot signals"
+                  items={legacyExplanationSignals}
+                  emptyLabel="No legacy explanation signals were included in the current snapshot payload."
+                />
+                <DetailSection
+                  title="Legacy snapshot input gaps"
+                  items={legacyMissingInputs}
+                  emptyLabel="No legacy missing-input issues were reported for the current snapshot."
+                />
+                <DetailSection
+                  title="Legacy snapshot data-quality flags"
+                  items={legacyDataQualityFlags}
+                  emptyLabel="No legacy data-quality flags were reported for the current snapshot."
+                />
+              </div>
+            </details>
+
+            <section ref={explainabilitySectionRef} className="dropout-dashboard__detailedExplainability">
+              <div className="dropout-dashboard__detailedHeader">
+                <div>
+                  <h3 className="mt-0">Explainability Summary <span className="dropout-dashboard__inlineQualifier">(detailed)</span></h3>
+                </div>
+              </div>
+
+              {activeExplainabilityPayload ? (
+                <>
+                  <div className="info-banner section-note--spaced">
+                    Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
+                    {explainabilityBlockedReasons.length ? (
+                      <div className="section-note section-note--dense">
+                        Blocked or partial reason: {explainabilityBlockedReasons.join('; ')}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="dropout-dashboard__detailedGrid">
+                    {visibleDetailedExplainabilitySections.map((renderSection, index) =>
+                      renderSection({ className: getDetailedGridClassName(index) })
+                    )}
+                  </div>
+                </>
+              ) : activeExplainabilityReady && activeExplainabilityUserId === activeEntry?.userId ? (
+                <div className="empty-panel">
+                  Explainability mirror has not been published for this patient.
+                  <div className="section-note section-note--spaced">
+                    The current prediction snapshot can still be shown above, but CRC should not treat legacy snapshot fields as a dedicated explainability mirror.
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-panel">
+                  Loading explainability summary...
+                </div>
+              )}
+            </section>
+          </>
+        ) : null}
       </>
     );
   })();
 
-  return <div className="card workspace-card intelligence-card intelligence-card--dropout">{content}</div>;
+  return <div className="dropout-board-root intelligence-card--dropout">{content}</div>;
 }

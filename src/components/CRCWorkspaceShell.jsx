@@ -215,8 +215,11 @@ export default function CRCWorkspaceShell({
   headerDescription,
   searchValue = '',
   onSearchChange,
+  searchPlaceholder,
   searchResults = [],
   onSearchSelect,
+  statusItems = [],
+  minimalNav = false,
   children,
 }) {
   const navigate = useNavigate();
@@ -244,8 +247,13 @@ export default function CRCWorkspaceShell({
   };
 
   return (
-    <div className={`crc-shell ${isCollapsed ? 'crc-shell--sidebarCollapsed' : ''}`}>
-      <aside className={`crc-sidebar ${isCollapsed ? 'crc-sidebar--collapsed' : ''}`}>
+    <div
+      className={`crc-shell ${isCollapsed ? 'crc-shell--sidebarCollapsed' : ''} ${
+        minimalNav ? 'crc-shell--minimalNav' : ''
+      }`}
+    >
+      {!minimalNav ? (
+        <aside className={`crc-sidebar ${isCollapsed ? 'crc-sidebar--collapsed' : ''}`}>
         <div className="crc-sidebar__header">
           <button
             type="button"
@@ -306,11 +314,12 @@ export default function CRCWorkspaceShell({
                 </div>
               </div>
             ))}
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
+      ) : null}
 
-      <div className="crc-shell__workspace">
+      <div className={`crc-shell__workspace ${minimalNav ? 'crc-shell__workspace--minimalNav' : ''}`}>
         <TopNavbar
           user={user}
           defaultRole="CRC"
@@ -323,8 +332,10 @@ export default function CRCWorkspaceShell({
         description={headerDescription}
         searchValue={searchValue}
         onSearchChange={onSearchChange}
+        searchPlaceholder={searchPlaceholder}
         searchResults={searchResults}
         onSearchSelect={onSearchSelect}
+        statusItems={statusItems}
       />
 
       <main className="crc-shell__content">{children}</main>

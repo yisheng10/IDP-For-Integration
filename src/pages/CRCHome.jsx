@@ -189,7 +189,7 @@ const HOME_SECTIONS = {
     label: 'Patient Disengagement Prediction',
     path: '/home?section=patient-disengagement',
     title: 'Patient Disengagement Prediction',
-    description: 'Inspect CRC-only patient ranking, confidence, and data completeness from a dedicated prediction workspace.',
+    description: 'CRC-only mode for continuous risk monitoring, intervention case management, and explainability.',
   },
   epro: {
     label: 'ePRO',

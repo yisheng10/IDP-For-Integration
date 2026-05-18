@@ -12,6 +12,50 @@ function BellIcon() {
   );
 }
 
+function StatusShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3l7 3.5v4.7c0 4.4-2.8 7-7 8.8-4.2-1.8-7-4.4-7-8.8V6.5L12 3Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="m9.4 11.8 1.8 1.8 3.6-3.9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatusLockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5.5" y="10.5" width="13" height="10" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StatusClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 7.8v4.8l3 1.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatusIndicator({ icon, label }) {
+  return (
+    <div className="topnav__statusItem" aria-label={label}>
+      <span className="topnav__statusIcon" aria-hidden="true">
+        {icon}
+      </span>
+      <span>{label}</span>
+    </div>
+  );
+}
+
 export default function TopNavbar({
   user,
   defaultRole,
@@ -27,6 +71,7 @@ export default function TopNavbar({
   searchPlaceholder = 'Search loaded patients',
   searchResults = [],
   onSearchSelect,
+  statusItems = [],
 }) {
   const [displayName, setDisplayName] = useState(user.email);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -156,6 +201,17 @@ export default function TopNavbar({
             </span>
             <span>{resolvedAlertLabel}</span>
           </button>
+
+          {statusItems.length ? (
+            <div className="topnav__statusRail" aria-label="Workspace status">
+              {statusItems.map((item) => {
+                let iconNode = <StatusShieldIcon />;
+                if (item.icon === 'lock') iconNode = <StatusLockIcon />;
+                if (item.icon === 'clock') iconNode = <StatusClockIcon />;
+                return <StatusIndicator key={item.label} icon={iconNode} label={item.label} />;
+              })}
+            </div>
+          ) : null}
 
           <div className="topnav__menuAnchor" ref={profileRef}>
             <button

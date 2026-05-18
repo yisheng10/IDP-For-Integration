@@ -8233,87 +8233,91 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 2px 2px 0;
 }
 
-.dropout-dashboard__hero h3 {
-  margin: 0 !important;
-  color: var(--dropout-navy) !important;
-  font-size: 2rem !important;
-  line-height: 1.04 !important;
-  letter-spacing: -0.03em;
+.dropout-dashboard__heroCopy {
+  display: grid;
+  gap: 4px;
 }
 
 .dropout-dashboard__hero .section-note {
-  margin-top: 6px;
-  max-width: 78ch;
-  line-height: 1.45;
+  margin-top: 0;
+  max-width: 84ch;
+  line-height: 1.38;
+  font-size: 0.9rem;
 }
 
 .dropout-dashboard__metrics {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px !important;
-  margin-top: 14px !important;
+  margin-top: 8px !important;
+  width: 100%;
 }
 
 .dropout-dashboard__metric {
-  min-height: 112px;
-  padding: 18px 20px !important;
-  border-radius: 22px !important;
-  border: 1px solid var(--dropout-border) !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  box-shadow: 0 14px 32px rgba(22, 58, 98, 0.05);
+  min-height: 118px;
+  padding: 16px 18px !important;
+  border-radius: 15px !important;
+  border: 1px solid #e6ecf3 !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 58, 98, 0.035);
 }
 
 .dropout-dashboard__metric--warning {
-  background: linear-gradient(180deg, #fffdfb 0%, #fff6f4 100%) !important;
-  border-color: var(--dropout-red-border) !important;
+  border-color: #f0d8d4 !important;
 }
 
 .dropout-dashboard__metric--brand {
-  background: linear-gradient(180deg, #fbfdff 0%, #f3f8ff 100%) !important;
-  border-color: #d5e4f5 !important;
+  border-color: #dce8f5 !important;
 }
 
 .dropout-dashboard__metric label {
   display: block;
-  margin-bottom: 8px;
-  color: var(--dropout-slate);
-  font-size: 0.79rem;
+  margin-bottom: 0;
+  color: #516981;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
 .dropout-dashboard__metric strong {
   display: block;
-  color: var(--dropout-navy);
+  color: #0b1f3a;
   font-size: 2.1rem;
-  line-height: 1;
-  letter-spacing: -0.04em;
+  line-height: 1.02;
+  letter-spacing: -0.05em;
 }
 
 .dropout-dashboard__metric small,
 .dropout-dashboard__metricMeta {
   display: block;
-  margin-top: 10px;
-  color: var(--dropout-copy-soft);
-  font-size: 0.85rem;
-  line-height: 1.35;
+  margin-top: 0;
+  color: #687f96;
+  font-size: 0.92rem;
+  line-height: 1.34;
+}
+
+.dropout-dashboard__summaryNarrative {
+  margin-top: 12px !important;
+  padding: 0 2px;
+  font-size: 0.84rem;
+  line-height: 1.46;
 }
 
 .dropout-dashboard__a2Layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.98fr) minmax(0, 1.82fr);
-  gap: 20px;
+  grid-template-columns: minmax(300px, 0.88fr) minmax(0, 2.02fr);
+  gap: 16px;
   align-items: start;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .dropout-dashboard__queuePanel,
-.dropout-dashboard__workspacePanel,
 .dropout-dashboard__currentRiskCard,
 .dropout-dashboard__modelCard,
 .dropout-dashboard__highlightCard,
@@ -8330,10 +8334,12 @@ body {
 .dropout-dashboard__queuePanel {
   display: flex;
   flex-direction: column;
-  min-height: 1180px;
-  padding: 18px;
+  min-height: 0;
+  max-height: calc(100vh - 120px);
+  padding: 14px;
   position: sticky;
   top: 14px;
+  overflow: hidden;
 }
 
 .dropout-dashboard__queueHeader,
@@ -8356,10 +8362,10 @@ body {
 
 .dropout-dashboard__search {
   width: 100%;
-  min-height: 46px;
-  margin-top: 16px;
+  min-height: 42px;
+  margin-top: 12px;
   padding: 0 16px;
-  border-radius: 14px;
+  border-radius: 13px;
   border: 1px solid var(--dropout-border-strong);
   background: #fcfeff;
   color: var(--dropout-copy);
@@ -8375,21 +8381,22 @@ body {
 .dropout-dashboard__queueControls {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 10px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .dropout-dashboard__queueSortChip {
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 12px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 11px;
   border: 1px solid var(--dropout-border);
   background: #f8fbff;
   color: var(--dropout-slate);
   display: inline-flex;
   align-items: center;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -8404,9 +8411,10 @@ body {
 
 .dropout-dashboard__queueList {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
   min-height: 0;
 }
@@ -8415,14 +8423,15 @@ body {
   width: 100%;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
-  gap: 14px;
-  padding: 16px;
-  border-radius: 22px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
   border: 1px solid var(--dropout-border);
   background: linear-gradient(180deg, #ffffff 0%, #fdfefe 100%);
   color: inherit;
   text-align: left;
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
+  min-width: 0;
 }
 
 .dropout-dashboard__queueRow:hover {
@@ -8439,7 +8448,7 @@ body {
 
 .dropout-dashboard__queueRowRank {
   color: var(--dropout-slate);
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 900;
   line-height: 1;
   padding-top: 2px;
@@ -8447,7 +8456,8 @@ body {
 
 .dropout-dashboard__queueRowBody {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .dropout-dashboard__queueRowTop {
@@ -8459,7 +8469,7 @@ body {
 
 .dropout-dashboard__queuePatientName {
   color: var(--dropout-navy);
-  font-size: 1.12rem;
+  font-size: 1.02rem;
   font-weight: 900;
   line-height: 1.1;
 }
@@ -8467,13 +8477,13 @@ body {
 .dropout-dashboard__queuePatientMeta {
   margin-top: 5px;
   color: var(--dropout-copy-soft);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
 .dropout-dashboard__queueBadges {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -8481,7 +8491,12 @@ body {
 .dropout-dashboard__queueStats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
+}
+
+.dropout-dashboard__queueRowTop > div,
+.dropout-dashboard__queueStats > div {
+  min-width: 0;
 }
 
 .dropout-dashboard__queueStats span,
@@ -8505,10 +8520,12 @@ body {
 .dropout-dashboard__currentRiskActionRow strong,
 .dropout-dashboard__modelGrid strong {
   display: block;
-  margin-top: 4px;
+  margin-top: 3px;
   color: var(--dropout-copy);
-  font-size: 0.94rem;
-  line-height: 1.4;
+  font-size: 0.91rem;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .dropout-dashboard__queueFoot {
@@ -8521,57 +8538,66 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid rgba(186, 204, 226, 0.7);
   color: var(--dropout-copy-soft);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
 }
 
 .dropout-dashboard__workspacePanel {
-  padding: 18px;
+  padding: 4px 0 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .dropout-dashboard__workspaceHeader {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+  padding: 0 2px;
+  justify-content: flex-end;
+}
+
+.dropout-dashboard__workspaceSpacer {
+  display: none;
 }
 
 .dropout-dashboard__briefTopRow {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.9fr);
-  gap: 16px;
+  gap: 12px;
 }
 
 .dropout-dashboard__currentRiskCard,
 .dropout-dashboard__modelCard {
-  padding: 18px 18px 16px;
+  padding: 15px 15px 13px;
 }
 
 .dropout-dashboard__cardHeader strong,
 .dropout-dashboard__historyHeader strong,
 .dropout-dashboard__detailedHeader strong {
   color: var(--dropout-navy);
-  font-size: 1.03rem;
+  font-size: 0.98rem;
   line-height: 1.2;
 }
 
 .dropout-dashboard__cardSubtitle {
-  margin-top: 4px;
+  margin-top: 3px;
   color: var(--dropout-copy-soft);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
 }
 
 .dropout-dashboard__currentRiskTopline {
   display: grid;
   grid-template-columns: minmax(140px, auto) 1fr;
-  gap: 20px;
+  gap: 14px;
   align-items: start;
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .dropout-dashboard__currentRiskValue {
   color: var(--dropout-red);
-  font-size: 3rem;
+  font-size: 2.42rem;
   font-weight: 900;
   letter-spacing: -0.05em;
   line-height: 0.92;
@@ -8587,41 +8613,41 @@ body {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 18px;
-  padding-top: 16px;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(196, 212, 230, 0.72);
 }
 
 .dropout-dashboard__currentRiskFooter {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 16px;
+  margin-top: 10px;
   color: var(--dropout-copy-soft);
-  font-size: 0.79rem;
+  font-size: 0.76rem;
 }
 
 .dropout-dashboard__modelGrid {
   display: grid;
   grid-template-columns: minmax(120px, auto) 1fr;
-  gap: 10px 18px;
-  margin-top: 18px;
+  gap: 9px 14px;
+  margin-top: 12px;
 }
 
 .dropout-dashboard__highlightGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .dropout-dashboard__highlightCard {
   display: grid;
-  gap: 12px;
-  padding: 16px;
-  min-height: 198px;
+  gap: 8px;
+  padding: 12px 12px 11px;
+  min-height: 148px;
 }
 
 .dropout-dashboard__highlightHeader {
@@ -8633,14 +8659,18 @@ body {
 
 .dropout-dashboard__highlightHeader strong {
   color: var(--dropout-navy);
-  font-size: 0.98rem;
-  line-height: 1.25;
+  font-size: 0.9rem;
+  line-height: 1.22;
 }
 
 .dropout-dashboard__highlightSummary {
   color: var(--dropout-copy);
-  font-size: 0.92rem;
-  line-height: 1.55;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .dropout-dashboard__highlightList,
@@ -8652,8 +8682,9 @@ body {
 
 .dropout-dashboard__highlightList li,
 .dropout-dashboard__detailList li {
-  margin: 0 0 8px;
-  line-height: 1.55;
+  margin: 0 0 6px;
+  line-height: 1.42;
+  font-size: 0.84rem;
 }
 
 .dropout-dashboard__inlineLink {
@@ -8662,7 +8693,7 @@ body {
   border: 0;
   background: transparent;
   color: var(--dropout-blue-strong);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 800;
   cursor: pointer;
 }
@@ -8672,30 +8703,30 @@ body {
 }
 
 .dropout-dashboard__trendCard {
-  margin-top: 16px;
-  padding: 18px;
+  margin-top: 12px;
+  padding: 14px;
 }
 
 .dropout-dashboard__trendHeadline {
-  margin-top: 10px;
+  margin-top: 6px;
   color: var(--dropout-copy);
-  font-size: 0.96rem;
-  line-height: 1.5;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .dropout-dashboard__trendLayout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(230px, 0.72fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(230px, 0.64fr);
+  gap: 12px;
   align-items: center;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .dropout-dashboard__trendChartSurface {
-  border-radius: 20px;
+  border-radius: 16px;
   border: 1px solid rgba(211, 225, 240, 0.9);
   background: linear-gradient(180deg, #fffefc 0%, #f9fcff 100%);
-  padding: 16px 16px 14px;
+  padding: 10px 12px 10px;
 }
 
 .dropout-dashboard__trendLegend {
@@ -8723,20 +8754,20 @@ body {
 
 .dropout-dashboard__trendMeta {
   display: grid;
-  gap: 10px;
+  gap: 7px;
   align-content: start;
 }
 
 .dropout-dashboard__trendMetaRow {
-  padding: 12px 14px;
-  border-radius: 16px;
+  padding: 10px 12px;
+  border-radius: 13px;
   border: 1px solid var(--dropout-border);
   background: rgba(255, 255, 255, 0.92);
 }
 
 .dropout-dashboard__trendJump {
-  padding: 14px;
-  border-radius: 18px;
+  padding: 10px 12px;
+  border-radius: 14px;
   background: var(--dropout-blue-soft);
   color: var(--dropout-blue-strong);
   font-size: 0.86rem;
@@ -8744,31 +8775,31 @@ body {
 }
 
 .dropout-dashboard__timelineCard {
-  margin-top: 18px;
-  padding: 18px;
+  margin-top: 14px;
+  padding: 14px;
   background: linear-gradient(180deg, #fffcf8 0%, #fffaf3 100%);
 }
 
 .dropout-dashboard__timelineRail {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   align-items: start;
-  margin-top: 18px;
-  padding: 10px 4px 2px;
+  margin-top: 12px;
+  padding: 8px 2px 0;
 }
 
 .dropout-dashboard__timelineStage {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 8px;
+  gap: 6px;
   text-align: center;
 }
 
 .dropout-dashboard__timelineConnector {
   position: absolute;
-  top: 18px;
+  top: 17px;
   left: 50%;
   width: calc(100% + 10px);
   height: 2px;
@@ -8780,14 +8811,14 @@ body {
 .dropout-dashboard__timelineDot {
   position: relative;
   z-index: 1;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   border: 3px solid rgba(255, 255, 255, 0.98);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 900;
   color: #ffffff;
   box-shadow: 0 10px 24px rgba(17, 55, 94, 0.12);
@@ -8815,67 +8846,68 @@ body {
 
 .dropout-dashboard__timelineLabel {
   color: var(--dropout-navy);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 800;
-  line-height: 1.3;
+  line-height: 1.24;
 }
 
 .dropout-dashboard__timelineMeta {
   color: var(--dropout-copy);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.75rem;
+  line-height: 1.34;
 }
 
 .dropout-dashboard__timelineCaption {
   color: var(--dropout-copy-soft);
-  font-size: 0.76rem;
-  line-height: 1.38;
+  font-size: 0.73rem;
+  line-height: 1.3;
 }
 
 .dropout-dashboard__timelineStatusGrid,
 .dropout-dashboard__timelineMetaGrid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
+  gap: 7px;
+  margin-top: 12px;
 }
 
 .dropout-dashboard__timelineStatusGrid > div,
 .dropout-dashboard__timelineMetaGrid > div {
-  min-height: 88px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  min-height: 60px;
+  padding: 9px 11px;
+  border-radius: 13px;
   border: 1px solid rgba(209, 222, 235, 0.88);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .dropout-dashboard__timelineActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 7px;
+  margin-top: 12px;
 }
 
 .dropout-dashboard__historyBlock {
-  margin-top: 18px;
-  padding: 16px;
-  border-radius: 18px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 16px;
   border: 1px solid rgba(211, 223, 236, 0.94);
   background: rgba(255, 255, 255, 0.9);
 }
 
 .dropout-dashboard__historyRows {
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 7px;
+  margin-top: 8px;
 }
 
 .dropout-dashboard__historyRow {
   display: grid;
   grid-template-columns: minmax(170px, 200px) minmax(0, 1fr) minmax(150px, 190px);
-  gap: 12px;
+  gap: 10px;
   align-items: start;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid rgba(220, 229, 239, 0.72);
 }
 
@@ -8886,31 +8918,32 @@ body {
 
 .dropout-dashboard__historyTime {
   color: var(--dropout-copy-soft);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
 .dropout-dashboard__historySummary {
   color: var(--dropout-copy);
-  font-size: 0.87rem;
-  line-height: 1.5;
+  font-size: 0.83rem;
+  line-height: 1.42;
 }
 
 .dropout-dashboard__historySource {
   color: var(--dropout-copy-soft);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  line-height: 1.36;
   text-align: right;
 }
 
 .dropout-dashboard__legacyContext {
-  margin-top: 18px;
-  padding: 0 18px;
+  margin-top: 14px;
+  padding: 0 16px;
   overflow: hidden;
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .dropout-dashboard__legacyContext summary {
-  padding: 16px 0;
+  padding: 14px 0;
   cursor: pointer;
   color: var(--dropout-navy);
 }
@@ -8923,11 +8956,16 @@ body {
 }
 
 .dropout-dashboard__detailedExplainability {
-  margin-top: 18px;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid var(--dropout-border);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 34px rgba(20, 54, 88, 0.05);
 }
 
 .dropout-dashboard__detailedHeader {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .dropout-dashboard__inlineQualifier {
@@ -8939,11 +8977,11 @@ body {
 .dropout-dashboard__detailedGrid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .dropout-dashboard__detailCell {
-  padding: 16px;
+  padding: 12px;
 }
 
 .dropout-dashboard__detailCell--quarter {
@@ -8959,10 +8997,10 @@ body {
 }
 
 .dropout-dashboard__detailSection h4 {
-  margin: 0 0 12px !important;
+  margin: 0 0 8px !important;
   color: var(--dropout-navy) !important;
-  font-size: 1rem !important;
-  line-height: 1.3 !important;
+  font-size: 0.94rem !important;
+  line-height: 1.24 !important;
 }
 
 .dropout-dashboard__statusHeader {
@@ -8975,20 +9013,20 @@ body {
 
 .dropout-dashboard__statusHeader strong {
   color: var(--dropout-navy);
-  font-size: 1rem;
+  font-size: 0.94rem;
 }
 
 .dropout-dashboard__statusBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  padding: 0 12px;
+  min-height: 28px;
+  padding: 0 11px;
   border-radius: 999px;
   border: 1px solid var(--dropout-border);
   background: rgba(255, 255, 255, 0.94);
   color: var(--dropout-slate);
-  font-size: 0.77rem;
+  font-size: 0.74rem;
   font-weight: 800;
 }
 
@@ -9014,12 +9052,12 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  padding: 0 12px;
+  min-height: 28px;
+  padding: 0 11px;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 900;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   border: 1px solid transparent;
 }
 
@@ -9049,13 +9087,15 @@ body {
 }
 
 .dropout-dashboard__detailSection .section-note {
-  line-height: 1.5;
+  line-height: 1.42;
+  font-size: 0.82rem;
 }
 
 .dropout-dashboard__detailSection p {
   margin: 0;
   color: var(--dropout-copy);
-  line-height: 1.58;
+  line-height: 1.48;
+  font-size: 0.84rem;
 }
 
 .dropout-dashboard__detailSection a,
@@ -9086,6 +9126,7 @@ body {
   .dropout-dashboard__queuePanel {
     position: static;
     min-height: 0;
+    max-height: none;
   }
 
   .dropout-dashboard__briefTopRow {
@@ -9164,6 +9205,10 @@ body {
     align-items: stretch;
   }
 
+  .dropout-dashboard__queueList {
+    overflow-x: hidden;
+  }
+
   .dropout-dashboard__metrics {
     grid-template-columns: 1fr !important;
   }
@@ -9185,5 +9230,388 @@ body {
 
   .dropout-dashboard__queueRowRank {
     padding-top: 0;
+  }
+}
+
+/* Dropout A2 structural pass */
+.crc-shell--minimalNav {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.crc-shell--minimalNav .crc-shell__workspace {
+  gap: 8px !important;
+  padding-left: 0 !important;
+}
+
+.crc-shell--minimalNav .crc-shell__content {
+  padding: 8px 16px 18px !important;
+}
+
+.crc-shell--minimalNav .topnav {
+  border-radius: 0 0 18px 18px !important;
+}
+
+.topnav__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.topnav__statusRail {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.topnav__statusItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dropout-slate, #56708d);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.topnav__statusIcon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2a8163;
+}
+
+.topnav__statusIcon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.dropout-board-root.intelligence-card--dropout {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+#patient-disengagement.dashboard-section {
+  gap: 12px !important;
+}
+
+.dropout-dashboard__metrics {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(360px, 1.32fr) !important;
+  margin-top: 6px !important;
+  gap: 10px !important;
+  padding: 6px !important;
+  border: 1px solid #e5edf5;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 26px rgba(22, 58, 98, 0.035);
+}
+
+.dropout-dashboard__metric {
+  min-height: 88px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px !important;
+  border-radius: 14px !important;
+  border: 1px solid #e7edf5 !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(22, 58, 98, 0.025);
+}
+
+.dropout-dashboard__metric:has(.dropout-dashboard__metricMetaPrimary) {
+  grid-template-columns: minmax(130px, 0.78fr) minmax(136px, 0.92fr);
+}
+
+.dropout-dashboard__metric--warning,
+.dropout-dashboard__metric--brand {
+  background: #ffffff !important;
+}
+
+.dropout-dashboard__metricBody {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dropout-dashboard__metric label {
+  margin-bottom: 0 !important;
+  font-size: 0.75rem !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase;
+}
+
+.dropout-dashboard__metric strong {
+  font-size: 1.78rem;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.dropout-dashboard__metric--warning label,
+.dropout-dashboard__metric--warning strong {
+  color: var(--dropout-red) !important;
+}
+
+.dropout-dashboard__metric--brand label,
+.dropout-dashboard__metric--brand strong {
+  color: #1f5f97 !important;
+}
+
+.dropout-dashboard__metric small,
+.dropout-dashboard__metricMeta {
+  margin-top: 0;
+}
+
+.dropout-dashboard__metric small {
+  color: var(--dropout-copy);
+  font-size: 0.82rem !important;
+  line-height: 1.25;
+}
+
+.dropout-dashboard__metricMeta {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 140px;
+  padding-left: 16px;
+  border-left: 1px solid #e5edf5;
+}
+
+.dropout-dashboard__metricMetaTitle,
+.dropout-dashboard__metricMetaSecondary,
+.dropout-dashboard__metricMeta span {
+  color: var(--dropout-copy-soft);
+  font-size: 0.78rem;
+  line-height: 1.28;
+}
+
+.dropout-dashboard__metricMetaTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+}
+
+.dropout-dashboard__metricMetaPrimary {
+  color: var(--dropout-navy);
+  font-size: 0.94rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.dropout-dashboard__metric:not(:has(.dropout-dashboard__metricMetaPrimary)) .dropout-dashboard__metricMeta {
+  min-width: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+
+.dropout-dashboard__a2Layout {
+  grid-template-columns: minmax(320px, 28%) minmax(0, 72%) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+  margin-top: 10px !important;
+}
+
+.dropout-dashboard__queuePanel,
+.dropout-dashboard__workspacePanel {
+  min-height: 0;
+}
+
+.dropout-dashboard__queuePanel {
+  position: relative !important;
+  display: grid !important;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  top: auto !important;
+  height: var(--dropout-queue-panel-height, auto) !important;
+  max-height: var(--dropout-queue-panel-height, none) !important;
+  overflow: hidden !important;
+  padding: 14px !important;
+}
+
+.dropout-dashboard__queueList {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+}
+
+.dropout-dashboard__queueFooter {
+  margin-top: 10px;
+}
+
+.dropout-dashboard__queueHeader h4 {
+  font-size: 1.02rem !important;
+  line-height: 1.2 !important;
+}
+
+.dropout-dashboard__queueRow {
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 5px;
+  padding: 11px 13px;
+  border-radius: 16px;
+}
+
+.dropout-dashboard__queueRowRank {
+  width: 20px;
+  text-align: left;
+  padding-top: 1px;
+}
+
+.dropout-dashboard__queuePatientName {
+  font-size: 0.98rem;
+}
+
+.dropout-dashboard__queueStats strong {
+  font-size: 0.88rem;
+}
+
+.dropout-dashboard__workspacePanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropout-dashboard__briefTopRow {
+  grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+}
+
+.dropout-dashboard__currentRiskCard,
+.dropout-dashboard__modelCard,
+.dropout-dashboard__highlightCard,
+.dropout-dashboard__trendCard,
+.dropout-dashboard__timelineCard,
+.dropout-dashboard__legacyContext,
+.dropout-dashboard__detailedExplainability,
+.dropout-dashboard__detailCell {
+  border-radius: 20px;
+}
+
+.dropout-dashboard__highlightGrid {
+  gap: 12px;
+}
+
+.dropout-dashboard__highlightCard {
+  min-height: 0;
+  padding: 14px 14px 12px;
+}
+
+.dropout-dashboard__highlightHeader strong {
+  font-size: 0.94rem;
+}
+
+.dropout-dashboard__highlightSummary,
+.dropout-dashboard__highlightList li,
+.dropout-dashboard__detailList li {
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.dropout-dashboard__trendCard {
+  padding: 15px;
+}
+
+.dropout-dashboard__trendLayout {
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 0.58fr);
+}
+
+.dropout-dashboard__trendChartSurface {
+  min-height: 228px;
+}
+
+.dropout-dashboard__timelineCard {
+  padding: 16px;
+}
+
+.dropout-dashboard__timelineRail {
+  margin-top: 14px;
+}
+
+.dropout-dashboard__timelineConnector {
+  top: 16px;
+}
+
+.dropout-dashboard__timelineDot {
+  width: 32px;
+  height: 32px;
+  font-size: 0.74rem;
+}
+
+.dropout-dashboard__timelineLabel {
+  font-size: 0.82rem;
+}
+
+.dropout-dashboard__timelineMeta,
+.dropout-dashboard__timelineCaption {
+  font-size: 0.74rem;
+}
+
+.dropout-dashboard__timelineStatusGrid,
+.dropout-dashboard__timelineMetaGrid {
+  gap: 8px;
+}
+
+.dropout-dashboard__timelineStatusGrid > div,
+.dropout-dashboard__timelineMetaGrid > div {
+  min-height: 56px;
+  padding: 10px 11px;
+}
+
+.dropout-dashboard__historyBlock {
+  margin-top: 14px;
+}
+
+.dropout-dashboard__legacyContext,
+.dropout-dashboard__detailedExplainability {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.dropout-dashboard__detailedExplainability {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.dropout-dashboard__detailedGrid {
+  gap: 12px;
+}
+
+.dropout-dashboard__detailCell {
+  padding: 14px;
+}
+
+.dropout-dashboard__detailCell--quarter {
+  min-height: 0;
+}
+
+@media (max-width: 1440px) {
+  .topnav__statusRail {
+    gap: 10px;
+  }
+
+  .topnav__statusItem {
+    font-size: 0.78rem;
+  }
+
+  .dropout-dashboard__a2Layout {
+    grid-template-columns: minmax(300px, 31%) minmax(0, 69%) !important;
+  }
+}
+
+@media (max-width: 1280px) {
+  .crc-shell--minimalNav .topnav__right {
+    justify-content: flex-start;
+  }
+
+  .dropout-dashboard__queuePanel {
+    height: auto;
   }
 }

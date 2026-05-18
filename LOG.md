@@ -1,5 +1,35 @@
 # TrialLight Project Log
 
+## 2026-05-17 - Jianhong environment bundle prepared
+
+- Prepared a teammate-facing environment bundle under:
+  - `artifacts/jianhong-environment-bundle/`
+- Added a manifest file that lists the included runtime / deployment config files across:
+  - root CRC web
+  - Firebase Functions
+  - patient app
+  - Li Qiu ePRO reference service
+  - Supabase config
+- Intentionally excluded:
+  - `secrets/*`
+  - service-account JSON credentials
+  - duplicate worktree-only env copies
+- The bundle is intended for direct teammate handoff and includes active environment files, so it should be treated as confidential.
+
+## 2026-05-17 - Jianhong credentials-only bundle prepared
+
+- Prepared a separate high-risk credentials bundle under:
+  - `artifacts/jianhong-credentials-only/`
+- Included only direct credential material:
+  - `secrets/firebase-service-account.json`
+  - `Supabase and Firebase accesses credentials.txt`
+  - `.firebase-tools-config/configstore/firebase-tools.json`
+- Intentionally excluded:
+  - ordinary env files
+  - source code
+  - update-notifier cache files
+- This bundle is intended only for explicit teammate credential handoff and should be treated as highly confidential.
+
 ## Last Updated
 - Date: 2026-05-16
 - Workspace: `D:\IDP For Integration`
@@ -48,6 +78,18 @@
 - Verification target for this UI overhaul remains:
   - `npm.cmd run test:crc`
   - `npm.cmd run build:crc`
+- Applied a follow-up A2 visual-polish pass after desktop review:
+  - removed the duplicated in-module large page title and replaced it with a lighter CRC-only operations-board eyebrow
+  - pulled `Legacy operational context` and `Explainability Summary (detailed)` out of the right column so they now span the full module width
+  - tightened the summary strip, patient queue cards, highlight cards, trend card, and intervention timeline spacing
+  - reduced nested-card heaviness in the right briefing area and pushed the palette closer to the warmer A2 ivory / softer blue direction
+  - shortened upper highlight summaries so the detailed explainability board carries more of the long-form reading load
+- Applied an additional high-fidelity A2 alignment pass against the concept screenshot:
+  - narrowed the left queue and expanded the right operations surface to better match the concept proportions
+  - reduced card padding, font sizes, and badge sizes across the queue, briefing cards, trend card, timeline, and detailed explainability board
+  - removed extra internal helper copy in the right briefing header so the selected-patient surface reads closer to the concept
+  - tightened intervention timeline node spacing and text alignment for a cleaner step-rail appearance
+  - further compressed highlight cards to reduce tall, narrow text columns and move closer to the concept density
 
 ### Shadow Proxy Evaluator Graceful Skip
 - Fixed the dropout shadow proxy evaluator so GitHub Actions no longer fails when the Supabase shadow monitoring table has not been provisioned yet.
@@ -2194,6 +2236,8 @@ eady calculation.
   - patient-facing `awaiting CRC review` gating behavior
 - Existing warning retained:
   - the CRC bundle still emits the non-blocking large chunk warning during build
+
+<<<<<<< Updated upstream
 ## 2026-04-02 - CRC shell header and duplicate section hero cleanup
 
 - Refined the CRC shell layout to reduce repeated navigation cues and make the workspace easier for CRC users to scan.
@@ -5197,48 +5241,6 @@ eady calculation.
   - the ePRO review window backend now uses the updated `9:00 AM` to `1:00 PM` review/auto-release timing
   - `publish_dropout_snapshots.py` was updated locally, but it is not a deployable service by itself; it still depends on the repo/workflow execution path that uses that script
 
-## 2026-05-06 - Dropout precompute workflow schedule and checkout fix
-
-- Updated `.github/workflows/dropout-precompute.yml` on `main` so the daily dropout publish workflow can run from the default branch.
-- The workflow now:
-  - runs at `03:00` Asia/Kuala_Lumpur via cron `0 19 * * *` in GitHub Actions UTC time
-  - explicitly checks out the private `Patient-Dropout-Prediction` repository into `Patient-Dropout-Prediction/`
-  - requires the `DROPOUT_REPO_PAT` secret in addition to the existing Supabase and Firebase secrets
-  - upgrades to `actions/checkout@v5` and `actions/setup-python@v6`
-  - verifies the dropout workspace files before installing dependencies
-  - uses `deploy_assets/checkpoints_honest_v3` as the checkpoints directory
-- This change only updates the GitHub Actions automation path and does not deploy Firebase Hosting or Supabase functions.
-
-## 2026-05-09 - Dropout precompute workflow rescheduled and path-corrected on main
-
-- Updated `.github/workflows/dropout-precompute.yml` on `main` again to reduce scheduler congestion and fix the live asset path bug.
-- The workflow now:
-  - runs twice daily at `06:00` and `18:00` Asia/Kuala_Lumpur via cron `0 22 * * *` and `0 10 * * *`
-  - runs the verify / install / preflight / publish steps from the checked-out `Patient-Dropout-Prediction` working directory so `deploy_assets/...` paths resolve inside the dropout repository
-  - validates the required CSV and the official `Candidate 024` checkpoint directory before installing dependencies
-  - uses `deploy_assets/checkpoints_candidate_024` instead of the older `honest_v3` rollback checkpoint path
-  - writes a temporary `.gitmodules` file during CI so GitHub post-job cleanup no longer fails on missing submodule metadata for `Patient-Dropout-Prediction` and `MyClinicalApp2`
-- This change only updates the GitHub Actions automation path and does not deploy Firebase Hosting or Supabase functions.
-
-## 2026-05-10 - Dropout live publish bounded-source and debug hotfix
-
-- Tightened the live dropout publisher so Firestore source reads no longer fall back to unbounded full-history scans when `protocolAssignedAt` is missing.
-- Added a capped `incident_records` query and source-start debug logging so GitHub Actions can identify which patient/source is slowing the live publish step.
-- Updated the main-branch workflow environment to enable live source debug output while keeping the existing `Candidate 024` asset bundle and progress heartbeat settings.
-
-## 2026-05-11 - Dropout workflow debugging inputs and recent-context runtime cap
-
-- Updated the `main` branch dropout workflow so manual runs can now pass:
-  - `limit_patients`
-  - `firebase_uids`
-  - `skip_testing_subject_sync`
-- Added live runtime env knobs on the workflow for:
-  - `DROPOUT_LIVE_HISTORY_CONTEXT_DAYS`
-  - `DROPOUT_LIVE_STALENESS_CAP_DAYS`
-- This keeps the scheduled `06:00 / 18:00 Asia/Kuala_Lumpur` runs unchanged while making targeted GitHub debugging much cheaper.
-- The dropout publisher on `main` now builds only a controlled recent context window for live scoring instead of replaying the entire day-by-day history from the original anchor date, while still preserving the real global `day_index` in published rows.
-- Added explicit per-patient `history_build_*` and `score_*` progress logs so future GitHub timeouts can be pinned to the exact slow phase.
-
 ## 2026-05-12 - Protocol-specific ePRO baseline hardening and stale fallback removal
 
 - Removed the silent global baseline fallback path from the shared ePRO questionnaire runtime.
@@ -5437,6 +5439,32 @@ eady calculation.
   - `yunhong-full/service-account/firebase-service-account.json`
   - `jianhong-core/service-account/firebase-service-account.json`
 - Updated the new package READMEs to state that this version includes the Firebase admin service account and must be treated as highly sensitive.
+
+## 2026-05-17 - Jianhong full latest-code snapshot package prepared without dedicated dropout repo
+
+- Created a new Jianhong handoff snapshot folder:
+  - `JIANHONG_LATEST_CODE_WITH_SECRETS_NO_DROPOUT_20260517`
+- Packaged the current local working copy as the latest version source of truth, rather than trying to infer the latest version only from GitHub.
+- Included:
+  - root integration repo code snapshot
+  - CRC web code
+  - patient app code
+  - Firebase Functions code
+  - Supabase function code
+  - ePRO service code
+  - local environment files
+  - local secrets folder including the restored Firebase service account
+- Excluded:
+  - `Patient-Dropout-Prediction`
+  - local worktrees
+  - build outputs
+  - `node_modules`
+  - logs
+  - old zip artifacts
+- Added:
+  - `README.md`
+  - `SNAPSHOT_MANIFEST.txt`
+- Explicitly documented that the root integration repo still contains some CRC-side disengagement-related code even though the dedicated dropout backend repo was excluded from this package.
 
 ## 2026-05-14 - Dropout unsupported-trial root cause isolated to ignored registry CSV assets
 
@@ -5769,258 +5797,108 @@ eady calculation.
   - `npm.cmd run build:crc`
   - `npm.cmd --prefix 'D:\\IDP For Integration\\MyClinicalApp_AndroidAPK_5Jan2026_2138\\MyClinicalApp2' run export:web`
 
-## 2026-05-16 - Safe jianhong2 merge branch for patient guidance alignment
+## 2026-05-17 - full teammate handoff bundle assembled for stable-candidate validation
 
-- Created safe merge worktrees and branches instead of touching the live `yisheng` branch directly:
-  - root: `codex/merge-jianhong2-into-yisheng`
-  - patient app: `codex/merge-jianhong2-into-yisheng`
-- Merged the patient app `origin/jianhong2` branch into the new patient merge branch.
-- Restored the patient-side detailed reasoning trace on top of the `jianhong2` UI changes by keeping the shared online Firebase guidance runtime and trace stream path as the source of truth.
-- Verified the patient merge branch still keeps:
-  - `firebase-callable` as the only formal guidance provider
-  - patient-side reasoning trace state and rendering
-  - the shared online key-pool-backed guidance path
-- Re-aligned patient guidance wording so newly added localized strings do not regress from `Adverse Event Guidance` back to `Side Effect Guidance`.
-- Added a temporary local `node_modules` junction and copied the patient `.env` into the temporary merge worktree only for validation.
-- Validation completed on the patient merge branch:
-  - `node --check .merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`
-  - `node --check .merge-jianhong2-patient/src/config.js`
-  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
-
-## 2026-05-17 - jianhong2 merge v2 alignment for patient AE Guidance, trace retrieval, and Daily Health Report handoff
-
-- Continued the safe merge on new `v2` branches instead of touching `yisheng` directly:
-  - root: `codex/merge-jianhong2-into-yisheng-v2`
-  - patient app: `codex/merge-jianhong2-into-yisheng-v2`
-- Merged the newer patient-side `origin/jianhong2` updates on top of the first safe merge and kept the newer call UI / home UI changes intact.
-- Reworked `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` so patient reasoning trace now sends the real retrieved `ctcaeChunks` and `protocolChunks` into the guidance trace stream instead of sending empty arrays.
-- Confirmed the patient answer-generation path and the patient trace path are now aligned again:
-  - patient answers can still use retrieved CTCAE / protocol evidence
-  - the patient trace can now show the same retrieval-backed evidence instead of incorrectly claiming no excerpts were retrieved
-- Filtered the patient guidance timeline so `urgent_alert` chat traffic no longer appears as if it were part of the AE Guidance conversation:
-  - keep `patient_guidance`
-  - keep CRC `direct_message`
-  - exclude unrelated urgent alert thread noise
-- Updated `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/pages/PatientHome.js` so Daily Health Report now:
-  - expands the AE Guidance tab before redirecting
-  - auto-sends a structured prompt built from symptoms, measurements, and flagged issues
-  - no longer relies on the old generic abnormal-vitals filler prompt
-- Updated patient `firebaseFunctionHttp.js` and root `src/services/firebaseFunctionHttp.js` so local development no longer silently uses `localhost` / `127.0.0.1` Firebase Functions URLs unless explicitly opted in:
-  - patient opt-in env: `EXPO_PUBLIC_ALLOW_LOCAL_FUNCTIONS_BASE_URL=true`
-  - CRC web still uses `VITE_USE_FUNCTIONS_EMULATOR=true` for deliberate emulator mode
-- Identified and resolved a real dependency gap from newer `jianhong2` work:
-  - `expo-camera` was referenced by the merged patient app but was not present in the validation environment
-  - installed it inside the safe patient merge worktree so the branch could be exported and checked correctly
-- Updated `TEAMMATE_CODE_SYNC_STEPS.md` for Git beginners so teammates now get:
-  - the correct `v2` root branch
-  - the correct `v2` patient submodule branch
-  - the required patient `npm install` step
-  - explicit guidance for when local functions emulator mode is allowed
-- Validation completed:
-  - `npm.cmd run lint` from `.merge-jianhong2-patient` (warnings only, no new errors)
-  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
-  - `node --check .merge-jianhong2-patient/src/components/GeminiChatbot.js`
-  - `node --check .merge-jianhong2-patient/src/pages/PatientHome.js`
-  - `node --check .merge-jianhong2-patient/src/services/firebaseFunctionHttp.js`
-  - `npm.cmd run build:crc` from `.merge-jianhong2-root`
-- Fetched newer upstream `origin/jianhong2` updates after the initial `v2` merge and verified:
-  - the patient repo did not contain newer source commits beyond the already merged `db3ea95`
-  - the root repo did contain newer call-related pointer commits plus one real code fix in `src/context/CallContext.jsx`
-- Applied the latest root `jianhong2` call acceptance state fix into the `v2` root branch without downgrading the patient app submodule pointer.
-- Prepared the guidance deployment follow-up for the `v2` wave:
-  - confirmed the patient trace / RAG wiring fix is in the patient `v2` branch
-  - confirmed the local emulator fallback issue is handled by defaulting local patient guidance back to the shared online Firebase runtime unless explicitly opted in
-  - queued the Firebase guidance runtime redeploy so the shared patient-side retrieval path can use the configured SiliconFlow backend instead of silently degrading
-- Added the SiliconFlow retrieval secret into the local `functions/.env` deployment source without committing the secret.
-- Redeployed the guidance-related Firebase functions to `traillight-4750b` so patient-side retrieval and reasoning trace can use the shared online SiliconFlow-backed guidance backend:
-  - `sideEffectGuidanceChat`
-  - `sideEffectGuidanceChatHttp`
-  - `sideEffectGuidanceTraceStreamHttp`
-  - `retrieveGuidanceContext`
-  - `retrieveGuidanceContextHttp`
-  - `classifyGuidanceRoute`
-  - `classifyGuidanceRouteHttp`
-  - `ingestGuidanceDocument`
-  - `processPendingProtocolGuidanceIndex`
-  - `deleteGuidanceDocumentChunks`
-  - `deleteGuidanceDocumentChunksHttp`
-  - `suggestAppointmentDate`
-  - `suggestAppointmentDateHttp`
-- Added a new teammate-facing English validation guide:
-  - `TEAMMATE_TESTING_CHECKLIST.md`
-  - this covers merge smoke test, regression test, patient AE Guidance, trace, retrieval, Daily Health Report handoff, chat, call UI, ePRO, dark mode, and Android emulator checks
-- Diagnosed local CRC white-screen testing on the root `v2` worktree:
-  - the preview server itself was healthy
-  - browser console showed `Missing Firebase env: VITE_FIREBASE_API_KEY`
-  - root `.env.local` existed but `.merge-jianhong2-root/.env.local` was missing
-- Restored local CRC merge-worktree testability by copying the root `.env.local` into `.merge-jianhong2-root/.env.local` without committing any secrets.
-
-## 2026-05-17 - patient guidance grounding alignment and duplicate-message cleanup on merge v2
-
-- Investigated Yun Hong's `codex/merge-jianhong2-into-yisheng-v2` findings around patient AE Guidance:
-  - duplicate user messages with the audit note inserted in the middle
-  - reasoning trace rendering correctly while grounded CTCAE / protocol retrieval appeared missing
-  - answers looking partially plausible but not reliably page-grounded
-- Verified with a live SiliconFlow + Supabase retrieval check that the backend retrieval layer itself is healthy for the hypoglycemia query:
-  - CTCAE retrieval returned chunks from `CTCAE v5.0`
-  - protocol retrieval returned chunks for `Protocol-Type 1 Diabetes Mellitus.pdf`
-  - this proved the main gap was client / answer-chain wiring, not missing indexed source data
-- Reworked patient guidance request flow in `.merge-jianhong2-patient`:
-  - switched `requestSideEffectGuidance(...)` to the shared online HTTP guidance endpoint instead of the patient-incompatible callable path
-  - added a shared backend `classifyGuidanceRouteHttp` client wrapper so patient retrieval routing now uses the same server-side routing logic as the guidance backend instead of a separate local prompt router
-  - strengthened patient chat deduplication so near-identical mirrored messages collapse when they share the same role/text/channel signature and land within a short timestamp window
-- Reworked shared guidance answer grounding in `.merge-jianhong2-root/functions/guidanceRuntime.js`:
-  - `runSideEffectGuidanceChat(...)` now accepts `ctcaeChunks`, `protocolChunks`, `routeDecision`, `routeReason`, and `protocolName`
-  - final guidance generation now receives the same grounded excerpt blocks that the trace stream sees
-  - final answer prompts now explicitly forbid invented page numbers and require exact use of retrieved citation labels
-  - trace-stream final answers now pass the normalized retrieval chunks into `runSideEffectGuidanceChat(...)` instead of generating from a disconnected raw routed prompt
-- Validation completed after the fix:
-  - `node --check .merge-jianhong2-patient/src/components/GeminiChatbot.js`
-  - `node --check .merge-jianhong2-patient/src/services/guidanceRetrievalService.js`
-  - `node --check .merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`
-  - `node --check .merge-jianhong2-root/functions/guidanceRuntime.js`
-  - `npm.cmd run lint` from `.merge-jianhong2-patient` (warnings only, no new errors)
-  - `npm.cmd run export:web` from `.merge-jianhong2-patient`
-  - `npm.cmd run build:crc` from `.merge-jianhong2-root`
-- Important follow-up note:
-  - these grounding fixes now exist in the `v2` merge branches locally
-  - the patient app will only exhibit the full grounded-answer fix after the updated Firebase guidance functions are redeployed, because local patient guidance is intentionally locked to the shared online backend by default
-- Redeployed the grounded guidance function subset to `traillight-4750b` from the `v2` merge worktree after wiring the worktree to the local functions dependency set:
-  - `sideEffectGuidanceChat`
-  - `sideEffectGuidanceChatHttp`
-  - `sideEffectGuidanceTraceStreamHttp`
-  - `retrieveGuidanceContext`
-  - `retrieveGuidanceContextHttp`
-  - `classifyGuidanceRoute`
-  - `classifyGuidanceRouteHttp`
-- Deployment result:
-  - all seven guidance functions updated successfully
-  - patient local web / Expo / emulator testing can now hit the repaired shared online grounded-answer backend instead of the older deployed logic
-
-## 2026-05-17 - patient guidance route-classifier auth fixed for Android emulator
-
-- Diagnosed Jianhong's Android emulator error:
-  - `Guidance retrieval router failed: Error: Only CRC users can access guidance services.`
-- Root cause:
-  - patient guidance routing had been moved onto `classifyGuidanceRouteHttp`
-  - but the HTTP handler was still using the default CRC-only auth mode
-  - local patient web paths could appear fine when they did not hit that exact router path, but Android emulator patient guidance did
-- Fixed `functions/guidanceRuntime.js` so `classifyGuidanceRouteHttp` now uses:
-  - `patient_or_crc`
-- Plainly stated:
-  - this is a backend auth bug, not a teammate env-file sync mistake
-  - the fix requires a Firebase guidance function redeploy before Android emulator testing can pass
-
-## 2026-05-17 - patient trace-stream failure no longer forces safety fallback
-
-- Hardened `MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/src/components/GeminiChatbot.js` for Android / Expo guidance stability.
-- New behavior:
-  - patient AE Guidance still tries the live reasoning trace stream first
-  - if the trace stream fails, the app now immediately retries the same grounded request through the non-streaming shared online guidance endpoint
-  - only if both trace streaming and the normal grounded guidance request fail does the app fall back to the static safety message
-- Plainly stated:
-  - this reduces Android-emulator-specific risk where the user could otherwise get an unnecessary `Temporary guidance fallback` even though retrieval and the normal HTTP guidance path were still healthy
-
-## 2026-05-17 - teammate sync guide updated after Android patient guidance fix
-
-- Refreshed `TEAMMATE_CODE_SYNC_STEPS.md` again after the Android guidance repair wave.
-- Updated the expected patient app submodule commit to:
-  - `31f4e43`
-- Added a warning that teammates who already synced `v2` earlier the same day must sync again.
-- Added the new Android-specific verification expectations:
-  - no more `Only CRC users can access guidance services` on patient Android AE Guidance
-  - trace-stream failures should now try the grounded online guidance path before using the static fallback
-
-## 2026-05-17 - teammate sync guide refreshed for latest merge v2 state
-
-- Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the newest `codex/merge-jianhong2-into-yisheng-v2` baseline with the current patient submodule commit:
-  - `aa2809c`
-- Added the latest merge-wave items to the guide:
-  - grounded patient guidance alignment between final answer and reasoning trace
-  - duplicate-message cleanup on patient AE Guidance
-  - `Final A2` dropout operations board replica from `yisheng`
-- Added a safer warning for teammates who already created older personal branches such as `jianhong3`:
-  - sync to the latest `v2` baseline first
-  - then create a fresh personal branch before continuing development
-- Expanded the teammate verification section so beginners know to re-check the patient submodule commit if they still see:
-  - old guidance behavior
-  - duplicated messages
-  - the old dropout board layout
-
-## 2026-05-17 - Android patient reasoning trace now falls back to buffered trace delivery
-
-- Diagnosed the remaining Android emulator trace failure after grounded patient answers were already working:
-  - the guidance answer path was healthy
-  - the retrieval path was healthy
-  - but React Native / Expo on Android did not reliably expose a readable streamed HTTP response body for the NDJSON trace endpoint
-- Plainly stated:
-  - web could read the live trace stream
-  - Android could get the real answer, but the trace reader itself failed with `Streaming response body was not available.`
-- Added a new buffered Firebase HTTP endpoint in `.merge-jianhong2-root/functions/guidanceRuntime.js`:
-  - `sideEffectGuidanceTraceHttp`
-  - it reuses the same trace-generation logic as the stream endpoint, but returns the already-built trace event envelopes as normal JSON instead of requiring live stream support
-- Exported the new endpoint from `.merge-jianhong2-root/functions/index.js`.
-- Updated `.merge-jianhong2-patient/src/services/sideEffectGuidanceService.js`:
-  - patient trace still tries `sideEffectGuidanceTraceStreamHttp` first
-  - if Android reports that the streaming response body is unavailable, the app now automatically retries through `sideEffectGuidanceTraceHttp`
-  - the returned buffered events are replayed through the same patient trace handlers, so the existing UI can render them without a separate Android-only code path
-- Expected result after redeploy:
-  - web keeps the live streaming trace
-  - Android emulator / future APK can still show the reasoning trace even when native fetch cannot consume the stream directly
-- Deployment completed to `traillight-4750b`:
-  - created `sideEffectGuidanceTraceHttp`
-  - updated `sideEffectGuidanceTraceStreamHttp`
-
-## 2026-05-17 - stable candidate branch prepared before any `main` merge
-
-- Created a new root stable candidate branch:
-  - `codex/stable-candidate-20260517-rc1`
-- Created a matching patient app stable candidate branch:
-  - `codex/stable-candidate-20260517-rc1`
-- Purpose:
-  - freeze the current verified integration state before touching `main`
-  - let the team run a fresh-clone validation in a clean folder first
-- Updated `TEAMMATE_CODE_SYNC_STEPS.md` so teammates now sync against the stable candidate branch instead of the older `v2` merge branch.
-- Added a new handoff document:
+- Created a new combined handoff bundle:
+  - `artifacts/jianhong-full-handoff-bundle-20260517-201519.zip`
+- Created the unpacked bundle folder:
+  - `artifacts/jianhong-full-handoff-bundle/`
+- The combined bundle now includes:
+  - environment files
+  - direct credentials files
+  - `TEAMMATE_CODE_SYNC_STEPS.md`
   - `FRESH_CLONE_VALIDATION_STEPS.md`
-  - this explains exactly how to test a brand-new clone with submodule sync, environment bundles, credentials bundle, CRC web, patient web, and Android emulator
-
-## 2026-05-17 - stable candidate fresh-clone bug fixed for ghost external-skills submodule
-
-- Diagnosed the fresh-clone failure on the stable candidate branch:
-  - `git submodule update --init --recursive` failed with
-  - `fatal: No url found for submodule path 'external-skills/ui-ux-pro-max-skill' in .gitmodules`
-- Root cause:
-  - `external-skills/ui-ux-pro-max-skill` had been committed as a gitlink / submodule entry
-  - but `.gitmodules` did not contain any matching submodule URL
-- Fix applied to the stable candidate branch:
-  - moved the empty local ghost folder into `D:\99_回收站`
-  - removed the broken gitlink entry from the Git index
-- Updated teammate docs so the fresh-clone validation instructions now explicitly say this error should no longer appear on the repaired stable candidate branch.
-
-## 2026-05-17 - validated stable candidate merged into root `main` and patient `main` established
-
-- Established a new formal `main` branch in the patient app repo from the validated stable candidate commit:
-  - `a7a4a33`
-- Merged the repaired stable candidate root branch into the root repo mainline release branch.
-- Updated teammate-facing documentation on the mainline branch:
-  - `TEAMMATE_CODE_SYNC_STEPS.md` now points teammates to:
-    - root repo `main`
-    - patient app repo `main`
-  - `FRESH_CLONE_VALIDATION_STEPS.md` now describes clean-clone validation against `main`
+- Added a new bundle manifest:
+  - `artifacts/jianhong-full-handoff-bundle/BUNDLE_MANIFEST.md`
 - Plainly stated:
-  - the team can now stop using the old integration merge branches as their working baseline
-  - future feature branches should be cut from `main` in the root repo and from `main` in the patient repo
-  - teammate docs now explicitly explain that a submodule may land in detached `HEAD` after `git submodule update`, and that patient developers should `checkout main` before branching
+  - teammates updating an existing local checkout should follow `TEAMMATE_CODE_SYNC_STEPS.md`
+  - teammates validating a brand-new clean clone should follow `FRESH_CLONE_VALIDATION_STEPS.md`
 
-## 2026-05-17 - shortened teammate sync guide into post-main workflow
+## 2026-05-17 - refreshed single-zip teammate handoff bundle for post-main workflow
 
-- Rewrote `TEAMMATE_CODE_SYNC_STEPS.md` into a shorter post-main workflow guide.
-- The guide now clearly separates two use cases:
-  - `FRESH_CLONE_VALIDATION_STEPS.md` for brand-new clones
-  - `TEAMMATE_CODE_SYNC_STEPS.md` for existing local checkouts that need to move back onto `main`
-- Simplified the workflow explanation to the new team habit:
-  - sync root repo to `main`
-  - sync submodules
-  - if editing patient code, switch the patient submodule to `main`
-  - create new personal branches from `main`
+- Created a new one-file teammate handoff bundle for the post-main workflow:
+  - `artifacts/teammate-main-handoff-bundle-20260517-214119.zip`
+- Created the unpacked bundle folder:
+  - `artifacts/teammate-main-handoff-bundle-20260517-214119/`
+- Added a bundle manifest:
+  - `artifacts/teammate-main-handoff-bundle-20260517-214119/BUNDLE_MANIFEST.md`
+- The bundle includes:
+  - environment files
+  - credentials files
+  - the latest `TEAMMATE_CODE_SYNC_STEPS.md` from the root mainline release worktree
+  - the latest `FRESH_CLONE_VALIDATION_STEPS.md` from the root mainline release worktree
+- Plainly stated:
+  - this new zip is meant to replace separately sharing the earlier environment zip and credentials-only zip
+  - teammates can now receive one bundle plus the GitHub repos and follow the correct document for either fresh clone or existing local checkout sync
+
+## 2026-05-17 - dropout A2 structural shell pass and full-width explainability alignment
+
+- Reworked the CRC shell specifically for the `patient-disengagement` section into a minimal-nav presentation:
+  - removed the expanded text sidebar for this workspace view
+  - kept the global header as the single page title source
+  - added status indicators for `CRC Only Access`, `Secure & Compliant`, and `Real-time`
+- Removed the duplicate in-module dropout hero so the page no longer reads like two stacked workspaces.
+- Rebalanced the dropout board layout toward the A2 target split:
+  - left queue column now stretches to the intervention timeline height
+  - queue contents scroll inside the panel
+  - right operations board keeps the current-risk, model, highlight, trend, and timeline stack
+- Kept `Explainability Summary (detailed)` and `Legacy operational context` as full-width sections below the two-column board so they start only after both columns complete.
+- Retuned the A2 visual layer:
+  - flatter outer board surface
+  - tighter metrics strip
+  - 28/72 board ratio
+  - denser queue cards, highlight cards, and timeline cells
+- Validation completed:
+  - `npm.cmd run test:crc`
+  - `npm.cmd run build:crc`
+
+## 2026-05-18 - restored standard CRC shell for patient disengagement workspace
+
+- Reverted the patient-disengagement page to use the same expanded CRC shell and topbar behavior as the other CRC sections.
+- Removed the patient-disengagement-only topbar status items:
+  - `CRC Only Access`
+  - `Secure & Compliant`
+  - `Real-time`
+- Restored the standard topbar search placeholder behavior by removing the custom patient-disengagement override.
+- Kept the internal A2 dropout board layout and content structure unchanged.
+- Validation completed:
+  - `npm.cmd run build:crc`
+
+## 2026-05-18 - refined queue scrolling and current-risk patient action
+
+- Removed the `Sorted by risk (high → low)` chip from the `Risk-ranked patient queue` controls.
+- Moved the primary patient navigation action into `Current risk`:
+  - replaced `Take action` with `Open Patient`
+  - removed the separate `Open Patient` button from the workspace header
+- Tightened the queue panel structure so the panel stretches to the intervention timeline height:
+  - queue header stays at the top
+  - pagination controls stay in the controls row
+  - patient cards scroll inside the middle list area
+  - footer stays pinned at the bottom of the queue panel
+- Validation completed:
+  - `npm.cmd run build:crc`
+
+## 2026-05-18 - refined dropout metrics row toward A2 reference strip
+
+- Reworked the top dropout metrics row to better match the A2 reference strip:
+  - flatter white cards
+  - tighter vertical rhythm
+  - reduced shadows and corner radius
+  - stronger color emphasis through label/value color instead of full-card tint
+- Wrapped the metrics strip into a reusable `MetricsSummaryBar` view component while preserving the existing real summary values and calculation flow.
+- Upgraded the `Average risk` card into a split layout with a dedicated snapshot info column:
+  - `Snapshot as of`
+  - date
+  - time with `GMT+8`
+- Validation completed:
+  - `npm.cmd run build:crc`
+
+## 2026-05-18 - rolled back latest metrics summary bar refinement
+
+- Rolled back only the latest metrics-summary abstraction pass:
+  - removed the temporary `MetricsSummaryBar` wrapper component
+  - restored direct inline rendering of the four existing metric cards
+  - reverted the last round of top-strip visual tightening
+- Kept the earlier real-data metric wiring, average-risk snapshot split, and all non-metrics UI changes intact.
+- Validation completed:
+  - `npm.cmd run build:crc`
