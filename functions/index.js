@@ -1,5 +1,5 @@
 import admin from 'firebase-admin';
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import webpush from 'web-push';
 import {
   classifyGuidanceRoute,
@@ -43,6 +43,7 @@ const WEB_PUSH_PUBLIC_KEY = process.env.WEB_PUSH_PUBLIC_KEY || '';
 const WEB_PUSH_PRIVATE_KEY = process.env.WEB_PUSH_PRIVATE_KEY || '';
 const WEB_PUSH_CONTACT_EMAIL = process.env.WEB_PUSH_CONTACT_EMAIL || '';
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const INCOMING_CALL_CATEGORY_ID = 'incoming-call';
 
 if (WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY && WEB_PUSH_CONTACT_EMAIL) {
   webpush.setVapidDetails(
@@ -116,6 +117,18 @@ async function sendExpoPushMessages(messages) {
   return responses;
 }
 
+async function getPatientExpoPushTokens(userId) {
+  const tokenSnapshot = await db
+    .collection('users')
+    .doc(userId)
+    .collection('expo_push_tokens')
+    .get();
+
+  return tokenSnapshot.docs
+    .map((tokenDoc) => String(tokenDoc.get('token') || '').trim())
+    .filter((token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['));
+}
+
 export const sendIncomingCallPushNotification = onDocumentWritten(
   'users/{userId}/active_call/current',
   async (event) => {
@@ -134,13 +147,9 @@ export const sendIncomingCallPushNotification = onDocumentWritten(
       return;
     }
 
-    const tokenSnapshot = await db
-      .collection('users')
-      .doc(event.params.userId)
-      .collection('expo_push_tokens')
-      .get();
+    const tokens = await getPatientExpoPushTokens(event.params.userId);
 
-    if (tokenSnapshot.empty) {
+    if (!tokens.length) {
       await afterSnapshot.ref.set(
         {
           notification_state: {
@@ -156,26 +165,24 @@ export const sendIncomingCallPushNotification = onDocumentWritten(
 
     const callerName = String(activeCall.callerName || 'TrialLight CRC').trim();
     const isVideo = activeCall.callType === 'video';
-    const messages = tokenSnapshot.docs
-      .map((tokenDoc) => String(tokenDoc.get('token') || '').trim())
-      .filter((token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
-      .map((token) => ({
-        to: token,
-        sound: 'default',
-        priority: 'high',
-        channelId: 'incoming-calls',
-        title: isVideo ? 'Incoming TrialLight video call' : 'Incoming TrialLight call',
-        body: `${callerName} is calling you.`,
-        data: {
-          type: 'incoming-call',
-          callId: activeCall.callId,
-          callerId: activeCall.callerId,
-          callerName,
-          callType: activeCall.callType || 'audio',
-          signalingMode: activeCall.signalingMode || 'livekit',
-          livekitRoomName: activeCall.livekitRoomName || null,
-        },
-      }));
+    const messages = tokens.map((token) => ({
+      to: token,
+      sound: 'default',
+      priority: 'high',
+      channelId: 'incoming-calls',
+      categoryId: INCOMING_CALL_CATEGORY_ID,
+      title: isVideo ? 'Incoming TrialLight video call' : 'Incoming TrialLight call',
+      body: `${callerName} is calling you.`,
+      data: {
+        type: 'incoming-call',
+        callId: activeCall.callId,
+        callerId: activeCall.callerId,
+        callerName,
+        callType: activeCall.callType || 'audio',
+        signalingMode: activeCall.signalingMode || 'livekit',
+        livekitRoomName: activeCall.livekitRoomName || null,
+      },
+    }));
 
     try {
       await sendExpoPushMessages(messages);
@@ -202,6 +209,49 @@ export const sendIncomingCallPushNotification = onDocumentWritten(
         },
         { merge: true }
       );
+    }
+  }
+);
+
+export const sendPatientMessagePushNotification = onDocumentCreated(
+  'users/{userId}/alerts/{alertId}/messages/{messageId}',
+  async (event) => {
+    const message = event.data?.data() || {};
+    if (String(message.sender || '').trim().toLowerCase() !== 'crc') {
+      return;
+    }
+
+    const messageText = String(message.text || '').trim();
+    if (!messageText) {
+      return;
+    }
+
+    const tokens = await getPatientExpoPushTokens(event.params.userId);
+    if (!tokens.length) {
+      return;
+    }
+
+    const senderName = String(message.senderName || 'CRC').trim();
+    const body = messageText.length > 160 ? `${messageText.slice(0, 157)}...` : messageText;
+    const messages = tokens.map((token) => ({
+      to: token,
+      sound: 'default',
+      priority: 'high',
+      channelId: 'default',
+      title: senderName,
+      body,
+      data: {
+        type: 'crc-message',
+        alertId: event.params.alertId,
+        messageId: event.params.messageId,
+        senderName,
+      },
+    }));
+
+    try {
+      await sendExpoPushMessages(messages);
+    } catch (error) {
+      console.error('Patient message push delivery failed:', error);
     }
   }
 );
