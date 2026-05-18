@@ -221,8 +221,41 @@ const LiveChatWidget = ({
     );
   };
 
-  const callTargetId = activeAlertData?.uid || recipientId;
-  const callTargetName = activeAlertData?.patientName || activeAlertData?.senderName || recipientName || 'Patient';
+  const getAlertPatientId = (alert) => {
+    if (!alert) return '';
+    return String(
+      alert.uid ||
+      alert.patientUid ||
+      alert.patient_uid ||
+      alert.patientId ||
+      alert.patient_id ||
+      alert.userId ||
+      ''
+    ).trim();
+  };
+
+  const activeAlertPatientId = getAlertPatientId(activeAlertData);
+  const callTargetId = viewMode === 'chat'
+    ? activeAlertPatientId || recipientId
+    : viewMode === 'create'
+      ? recipientId
+      : '';
+  const callTargetName = viewMode === 'chat'
+    ? activeAlertData?.patientName || activeAlertData?.senderName || recipientName || 'Patient'
+    : recipientName || 'Patient';
+
+  const handleStartCall = async (isVideo) => {
+    if (!callTargetId) {
+      window.alert('Open a patient chat before starting a call.');
+      return;
+    }
+
+    try {
+      await startCall(callTargetId, callTargetName, isVideo);
+    } catch (error) {
+      window.alert(error?.message || 'Unable to start the call.');
+    }
+  };
 
   if (!isOpen) {
     if (hideTrigger) return null;
@@ -272,8 +305,8 @@ const LiveChatWidget = ({
             
             {role === 'crc' && callTargetId && (
               <>
-                 <button onClick={() => startCall(callTargetId, callTargetName, false)} style={{...styles.iconBtn, fontSize:'20px'}} title={`Voice Call`}>📞</button>
-                 <button onClick={() => startCall(callTargetId, callTargetName, true)} style={{...styles.iconBtn, fontSize:'20px'}} title={`Video Call`}>🎥</button>
+                 <button onClick={() => handleStartCall(false)} style={{...styles.iconBtn, fontSize:'20px'}} title={`Voice Call ${callTargetName}`}>📞</button>
+                 <button onClick={() => handleStartCall(true)} style={{...styles.iconBtn, fontSize:'20px'}} title={`Video Call ${callTargetName}`}>🎥</button>
               </>
             )}
 

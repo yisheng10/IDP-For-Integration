@@ -9,7 +9,7 @@ function dueLabel(state) {
     case 'due_24h':
       return 'Due < 24h';
     case 'resolved':
-      return 'Resolved';
+      return 'Documented';
     case 'scheduled':
       return 'Scheduled';
     default:
@@ -18,12 +18,12 @@ function dueLabel(state) {
 }
 
 function historyStatusLabel(status) {
-  return status === 'unread' ? 'Active' : 'Resolved';
+  return status === 'unread' ? 'Active' : 'Documented';
 }
 
 const SAFETY_TABS = [
   { id: 'open', label: 'Open' },
-  { id: 'resolved', label: 'Resolved' },
+  { id: 'resolved', label: 'Documented' },
   { id: 'history', label: 'History' },
 ];
 
@@ -171,17 +171,14 @@ const SafetyInboxPanel = ({
     (historyPage - 1) * historyPageSize,
     historyPage * historyPageSize
   );
-  const historyFiltersActive = Boolean(selectedPatient || historySearch.trim() || historyDate || historyStatusFilter !== 'all');
-  const canAdvanceHistory =
-    filteredHistory.length > historyPage * historyPageSize || (!historyFiltersActive && canGoNextHistory);
+  const canAdvanceHistory = filteredHistory.length > historyPage * historyPageSize;
   const incidentFiltersActive =
     Boolean(selectedPatient || severityFilter !== 'all' || incidentStatusFilter !== 'all' || protocolFilter.trim() || dueFilter !== 'all');
   const visibleIncidents = filteredIncidents.slice(
     (incidentPage - 1) * incidentPageSize,
     incidentPage * incidentPageSize
   );
-  const canAdvanceIncidents =
-    filteredIncidents.length > incidentPage * incidentPageSize || (!incidentFiltersActive && canGoNextIncidents);
+  const canAdvanceIncidents = filteredIncidents.length > incidentPage * incidentPageSize;
 
   const handleHistorySort = (key) => {
     setHistorySort((current) => ({
@@ -212,7 +209,7 @@ const SafetyInboxPanel = ({
           </div>
           <div className="inbox-counterBox">
             <strong>{resolvedCount}</strong>
-            <span>Resolved</span>
+            <span>Documented</span>
           </div>
           <div className="inbox-counterBox">
             <strong>{groupedCount}</strong>
@@ -390,7 +387,7 @@ const SafetyInboxPanel = ({
               <option value="overdue">Overdue</option>
               <option value="due_24h">Due within 24h</option>
               <option value="scheduled">Scheduled</option>
-              <option value="resolved">Resolved</option>
+              <option value="resolved">Documented</option>
             </select>
             <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
               <option value="all">All severities</option>
@@ -407,10 +404,9 @@ const SafetyInboxPanel = ({
               <select value={incidentStatusFilter} onChange={(event) => setIncidentStatusFilter(event.target.value)}>
                 <option value="all">All active statuses</option>
                 <option value="open">Open</option>
-                <option value="acknowledged">Acknowledged</option>
               </select>
             ) : (
-              <div className="inbox-filterHint">Resolved cases stay in the archive until reopened manually.</div>
+              <div className="inbox-filterHint">Documented cases stay in the archive until reopened manually.</div>
             )}
           </div>
 
@@ -438,7 +434,7 @@ const SafetyInboxPanel = ({
             {visibleIncidents.length === 0 ? (
               <div className="empty-panel">
                 {activeTab === 'resolved'
-                  ? 'No resolved incidents match the current filters.'
+                  ? 'No documented incidents match the current filters.'
                   : 'No active incidents match the current filters.'}
               </div>
             ) : (
