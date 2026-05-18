@@ -1690,6 +1690,7 @@ export default function DropoutRiskPanel({
   const trendSectionRef = useRef(null);
   const interventionSectionRef = useRef(null);
   const explainabilitySectionRef = useRef(null);
+  const queuePanelRef = useRef(null);
   const [snapshotRows, setSnapshotRows] = useState([]);
   const [fallbackSnapshotRows, setFallbackSnapshotRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1710,6 +1711,7 @@ export default function DropoutRiskPanel({
   const [interventionCaseError, setInterventionCaseError] = useState('');
   const [isUpdatingInterventionCase, setIsUpdatingInterventionCase] = useState(false);
   const [interventionCaseMutationError, setInterventionCaseMutationError] = useState('');
+  const [queuePanelHeight, setQueuePanelHeight] = useState(null);
 
   const loadedUserIds = useMemo(() => patients.map((patient) => patient.id).filter(Boolean), [patients]);
   const loadedUserSignature = useMemo(() => loadedUserIds.join('|'), [loadedUserIds]);
@@ -1808,6 +1810,44 @@ export default function DropoutRiskPanel({
     () => buildRecentPublishTrendData(recentPublishHistory, activeEntry),
     [activeEntry, recentPublishHistory]
   );
+
+  useEffect(() => {
+    const queueNode = queuePanelRef.current;
+    const timelineNode = interventionSectionRef.current;
+    if (!queueNode || !timelineNode || typeof window === 'undefined') return undefined;
+
+    let frameId = 0;
+    const syncQueueHeight = () => {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        const queueRect = queueNode.getBoundingClientRect();
+        const timelineRect = timelineNode.getBoundingClientRect();
+        const nextHeight = Math.ceil(timelineRect.bottom - queueRect.top);
+        if (!Number.isFinite(nextHeight) || nextHeight < 320) return;
+        setQueuePanelHeight((currentHeight) => (
+          Math.abs((currentHeight || 0) - nextHeight) > 1 ? nextHeight : currentHeight
+        ));
+      });
+    };
+
+    syncQueueHeight();
+    window.addEventListener('resize', syncQueueHeight);
+    window.visualViewport?.addEventListener('resize', syncQueueHeight);
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(syncQueueHeight);
+      resizeObserver.observe(queueNode);
+      resizeObserver.observe(timelineNode);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', syncQueueHeight);
+      window.visualViewport?.removeEventListener('resize', syncQueueHeight);
+      resizeObserver?.disconnect();
+    };
+  }, [activeEntry?.userId, visibleRows.length, recentInterventionCases.length, interventionCaseMutationError, interventionCaseError]);
 
   useEffect(() => {
     if (!activeEntry?.userId) {
@@ -2273,6 +2313,9 @@ export default function DropoutRiskPanel({
     : activeExplainabilityReady
       ? 'No missing-input issues were reported for the current snapshot.'
       : 'Loading explainability summary...';
+  const queuePanelStyle = queuePanelHeight
+    ? { '--dropout-queue-panel-height': `${queuePanelHeight}px` }
+    : undefined;
   const content = (() => {
     if (error) {
       return (
@@ -2331,7 +2374,7 @@ export default function DropoutRiskPanel({
         </div>
 
         <div className="dropout-dashboard__a2Layout">
-          <aside className="dropout-dashboard__queuePanel">
+          <aside className="dropout-dashboard__queuePanel" ref={queuePanelRef} style={queuePanelStyle}>
             <div className="dropout-dashboard__queueHeader">
               <div>
                 <h4 className="mt-0">Risk-ranked patient queue</h4>

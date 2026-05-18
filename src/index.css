@@ -11068,7 +11068,40 @@ body {
     align-self: stretch;
     display: grid !important;
     grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-    height: 100% !important;
-    max-height: none !important;
+    height: var(--dropout-queue-panel-height, 100%) !important;
+    max-height: var(--dropout-queue-panel-height, none) !important;
   }
+}
+
+/* CRC shell overflow guard: patient disengagement must never create a page-level horizontal scrollbar. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.crc-shell,
+.crc-shell__workspace,
+.crc-shell__content,
+.crc-shell--minimalNav,
+.crc-shell--minimalNav .crc-shell__workspace,
+.crc-shell--minimalNav .crc-shell__content,
+.topnav,
+#patient-disengagement .dropout-board-root,
+#patient-disengagement .dropout-dashboard__metrics,
+#patient-disengagement .dropout-dashboard__a2Layout,
+#patient-disengagement .dropout-dashboard__workspacePanel {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--auto .dropout-dashboard__timelineLabel {
+  max-width: none;
+  width: 100%;
+}
+
+#patient-disengagement .dropout-dashboard__timelineStage--auto .dropout-dashboard__timelineLabel span {
+  white-space: nowrap;
 }
