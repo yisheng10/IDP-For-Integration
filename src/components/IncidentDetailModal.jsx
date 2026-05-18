@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  acknowledgeIncident,
   getIncidentDueState,
   hydrateIncidentPatientContext,
   resolveIncident,
@@ -14,7 +13,7 @@ function renderDueStateLabel(state) {
     case 'due_24h':
       return 'Due within 24h';
     case 'resolved':
-      return 'Resolved';
+      return 'Documented';
     case 'scheduled':
       return 'Scheduled';
     default:
@@ -86,23 +85,8 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
     }
   };
 
-  const handleAcknowledge = async () => {
-    setChangingStatus(true);
-    try {
-      await acknowledgeIncident(incident.id, {
-        uid: user.uid,
-        name: crcName || user.email,
-        email: user.email,
-      });
-    } catch (error) {
-      alert('Failed to acknowledge incident: ' + error.message);
-    } finally {
-      setChangingStatus(false);
-    }
-  };
-
   const handleResolve = async () => {
-    if (!window.confirm('Resolve this incident?')) return;
+    if (!window.confirm('Document this incident as resolved?')) return;
     setChangingStatus(true);
     try {
       await resolveIncident(incident.id, {
@@ -170,14 +154,9 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
               <button onClick={handleSaveNote} className="btn btn-primary" disabled={savingNote}>
                 {savingNote ? 'Saving...' : 'Save Note'}
               </button>
-              {incident.status === 'open' && (
-                <button onClick={handleAcknowledge} className="btn btn-secondary" disabled={changingStatus}>
-                  {changingStatus ? 'Updating...' : 'Acknowledge'}
-                </button>
-              )}
               {incident.status !== 'resolved' && (
                 <button onClick={handleResolve} className="btn btn-success" disabled={changingStatus}>
-                  Resolve
+                  Document
                 </button>
               )}
             </div>

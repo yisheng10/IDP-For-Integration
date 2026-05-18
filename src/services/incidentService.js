@@ -414,10 +414,10 @@ export function getIncidentDueState(incident) {
 }
 
 export function subscribeToIncidentRecords(onUpdate, onError, options = {}) {
-  const safeLimit = Math.min(Math.max(Number(options?.limitCount) || 40, 1), 50);
+  const safeLimit = Math.min(Math.max(Number(options?.limitCount) || 40, 1), 1000);
   const scopedCrcId = String(options?.crcId || '').trim();
   const scopedPatientId = String(options?.patientId || '').trim();
-  const baseQuery = query(collection(db, 'incident_records'), limit(safeLimit));
+  const baseQuery = query(collection(db, 'incident_records'), orderBy('updated_at', 'desc'), limit(safeLimit));
 
   return onSnapshot(
     baseQuery,

@@ -64,9 +64,9 @@ import {
 const AI_SUGGESTION_TITLE = 'AI Scheduler';
 const MAX_PATIENT_ROSTER_LIMIT = 60;
 const CRC_ROSTER_LIMIT = 80;
-const MAX_GLOBAL_ALERT_LIMIT = 30;
-const MAX_GLOBAL_EPRO_LIMIT = 30;
-const MAX_GLOBAL_INCIDENT_LIMIT = 30;
+const MAX_GLOBAL_ALERT_LIMIT = 500;
+const MAX_GLOBAL_EPRO_LIMIT = 500;
+const MAX_GLOBAL_INCIDENT_LIMIT = 500;
 const DEFAULT_WINDOW_PAGE_SIZE = 30;
 const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'notes', 'coordination'];
 const GUIDANCE_PANE_STORAGE_KEY = 'crc-adverse-event-guidance-left-pane-width';
@@ -177,7 +177,7 @@ const HOME_SECTIONS = {
     label: 'Safety',
     path: '/home?section=safety&tab=open',
     title: 'Safety',
-    description: 'Review open incidents, resolved follow-up, and historical safety threads in one structured workspace.',
+    description: 'Review open incidents, documented follow-up, and historical safety threads in one structured workspace.',
   },
   'side-effect-guidance': {
     label: 'Adverse Event Guidance',
@@ -297,18 +297,9 @@ export default function CRCHome({ user, onLogout }) {
     patientRosterPage * patientRosterPageSize + 1,
     MAX_PATIENT_ROSTER_LIMIT + 1
   );
-  const globalAlertLimit = Math.min(
-    historyPage * historyPageSize + 1,
-    MAX_GLOBAL_ALERT_LIMIT + 1
-  );
-  const globalEproLimit = Math.min(
-    eproEntriesPage * eproEntriesPageSize + 1,
-    MAX_GLOBAL_EPRO_LIMIT + 1
-  );
-  const incidentWindowLimit = Math.min(
-    incidentPage * incidentPageSize + 1,
-    MAX_GLOBAL_INCIDENT_LIMIT + 1
-  );
+  const globalAlertLimit = MAX_GLOBAL_ALERT_LIMIT;
+  const globalEproLimit = MAX_GLOBAL_EPRO_LIMIT;
+  const incidentWindowLimit = MAX_GLOBAL_INCIDENT_LIMIT;
 
   const activeHomeSection = useMemo(() => {
     const sectionId = searchParams.get('section') || 'today';
@@ -1088,12 +1079,8 @@ export default function CRCHome({ user, onLogout }) {
     const target = patients.find((patient) => patient.id === alert.uid);
     if (target) {
       selectP(target);
-      setChatAlert(alert);
-    } else {
-      window.alert('Patient loading...');
-      setChatAlert(alert);
     }
-    setIsAlertWidgetOpen(true);
+    openWorkspaceSection('side-effect-guidance');
   };
 
   const handleSafetyInboxTabChange = (tabId) => {
@@ -1116,32 +1103,36 @@ export default function CRCHome({ user, onLogout }) {
 
   const handleOpenIncident = (incident) => {
     setActiveIncident(incident);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('incident', incident.id);
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(prev => {
+      const nextParams = new URLSearchParams(prev);
+      nextParams.set('incident', incident.id);
+      return nextParams;
+    }, { replace: true });
   };
 
   const handleCloseIncident = () => {
     setActiveIncident(null);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete('incident');
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(prev => {
+      const nextParams = new URLSearchParams(prev);
+      nextParams.delete('incident');
+      return nextParams;
+    }, { replace: true });
   };
 
   const handleOpenIncidentChat = ({ alertPath, uid, patientName, reason, status }) => {
     const target = patients.find((patient) => patient.id === uid);
     if (target) selectP(target);
 
-    setChatAlert({
-      id: alertPath.split('/').pop(),
-      ref: doc(db, alertPath),
-      uid,
-      patientName,
-      reason,
-      status,
-    });
-    setIsAlertWidgetOpen(true);
-    handleCloseIncident();
+    setActiveIncident(null);
+    setSearchParams(prev => {
+      const nextParams = new URLSearchParams(prev);
+      nextParams.delete('incident');
+      nextParams.set('section', 'side-effect-guidance');
+      nextParams.delete('focus');
+      nextParams.delete('patient');
+      nextParams.delete('tab');
+      return nextParams;
+    }, { replace: true });
   };
 
   const handleSuggestDate = async () => {
@@ -1350,8 +1341,8 @@ export default function CRCHome({ user, onLogout }) {
     ? `Showing ${safetyHistoryAlerts.length} loaded alert-history records for ${selPatient.nickname || 'the selected patient'}. Full patient alert summary: ${selectedAlertSummary?.activeAlerts ?? 0} active, ${selectedAlertSummary?.resolvedAlerts ?? 0} resolved.`
     : `Showing ${globalAlerts.length} loaded global alert-history records from the current recent window. Full alert summary: ${globalAlertSummary?.activeAlerts ?? 0} active, ${globalAlertSummary?.resolvedAlerts ?? 0} resolved.`;
   const incidentWindowLabel = selPatient
-    ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.resolvedIncidents ?? 0} resolved, ${selectedIncidentSummary?.groupedIncidents ?? 0} grouped.`
-    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${globalIncidentSummary?.openIncidents ?? 0} open, ${globalIncidentSummary?.resolvedIncidents ?? 0} resolved, ${globalIncidentSummary?.groupedIncidents ?? 0} grouped.`;
+    ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.resolvedIncidents ?? 0} documented, ${selectedIncidentSummary?.groupedIncidents ?? 0} grouped.`
+    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${globalIncidentSummary?.openIncidents ?? 0} open, ${globalIncidentSummary?.resolvedIncidents ?? 0} documented, ${globalIncidentSummary?.groupedIncidents ?? 0} grouped.`;
   const pendingEproCount = useMemo(
     () => eproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length,
     [eproEntries]
@@ -1676,30 +1667,32 @@ export default function CRCHome({ user, onLogout }) {
   }, [activeHomeSection, activePatientId, patients, selectedPatientId, selPatient, selectP]);
 
   const openWorkspaceSection = (section, { tab, patientId, preservePatient = false } = {}) => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('section', section);
-    nextParams.delete('focus');
-    if (section === 'safety') {
-      nextParams.delete('patient');
-      nextParams.set('tab', tab || 'open');
-    } else if (section === 'patients') {
-      const resolvedPatientId =
-        patientId === null
-          ? ''
-          : patientId || (preservePatient ? selectedPatientId || selPatient?.id || '' : '');
+    setSearchParams(prevParams => {
+      const nextParams = new URLSearchParams(prevParams);
+      nextParams.set('section', section);
+      nextParams.delete('focus');
+      if (section === 'safety') {
+        nextParams.delete('patient');
+        nextParams.set('tab', tab || 'open');
+      } else if (section === 'patients') {
+        const resolvedPatientId =
+          patientId === null
+            ? ''
+            : patientId || (preservePatient ? selectedPatientId || selPatient?.id || '' : '');
 
-      if (resolvedPatientId) {
-        nextParams.set('patient', resolvedPatientId);
-        nextParams.set('tab', PATIENT_WORKSPACE_TABS.includes(tab || 'overview') ? (tab || 'overview') : 'overview');
+        if (resolvedPatientId) {
+          nextParams.set('patient', resolvedPatientId);
+          nextParams.set('tab', PATIENT_WORKSPACE_TABS.includes(tab || 'overview') ? (tab || 'overview') : 'overview');
+        } else {
+          nextParams.delete('patient');
+          nextParams.delete('tab');
+        }
       } else {
         nextParams.delete('patient');
         nextParams.delete('tab');
       }
-    } else {
-      nextParams.delete('patient');
-      nextParams.delete('tab');
-    }
-    setSearchParams(nextParams);
+      return nextParams;
+    });
   };
 
   const todayPriorityActions = [
