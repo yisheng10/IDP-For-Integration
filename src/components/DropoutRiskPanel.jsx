@@ -1097,8 +1097,8 @@ function InterventionTimelineSection({
     if (stage.key === 'auto' && stage.caption.startsWith('Due by')) {
       return (
         <div className="dropout-dashboard__timelineCaption dropout-dashboard__timelineCaption--due">
-          <span>Due by {formatNumericDateValue(stage.timestamp, 'N/A')},</span>
-          <span>{formatTimeOnlyValue(stage.timestamp, 'N/A')}</span>
+          <span>Due by {formatTimeOnlyValue(stage.timestamp, 'N/A')}</span>
+          <span>{formatNumericDateValue(stage.timestamp, 'N/A')}</span>
         </div>
       );
     }
@@ -1284,7 +1284,6 @@ function CurrentRiskBriefCard({ entry, onOpenPatient, canOpenPatient }) {
       <div className="dropout-dashboard__cardHeader">
         <div>
           <strong>Current risk</strong>
-          <div className="dropout-dashboard__cardSubtitle">This publish</div>
         </div>
         <span className={`dropout-card__bucket dropout-card__bucket--${String(entry?.risk_bucket || 'low').toLowerCase()}`}>
           {renderSnapshotStateLabel(entry)}
@@ -1556,18 +1555,34 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
   }
 
   const chartWidth = 760;
-  const chartHeight = 214;
+  const chartHeight = 248;
   const leftPadding = 42;
   const rightPadding = 38;
-  const topPadding = 34;
-  const bottomPadding = 68;
+  const topPadding = 42;
+  const bottomPadding = 76;
   const usableWidth = chartWidth - leftPadding - rightPadding;
   const usableHeight = chartHeight - topPadding - bottomPadding;
+  const probabilities = chronologicalRows
+    .map((entry) => getProbabilityNumber(entry?.dropout_probability))
+    .filter((value) => Number.isFinite(value));
+  const rawMinProbability = probabilities.length ? Math.min(...probabilities) : 0;
+  const rawMaxProbability = probabilities.length ? Math.max(...probabilities) : 1;
+  const rawRange = rawMaxProbability - rawMinProbability;
+  const domainPadding = Math.max(0.04, rawRange * 0.32);
+  let chartMinProbability = Math.max(0, rawMinProbability - domainPadding);
+  let chartMaxProbability = Math.min(1, rawMaxProbability + domainPadding);
+  if (chartMaxProbability - chartMinProbability < 0.12) {
+    const center = (chartMaxProbability + chartMinProbability) / 2;
+    chartMinProbability = Math.max(0, center - 0.06);
+    chartMaxProbability = Math.min(1, center + 0.06);
+  }
+  const chartProbabilityRange = Math.max(chartMaxProbability - chartMinProbability, 0.01);
   const chartPoints = chronologicalRows.map((entry, index) => {
     const pointCount = Math.max(chronologicalRows.length - 1, 1);
     const x = leftPadding + (usableWidth * index) / pointCount;
     const probability = Math.max(0, Math.min(1, getProbabilityNumber(entry?.dropout_probability) ?? 0));
-    const y = topPadding + (1 - probability) * usableHeight;
+    const normalizedProbability = Math.max(0, Math.min(1, (probability - chartMinProbability) / chartProbabilityRange));
+    const y = topPadding + (1 - normalizedProbability) * usableHeight;
     return {
       x,
       y,
@@ -1585,7 +1600,7 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
       <div className="dropout-dashboard__cardHeader">
         <div>
           <strong>
-            Recent 7 publishes <span className="dropout-dashboard__inlineQualifier">(risk trend)</span>
+            Recent 7 publishes
           </strong>
         </div>
         <span className={`metric-pill metric-pill--${getTrendDirectionTone(trendDirection)}`}>
@@ -1594,7 +1609,7 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
       </div>
       <div className="dropout-dashboard__trendLayout">
         <div className="dropout-dashboard__trendChartSurface">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="238" aria-label="Recent disengagement publish trend">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="270" aria-label="Recent disengagement publish trend">
             <line
               x1={leftPadding}
               y1={chartHeight - bottomPadding}
@@ -1629,19 +1644,19 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
                   {label}
                 </text>
                 {point.isCurrent ? (
-                  <circle cx={point.x} cy={point.y} r="8" fill="rgba(27, 92, 151, 0.14)" stroke="none" />
+                  <circle cx={point.x} cy={point.y} r="10" fill="rgba(27, 92, 151, 0.14)" stroke="none" />
                 ) : null}
                 <circle
                   cx={point.x}
                   cy={point.y}
-                  r={point.isCurrent ? 4.8 : 4}
+                  r={point.isCurrent ? 6.2 : 5.2}
                   fill={point.color}
                   stroke="#ffffff"
-                  strokeWidth={point.isCurrent ? 2.2 : 1.6}
+                  strokeWidth={point.isCurrent ? 2.4 : 1.8}
                 />
                 <text
                   x={point.x}
-                  y={chartHeight - 34}
+                  y={chartHeight - 38}
                   textAnchor="middle"
                   fontSize="13"
                   fill="rgba(48, 70, 94, 0.95)"
@@ -1651,7 +1666,7 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
                 </text>
                 <text
                   x={point.x}
-                  y={chartHeight - 16}
+                  y={chartHeight - 18}
                   textAnchor="middle"
                   fontSize="13"
                   fill="rgba(48, 70, 94, 0.9)"
@@ -1671,7 +1686,7 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
           </div>
           <div className="dropout-dashboard__trendMetaRow">
             <span>Change vs prior</span>
-            <strong>{formatTrendDeltaLabel(latestDelta)}</strong>
+            <strong>{formatWeekTrendLabel(latestDelta)}</strong>
           </div>
           <div className="dropout-dashboard__trendMetaRow">
             <span>Trend vs week</span>
