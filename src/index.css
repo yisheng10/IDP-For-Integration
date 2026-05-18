@@ -11126,6 +11126,33 @@ body,
   overflow-x: hidden !important;
 }
 
+.crc-shell {
+  display: block !important;
+  min-height: 100vh !important;
+  padding: 0 !important;
+}
+
+.crc-shell__workspace {
+  width: calc(100vw - 292px) !important;
+  max-width: calc(100vw - 292px) !important;
+  margin-left: 292px !important;
+  padding-left: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.crc-shell--sidebarCollapsed .crc-shell__workspace {
+  width: calc(100vw - 72px) !important;
+  max-width: calc(100vw - 72px) !important;
+  margin-left: 72px !important;
+}
+
+.crc-shell--minimalNav .crc-shell__workspace {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
 .crc-sidebar {
   position: fixed !important;
   inset: 0 auto 0 0 !important;
@@ -11327,5 +11354,13 @@ body,
     min-width: 0 !important;
     height: auto !important;
     max-height: none !important;
+  }
+
+  .crc-shell__workspace,
+  .crc-shell--sidebarCollapsed .crc-shell__workspace {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
   }
 }
