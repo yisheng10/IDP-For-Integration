@@ -338,22 +338,38 @@ export const CallProvider = ({ children }) => {
     setCallDocId(callDocRef.id);
     attachCallDocListener(callDocRef.id);
 
-    const liveKitSession = await connectLiveKitRoom({
-      nextCallDocId: callDocRef.id,
-      displayName: callerName,
-      isVideo,
-      activateOnConnect: false,
-    });
-
-    await setDoc(doc(db, 'users', calleeId, 'active_call', 'current'), {
+    const activeCallRef = doc(db, 'users', calleeId, 'active_call', 'current');
+    await setDoc(activeCallRef, {
       type: 'offer',
       callerName,
       callerId: currentUser.uid,
       callType: nextCallType,
       callId: callDocRef.id,
       signalingMode: 'livekit',
-      livekitRoomName: liveKitSession.roomName,
     });
+
+    try {
+      const liveKitSession = await connectLiveKitRoom({
+        nextCallDocId: callDocRef.id,
+        displayName: callerName,
+        isVideo,
+        activateOnConnect: false,
+      });
+
+      await setDoc(activeCallRef, {
+        livekitRoomName: liveKitSession.roomName,
+      }, { merge: true });
+    } catch (error) {
+      await updateDoc(callDocRef, {
+        status: 'ended',
+        endedAt: new Date().toISOString(),
+        endReason: 'caller-livekit-connect-failed',
+      }).catch(() => {});
+      await deleteDoc(activeCallRef).catch(() => {});
+      resetCallControls(false);
+      updateStatus('idle');
+      throw error;
+    }
   };
 
   const answerCall = async () => {
