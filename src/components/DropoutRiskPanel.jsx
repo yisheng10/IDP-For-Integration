@@ -126,6 +126,14 @@ function formatDateOnlyValue(value, emptyLabel = 'N/A') {
     : nextValue.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function formatNumericDateValue(value, emptyLabel = 'N/A') {
+  if (!value) return emptyLabel;
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(nextValue.getTime())
+    ? emptyLabel
+    : nextValue.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+}
+
 function formatTimeOnlyValue(value, emptyLabel = 'N/A') {
   if (!value) return emptyLabel;
   const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
@@ -288,7 +296,7 @@ function formatRiskChangeDirectionLabel(direction) {
   const normalized = String(direction || '').trim().toLowerCase();
   if (!normalized) return 'No prior publish';
   if (normalized === 'higher') return 'Higher';
-  if (normalized === 'lower') return 'Lower';
+  if (normalized === 'lower') return 'Decreasing';
   if (normalized === 'stable') return 'Stable';
   return formatWorkflowValueLabel(normalized, 'No prior publish');
 }
@@ -771,9 +779,9 @@ function getRiskBucketTone(bucket) {
 
 function formatRecentTrendDirectionLabel(direction) {
   if (direction === 'rising') return 'Rising';
-  if (direction === 'falling') return 'Falling';
+  if (direction === 'falling') return 'Decreasing';
   if (direction === 'stable') return 'Stable';
-  if (direction === 'mixed / volatile') return 'Mixed / volatile';
+  if (direction === 'mixed / volatile') return 'Fluctuating';
   return 'Building history';
 }
 
@@ -1083,6 +1091,18 @@ function InterventionTimelineSection({
     }
     return stage.label;
   };
+  const renderStageCaption = (stage) => {
+    if (!stage?.caption) return null;
+    if (stage.key === 'auto' && stage.caption.startsWith('Due by')) {
+      return (
+        <div className="dropout-dashboard__timelineCaption dropout-dashboard__timelineCaption--due">
+          <span>Due by {formatNumericDateValue(stage.timestamp, 'N/A')},</span>
+          <span>{formatTimeOnlyValue(stage.timestamp, 'N/A')}</span>
+        </div>
+      );
+    }
+    return <div className="dropout-dashboard__timelineCaption">{stage.caption}</div>;
+  };
 
   return (
     <section ref={sectionRef} className="dropout-dashboard__timelineCard">
@@ -1116,7 +1136,7 @@ function InterventionTimelineSection({
               </div>
               <div className="dropout-dashboard__timelineLabel">{renderStageLabel(stage)}</div>
               {shouldShowTimestamp ? <div className="dropout-dashboard__timelineMeta">{timestampLabel}</div> : null}
-              {stage.caption ? <div className="dropout-dashboard__timelineCaption">{stage.caption}</div> : null}
+              {renderStageCaption(stage)}
             </div>
           );
         })}
@@ -1257,8 +1277,7 @@ function InterventionTimelineSection({
   );
 }
 
-function CurrentRiskBriefCard({ entry, trendData, onOpenPatient, canOpenPatient }) {
-  const delta = trendData?.latestDelta ?? null;
+function CurrentRiskBriefCard({ entry, onOpenPatient, canOpenPatient }) {
   return (
     <div className="dropout-dashboard__currentRiskCard">
       <div className="dropout-dashboard__cardHeader">
@@ -1291,10 +1310,6 @@ function CurrentRiskBriefCard({ entry, trendData, onOpenPatient, canOpenPatient 
         <button type="button" className="btn btn-primary btn-small" onClick={onOpenPatient} disabled={!canOpenPatient}>
           Open Patient
         </button>
-      </div>
-      <div className="dropout-dashboard__currentRiskFooter">
-        <span>Last publish: {formatDateTimeValue(entry?.published_at, 'N/A')}</span>
-        <span>{formatTrendDeltaLabel(delta)}</span>
       </div>
     </div>
   );
@@ -1533,18 +1548,18 @@ function buildDetailedExplainabilitySections({
 
 function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onViewDetailedTrend = null }) {
   const trendData = buildRecentPublishTrendData(rows, currentEntry);
-  const { chronologicalRows, trendDirection, jumpSummary, latestDelta, netDelta } = trendData;
+  const { chronologicalRows, trendDirection, latestDelta, netDelta } = trendData;
 
   if (!currentEntry) {
     return null;
   }
 
-  const chartWidth = 480;
-  const chartHeight = 136;
-  const leftPadding = 22;
-  const rightPadding = 18;
-  const topPadding = 18;
-  const bottomPadding = 26;
+  const chartWidth = 760;
+  const chartHeight = 228;
+  const leftPadding = 42;
+  const rightPadding = 38;
+  const topPadding = 42;
+  const bottomPadding = 74;
   const usableWidth = chartWidth - leftPadding - rightPadding;
   const usableHeight = chartHeight - topPadding - bottomPadding;
   const chartPoints = chronologicalRows.map((entry, index) => {
@@ -1578,7 +1593,7 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
       </div>
       <div className="dropout-dashboard__trendLayout">
         <div className="dropout-dashboard__trendChartSurface">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="184" aria-label="Recent disengagement publish trend">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="254" aria-label="Recent disengagement publish trend">
             <line x1={leftPadding} y1={topPadding} x2={chartWidth - rightPadding} y2={topPadding} stroke="rgba(33, 74, 111, 0.12)" strokeWidth="1" />
             <line x1={leftPadding} y1={chartHeight / 2} x2={chartWidth - rightPadding} y2={chartHeight / 2} stroke="rgba(33, 74, 111, 0.08)" strokeWidth="1" />
             <line
@@ -1592,7 +1607,7 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
           {polylinePoints ? (
             <polyline
               fill="none"
-              stroke="rgba(47, 96, 146, 0.44)"
+              stroke="rgba(190, 87, 82, 0.48)"
               strokeWidth="2.6"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -1608,9 +1623,9 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
                   x={point.x}
                   y={Math.max(point.y - 10, 10)}
                   textAnchor="middle"
-                  fontSize="10"
+                  fontSize="12"
                   fill="rgba(38, 62, 86, 0.88)"
-                  fontWeight="700"
+                  fontWeight="800"
                 >
                   {label}
                 </text>
@@ -1627,19 +1642,21 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
                 />
                 <text
                   x={point.x}
-                  y={chartHeight - 8}
+                  y={chartHeight - 40}
                   textAnchor="middle"
-                  fontSize="10"
+                  fontSize="12"
                   fill="rgba(76, 99, 122, 0.94)"
+                  fontWeight="800"
                 >
                   {entry?.published_at ? new Date(entry.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'N/A'}
                 </text>
                 <text
                   x={point.x}
-                  y={chartHeight - 18}
+                  y={chartHeight - 20}
                   textAnchor="middle"
-                  fontSize="9"
+                  fontSize="12"
                   fill="rgba(98, 120, 143, 0.86)"
+                  fontWeight="700"
                 >
                   {entry?.published_at ? new Date(entry.published_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
                 </text>
@@ -1663,7 +1680,6 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
               {formatWeekTrendLabel(netDelta)}
             </strong>
           </div>
-          {jumpSummary ? <div className="dropout-dashboard__trendJump">{jumpSummary}</div> : null}
           {onViewDetailedTrend ? renderInlineActionButton('View full trend', onViewDetailedTrend) : null}
         </aside>
       </div>
@@ -2440,7 +2456,6 @@ export default function DropoutRiskPanel({
                 <div className="dropout-dashboard__briefTopRow">
                   <CurrentRiskBriefCard
                     entry={activeEntry}
-                    trendData={activeTrendData}
                     onOpenPatient={openPatientRoster}
                     canOpenPatient={Boolean(activeEntry.patient)}
                   />
