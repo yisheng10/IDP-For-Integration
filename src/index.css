@@ -2887,6 +2887,17 @@ body {
   cursor: pointer;
 }
 
+.epro-review__releaseContentButton {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .epro-review__releaseRow + .epro-review__releaseRow {
   margin-top: 10px;
 }

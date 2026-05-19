@@ -633,55 +633,6 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
     }
   };
 
-  const handleActivate = async (protocol) => {
-    if (!selectedPatient) {
-      window.alert('Please select a patient first.');
-      return;
-    }
-
-    if (!isProtocolFullyConfiguredForDisengagement(protocol) && selectedPatient.protocolId !== protocol.id) {
-      window.alert(buildProtocolAssignmentBlockReason(protocol));
-      return;
-    }
-
-    const isCurrentlyActive = selectedPatient.protocolId === protocol.id;
-    const currentSubjectId = normalizeText(
-      selectedPatient.subject_id || selectedPatient.subjectId || selectedPatient.dropout_subject_id || selectedPatient.dropoutSubjectId
-    );
-    const currentTrialId = normalizeDropoutTrialId(selectedPatient.dropout_trial_id || selectedPatient.dropoutTrialId);
-    const nextTrialId = normalizeDropoutTrialId(protocol?.dropout_trial_id);
-    const shouldClearSubjectMapping = !isCurrentlyActive && currentSubjectId && currentTrialId !== nextTrialId;
-    try {
-      if (isCurrentlyActive) {
-        await updateDoc(doc(db, 'users', selectedPatient.id), {
-          protocolName: null,
-          protocolId: null,
-          protocolUrl: null,
-          protocolStatus: null,
-          protocolAssignedAt: null,
-          monitoredVitals: [],
-          subject_id: null,
-          ...buildPatientDropoutTrialFields(null),
-        });
-      } else {
-        const draft = drafts[protocol.id] || buildDraft(protocol);
-        const normalizedTemplates = coerceVitalTemplates(draft.vital_templates, protocol.monitoredVitals);
-        await updateDoc(doc(db, 'users', selectedPatient.id), {
-          protocolName: protocol.name,
-          protocolId: protocol.id,
-          protocolUrl: protocol.storagePath,
-          protocolStatus: 'active',
-          protocolAssignedAt: new Date().toISOString(),
-          monitoredVitals: buildFallbackMonitoredVitals(normalizedTemplates),
-          subject_id: shouldClearSubjectMapping ? null : currentSubjectId || null,
-          ...buildPatientDropoutTrialFields(protocol),
-        });
-      }
-    } catch (error) {
-      window.alert(`Error updating protocol: ${error.message}`);
-    }
-  };
-
   const handlePreview = async (protocol) => {
     if (!protocol.storagePath) {
       window.alert('Error: Protocol path missing.');
@@ -1004,7 +955,6 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
             const staticContextStatus = getProtocolStaticContextStatus(protocol);
             const protocolSaveFeedback = protocolSaveFeedbackById[protocol.id] || null;
             const assignmentBlockedReason = buildProtocolAssignmentBlockReason(protocol);
-            const canAssignProtocol = Boolean(selectedPatient) && (isActive || isProtocolFullyConfiguredForDisengagement(protocol));
 
             return (
               <section
@@ -1061,14 +1011,6 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
                       disabled={!protocol.storagePath}
                     >
                       Retry guidance index
-                    </button>
-                    <button
-                      onClick={() => handleActivate(protocol)}
-                      disabled={!canAssignProtocol}
-                      className={`btn btn-small ${isActive ? 'btn-success' : 'btn-secondary'}`}
-                      title={!canAssignProtocol && !isActive ? assignmentBlockedReason : ''}
-                    >
-                      {isActive ? 'Assigned to selected patient' : 'Assign to selected patient'}
                     </button>
                     <button onClick={() => handleDelete(protocol)} className="btn btn-danger btn-small">
                       Delete

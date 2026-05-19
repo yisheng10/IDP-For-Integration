@@ -11,12 +11,17 @@ import {
 } from '../services/eproReviewService';
 
 const EMPTY_METRIC = '0';
+const HIDDEN_EPRO_ENTRIES_STORAGE_KEY = 'triallight_crc_hidden_epro_entries_v1';
 
 function formatTimestamp(value) {
   if (!value) {
     return 'Not set';
   }
-  return new Date(value).toLocaleString();
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Not set';
+  }
+  return parsed.toLocaleString();
 }
 
 function statusLabel(value) {
@@ -33,6 +38,100 @@ function deriveOperationalStatus(entry) {
   }
 
   return String(entry?.status || 'assigned').toLowerCase();
+}
+
+function normalizeKey(value) {
+  return String(value || '').trim();
+}
+
+function patientDisplayName(patient) {
+  return (
+    normalizeKey(patient?.nickname) ||
+    normalizeKey(patient?.name) ||
+    normalizeKey(patient?.displayName) ||
+    normalizeKey(patient?.email) ||
+    ''
+  );
+}
+
+function buildPatientLookup(patients = []) {
+  const lookup = new Map();
+  patients.forEach((patient) => {
+    [
+      patient.id,
+      patient.uid,
+      patient.firebase_uid,
+      patient.firebaseUid,
+      patient.subject_id,
+      patient.subjectId,
+      patient.dropout_subject_id,
+      patient.dropoutSubjectId,
+    ].forEach((key) => {
+      const normalizedKey = normalizeKey(key);
+      if (normalizedKey) lookup.set(normalizedKey, patient);
+    });
+  });
+  return lookup;
+}
+
+function resolveEntryPatient(entry, patientLookup) {
+  const candidateKeys = [
+    entry?.uid,
+    entry?.firebase_uid,
+    entry?.firebaseUid,
+    entry?.patient_uid,
+    entry?.patientUid,
+    entry?.patient_id,
+    entry?.patientId,
+    entry?.user_id,
+    entry?.userId,
+    entry?.subject_id,
+    entry?.subjectId,
+  ];
+  for (const key of candidateKeys) {
+    const patient = patientLookup.get(normalizeKey(key));
+    if (patient) return patient;
+  }
+  return null;
+}
+
+function resolveEntryPatientName(entry, patientLookup) {
+  const explicitName =
+    normalizeKey(entry?.patientName) ||
+    normalizeKey(entry?.patient_name) ||
+    normalizeKey(entry?.displayName);
+  if (explicitName) return explicitName;
+  return patientDisplayName(resolveEntryPatient(entry, patientLookup)) || 'Unknown patient';
+}
+
+function resolveEntryPatientId(entry, patientLookup) {
+  const patient = resolveEntryPatient(entry, patientLookup);
+  return patient?.id || normalizeKey(entry?.uid) || normalizeKey(entry?.firebase_uid) || null;
+}
+
+function buildEntryKey(entry) {
+  const explicitKey = normalizeKey(entry?.id) || normalizeKey(entry?.entry_id) || normalizeKey(entry?.path);
+  if (explicitKey) return explicitKey;
+  return [
+    entry?.uid || entry?.firebase_uid || entry?.patient_uid || entry?.subject_id || 'unknown-patient',
+    entry?.form_id || entry?.formId || 'unknown-form',
+    entry?.updated_at || entry?.submitted_at || entry?.assigned_at || entry?.due_at || 'unknown-time',
+    deriveOperationalStatus(entry),
+  ].map((value) => normalizeKey(value) || 'unknown').join('|');
+}
+
+function buildHiddenEntriesStorageKey(userId) {
+  return `${HIDDEN_EPRO_ENTRIES_STORAGE_KEY}:${normalizeKey(userId) || 'unknown_crc'}`;
+}
+
+function readHiddenEntryKeys(userId) {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(buildHiddenEntriesStorageKey(userId)) || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizeKey).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
 }
 
 function resolveReviewDate(workspace) {
@@ -144,6 +243,20 @@ export default function EproReviewWorkspace({
   const [approveAllOpen, setApproveAllOpen] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [entryStatusView, setEntryStatusView] = useState('submitted');
+  const [hiddenEntryKeys, setHiddenEntryKeys] = useState(() => readHiddenEntryKeys(user.uid));
+
+  const hiddenEntryKeySet = useMemo(() => new Set(hiddenEntryKeys), [hiddenEntryKeys]);
+  const patientLookup = useMemo(() => buildPatientLookup(patients), [patients]);
+  const hiddenEntriesStorageKey = useMemo(() => buildHiddenEntriesStorageKey(user.uid), [user.uid]);
+
+  useEffect(() => {
+    setHiddenEntryKeys(readHiddenEntryKeys(user.uid));
+  }, [user.uid]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(hiddenEntriesStorageKey, JSON.stringify(hiddenEntryKeys));
+  }, [hiddenEntriesStorageKey, hiddenEntryKeys]);
 
   const activePatients = useMemo(() => {
     return patients.filter((patient) => {
@@ -214,6 +327,7 @@ export default function EproReviewWorkspace({
     return [...entries]
       .filter((entry) => {
         if (!entry) return false;
+        if (hiddenEntryKeySet.has(buildEntryKey(entry))) return false;
         const status = deriveOperationalStatus(entry);
         return status === 'submitted' || status === 'overdue';
       })
@@ -222,7 +336,7 @@ export default function EproReviewWorkspace({
         const rightTime = new Date(right.updated_at || right.submitted_at || right.assigned_at || 0).getTime();
         return rightTime - leftTime;
       });
-  }, [entries]);
+  }, [entries, hiddenEntryKeySet]);
 
   const submittedEntries = useMemo(
     () => submittedOrOverdue.filter((entry) => deriveOperationalStatus(entry) === 'submitted'),
@@ -246,6 +360,26 @@ export default function EproReviewWorkspace({
   const entryStatusLabel = entryStatusView === 'overdue' ? 'overdue' : 'submitted';
 
   const metrics = workspace?.metrics || null;
+
+  const handleHideEntry = (entry) => {
+    const patientName = resolveEntryPatientName(entry, patientLookup);
+    const status = statusLabel(deriveOperationalStatus(entry)).toLowerCase();
+    const firstConfirm = window.confirm(
+      `Delete this ${status} ePRO row for ${patientName} from this CRC view? The database record will not be deleted.`
+    );
+    if (!firstConfirm) return;
+
+    const secondConfirm = window.confirm(
+      'Confirm again: hide this row from the Submitted/Overdue lists on this browser?'
+    );
+    if (!secondConfirm) return;
+
+    const entryKey = buildEntryKey(entry);
+    setHiddenEntryKeys((current) => (current.includes(entryKey) ? current : [...current, entryKey]));
+    if (visibleSubmittedOrOverdue.length === 1 && effectiveEntriesPage > 1) {
+      onEntriesPageChange?.(effectiveEntriesPage - 1);
+    }
+  };
 
   const handleApproveTrial = async (reviewId) => {
     setBusyKey(`trial:${reviewId}`);
@@ -613,22 +747,36 @@ export default function EproReviewWorkspace({
             note={`Page ${effectiveEntriesPage} - Showing ${visibleSubmittedOrOverdue.length} of ${filteredEntryRows.length} ${entryStatusLabel} mirrored ePRO rows from the current loaded window.`}
           />
           {visibleSubmittedOrOverdue.length ? (
-            visibleSubmittedOrOverdue.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                className="epro-review__releaseRow"
-                onClick={() => setSelectedPatientId(entry.uid)}
-              >
-                <div>
-                  <div className="epro-review__releaseTitle">{entry.patientName || entry.subject_id || entry.uid}</div>
-                  <div className="section-note">
-                    {entry.form_id} - {statusLabel(deriveOperationalStatus(entry))} - Updated{' '}
-                    {formatTimestamp(entry.updated_at || entry.submitted_at || entry.assigned_at)}
-                  </div>
+            visibleSubmittedOrOverdue.map((entry) => {
+              const entryKey = buildEntryKey(entry);
+              const patientId = resolveEntryPatientId(entry, patientLookup);
+              return (
+                <div key={entryKey} className="epro-review__releaseRow">
+                  <button
+                    type="button"
+                    className="epro-review__releaseContentButton"
+                    onClick={() => {
+                      if (patientId) setSelectedPatientId(patientId);
+                    }}
+                  >
+                    <div>
+                      <div className="epro-review__releaseTitle">{resolveEntryPatientName(entry, patientLookup)}</div>
+                      <div className="section-note">
+                        {entry.form_id || entry.formId || 'ePRO'} - {statusLabel(deriveOperationalStatus(entry))} - Updated{' '}
+                        {formatTimestamp(entry.updated_at || entry.submitted_at || entry.assigned_at)}
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-small"
+                    onClick={() => handleHideEntry(entry)}
+                  >
+                    Delete
+                  </button>
                 </div>
-              </button>
-            ))
+              );
+            })
           ) : (
             <div className="empty-panel">
               {entries.length

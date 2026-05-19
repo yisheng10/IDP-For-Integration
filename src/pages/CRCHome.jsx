@@ -181,7 +181,7 @@ const LEGACY_HOME_SECTIONS = {
   'protocol-library': 'protocols',
 };
 
-const PATIENT_SEARCH_SECTIONS = ['today', 'patients', 'side-effect-guidance', 'patient-disengagement', 'epro'];
+const PATIENT_SEARCH_SECTIONS = ['today', 'patients', 'safety', 'side-effect-guidance', 'patient-disengagement', 'epro'];
 const PROTOCOL_CONTEXT_SECTIONS = ['patients', 'side-effect-guidance', 'protocols', 'resources'];
 const INCIDENT_MONITOR_SECTIONS = ['today', 'patients', 'safety', 'side-effect-guidance'];
 const EPRO_WINDOW_SECTIONS = ['today', 'patients', 'side-effect-guidance', 'epro'];
@@ -292,7 +292,7 @@ export default function CRCHome({ user, onLogout }) {
   const shouldLoadPatientRosterSummary = ['today', 'patients'].includes(activeHomeSection);
   const shouldLoadDisengagementSummary = ['today', 'patient-disengagement'].includes(activeHomeSection);
   const shouldLoadSelectedPatientSummaries =
-    Boolean(selPatient?.id) && ['patients', 'side-effect-guidance'].includes(activeHomeSection);
+    Boolean(selPatient?.id) && ['patients', 'safety', 'side-effect-guidance'].includes(activeHomeSection);
   const shouldLoadDropoutTestingSubjects =
     activeHomeSection === 'patients' && activePatientTab === 'coordination' && Boolean(selPatient);
   const shouldLoadUrgentAlertThreads = activeHomeSection === 'side-effect-guidance' || isAlertWidgetOpen;
@@ -300,7 +300,7 @@ export default function CRCHome({ user, onLogout }) {
   const shouldLoadGlobalEproWindow = EPRO_WINDOW_SECTIONS.includes(activeHomeSection);
   const shouldLoadIncidentWindow = INCIDENT_MONITOR_SECTIONS.includes(activeHomeSection);
   const shouldLoadSelectedPatientDetail =
-    Boolean(selectedPatientId) && ['patients', 'side-effect-guidance'].includes(activeHomeSection);
+    Boolean(selectedPatientId) && ['patients', 'safety', 'side-effect-guidance'].includes(activeHomeSection);
 
   const prevAlertCountRef = useRef(0);
   const isFirstLoadRef = useRef(true);
@@ -1766,7 +1766,19 @@ export default function CRCHome({ user, onLogout }) {
   };
 
   const handleHeaderSearchSelect = (patient) => {
+    if (!patient) return;
     selectP(patient);
+
+    if (activeHomeSection === 'safety') {
+      openWorkspaceSection('safety', { tab: activeSafetyTab });
+      return;
+    }
+
+    if (activeHomeSection === 'side-effect-guidance') {
+      openWorkspaceSection('side-effect-guidance');
+      return;
+    }
+
     openWorkspaceSection('patients', { patientId: patient.id, tab: 'overview' });
   };
 

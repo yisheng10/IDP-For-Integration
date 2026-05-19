@@ -168,31 +168,36 @@ const SafetyInboxPanel = ({
     return rows;
   }, [alertHistory, historyDate, historySearch, historySort, historyStatusFilter, selectedPatient]);
 
+  const patientScopedIncidents = useMemo(() => {
+    if (!selectedPatient) return incidents;
+    return incidents.filter((incident) => (incident.linked_patient_ids || []).includes(selectedPatient.id));
+  }, [incidents, selectedPatient]);
+
+  const patientScopedHistory = useMemo(() => {
+    if (!selectedPatient) return alertHistory;
+    return alertHistory.filter((alert) => alert.uid === selectedPatient.id);
+  }, [alertHistory, selectedPatient]);
+
   const openCount = Number.isFinite(Number(incidentSummary?.openIncidents))
     ? Number(incidentSummary.openIncidents)
-    : incidents.filter((incident) => isOpenIncidentStatus(incident.status)).length;
+    : patientScopedIncidents.filter((incident) => isOpenIncidentStatus(incident.status)).length;
   const resolvedCount = Number.isFinite(Number(incidentSummary?.resolvedIncidents))
     ? Number(incidentSummary.resolvedIncidents)
-    : incidents.filter((incident) => !isOpenIncidentStatus(incident.status)).length;
-  const groupedCount = Number.isFinite(Number(incidentSummary?.groupedIncidents))
-    ? Number(incidentSummary.groupedIncidents)
-    : incidents.filter((incident) => incident.compare_ready).length;
+    : patientScopedIncidents.filter((incident) => !isOpenIncidentStatus(incident.status)).length;
   const activeHistoryCount = Number.isFinite(Number(historySummary?.activeAlerts))
     ? Number(historySummary.activeAlerts)
-    : alertHistory.filter((alert) => alert.status === 'unread').length;
+    : patientScopedHistory.filter((alert) => alert.status === 'unread').length;
   const totalHistoryPages = Math.max(1, Math.ceil(filteredHistory.length / historyPageSize));
   const currentHistoryItems = filteredHistory.slice(
     (historyPage - 1) * historyPageSize,
     historyPage * historyPageSize
   );
-  const canAdvanceHistory = filteredHistory.length > historyPage * historyPageSize;
-  const incidentFiltersActive =
-    Boolean(selectedPatient || severityFilter !== 'all' || incidentStatusFilter !== 'all' || protocolFilter.trim() || dueFilter !== 'all');
+  const canAdvanceHistory = filteredHistory.length > historyPage * historyPageSize || canGoNextHistory;
   const visibleIncidents = filteredIncidents.slice(
     (incidentPage - 1) * incidentPageSize,
     incidentPage * incidentPageSize
   );
-  const canAdvanceIncidents = filteredIncidents.length > incidentPage * incidentPageSize;
+  const canAdvanceIncidents = filteredIncidents.length > incidentPage * incidentPageSize || canGoNextIncidents;
 
   const handleHistorySort = (key) => {
     setHistorySort((current) => ({
