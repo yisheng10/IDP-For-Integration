@@ -361,23 +361,23 @@ export default function EproReviewWorkspace({
 
   const metrics = workspace?.metrics || null;
 
-  const handleHideEntry = (entry) => {
-    const patientName = resolveEntryPatientName(entry, patientLookup);
-    const status = statusLabel(deriveOperationalStatus(entry)).toLowerCase();
-    const firstConfirm = window.confirm(
-      `Delete this ${status} ePRO row for ${patientName} from this CRC view? The database record will not be deleted.`
-    );
-    if (!firstConfirm) return;
+  const handleHideEntriesByStatus = (status) => {
+    const rows = status === 'overdue' ? overdueEntries : submittedEntries;
+    const statusText = status === 'overdue' ? 'overdue' : 'submitted';
+    if (!rows.length) {
+      window.alert(`No ${statusText} ePRO rows are visible in the current loaded window.`);
+      return;
+    }
 
-    const secondConfirm = window.confirm(
-      'Confirm again: hide this row from the Submitted/Overdue lists on this browser?'
+    const confirmed = window.confirm(
+      `Delete ${rows.length} ${statusText} ePRO row${rows.length === 1 ? '' : 's'} from this CRC browser view? The database records will not be deleted.`
     );
-    if (!secondConfirm) return;
+    if (!confirmed) return;
 
-    const entryKey = buildEntryKey(entry);
-    setHiddenEntryKeys((current) => (current.includes(entryKey) ? current : [...current, entryKey]));
-    if (visibleSubmittedOrOverdue.length === 1 && effectiveEntriesPage > 1) {
-      onEntriesPageChange?.(effectiveEntriesPage - 1);
+    const nextKeys = rows.map(buildEntryKey);
+    setHiddenEntryKeys((current) => [...new Set([...current, ...nextKeys])]);
+    if (entryStatusView === status) {
+      onEntriesPageChange?.(1);
     }
   };
 
@@ -712,29 +712,49 @@ export default function EproReviewWorkspace({
         </div>
 
         <div className="card workspace-card">
-          <div className="epro-review__statusSwitch" role="tablist" aria-label="Mirrored ePRO status filter">
-            <button
-              type="button"
-              className={`epro-review__statusSwitchOption${entryStatusView === 'submitted' ? ' is-active' : ''}`}
-              onClick={() => {
-                setEntryStatusView('submitted');
-                onEntriesPageChange?.(1);
-              }}
-            >
-              Submitted
-              <span className="epro-review__statusSwitchCount">{submittedEntries.length}</span>
-            </button>
-            <button
-              type="button"
-              className={`epro-review__statusSwitchOption${entryStatusView === 'overdue' ? ' is-active' : ''}`}
-              onClick={() => {
-                setEntryStatusView('overdue');
-                onEntriesPageChange?.(1);
-              }}
-            >
-              Overdue
-              <span className="epro-review__statusSwitchCount">{overdueEntries.length}</span>
-            </button>
+          <div className="epro-review__statusToolbar">
+            <div className="epro-review__statusSwitch" role="tablist" aria-label="Mirrored ePRO status filter">
+              <button
+                type="button"
+                className={`epro-review__statusSwitchOption${entryStatusView === 'submitted' ? ' is-active' : ''}`}
+                onClick={() => {
+                  setEntryStatusView('submitted');
+                  onEntriesPageChange?.(1);
+                }}
+              >
+                Submitted
+                <span className="epro-review__statusSwitchCount">{submittedEntries.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`epro-review__statusSwitchOption${entryStatusView === 'overdue' ? ' is-active' : ''}`}
+                onClick={() => {
+                  setEntryStatusView('overdue');
+                  onEntriesPageChange?.(1);
+                }}
+              >
+                Overdue
+                <span className="epro-review__statusSwitchCount">{overdueEntries.length}</span>
+              </button>
+            </div>
+            <div className="epro-review__statusDeleteActions">
+              <button
+                type="button"
+                className="btn btn-danger btn-small"
+                onClick={() => handleHideEntriesByStatus('submitted')}
+                disabled={!submittedEntries.length}
+              >
+                Delete Submitted
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-small"
+                onClick={() => handleHideEntriesByStatus('overdue')}
+                disabled={!overdueEntries.length}
+              >
+                Delete Overdue
+              </button>
+            </div>
           </div>
           <div className="section-note">Most recent operational visibility from mirrored ePRO records.</div>
           <div className="section-note">Showing {loadedEntryCount} loaded mirrored ePRO records from the current recent window.</div>
@@ -766,13 +786,6 @@ export default function EproReviewWorkspace({
                         {formatTimestamp(entry.updated_at || entry.submitted_at || entry.assigned_at)}
                       </div>
                     </div>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-small"
-                    onClick={() => handleHideEntry(entry)}
-                  >
-                    Delete
                   </button>
                 </div>
               );

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   getIncidentDueState,
   hydrateIncidentPatientContext,
-  ensureIncidentAlertThread,
   resolveIncident,
   updateIncidentNote,
 } from '../services/incidentService';
@@ -41,7 +40,7 @@ function isOpenIncidentStatus(status) {
   return String(status || '').trim().toLowerCase() !== 'resolved';
 }
 
-const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) => {
+const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenGuidance }) => {
   const [patientContexts, setPatientContexts] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
   const [noteDraft, setNoteDraft] = useState(incident?.crc_note || '');
@@ -111,25 +110,18 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
     }
   };
 
-  const handleOpenThread = async (context, linkedChatPath) => {
+  const handleOpenThread = async (context) => {
     if (!context?.uid || openingThreadUid) return;
     setOpeningThreadUid(context.uid);
     try {
-      const alertPath = linkedChatPath || await ensureIncidentAlertThread(incident, context, {
-        uid: user.uid,
-        name: crcName || user.email,
-        email: user.email,
-      });
-
-      onOpenChat?.({
-        alertPath,
+      onOpenGuidance?.({
         uid: context.uid,
         patientName: context.patient_name,
-        reason: incident.event_title,
-        status: incident.status,
+        patientProfile: context.patient_profile || null,
+        protocolName: context.protocol_name || context.patient_profile?.protocolName || null,
       });
     } catch (error) {
-      alert('Unable to open this incident thread: ' + error.message);
+      alert('Unable to open this patient in Adverse Event Guidance: ' + error.message);
     } finally {
       setOpeningThreadUid('');
     }
@@ -226,10 +218,6 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
               <div style={styles.compareGrid}>
                 {patientContexts.map((context) => {
                   const latestVital = context.latest_vitals?.[0];
-                  const linkedChatPath = (incident.linked_alert_paths || []).find((path) =>
-                    path.startsWith(`users/${context.uid}/alerts/`)
-                  );
-
                   return (
                     <div key={context.uid} style={styles.compareCard}>
                       <div style={styles.compareHeader}>
@@ -238,7 +226,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
                           <div style={styles.metaHint}>Subject ID: {context.subject_id}</div>
                         </div>
                         <button
-                          onClick={() => handleOpenThread(context, linkedChatPath)}
+                          onClick={() => handleOpenThread(context)}
                           className="btn btn-small btn-primary"
                           disabled={openingThreadUid === context.uid}
                         >

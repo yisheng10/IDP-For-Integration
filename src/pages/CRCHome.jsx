@@ -1083,25 +1083,17 @@ export default function CRCHome({ user, onLogout }) {
     }, { replace: true });
   };
 
-  const handleOpenIncidentChat = ({ alertPath, uid, patientName, reason, status }) => {
+  const handleOpenIncidentGuidance = ({ uid, patientName, patientProfile = null, protocolName = null }) => {
     const target = patients.find((patient) => patient.id === uid);
-    if (target) selectP(target);
+    selectP(target || {
+      id: uid,
+      ...(patientProfile || {}),
+      nickname: patientName || patientProfile?.nickname || patientProfile?.displayName || 'Unnamed patient',
+      protocolName: protocolName || patientProfile?.protocolName || null,
+    });
 
-    const cleanAlertPath = String(alertPath || '').trim();
-    const alertPathSegments = cleanAlertPath.split('/').filter(Boolean);
-    if (cleanAlertPath && alertPathSegments.length % 2 === 0) {
-      setChatAlert({
-        id: alertPathSegments[alertPathSegments.length - 1],
-        ref: doc(db, cleanAlertPath),
-        uid,
-        patientName,
-        reason,
-        status: status || 'unread',
-        timestamp: new Date().toISOString(),
-      });
-      setIsAlertWidgetOpen(true);
-    }
-
+    setChatAlert(null);
+    setIsAlertWidgetOpen(false);
     setActiveIncident(null);
     setSearchParams(prev => {
       const nextParams = new URLSearchParams(prev);
@@ -1883,7 +1875,7 @@ export default function CRCHome({ user, onLogout }) {
           user={user}
           crcName={crcName}
           onClose={handleCloseIncident}
-          onOpenChat={handleOpenIncidentChat}
+          onOpenGuidance={handleOpenIncidentGuidance}
         />
       ) : null}
 

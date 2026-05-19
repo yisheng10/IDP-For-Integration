@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import ReactMarkdown from 'react-markdown';
 import { db } from '../firebase';
+import { useCall } from '../context/CallContext';
 import { sendCrcPatientDirectMessage } from '../services/crcDirectMessageService';
 import {
   DEFAULT_CONVERSATION_TIMELINE_LIMIT,
@@ -188,10 +189,41 @@ function buildEmptyStateLabel(patient) {
   return 'No adverse event timeline messages have been mirrored for this patient yet.';
 }
 
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+      <path
+        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.6a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.48-1.2a2 2 0 0 1 2.11-.45c.83.3 1.7.51 2.6.63A2 2 0 0 1 22 16.92z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function VideoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+      <path
+        d="M3 7h12v10H3z M15 10l4.55-2.28A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.9L15 14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function PatientConversationTimeline({
   patient,
   crcName = 'CRC',
 }) {
+  const { startCall } = useCall() || {};
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [liveEntries, setLiveEntries] = useState([]);
@@ -373,6 +405,25 @@ export default function PatientConversationTimeline({
     }
   }, [crcName, input, isSending, patient?.id]);
 
+  const handleStartPatientCall = useCallback(async (isVideo) => {
+    const patientUid = String(patient?.id || '').trim();
+    if (!patientUid) {
+      window.alert('Select a patient before starting a call.');
+      return;
+    }
+
+    if (typeof startCall !== 'function') {
+      window.alert('Call controls are not available right now.');
+      return;
+    }
+
+    try {
+      await startCall(patientUid, patient?.nickname || patient?.email || 'Patient', isVideo);
+    } catch (error) {
+      window.alert(error?.message || 'Unable to start the call.');
+    }
+  }, [patient?.email, patient?.id, patient?.nickname, startCall]);
+
   const renderTraceEventCard = (traceEvent, eventIndex) => (
     <div key={`${traceEvent.stepKey}-${traceEvent.seq}-${eventIndex}`} style={styles.traceEventCard}>
       <div style={styles.traceEventHeader}>
@@ -530,8 +581,32 @@ export default function PatientConversationTimeline({
         <div>
           <h3 style={styles.title}>Patient Mixed Timeline</h3>
         </div>
-        <div style={styles.patientBadge}>
-          {patient?.nickname || 'No patient selected'}
+        <div style={styles.patientActions}>
+          <div style={styles.callButtonGroup}>
+            <button
+              type="button"
+              style={styles.callIconButton}
+              onClick={() => handleStartPatientCall(false)}
+              disabled={!patient?.id}
+              title={patient?.id ? `Voice call ${patient.nickname || 'patient'}` : 'Select a patient first'}
+              aria-label={patient?.id ? `Voice call ${patient.nickname || 'patient'}` : 'Select a patient first'}
+            >
+              <PhoneIcon />
+            </button>
+            <button
+              type="button"
+              style={styles.callIconButton}
+              onClick={() => handleStartPatientCall(true)}
+              disabled={!patient?.id}
+              title={patient?.id ? `Video call ${patient.nickname || 'patient'}` : 'Select a patient first'}
+              aria-label={patient?.id ? `Video call ${patient.nickname || 'patient'}` : 'Select a patient first'}
+            >
+              <VideoIcon />
+            </button>
+          </div>
+          <div style={styles.patientBadge}>
+            {patient?.nickname || 'No patient selected'}
+          </div>
         </div>
       </div>
 
@@ -632,6 +707,33 @@ const styles = {
     fontWeight: '700',
     fontSize: '13px',
     whiteSpace: 'nowrap',
+  },
+  patientActions: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    minWidth: 0,
+  },
+  callButtonGroup: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '7px 9px',
+    borderRadius: '8px',
+    background: '#0f609b',
+    boxShadow: '0 10px 22px rgba(15, 96, 155, 0.18)',
+  },
+  callIconButton: {
+    width: '34px',
+    height: '32px',
+    border: 0,
+    borderRadius: '7px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#ffffff',
+    background: 'transparent',
+    cursor: 'pointer',
   },
   body: {
     minHeight: 0,

@@ -4709,6 +4709,21 @@ body {
   justify-content: flex-start;
 }
 
+.epro-review__statusToolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.epro-review__statusDeleteActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .epro-review__statusSwitch {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7938,6 +7953,16 @@ body {
 .epro-review__summary .workspace-summary-item strong {
   font-size: 1.08rem !important;
   text-align: center !important;
+}
+
+.epro-review__statusToolbar {
+  align-items: center !important;
+  gap: 14px !important;
+  margin-bottom: 12px !important;
+}
+
+.epro-review__statusDeleteActions {
+  gap: 10px !important;
 }
 
 .epro-review__statusSwitch {
