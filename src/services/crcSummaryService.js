@@ -69,7 +69,7 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
 
   const [openIncidents, resolvedIncidents, groupedIncidents, overdueIncidents] = await Promise.all([
     safeCountOrZero(
-      query(baseRef, ...patientFilter, where('status', 'in', UNRESOLVED_INCIDENT_STATUSES))
+      query(baseRef, ...patientFilter, where('status', '!=', 'resolved'))
     ),
     safeCountOrZero(
       query(baseRef, ...patientFilter, where('status', '==', 'resolved'))
@@ -81,7 +81,7 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
       query(
         baseRef,
         ...patientFilter,
-        where('status', 'in', UNRESOLVED_INCIDENT_STATUSES),
+        where('status', '!=', 'resolved'),
         where('due_at', '<=', new Date().toISOString())
       )
     ),
@@ -98,7 +98,7 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
 
 export async function fetchOpenIncidentSummary() {
   const openIncidents = await safeCountOrZero(
-    query(collection(db, 'incident_records'), where('status', 'in', UNRESOLVED_INCIDENT_STATUSES))
+    query(collection(db, 'incident_records'), where('status', '!=', 'resolved'))
   );
   return { openIncidents };
 }

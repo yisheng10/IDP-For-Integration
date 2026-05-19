@@ -42,8 +42,6 @@ const SEVERITY_RANK = {
   serious: 3,
 };
 
-const UNRESOLVED_INCIDENT_STATUSES = new Set(['open', 'acknowledged']);
-
 export function getDefaultNotificationPolicy() {
   return JSON.parse(JSON.stringify(DEFAULT_NOTIFICATION_POLICY));
 }
@@ -200,7 +198,7 @@ async function findMatchingOpenIncident(primaryCrcId, eventKey) {
 
   const candidates = incidentSnapshot.docs
     .map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }))
-    .filter((incident) => UNRESOLVED_INCIDENT_STATUSES.has(incident.status || 'open'))
+    .filter((incident) => String(incident.status || 'open').trim().toLowerCase() !== 'resolved')
     .sort((left, right) => {
       const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
       const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();

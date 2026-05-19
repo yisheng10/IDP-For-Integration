@@ -114,7 +114,7 @@ function normalizeIncidentText(value) {
 }
 
 function isUnresolvedIncident(incident) {
-  return ['open', 'acknowledged'].includes(normalizeIncidentText(incident?.status));
+  return normalizeIncidentText(incident?.status) !== 'resolved';
 }
 
 function isHospitalEmailAddress(value = '') {
@@ -852,7 +852,7 @@ export default function CRCHome({ user, onLogout }) {
             const signature = `${incident.id}:${incident.updated_at}`;
             const shouldNotify =
               !foregroundNotificationRef.current.has(signature) &&
-              incident.status !== 'resolved' &&
+              isUnresolvedIncident(incident) &&
               incident.severity === 'serious' &&
               incident.primary_crc_id === user.uid;
             foregroundNotificationRef.current.add(signature);
@@ -1289,7 +1289,32 @@ export default function CRCHome({ user, onLogout }) {
     ? Math.max(Number(patientRosterSummary.assignedPatients), derivedAssignedPatientCount)
     : derivedAssignedPatientCount;
   const activeHistorySummary = selPatient ? selectedAlertSummary : globalAlertSummary;
-  const activeIncidentSummary = selPatient ? selectedIncidentSummary : globalIncidentSummary;
+  const loadedOpenIncidentCount = incidents.filter((incident) => isUnresolvedIncident(incident)).length;
+  const loadedResolvedIncidentCount = incidents.filter(
+    (incident) => normalizeIncidentText(incident?.status) === 'resolved'
+  ).length;
+  const loadedGroupedIncidentCount = incidents.filter((incident) => incident.compare_ready).length;
+  const effectiveGlobalIncidentSummary = {
+    ...globalIncidentSummary,
+    openIncidents: Math.max(
+      Number(globalIncidentSummary?.openIncidents ?? 0),
+      Number(globalOpenIncidentSummary?.openIncidents ?? 0),
+      loadedOpenIncidentCount
+    ),
+    resolvedIncidents: Math.max(
+      Number(globalIncidentSummary?.resolvedIncidents ?? 0),
+      loadedResolvedIncidentCount
+    ),
+    groupedIncidents: Math.max(
+      Number(globalIncidentSummary?.groupedIncidents ?? 0),
+      loadedGroupedIncidentCount
+    ),
+    totalIncidents: Math.max(
+      Number(globalIncidentSummary?.totalIncidents ?? 0),
+      incidents.length
+    ),
+  };
+  const activeIncidentSummary = selPatient ? selectedIncidentSummary : effectiveGlobalIncidentSummary;
   const canGoToNextPatientRosterPage = totalPatientCount > patientRosterPage * patientRosterPageSize;
   const canGoToNextHistoryPage =
     (Number.isFinite(Number(activeHistorySummary?.totalAlerts))
@@ -1306,7 +1331,7 @@ export default function CRCHome({ user, onLogout }) {
     : `Showing ${globalAlerts.length} loaded global alert-history records from the current recent window. Full alert summary: ${globalAlertSummary?.activeAlerts ?? 0} active, ${globalAlertSummary?.resolvedAlerts ?? 0} resolved.`;
   const incidentWindowLabel = selPatient
     ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.resolvedIncidents ?? 0} documented, ${selectedIncidentSummary?.groupedIncidents ?? 0} grouped.`
-    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${globalIncidentSummary?.openIncidents ?? 0} open, ${globalIncidentSummary?.resolvedIncidents ?? 0} documented, ${globalIncidentSummary?.groupedIncidents ?? 0} grouped.`;
+    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${effectiveGlobalIncidentSummary.openIncidents} open, ${effectiveGlobalIncidentSummary.resolvedIncidents} documented, ${effectiveGlobalIncidentSummary.groupedIncidents} grouped.`;
   const pendingEproCount = useMemo(
     () => eproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length,
     [eproEntries]
@@ -1373,7 +1398,7 @@ export default function CRCHome({ user, onLogout }) {
 
     incidents.forEach((incident) => {
       const linkedIds = Array.isArray(incident.linked_patient_ids) ? incident.linked_patient_ids : [];
-      if (incident.status === 'resolved') return;
+      if (!isUnresolvedIncident(incident)) return;
       linkedIds.forEach((patientId) => {
         incidentCounts.set(patientId, (incidentCounts.get(patientId) || 0) + 1);
       });

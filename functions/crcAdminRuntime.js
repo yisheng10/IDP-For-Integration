@@ -246,7 +246,7 @@ async function commitIncidentPurgeOperations(operations = []) {
 }
 
 function isUnresolvedIncident(incident) {
-  return ['open', 'acknowledged'].includes(normalizeText(incident?.status));
+  return normalizeText(incident?.status) !== 'resolved';
 }
 
 export const fetchCrcUrgentIncidentSummary = onCall(async (request) => {
@@ -254,7 +254,7 @@ export const fetchCrcUrgentIncidentSummary = onCall(async (request) => {
 
   const snapshot = await db
     .collection('incident_records')
-    .where('status', 'in', ['open', 'acknowledged'])
+    .where('status', '!=', 'resolved')
     .get();
 
   const urgentCount = snapshot.docs

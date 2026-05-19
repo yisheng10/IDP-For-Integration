@@ -22,7 +22,11 @@ function historyStatusLabel(status) {
 }
 
 function incidentStatusLabel(status) {
-  return status === 'resolved' ? 'resolved' : 'open';
+  return String(status || '').trim().toLowerCase() === 'resolved' ? 'resolved' : 'open';
+}
+
+function isOpenIncidentStatus(status) {
+  return String(status || '').trim().toLowerCase() !== 'resolved';
 }
 
 const SAFETY_TABS = [
@@ -96,10 +100,16 @@ const SafetyInboxPanel = ({
       const matchesPatient = selectedPatient
         ? (incident.linked_patient_ids || []).includes(selectedPatient.id)
         : true;
-      const matchesTab = activeTab === 'resolved' ? incident.status === 'resolved' : incident.status !== 'resolved';
+      const matchesTab = activeTab === 'resolved'
+        ? !isOpenIncidentStatus(incident.status)
+        : isOpenIncidentStatus(incident.status);
       const matchesSeverity = severityFilter === 'all' ? true : incident.severity === severityFilter;
       const matchesStatus =
-        incidentStatusFilter === 'all' ? true : incident.status === incidentStatusFilter;
+        incidentStatusFilter === 'all'
+          ? true
+          : incidentStatusFilter === 'open'
+            ? isOpenIncidentStatus(incident.status)
+            : incident.status === incidentStatusFilter;
       const protocolName = incident.protocol_snapshot?.protocol_name || '';
       const matchesProtocol = protocolFilter
         ? protocolName.toLowerCase().includes(protocolFilter.toLowerCase())
@@ -160,10 +170,10 @@ const SafetyInboxPanel = ({
 
   const openCount = Number.isFinite(Number(incidentSummary?.openIncidents))
     ? Number(incidentSummary.openIncidents)
-    : incidents.filter((incident) => incident.status !== 'resolved').length;
+    : incidents.filter((incident) => isOpenIncidentStatus(incident.status)).length;
   const resolvedCount = Number.isFinite(Number(incidentSummary?.resolvedIncidents))
     ? Number(incidentSummary.resolvedIncidents)
-    : incidents.filter((incident) => incident.status === 'resolved').length;
+    : incidents.filter((incident) => !isOpenIncidentStatus(incident.status)).length;
   const groupedCount = Number.isFinite(Number(incidentSummary?.groupedIncidents))
     ? Number(incidentSummary.groupedIncidents)
     : incidents.filter((incident) => incident.compare_ready).length;

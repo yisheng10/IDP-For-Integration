@@ -33,7 +33,11 @@ function renderVitalRow(record) {
 }
 
 function renderIncidentStatus(status) {
-  return status === 'resolved' ? 'resolved' : 'open';
+  return String(status || '').trim().toLowerCase() === 'resolved' ? 'resolved' : 'open';
+}
+
+function isOpenIncidentStatus(status) {
+  return String(status || '').trim().toLowerCase() !== 'resolved';
 }
 
 const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) => {
@@ -158,7 +162,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
               <button onClick={handleSaveNote} className="btn btn-primary" disabled={savingNote}>
                 {savingNote ? 'Saving...' : 'Save Note'}
               </button>
-              {incident.status !== 'resolved' && (
+              {isOpenIncidentStatus(incident.status) && (
                 <button onClick={handleResolve} className="btn btn-success" disabled={changingStatus}>
                   Document
                 </button>
