@@ -11204,6 +11204,78 @@ body,
   z-index: 3002 !important;
 }
 
+.section-header--controlsOnly {
+  justify-content: flex-end !important;
+  margin-bottom: 10px !important;
+}
+
+.patient-roster__summaryHeader {
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 0 0 6px !important;
+}
+
+.patient-roster__summaryHeader .section-note {
+  margin: 0 !important;
+}
+
+.protocol-library {
+  gap: 12px !important;
+}
+
+.protocol-library .workspace-card {
+  padding: 14px 16px !important;
+}
+
+.protocol-library__uploadHeader {
+  justify-content: flex-start !important;
+  align-items: center !important;
+  margin: 0 0 8px !important;
+}
+
+.protocol-library__toolbar {
+  justify-content: flex-start !important;
+  width: 100% !important;
+  gap: 8px !important;
+}
+
+.protocol-library__toolbar input[type='file'] {
+  max-width: 300px !important;
+}
+
+.protocol-library__summaryGrid {
+  gap: 8px !important;
+}
+
+#side-effect-guidance.dashboard-section {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  min-height: calc(100vh - 86px) !important;
+  height: calc(100vh - 86px) !important;
+}
+
+#side-effect-guidance .guidance-workspace {
+  min-height: 100% !important;
+  height: 100% !important;
+}
+
+#side-effect-guidance .intelligence-card,
+#side-effect-guidance .workspace-card {
+  border-radius: 18px !important;
+}
+
+#side-effect-guidance .guidance-panel__header {
+  padding: 10px 14px 8px !important;
+}
+
+#side-effect-guidance .guidance-panel__chatArea {
+  padding: 6px 14px !important;
+}
+
+#side-effect-guidance .guidance-panel__inputArea {
+  padding: 7px 14px 10px !important;
+}
+
 /* CRC top navigation reference-card rebuild. */
 .topnav {
   position: sticky !important;

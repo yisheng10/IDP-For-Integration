@@ -66,14 +66,8 @@ export default function PatientList({
 
   return (
     <div className="card workspace-card patient-roster">
-      <div className="section-header">
-        <div>
-          <h3>Patients</h3>
-          <div className="section-note">
-            Search or filter the currently loaded roster by patient name, subject ID, assigned CRC, protocol assignment, and mapping status.
-          </div>
-          {summaryNote ? <div className="section-note section-note--spaced">{summaryNote}</div> : null}
-        </div>
+      <div className="section-header patient-roster__summaryHeader">
+        {summaryNote ? <div className="section-note">{summaryNote}</div> : <span />}
         <div className="metric-pill">{countLabel || `${filteredPatients.length} visible`}</div>
       </div>
 
@@ -84,9 +78,7 @@ export default function PatientList({
           value={effectiveQuery}
           onChange={(event) => handleSearchChange(event.target.value)}
         />
-      ) : (
-        <div className="section-note">Use the header quick search to filter the currently loaded roster.</div>
-      )}
+      ) : null}
 
       <div className="patient-roster__filters">
         <select value={protocolFilter} onChange={(event) => setProtocolFilter(event.target.value)}>
