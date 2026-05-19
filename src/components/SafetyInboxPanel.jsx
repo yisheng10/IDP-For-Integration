@@ -195,23 +195,6 @@ const SafetyInboxPanel = ({
 
   return (
     <div className="card workspace-card utility-card utility-card--safety">
-      <div className="section-header section-header--controlsOnly">
-        <div className="inbox-counterGroup">
-          <div className="inbox-counterBox">
-            <strong>{openCount}</strong>
-            <span>Open</span>
-          </div>
-          <div className="inbox-counterBox">
-            <strong>{resolvedCount}</strong>
-            <span>Documented</span>
-          </div>
-          <div className="inbox-counterBox">
-            <strong>{groupedCount}</strong>
-            <span>Grouped</span>
-          </div>
-        </div>
-      </div>
-
       <div className="inbox-tabRow" role="tablist" aria-label="Safety inbox views">
         {SAFETY_TABS.map((tab) => (
           <button

@@ -11204,6 +11204,27 @@ body,
   z-index: 3002 !important;
 }
 
+.crc-shell__content {
+  padding: 6px 12px 14px 10px !important;
+}
+
+.dashboard-surface {
+  gap: 6px !important;
+}
+
+.dashboard-section {
+  gap: 8px !important;
+}
+
+.workspace-summary-grid,
+.workspace-summary-grid--compact {
+  gap: 8px !important;
+}
+
+.workspace-summary-item {
+  min-height: 118px !important;
+}
+
 .section-header--controlsOnly {
   justify-content: flex-end !important;
   margin-bottom: 10px !important;
@@ -11287,12 +11308,12 @@ body,
   gap: 12px !important;
   width: 100% !important;
   max-width: 100% !important;
-  min-height: 74px !important;
+  min-height: 66px !important;
   margin: 0 !important;
-  padding: 12px 14px 12px 20px !important;
+  padding: 9px 12px 9px 18px !important;
   box-sizing: border-box !important;
   border: 1px solid rgba(218, 229, 239, 0.92) !important;
-  border-radius: 0 0 18px 18px !important;
+  border-radius: 0 !important;
   background: rgba(255, 255, 255, 0.96) !important;
   box-shadow: 0 12px 28px rgba(15, 39, 64, 0.07) !important;
   backdrop-filter: blur(12px) !important;
@@ -11344,7 +11365,7 @@ body,
 
 .topnav__divider {
   width: 1px !important;
-  height: 48px !important;
+  height: 42px !important;
   background: linear-gradient(180deg, transparent, #dbe5ef 18%, #dbe5ef 82%, transparent) !important;
 }
 
@@ -11376,8 +11397,8 @@ body,
 
 .topnav__searchInput {
   width: 100% !important;
-  height: 42px !important;
-  min-height: 42px !important;
+  height: 40px !important;
+  min-height: 40px !important;
   padding: 0 14px 0 42px !important;
   border: 1px solid #d8e4ef !important;
   border-radius: 16px !important;
@@ -11409,8 +11430,8 @@ body,
 }
 
 .topnav__alertLauncher {
-  height: 42px !important;
-  min-height: 42px !important;
+  height: 40px !important;
+  min-height: 40px !important;
   padding: 0 16px !important;
   border-radius: 16px !important;
   border: 1px solid #f0bdb8 !important;
@@ -11430,8 +11451,8 @@ body,
 
 .topnav__profileButton {
   width: 214px !important;
-  height: 42px !important;
-  min-height: 42px !important;
+  height: 40px !important;
+  min-height: 40px !important;
   display: grid !important;
   grid-template-columns: 32px minmax(0, 1fr) 12px !important;
   align-items: center !important;
@@ -11504,7 +11525,8 @@ body,
   .topnav {
     grid-template-columns: minmax(340px, 1fr) 1px minmax(230px, 0.78fr) auto !important;
     gap: 10px !important;
-    padding: 10px 12px 10px 16px !important;
+    padding: 9px 12px 9px 16px !important;
+    border-radius: 0 !important;
   }
 
   .topnav__divider--actions {
