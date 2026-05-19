@@ -11185,6 +11185,25 @@ body,
   overflow-y: auto !important;
 }
 
+/* Keep header menus visible while the page-level shell still blocks horizontal overflow. */
+.topnav {
+  overflow: visible !important;
+  z-index: 3000 !important;
+}
+
+.topnav__right,
+.topnav__menuAnchor {
+  overflow: visible !important;
+}
+
+.topnav__menuAnchor {
+  z-index: 3001;
+}
+
+.topnav__dropdown {
+  z-index: 3002 !important;
+}
+
 #patient-disengagement .dropout-dashboard__queuePanel {
   padding: 8px 8px 9px !important;
   row-gap: 0 !important;
