@@ -586,22 +586,22 @@ export default function PatientConversationTimeline({
             <button
               type="button"
               style={styles.callIconButton}
-              onClick={() => handleStartPatientCall(false)}
-              disabled={!patient?.id}
-              title={patient?.id ? `Voice call ${patient.nickname || 'patient'}` : 'Select a patient first'}
-              aria-label={patient?.id ? `Voice call ${patient.nickname || 'patient'}` : 'Select a patient first'}
-            >
-              <PhoneIcon />
-            </button>
-            <button
-              type="button"
-              style={styles.callIconButton}
               onClick={() => handleStartPatientCall(true)}
               disabled={!patient?.id}
               title={patient?.id ? `Video call ${patient.nickname || 'patient'}` : 'Select a patient first'}
               aria-label={patient?.id ? `Video call ${patient.nickname || 'patient'}` : 'Select a patient first'}
             >
               <VideoIcon />
+            </button>
+            <button
+              type="button"
+              style={styles.callIconButton}
+              onClick={() => handleStartPatientCall(false)}
+              disabled={!patient?.id}
+              title={patient?.id ? `Voice call ${patient.nickname || 'patient'}` : 'Select a patient first'}
+              aria-label={patient?.id ? `Voice call ${patient.nickname || 'patient'}` : 'Select a patient first'}
+            >
+              <PhoneIcon />
             </button>
           </div>
           <div style={styles.patientBadge}>
@@ -717,23 +717,20 @@ const styles = {
   callButtonGroup: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '7px 9px',
-    borderRadius: '8px',
-    background: '#0f609b',
-    boxShadow: '0 10px 22px rgba(15, 96, 155, 0.18)',
+    gap: '16px',
   },
   callIconButton: {
-    width: '34px',
-    height: '32px',
+    width: '28px',
+    height: '28px',
     border: 0,
-    borderRadius: '7px',
+    borderRadius: '6px',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#ffffff',
+    color: '#111827',
     background: 'transparent',
     cursor: 'pointer',
+    padding: 0,
   },
   body: {
     minHeight: 0,
