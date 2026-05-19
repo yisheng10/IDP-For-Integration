@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -10,8 +11,13 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import {
+  buildConversationTimelineEventData,
+  queueConversationTimelineMirror,
+} from './conversationTimelineService';
 
 export const SEVERITY_OPTIONS = ['mild', 'moderate', 'serious'];
 
@@ -460,6 +466,74 @@ export async function updateIncidentNote(incidentId, crcNote) {
     crc_note: String(crcNote || ''),
     updated_at: new Date().toISOString(),
   });
+}
+
+export async function ensureIncidentAlertThread(incident, linkedPatient, crcMeta = {}) {
+  const patientUid = String(linkedPatient?.uid || linkedPatient?.patient_id || '').trim();
+  const incidentId = String(incident?.id || '').trim();
+
+  if (!patientUid || !incidentId) {
+    throw new Error('Incident and linked patient are required to open a thread.');
+  }
+
+  const existingPath = (Array.isArray(incident?.linked_alert_paths) ? incident.linked_alert_paths : []).find((path) =>
+    String(path || '').startsWith(`users/${patientUid}/alerts/`)
+  );
+
+  if (existingPath) {
+    return existingPath;
+  }
+
+  const nowIso = new Date().toISOString();
+  const reason = incident?.event_title || incident?.reason || 'Safety follow-up';
+  const senderName = crcMeta.name || crcMeta.email || 'CRC';
+  const messageText = `CRC follow-up thread opened for safety case: ${reason}.`;
+  const alertRef = doc(collection(db, 'users', patientUid, 'alerts'));
+  const messageRef = doc(collection(alertRef, 'messages'));
+  const incidentRef = doc(db, 'incident_records', incidentId);
+  const batch = writeBatch(db);
+
+  batch.set(alertRef, {
+    type: 'URGENT',
+    reason,
+    message: messageText,
+    timestamp: nowIso,
+    status: 'unread',
+    senderRole: 'crc',
+    senderName,
+    lastSender: 'crc',
+    source_incident_id: incidentId,
+    source_system: 'crc_incident_thread',
+    incident_type: incident?.incident_type || null,
+    side_effect_severity: incident?.severity || null,
+  });
+
+  batch.set(messageRef, {
+    sender: 'crc',
+    senderName,
+    text: messageText,
+    timestamp: nowIso,
+  });
+
+  queueConversationTimelineMirror(batch, patientUid, buildConversationTimelineEventData({
+    actorType: 'crc',
+    channelType: 'crc_chat',
+    threadType: 'urgent_alert',
+    alertId: alertRef.id,
+    sourcePath: messageRef.path,
+    messageText,
+    timestamp: nowIso,
+    displayName: senderName,
+    threadLabel: reason,
+  }));
+
+  batch.update(incidentRef, {
+    linked_alert_paths: arrayUnion(alertRef.path),
+    updated_at: nowIso,
+  });
+
+  await batch.commit();
+  return alertRef.path;
 }
 
 export async function resolveIncident(incidentId, crcMeta = {}) {

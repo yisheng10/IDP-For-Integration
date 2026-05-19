@@ -1087,6 +1087,21 @@ export default function CRCHome({ user, onLogout }) {
     const target = patients.find((patient) => patient.id === uid);
     if (target) selectP(target);
 
+    const cleanAlertPath = String(alertPath || '').trim();
+    const alertPathSegments = cleanAlertPath.split('/').filter(Boolean);
+    if (cleanAlertPath && alertPathSegments.length % 2 === 0) {
+      setChatAlert({
+        id: alertPathSegments[alertPathSegments.length - 1],
+        ref: doc(db, cleanAlertPath),
+        uid,
+        patientName,
+        reason,
+        status: status || 'unread',
+        timestamp: new Date().toISOString(),
+      });
+      setIsAlertWidgetOpen(true);
+    }
+
     setActiveIncident(null);
     setSearchParams(prev => {
       const nextParams = new URLSearchParams(prev);

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   getIncidentDueState,
   hydrateIncidentPatientContext,
+  ensureIncidentAlertThread,
   resolveIncident,
   updateIncidentNote,
 } from '../services/incidentService';
@@ -46,6 +47,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
   const [noteDraft, setNoteDraft] = useState(incident?.crc_note || '');
   const [savingNote, setSavingNote] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [openingThreadUid, setOpeningThreadUid] = useState('');
 
   useEffect(() => {
     setNoteDraft(incident?.crc_note || '');
@@ -106,6 +108,30 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
       alert('Failed to resolve incident: ' + error.message);
     } finally {
       setChangingStatus(false);
+    }
+  };
+
+  const handleOpenThread = async (context, linkedChatPath) => {
+    if (!context?.uid || openingThreadUid) return;
+    setOpeningThreadUid(context.uid);
+    try {
+      const alertPath = linkedChatPath || await ensureIncidentAlertThread(incident, context, {
+        uid: user.uid,
+        name: crcName || user.email,
+        email: user.email,
+      });
+
+      onOpenChat?.({
+        alertPath,
+        uid: context.uid,
+        patientName: context.patient_name,
+        reason: incident.event_title,
+        status: incident.status,
+      });
+    } catch (error) {
+      alert('Unable to open this incident thread: ' + error.message);
+    } finally {
+      setOpeningThreadUid('');
     }
   };
 
@@ -211,22 +237,13 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
                           <strong>{context.patient_name}</strong>
                           <div style={styles.metaHint}>Subject ID: {context.subject_id}</div>
                         </div>
-                        {linkedChatPath && (
-                          <button
-                            onClick={() =>
-                              onOpenChat?.({
-                                alertPath: linkedChatPath,
-                                uid: context.uid,
-                                patientName: context.patient_name,
-                                reason: incident.event_title,
-                                status: incident.status,
-                              })
-                            }
-                            className="btn btn-small btn-primary"
-                          >
-                            Open Thread
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleOpenThread(context, linkedChatPath)}
+                          className="btn btn-small btn-primary"
+                          disabled={openingThreadUid === context.uid}
+                        >
+                          {openingThreadUid === context.uid ? 'Opening...' : 'Open Thread'}
+                        </button>
                       </div>
                       <div style={styles.compareDetail}>Hospital ID: {context.hospital_patient_id || 'Not set'}</div>
                       <div style={styles.compareDetail}>
