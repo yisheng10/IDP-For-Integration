@@ -26,8 +26,7 @@
       "public": "MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/web-build",
       "ignore": [
         "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
+        "**/.*"
       ],
       "predeploy": [
         "npm run build:patient-web"
