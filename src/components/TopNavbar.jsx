@@ -12,6 +12,23 @@ function BellIcon() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="10.8" cy="10.8" r="6.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m16 16 4.2 4.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m6.5 9 5.5 5.5L17.5 9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function StatusShieldIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -84,7 +101,8 @@ export default function TopNavbar({
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        if (data.nickname) setDisplayName(data.nickname);
+        const fullName = [data.firstName, data.lastName].filter(Boolean).join(' ').trim();
+        setDisplayName(fullName || data.nickname || data.displayName || user.displayName || user.email);
       }
     });
 
@@ -100,6 +118,21 @@ export default function TopNavbar({
     if (!words.length) return 'U';
     return words.map((word) => word[0].toUpperCase()).join('');
   }, [displayName]);
+
+  const profileNameLines = useMemo(() => {
+    const name = String(displayName || 'User').trim();
+    const siteSuffix = name.match(/^(.*?)\s*(\([^)]*\))$/);
+    if (siteSuffix?.[1] && siteSuffix?.[2]) {
+      return {
+        primary: siteSuffix[1].trim(),
+        secondary: `${siteSuffix[2]} · ${defaultRole}`,
+      };
+    }
+    return {
+      primary: name,
+      secondary: defaultRole,
+    };
+  }, [defaultRole, displayName]);
 
   const closeAllMenus = () => {
     setShowProfileMenu(false);
@@ -144,7 +177,12 @@ export default function TopNavbar({
           </div>
         </div>
 
+        <span className="topnav__divider" aria-hidden="true" />
+
         <div className="topnav__searchWrap" ref={searchRef}>
+          <span className="topnav__searchIcon" aria-hidden="true">
+            <SearchIcon />
+          </span>
           <input
             type="search"
             className="topnav__searchInput"
@@ -187,6 +225,8 @@ export default function TopNavbar({
           ) : null}
         </div>
 
+        <span className="topnav__divider topnav__divider--actions" aria-hidden="true" />
+
         <div className="topnav__right">
           <button
             type="button"
@@ -225,8 +265,11 @@ export default function TopNavbar({
             >
               <span className="topnav__avatar">{displayInitials}</span>
               <span className="topnav__profileText">
-                <strong>{displayName ? displayName.split(' ')[0] : 'User'}</strong>
-                <span>{defaultRole}</span>
+                <strong>{profileNameLines.primary}</strong>
+                <span>{profileNameLines.secondary}</span>
+              </span>
+              <span className="topnav__chevron" aria-hidden="true">
+                <ChevronDownIcon />
               </span>
             </button>
             {showProfileMenu ? (
