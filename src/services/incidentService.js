@@ -10,8 +10,8 @@ import {
   orderBy,
   query,
   updateDoc,
-  where,
   writeBatch,
+  where,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
@@ -538,13 +538,35 @@ export async function ensureIncidentAlertThread(incident, linkedPatient, crcMeta
 
 export async function resolveIncident(incidentId, crcMeta = {}) {
   const nowIso = new Date().toISOString();
-  await updateDoc(doc(db, 'incident_records', incidentId), {
+  const incidentRef = doc(db, 'incident_records', incidentId);
+  const incidentSnapshot = await getDoc(incidentRef);
+  const incident = incidentSnapshot.exists() ? incidentSnapshot.data() : {};
+  const batch = writeBatch(db);
+
+  batch.update(incidentRef, {
     status: 'resolved',
     resolved_at: nowIso,
     resolved_by: crcMeta.uid || null,
     resolved_by_name: crcMeta.name || crcMeta.email || null,
     updated_at: nowIso,
   });
+
+  const linkedAlertPaths = Array.isArray(incident.linked_alert_paths)
+    ? incident.linked_alert_paths
+    : [];
+  linkedAlertPaths
+    .filter((path) => typeof path === 'string' && path.trim())
+    .forEach((path) => {
+      batch.set(doc(db, path.trim()), {
+        status: 'resolved',
+        threadClosed: true,
+        resolvedAt: nowIso,
+        resolvedBy: crcMeta.uid || null,
+        resolvedByName: crcMeta.name || crcMeta.email || null,
+      }, { merge: true });
+    });
+
+  await batch.commit();
 }
 
 export async function hydrateIncidentPatientContext(incident) {

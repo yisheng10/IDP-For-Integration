@@ -2237,7 +2237,6 @@ eady calculation.
 - Existing warning retained:
   - the CRC bundle still emits the non-blocking large chunk warning during build
 
-<<<<<<< Updated upstream
 ## 2026-04-02 - CRC shell header and duplicate section hero cleanup
 
 - Refined the CRC shell layout to reduce repeated navigation cues and make the workspace easier for CRC users to scan.
