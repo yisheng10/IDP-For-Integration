@@ -172,7 +172,7 @@ export default function App() {
                   <div className="login-card login-card--intro">
                       <TrialLightCrcWordmark className="login-portal__brandLockup" />
                       <p className="login-portal__subtitle">
-                        A focused CRC workspace for symptom review, disengagement follow-up, and ePRO coordination.
+                        A CRC and PI workspace for Drug Clinical Trial: Adverse Event Guidance, Patient Disengagement Prediction, and Protocol-linked Follow-up.
                       </p>
                       <TrialLightCrcIllustration />
                     </div>

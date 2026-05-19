@@ -41,8 +41,8 @@ import {
 } from '../services/browserPushService';
 import {
   fetchAlertHistorySummary,
-  fetchCrcUrgentIncidentSummary,
   fetchIncidentSummary,
+  fetchOpenIncidentSummary,
   fetchPatientRosterSummary,
 } from '../services/crcSummaryService';
 import {
@@ -114,43 +114,7 @@ function normalizeIncidentText(value) {
 }
 
 function isUnresolvedIncident(incident) {
-  return ['open', 'acknowledged'].includes(normalizeIncidentText(incident?.status));
-}
-
-function isAbnormalVitalIncident(incident) {
-  const incidentType = normalizeIncidentText(incident?.incident_type);
-  const latestSourceSystem = normalizeIncidentText(incident?.latest_source_system);
-  const eventTitle = normalizeIncidentText(incident?.event_title || incident?.reason);
-
-  return (
-    incidentType === 'vital_monitor' ||
-    latestSourceSystem === 'patient_vitals_auto_monitor' ||
-    eventTitle.includes('critical vitals') ||
-    eventTitle.includes('abnormal vitals')
-  );
-}
-
-function isCrcActionableAdverseEvent(incident) {
-  if (isAbnormalVitalIncident(incident)) return false;
-
-  const severity = normalizeIncidentText(incident?.severity);
-  const urgency = normalizeIncidentText(incident?.urgency);
-  const incidentType = normalizeIncidentText(incident?.incident_type);
-
-  return (
-    incidentType === 'side_effect' ||
-    incidentType === 'emergency' ||
-    Boolean(incident?.immediate_help_requested) ||
-    severity === 'serious' ||
-    ['urgent', 'immediate', 'critical'].includes(urgency)
-  );
-}
-
-function isHeaderUrgentIncident(incident) {
-  return (
-    isUnresolvedIncident(incident) &&
-    (isAbnormalVitalIncident(incident) || isCrcActionableAdverseEvent(incident))
-  );
+  return normalizeIncidentText(incident?.status) !== 'resolved';
 }
 
 function isHospitalEmailAddress(value = '') {
@@ -165,49 +129,49 @@ const HOME_SECTIONS = {
     label: 'Today',
     path: '/home?section=today',
     title: 'Today',
-    description: 'Start with urgent work, pending CRC actions, and the fastest next step for the current shift.',
+    description: 'Start with urgent actions, pending ePRO, and the fastest next step for the current shift.',
   },
   patients: {
     label: 'Patients',
     path: '/home?section=patients',
     title: 'Patients',
-    description: 'Keep the roster, patient handoff, and study coordination inside one patient-first workspace.',
+    description: 'Review roster status, handoff context, trial assignment, and CRC ownership.',
   },
   safety: {
     label: 'Safety',
     path: '/home?section=safety&tab=open',
     title: 'Safety',
-    description: 'Review open incidents, documented follow-up, and historical safety threads in one structured workspace.',
+    description: 'Review open incidents, documented follow-up, and historical safety threads.',
   },
   'side-effect-guidance': {
     label: 'Adverse Event Guidance',
     path: '/home?section=side-effect-guidance',
     title: 'Adverse Event Guidance',
-    description: 'Review patient context, protocol grounding, and CTCAE support from one dedicated CRC adverse event workspace.',
+    description: 'Review patient context, protocol grounding, and CTCAE support in one workspace.',
   },
   'patient-disengagement': {
     label: 'Patient Disengagement Prediction',
     path: '/home?section=patient-disengagement',
     title: 'Patient Disengagement Prediction',
-    description: 'Inspect CRC-only patient ranking, confidence, and data completeness from a dedicated prediction workspace.',
+    description: 'Continuous risk monitoring, intervention case management, and explainability.',
   },
   epro: {
     label: 'ePRO',
     path: '/home?section=epro',
     title: 'ePRO',
-    description: 'Review, edit, approve, and release patient questionnaires without leaving the CRC workspace.',
+    description: 'Review, edit, approve, and release patient questionnaires.',
   },
   protocols: {
     label: 'Protocols',
     path: '/home?section=protocols',
     title: 'Protocols',
-    description: 'Manage protocol PDFs, trial templates, monitored vitals, and static-context status from one workspace.',
+    description: 'Manage protocol PDFs, trial templates, monitored vitals, and context status.',
   },
   resources: {
     label: 'Resources',
     path: '/home?section=resources',
     title: 'Resources',
-    description: 'Keep CTCAE and assigned protocol references close to the active CRC workflow.',
+    description: 'Keep CTCAE references and assigned protocol materials close to CRC work.',
   },
 };
 
@@ -275,7 +239,7 @@ export default function CRCHome({ user, onLogout }) {
   const [globalAlertSummary, setGlobalAlertSummary] = useState(null);
   const [selectedAlertSummary, setSelectedAlertSummary] = useState(null);
   const [globalIncidentSummary, setGlobalIncidentSummary] = useState(null);
-  const [globalUrgentIncidentSummary, setGlobalUrgentIncidentSummary] = useState(null);
+  const [globalOpenIncidentSummary, setGlobalOpenIncidentSummary] = useState(null);
   const [selectedIncidentSummary, setSelectedIncidentSummary] = useState(null);
   const [disengagementSummary, setDisengagementSummary] = useState(null);
   const [rosterSearchQuery, setRosterSearchQuery] = useState('');
@@ -483,21 +447,21 @@ export default function CRCHome({ user, onLogout }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadUrgentIncidentSummary() {
+    async function loadOpenIncidentSummary() {
       try {
-        const payload = await fetchCrcUrgentIncidentSummary();
+        const payload = await fetchOpenIncidentSummary();
         if (!cancelled) {
-          setGlobalUrgentIncidentSummary(payload);
+          setGlobalOpenIncidentSummary(payload);
         }
       } catch (error) {
-        console.error('Failed to load urgent incident summary:', error);
+        console.error('Failed to load open incident summary:', error);
         if (!cancelled) {
-          setGlobalUrgentIncidentSummary(null);
+          setGlobalOpenIncidentSummary(null);
         }
       }
     }
 
-    loadUrgentIncidentSummary();
+    loadOpenIncidentSummary();
     return () => {
       cancelled = true;
     };
@@ -888,7 +852,7 @@ export default function CRCHome({ user, onLogout }) {
             const signature = `${incident.id}:${incident.updated_at}`;
             const shouldNotify =
               !foregroundNotificationRef.current.has(signature) &&
-              incident.status !== 'resolved' &&
+              isUnresolvedIncident(incident) &&
               incident.severity === 'serious' &&
               incident.primary_crc_id === user.uid;
             foregroundNotificationRef.current.add(signature);
@@ -1325,7 +1289,32 @@ export default function CRCHome({ user, onLogout }) {
     ? Math.max(Number(patientRosterSummary.assignedPatients), derivedAssignedPatientCount)
     : derivedAssignedPatientCount;
   const activeHistorySummary = selPatient ? selectedAlertSummary : globalAlertSummary;
-  const activeIncidentSummary = selPatient ? selectedIncidentSummary : globalIncidentSummary;
+  const loadedOpenIncidentCount = incidents.filter((incident) => isUnresolvedIncident(incident)).length;
+  const loadedResolvedIncidentCount = incidents.filter(
+    (incident) => normalizeIncidentText(incident?.status) === 'resolved'
+  ).length;
+  const loadedGroupedIncidentCount = incidents.filter((incident) => incident.compare_ready).length;
+  const effectiveGlobalIncidentSummary = {
+    ...globalIncidentSummary,
+    openIncidents: Math.max(
+      Number(globalIncidentSummary?.openIncidents ?? 0),
+      Number(globalOpenIncidentSummary?.openIncidents ?? 0),
+      loadedOpenIncidentCount
+    ),
+    resolvedIncidents: Math.max(
+      Number(globalIncidentSummary?.resolvedIncidents ?? 0),
+      loadedResolvedIncidentCount
+    ),
+    groupedIncidents: Math.max(
+      Number(globalIncidentSummary?.groupedIncidents ?? 0),
+      loadedGroupedIncidentCount
+    ),
+    totalIncidents: Math.max(
+      Number(globalIncidentSummary?.totalIncidents ?? 0),
+      incidents.length
+    ),
+  };
+  const activeIncidentSummary = selPatient ? selectedIncidentSummary : effectiveGlobalIncidentSummary;
   const canGoToNextPatientRosterPage = totalPatientCount > patientRosterPage * patientRosterPageSize;
   const canGoToNextHistoryPage =
     (Number.isFinite(Number(activeHistorySummary?.totalAlerts))
@@ -1342,7 +1331,7 @@ export default function CRCHome({ user, onLogout }) {
     : `Showing ${globalAlerts.length} loaded global alert-history records from the current recent window. Full alert summary: ${globalAlertSummary?.activeAlerts ?? 0} active, ${globalAlertSummary?.resolvedAlerts ?? 0} resolved.`;
   const incidentWindowLabel = selPatient
     ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.resolvedIncidents ?? 0} documented, ${selectedIncidentSummary?.groupedIncidents ?? 0} grouped.`
-    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${globalIncidentSummary?.openIncidents ?? 0} open, ${globalIncidentSummary?.resolvedIncidents ?? 0} documented, ${globalIncidentSummary?.groupedIncidents ?? 0} grouped.`;
+    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${effectiveGlobalIncidentSummary.openIncidents} open, ${effectiveGlobalIncidentSummary.resolvedIncidents} documented, ${effectiveGlobalIncidentSummary.groupedIncidents} grouped.`;
   const pendingEproCount = useMemo(
     () => eproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length,
     [eproEntries]
@@ -1409,7 +1398,7 @@ export default function CRCHome({ user, onLogout }) {
 
     incidents.forEach((incident) => {
       const linkedIds = Array.isArray(incident.linked_patient_ids) ? incident.linked_patient_ids : [];
-      if (incident.status === 'resolved') return;
+      if (!isUnresolvedIncident(incident)) return;
       linkedIds.forEach((patientId) => {
         incidentCounts.set(patientId, (incidentCounts.get(patientId) || 0) + 1);
       });
@@ -1575,7 +1564,6 @@ export default function CRCHome({ user, onLogout }) {
   const urgentIncidentRows = useMemo(
     () =>
       openIncidents
-        .filter((incident) => isHeaderUrgentIncident(incident))
         .sort((left, right) => {
           const leftTime = new Date(left.updated_at || left.created_at || left.timestamp || 0).getTime();
           const rightTime = new Date(right.updated_at || right.created_at || right.timestamp || 0).getTime();
@@ -1602,7 +1590,7 @@ export default function CRCHome({ user, onLogout }) {
             incident.reason ||
             incident.title ||
             incident.protocol_rule_summary ||
-            'Serious safety incident requires CRC review.',
+            'Open safety incident requires CRC review.',
           occurredAt: incident.updated_at || incident.created_at || incident.timestamp || '',
         };
       }),
@@ -1617,8 +1605,8 @@ export default function CRCHome({ user, onLogout }) {
     return selectedIncidentSummary?.totalIncidents ?? incidents.filter((incident) => (incident.linked_patient_ids || []).includes(selPatient.id)).length;
   }, [incidents, selPatient, selectedIncidentSummary]);
   const urgentIncidentCount = useMemo(
-    () => Math.max(Number(globalUrgentIncidentSummary?.urgentCount ?? 0), urgentIncidentRows.length),
-    [globalUrgentIncidentSummary, urgentIncidentRows.length]
+    () => Math.max(Number(globalOpenIncidentSummary?.openIncidents ?? 0), openIncidentCount),
+    [globalOpenIncidentSummary, openIncidentCount]
   );
 
   const currentHeaderSection = isPatientWorkspaceOpen
@@ -1711,7 +1699,7 @@ export default function CRCHome({ user, onLogout }) {
       value: urgentIncidentCount,
       note:
         urgentIncidentCount > 0
-          ? `${urgentIncidentCount} serious safety case${urgentIncidentCount > 1 ? 's are' : ' is'} waiting for immediate CRC follow-up.`
+          ? `${urgentIncidentCount} open safety case${urgentIncidentCount > 1 ? 's are' : ' is'} waiting for CRC follow-up.`
           : 'Guidance workspace is ready for patient-level symptom support.',
       actionLabel: 'Open Guidance',
       onClick: () => openWorkspaceSection('side-effect-guidance'),
@@ -2001,7 +1989,7 @@ export default function CRCHome({ user, onLogout }) {
                     <div>
                       <h3>Urgent safety</h3>
                       <div className="section-note">
-                        Keep serious safety incidents visible from the Today workspace while triaging next steps.
+                        Keep open safety incidents visible from the Today workspace while triaging next steps.
                       </div>
                     </div>
                   </div>
@@ -2021,7 +2009,7 @@ export default function CRCHome({ user, onLogout }) {
                       ))}
                     </div>
                   ) : (
-                    <div className="empty-panel">No serious safety incidents are active right now.</div>
+                    <div className="empty-panel">No open safety incidents are active right now.</div>
                   )}
                 </div>
               </div>

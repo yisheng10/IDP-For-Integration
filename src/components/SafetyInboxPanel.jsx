@@ -21,6 +21,14 @@ function historyStatusLabel(status) {
   return status === 'unread' ? 'Active' : 'Documented';
 }
 
+function incidentStatusLabel(status) {
+  return String(status || '').trim().toLowerCase() === 'resolved' ? 'resolved' : 'open';
+}
+
+function isOpenIncidentStatus(status) {
+  return String(status || '').trim().toLowerCase() !== 'resolved';
+}
+
 const SAFETY_TABS = [
   { id: 'open', label: 'Open' },
   { id: 'resolved', label: 'Documented' },
@@ -92,10 +100,16 @@ const SafetyInboxPanel = ({
       const matchesPatient = selectedPatient
         ? (incident.linked_patient_ids || []).includes(selectedPatient.id)
         : true;
-      const matchesTab = activeTab === 'resolved' ? incident.status === 'resolved' : incident.status !== 'resolved';
+      const matchesTab = activeTab === 'resolved'
+        ? !isOpenIncidentStatus(incident.status)
+        : isOpenIncidentStatus(incident.status);
       const matchesSeverity = severityFilter === 'all' ? true : incident.severity === severityFilter;
       const matchesStatus =
-        incidentStatusFilter === 'all' ? true : incident.status === incidentStatusFilter;
+        incidentStatusFilter === 'all'
+          ? true
+          : incidentStatusFilter === 'open'
+            ? isOpenIncidentStatus(incident.status)
+            : incident.status === incidentStatusFilter;
       const protocolName = incident.protocol_snapshot?.protocol_name || '';
       const matchesProtocol = protocolFilter
         ? protocolName.toLowerCase().includes(protocolFilter.toLowerCase())
@@ -156,10 +170,10 @@ const SafetyInboxPanel = ({
 
   const openCount = Number.isFinite(Number(incidentSummary?.openIncidents))
     ? Number(incidentSummary.openIncidents)
-    : incidents.filter((incident) => incident.status !== 'resolved').length;
+    : incidents.filter((incident) => isOpenIncidentStatus(incident.status)).length;
   const resolvedCount = Number.isFinite(Number(incidentSummary?.resolvedIncidents))
     ? Number(incidentSummary.resolvedIncidents)
-    : incidents.filter((incident) => incident.status === 'resolved').length;
+    : incidents.filter((incident) => !isOpenIncidentStatus(incident.status)).length;
   const groupedCount = Number.isFinite(Number(incidentSummary?.groupedIncidents))
     ? Number(incidentSummary.groupedIncidents)
     : incidents.filter((incident) => incident.compare_ready).length;
@@ -195,29 +209,6 @@ const SafetyInboxPanel = ({
 
   return (
     <div className="card workspace-card utility-card utility-card--safety">
-      <div className="section-header">
-        <div>
-          <h3 className="mt-0" style={{ marginBottom: '6px' }}>Safety</h3>
-          <div className="section-note">
-            Use one primary workspace for active safety cases, resolved follow-up, and historical alert threads.
-          </div>
-        </div>
-        <div className="inbox-counterGroup">
-          <div className="inbox-counterBox">
-            <strong>{openCount}</strong>
-            <span>Open</span>
-          </div>
-          <div className="inbox-counterBox">
-            <strong>{resolvedCount}</strong>
-            <span>Documented</span>
-          </div>
-          <div className="inbox-counterBox">
-            <strong>{groupedCount}</strong>
-            <span>Grouped</span>
-          </div>
-        </div>
-      </div>
-
       <div className="inbox-tabRow" role="tablist" aria-label="Safety inbox views">
         {SAFETY_TABS.map((tab) => (
           <button
@@ -454,7 +445,7 @@ const SafetyInboxPanel = ({
                     <div className="incident-row__copy">
                       <div className="incident-row__top">
                         <strong>{incident.event_title}</strong>
-                        <span className="incident-row__status">{incident.status}</span>
+                        <span className="incident-row__status">{incidentStatusLabel(incident.status)}</span>
                         {incident.compare_ready ? (
                           <span className="incident-row__group">compare {incident.patient_count}</span>
                         ) : null}

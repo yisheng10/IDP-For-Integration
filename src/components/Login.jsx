@@ -284,11 +284,7 @@ export default function Login({ type, onLogin }) {
         >
           {isReg ? 'Already registered? Log in instead' : 'New here? Create a patient account'}
         </p>
-      ) : (
-        <div className="section-note login-card__footnote">
-          Use your approved study email. Patient sign-in belongs in the patient mobile app, not this CRC website.
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

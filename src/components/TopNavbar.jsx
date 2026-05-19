@@ -12,6 +12,67 @@ function BellIcon() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="10.8" cy="10.8" r="6.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m16 16 4.2 4.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m6.5 9 5.5 5.5L17.5 9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatusShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3l7 3.5v4.7c0 4.4-2.8 7-7 8.8-4.2-1.8-7-4.4-7-8.8V6.5L12 3Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="m9.4 11.8 1.8 1.8 3.6-3.9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatusLockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5.5" y="10.5" width="13" height="10" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StatusClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 7.8v4.8l3 1.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatusIndicator({ icon, label }) {
+  return (
+    <div className="topnav__statusItem" aria-label={label}>
+      <span className="topnav__statusIcon" aria-hidden="true">
+        {icon}
+      </span>
+      <span>{label}</span>
+    </div>
+  );
+}
+
 export default function TopNavbar({
   user,
   defaultRole,
@@ -27,6 +88,7 @@ export default function TopNavbar({
   searchPlaceholder = 'Search loaded patients',
   searchResults = [],
   onSearchSelect,
+  statusItems = [],
 }) {
   const [displayName, setDisplayName] = useState(user.email);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -39,7 +101,8 @@ export default function TopNavbar({
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        if (data.nickname) setDisplayName(data.nickname);
+        const fullName = [data.firstName, data.lastName].filter(Boolean).join(' ').trim();
+        setDisplayName(fullName || data.nickname || data.displayName || user.displayName || user.email);
       }
     });
 
@@ -55,6 +118,21 @@ export default function TopNavbar({
     if (!words.length) return 'U';
     return words.map((word) => word[0].toUpperCase()).join('');
   }, [displayName]);
+
+  const profileNameLines = useMemo(() => {
+    const name = String(displayName || 'User').trim();
+    const siteSuffix = name.match(/^(.*?)\s*(\([^)]*\))$/);
+    if (siteSuffix?.[1] && siteSuffix?.[2]) {
+      return {
+        primary: siteSuffix[1].trim(),
+        secondary: `${siteSuffix[2]} · ${defaultRole}`,
+      };
+    }
+    return {
+      primary: name,
+      secondary: defaultRole,
+    };
+  }, [defaultRole, displayName]);
 
   const closeAllMenus = () => {
     setShowProfileMenu(false);
@@ -99,7 +177,12 @@ export default function TopNavbar({
           </div>
         </div>
 
+        <span className="topnav__divider" aria-hidden="true" />
+
         <div className="topnav__searchWrap" ref={searchRef}>
+          <span className="topnav__searchIcon" aria-hidden="true">
+            <SearchIcon />
+          </span>
           <input
             type="search"
             className="topnav__searchInput"
@@ -142,6 +225,8 @@ export default function TopNavbar({
           ) : null}
         </div>
 
+        <span className="topnav__divider topnav__divider--actions" aria-hidden="true" />
+
         <div className="topnav__right">
           <button
             type="button"
@@ -157,6 +242,17 @@ export default function TopNavbar({
             <span>{resolvedAlertLabel}</span>
           </button>
 
+          {statusItems.length ? (
+            <div className="topnav__statusRail" aria-label="Workspace status">
+              {statusItems.map((item) => {
+                let iconNode = <StatusShieldIcon />;
+                if (item.icon === 'lock') iconNode = <StatusLockIcon />;
+                if (item.icon === 'clock') iconNode = <StatusClockIcon />;
+                return <StatusIndicator key={item.label} icon={iconNode} label={item.label} />;
+              })}
+            </div>
+          ) : null}
+
           <div className="topnav__menuAnchor" ref={profileRef}>
             <button
               type="button"
@@ -169,8 +265,11 @@ export default function TopNavbar({
             >
               <span className="topnav__avatar">{displayInitials}</span>
               <span className="topnav__profileText">
-                <strong>{displayName ? displayName.split(' ')[0] : 'User'}</strong>
-                <span>{defaultRole}</span>
+                <strong>{profileNameLines.primary}</strong>
+                <span>{profileNameLines.secondary}</span>
+              </span>
+              <span className="topnav__chevron" aria-hidden="true">
+                <ChevronDownIcon />
               </span>
             </button>
             {showProfileMenu ? (

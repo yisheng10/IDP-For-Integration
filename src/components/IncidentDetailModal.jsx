@@ -32,6 +32,14 @@ function renderVitalRow(record) {
   return bits.join(' | ') || 'No structured vitals in the latest record.';
 }
 
+function renderIncidentStatus(status) {
+  return String(status || '').trim().toLowerCase() === 'resolved' ? 'resolved' : 'open';
+}
+
+function isOpenIncidentStatus(status) {
+  return String(status || '').trim().toLowerCase() !== 'resolved';
+}
+
 const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) => {
   const [patientContexts, setPatientContexts] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
@@ -124,7 +132,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
           <div style={styles.metaGrid}>
             <div style={styles.metaCard}>
               <strong>Status</strong>
-              <div>{incident.status}</div>
+              <div>{renderIncidentStatus(incident.status)}</div>
               <div style={styles.metaHint}>Due: {incident.due_at ? new Date(incident.due_at).toLocaleString() : 'Not tracked'}</div>
             </div>
             <div style={styles.metaCard}>
@@ -154,7 +162,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
               <button onClick={handleSaveNote} className="btn btn-primary" disabled={savingNote}>
                 {savingNote ? 'Saving...' : 'Save Note'}
               </button>
-              {incident.status !== 'resolved' && (
+              {isOpenIncidentStatus(incident.status) && (
                 <button onClick={handleResolve} className="btn btn-success" disabled={changingStatus}>
                   Document
                 </button>

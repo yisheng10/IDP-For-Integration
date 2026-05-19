@@ -9,6 +9,7 @@ import {
   orderBy,
   query,
   updateDoc,
+  writeBatch,
   where,
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -41,8 +42,6 @@ const SEVERITY_RANK = {
   moderate: 2,
   serious: 3,
 };
-
-const OPEN_INCIDENT_STATUSES = new Set(['open', 'acknowledged']);
 
 export function getDefaultNotificationPolicy() {
   return JSON.parse(JSON.stringify(DEFAULT_NOTIFICATION_POLICY));
@@ -200,7 +199,7 @@ async function findMatchingOpenIncident(primaryCrcId, eventKey) {
 
   const candidates = incidentSnapshot.docs
     .map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }))
-    .filter((incident) => OPEN_INCIDENT_STATUSES.has(incident.status || 'open'))
+    .filter((incident) => String(incident.status || 'open').trim().toLowerCase() !== 'resolved')
     .sort((left, right) => {
       const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
       const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();
@@ -457,17 +456,6 @@ export function subscribeToIncidentRecords(onUpdate, onError, options = {}) {
   );
 }
 
-export async function acknowledgeIncident(incidentId, crcMeta = {}) {
-  const nowIso = new Date().toISOString();
-  await updateDoc(doc(db, 'incident_records', incidentId), {
-    status: 'acknowledged',
-    acknowledged_at: nowIso,
-    acknowledged_by: crcMeta.uid || null,
-    acknowledged_by_name: crcMeta.name || crcMeta.email || null,
-    updated_at: nowIso,
-  });
-}
-
 export async function updateIncidentNote(incidentId, crcNote) {
   await updateDoc(doc(db, 'incident_records', incidentId), {
     crc_note: String(crcNote || ''),
@@ -477,13 +465,35 @@ export async function updateIncidentNote(incidentId, crcNote) {
 
 export async function resolveIncident(incidentId, crcMeta = {}) {
   const nowIso = new Date().toISOString();
-  await updateDoc(doc(db, 'incident_records', incidentId), {
+  const incidentRef = doc(db, 'incident_records', incidentId);
+  const incidentSnapshot = await getDoc(incidentRef);
+  const incident = incidentSnapshot.exists() ? incidentSnapshot.data() : {};
+  const batch = writeBatch(db);
+
+  batch.update(incidentRef, {
     status: 'resolved',
     resolved_at: nowIso,
     resolved_by: crcMeta.uid || null,
     resolved_by_name: crcMeta.name || crcMeta.email || null,
     updated_at: nowIso,
   });
+
+  const linkedAlertPaths = Array.isArray(incident.linked_alert_paths)
+    ? incident.linked_alert_paths
+    : [];
+  linkedAlertPaths
+    .filter((path) => typeof path === 'string' && path.trim())
+    .forEach((path) => {
+      batch.set(doc(db, path.trim()), {
+        status: 'resolved',
+        threadClosed: true,
+        resolvedAt: nowIso,
+        resolvedBy: crcMeta.uid || null,
+        resolvedByName: crcMeta.name || crcMeta.email || null,
+      }, { merge: true });
+    });
+
+  await batch.commit();
 }
 
 export async function hydrateIncidentPatientContext(incident) {

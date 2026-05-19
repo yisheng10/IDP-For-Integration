@@ -118,6 +118,30 @@ function formatDateTimeValue(value, emptyLabel = 'N/A') {
   return Number.isNaN(nextValue.getTime()) ? emptyLabel : nextValue.toLocaleString();
 }
 
+function formatDateOnlyValue(value, emptyLabel = 'N/A') {
+  if (!value) return emptyLabel;
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(nextValue.getTime())
+    ? emptyLabel
+    : nextValue.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatNumericDateValue(value, emptyLabel = 'N/A') {
+  if (!value) return emptyLabel;
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(nextValue.getTime())
+    ? emptyLabel
+    : nextValue.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+}
+
+function formatTimeOnlyValue(value, emptyLabel = 'N/A') {
+  if (!value) return emptyLabel;
+  const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(nextValue.getTime())
+    ? emptyLabel
+    : nextValue.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+}
+
 function formatWorkflowValueLabel(value, emptyLabel = 'Not recorded') {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return emptyLabel;
@@ -272,7 +296,7 @@ function formatRiskChangeDirectionLabel(direction) {
   const normalized = String(direction || '').trim().toLowerCase();
   if (!normalized) return 'No prior publish';
   if (normalized === 'higher') return 'Higher';
-  if (normalized === 'lower') return 'Lower';
+  if (normalized === 'lower') return 'Decreasing';
   if (normalized === 'stable') return 'Stable';
   return formatWorkflowValueLabel(normalized, 'No prior publish');
 }
@@ -494,22 +518,142 @@ function sortDropoutRows(left, right) {
   return String(left.patientName || '').localeCompare(String(right.patientName || ''));
 }
 
-function MetricCard({ label, value, tone = 'default', supportingCopy = '', trailingMeta = '' }) {
+function MetricCard({
+  label,
+  value,
+  tone = 'default',
+  supportingCopy = '',
+  trailingMeta = '',
+  metaTitle = '',
+  metaPrimary = '',
+  metaSecondary = '',
+}) {
   return (
     <div className={`dropout-dashboard__metric dropout-dashboard__metric--${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {supportingCopy ? <small>{supportingCopy}</small> : null}
-      {trailingMeta ? <div className="dropout-dashboard__metricMeta">{trailingMeta}</div> : null}
+      <div className="dropout-dashboard__metricBody">
+        <label>{label}</label>
+        <strong>{value}</strong>
+        {supportingCopy ? <small>{supportingCopy}</small> : null}
+      </div>
+      {metaTitle || metaPrimary || metaSecondary || trailingMeta ? (
+        <div className="dropout-dashboard__metricMeta">
+          {metaTitle ? <span className="dropout-dashboard__metricMetaTitle">{metaTitle}</span> : null}
+          {metaPrimary ? <strong className="dropout-dashboard__metricMetaPrimary">{metaPrimary}</strong> : null}
+          {metaSecondary ? <span className="dropout-dashboard__metricMetaSecondary">{metaSecondary}</span> : null}
+          {!metaTitle && !metaPrimary && !metaSecondary && trailingMeta ? <span>{trailingMeta}</span> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DashboardIcon({ type = 'info' }) {
+  const commonProps = {
+    width: '16',
+    height: '16',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': 'true',
+  };
+
+  if (type === 'trend') {
+    return (
+      <svg {...commonProps}>
+        <path d="M3 17l6-6 4 4 8-9" />
+        <path d="M14 6h7v7" />
+      </svg>
+    );
+  }
+  if (type === 'target') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </svg>
+    );
+  }
+  if (type === 'shield') {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z" />
+        <path d="M9 12l2 2 4-5" />
+      </svg>
+    );
+  }
+  if (type === 'alert') {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+        <path d="M10.3 4.3L2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z" />
+      </svg>
+    );
+  }
+  if (type === 'spark') {
+    return (
+      <svg {...commonProps}>
+        <path d="M13 2L4 14h7l-1 8 10-13h-7l0-7z" />
+      </svg>
+    );
+  }
+  if (type === 'link') {
+    return (
+      <svg {...commonProps}>
+        <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+        <path d="M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1" />
+      </svg>
+    );
+  }
+  if (type === 'database') {
+    return (
+      <svg {...commonProps}>
+        <ellipse cx="12" cy="5" rx="7" ry="3" />
+        <path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5" />
+        <path d="M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...commonProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8h.01M11 12h1v5h1" />
+    </svg>
+  );
+}
+
+function getExplainabilityIcon(title = '') {
+  const normalized = String(title || '').toLowerCase();
+  if (normalized.includes('risk change')) return 'trend';
+  if (normalized.includes('why')) return 'target';
+  if (normalized.includes('challenger') || normalized.includes('model')) return 'shield';
+  if (normalized.includes('data') || normalized.includes('missing') || normalized.includes('source')) return 'database';
+  if (normalized.includes('reduce') || normalized.includes('what-if')) return 'spark';
+  if (normalized.includes('stability') || normalized.includes('confidence')) return 'shield';
+  return 'info';
+}
+
+function SectionTitle({ title, icon = 'info' }) {
+  return (
+    <div className="dropout-dashboard__sectionTitle">
+      <span className="dropout-dashboard__panelIcon">
+        <DashboardIcon type={icon} />
+      </span>
+      <strong>{title}</strong>
     </div>
   );
 }
 
 function DetailSection({ title, items, emptyLabel }) {
+  const icon = getExplainabilityIcon(title);
   if (!items.length) {
     return (
       <div className="dropout-dashboard__detailSection">
-        <strong>{title}</strong>
+        <SectionTitle title={title} icon={icon} />
         <div className="section-note">{emptyLabel}</div>
       </div>
     );
@@ -517,7 +661,7 @@ function DetailSection({ title, items, emptyLabel }) {
 
   return (
     <div className="dropout-dashboard__detailSection">
-      <strong>{title}</strong>
+      <SectionTitle title={title} icon={icon} />
       <ul className="dropout-dashboard__detailList">
         {items.map((item) => (
           <li key={`${title}-${item}`}>{item}</li>
@@ -534,10 +678,11 @@ function formatStatusLabel(status) {
 }
 
 function StatusSummarySection({ title, status, summary, emptyLabel }) {
+  const icon = getExplainabilityIcon(title);
   if (!summary) {
     return (
       <div className="dropout-dashboard__detailSection">
-        <strong>{title}</strong>
+        <SectionTitle title={title} icon={icon} />
         <div className="section-note">{emptyLabel}</div>
       </div>
     );
@@ -546,7 +691,7 @@ function StatusSummarySection({ title, status, summary, emptyLabel }) {
   return (
     <div className="dropout-dashboard__detailSection">
       <div className="dropout-dashboard__statusHeader">
-        <strong>{title}</strong>
+        <SectionTitle title={title} icon={icon} />
         <span className={`dropout-dashboard__statusBadge dropout-dashboard__statusBadge--${String(status || 'unavailable').toLowerCase()}`}>
           {formatStatusLabel(status)}
         </span>
@@ -570,7 +715,7 @@ function RiskChangeSection({
     return (
       <div className="dropout-dashboard__detailSection">
         <div className="dropout-dashboard__statusHeader">
-          <strong>Risk change since last publish</strong>
+          <SectionTitle title="Risk change since last publish" icon="trend" />
           <span className="metric-pill">No prior publish</span>
         </div>
         <div className="section-note">
@@ -583,7 +728,7 @@ function RiskChangeSection({
   return (
     <div className="dropout-dashboard__detailSection">
       <div className="dropout-dashboard__statusHeader">
-        <strong>Risk change since last publish</strong>
+        <SectionTitle title="Risk change since last publish" icon="trend" />
         <span className={`metric-pill metric-pill--${getRiskChangeDirectionTone(direction)}`}>
           {formatRiskChangeDirectionLabel(direction)}
         </span>
@@ -634,9 +779,9 @@ function getRiskBucketTone(bucket) {
 
 function formatRecentTrendDirectionLabel(direction) {
   if (direction === 'rising') return 'Rising';
-  if (direction === 'falling') return 'Falling';
+  if (direction === 'falling') return 'Decreasing';
   if (direction === 'stable') return 'Stable';
-  if (direction === 'mixed / volatile') return 'Mixed / volatile';
+  if (direction === 'mixed / volatile') return 'Fluctuating';
   return 'Building history';
 }
 
@@ -756,6 +901,7 @@ function getTrendDirectionTone(direction) {
   if (direction === 'rising') return 'warning';
   if (direction === 'falling') return 'success';
   if (direction === 'stable') return 'default';
+  if (direction === 'mixed / volatile') return 'warning';
   return 'default';
 }
 
@@ -785,17 +931,24 @@ function HighlightSummaryCard({
   title,
   badge = '',
   badgeTone = 'default',
+  icon = 'info',
+  accent = 'default',
   summary = '',
   items = [],
   ctaLabel = '',
   onCtaClick = null,
 }) {
-  const visibleItems = truncateSignalItems(items, 3);
+  const visibleItems = truncateSignalItems(items, 2);
 
   return (
-    <div className="dropout-dashboard__highlightCard">
+    <div className={`dropout-dashboard__highlightCard dropout-dashboard__highlightCard--${accent}`}>
       <div className="dropout-dashboard__highlightHeader">
-        <strong>{title}</strong>
+        <div className="dropout-dashboard__highlightTitle">
+          <span className="dropout-dashboard__panelIcon">
+            <DashboardIcon type={icon} />
+          </span>
+          <strong>{title}</strong>
+        </div>
         {badge ? <span className={`metric-pill metric-pill--${badgeTone}`}>{badge}</span> : null}
       </div>
       {summary ? <div className="dropout-dashboard__highlightSummary">{summary}</div> : null}
@@ -924,7 +1077,33 @@ function InterventionTimelineSection({
   sectionRef = null,
 }) {
   const stages = buildInterventionTimelineStages(caseEntry || {});
-  const historyRows = (Array.isArray(recentCases) ? recentCases : []).slice(0, 4);
+  const [showFullHistory, setShowFullHistory] = useState(false);
+  const allHistoryRows = Array.isArray(recentCases) ? recentCases : [];
+  const historyRows = (showFullHistory ? allHistoryRows : allHistoryRows.slice(0, 4));
+  const hasMoreHistory = allHistoryRows.length > 4;
+  const renderStageLabel = (stage) => {
+    if (stage?.key === 'auto') {
+      return (
+        <>
+          <span>Auto evaluation</span>
+          <span>in progress</span>
+        </>
+      );
+    }
+    return stage.label;
+  };
+  const renderStageCaption = (stage) => {
+    if (!stage?.caption) return null;
+    if (stage.key === 'auto' && stage.caption.startsWith('Due by')) {
+      return (
+        <div className="dropout-dashboard__timelineCaption dropout-dashboard__timelineCaption--due">
+          <span>Due by {formatTimeOnlyValue(stage.timestamp, 'N/A')}</span>
+          <span>{formatNumericDateValue(stage.timestamp, 'N/A')}</span>
+        </div>
+      );
+    }
+    return <div className="dropout-dashboard__timelineCaption">{stage.caption}</div>;
+  };
 
   return (
     <section ref={sectionRef} className="dropout-dashboard__timelineCard">
@@ -939,18 +1118,29 @@ function InterventionTimelineSection({
         </span>
       </div>
 
-      <div className="dropout-dashboard__timelineRail">
-        {stages.map((stage, index) => (
-          <div key={stage.key} className={`dropout-dashboard__timelineStage dropout-dashboard__timelineStage--${stage.state}`}>
-            {index < stages.length - 1 ? <div className="dropout-dashboard__timelineConnector" /> : null}
-            <div className={`dropout-dashboard__timelineDot dropout-dashboard__timelineDot--${stage.tone}`}>
-              {stage.state === 'complete' ? '✓' : index + 1}
+        <div className="dropout-dashboard__timelineRail">
+        {stages.map((stage, index) => {
+          const timestampLabel = formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A');
+          const shouldShowTimestamp = !(stage.key === 'auto' && stage.caption);
+          const stageAccessibleLabel = [stage.label, shouldShowTimestamp ? timestampLabel : '', stage.caption].filter(Boolean).join(', ');
+          return (
+            <div
+              key={stage.key}
+              className={`dropout-dashboard__timelineStage dropout-dashboard__timelineStage--${stage.state} dropout-dashboard__timelineStage--${stage.key}`}
+            >
+              {index < stages.length - 1 ? <div className="dropout-dashboard__timelineConnector" /> : null}
+              <div
+                className={`dropout-dashboard__timelineDot dropout-dashboard__timelineDot--${stage.tone}`}
+                aria-label={stageAccessibleLabel}
+              >
+                <span>{stage.state === 'complete' ? '✓' : index + 1}</span>
+              </div>
+              <div className="dropout-dashboard__timelineLabel">{renderStageLabel(stage)}</div>
+              {shouldShowTimestamp ? <div className="dropout-dashboard__timelineMeta">{timestampLabel}</div> : null}
+              {renderStageCaption(stage)}
             </div>
-            <div className="dropout-dashboard__timelineLabel">{stage.label}</div>
-            <div className="dropout-dashboard__timelineMeta">{formatDateTimeValue(stage.timestamp, stage.state === 'pending' ? 'Pending' : 'N/A')}</div>
-            {stage.caption ? <div className="dropout-dashboard__timelineCaption">{stage.caption}</div> : null}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="dropout-dashboard__timelineStatusGrid">
@@ -1008,7 +1198,7 @@ function InterventionTimelineSection({
           <button
             key={actionOption.value}
             type="button"
-            className={`btn ${actionValue === actionOption.value ? 'btn-primary' : 'btn-secondary'} btn-small`}
+            className={`btn ${actionValue === actionOption.value ? 'btn-primary' : 'btn-secondary'} btn-small dropout-dashboard__timelineActionButton`}
             disabled={!canMutate || isUpdating}
             onClick={() => onAction(actionOption.value)}
           >
@@ -1019,7 +1209,7 @@ function InterventionTimelineSection({
           <button
             key={resultOption.value}
             type="button"
-            className={`btn ${resultValue === resultOption.value ? 'btn-primary' : 'btn-secondary'} btn-small`}
+            className={`btn ${resultValue === resultOption.value ? 'btn-primary' : 'btn-secondary'} btn-small dropout-dashboard__timelineActionButton`}
             disabled={!canMutate || isUpdating}
             onClick={() => onResult(resultOption.value)}
           >
@@ -1028,7 +1218,7 @@ function InterventionTimelineSection({
         ))}
         <button
           type="button"
-          className="btn btn-secondary btn-small"
+          className="btn btn-secondary btn-small dropout-dashboard__timelineActionButton dropout-dashboard__timelineActionButton--danger"
           disabled={!canClose || isUpdating}
           onClick={onClose}
         >
@@ -1074,29 +1264,26 @@ function InterventionTimelineSection({
             <div className="section-note">No recent intervention case history is available yet.</div>
           )}
         </div>
+        {hasMoreHistory ? (
+          <button
+            type="button"
+            className="dropout-dashboard__historyExpand"
+            onClick={() => setShowFullHistory((value) => !value)}
+          >
+            {showFullHistory ? 'Show recent case history' : 'View full case timeline'}
+          </button>
+        ) : null}
       </div>
     </section>
   );
 }
 
-function RecentPublishQueueTrendBadge({ direction = '' }) {
-  if (!direction || direction === 'building') return null;
-  return (
-    <span className={`metric-pill metric-pill--${getTrendDirectionTone(direction)}`}>
-      {formatRecentTrendDirectionLabel(direction)}
-    </span>
-  );
-}
-
-function CurrentRiskBriefCard({ entry, trendData, onTakeAction }) {
-  const delta = trendData?.latestDelta ?? null;
-  const trendDirection = trendData?.trendDirection || 'building';
+function CurrentRiskBriefCard({ entry, onOpenPatient, canOpenPatient }) {
   return (
     <div className="dropout-dashboard__currentRiskCard">
       <div className="dropout-dashboard__cardHeader">
         <div>
           <strong>Current risk</strong>
-          <div className="dropout-dashboard__cardSubtitle">This publish</div>
         </div>
         <span className={`dropout-card__bucket dropout-card__bucket--${String(entry?.risk_bucket || 'low').toLowerCase()}`}>
           {renderSnapshotStateLabel(entry)}
@@ -1120,16 +1307,9 @@ function CurrentRiskBriefCard({ entry, trendData, onTakeAction }) {
           <span>Recommended action</span>
           <strong>{formatRecommendedAction(entry)}</strong>
         </div>
-        <button type="button" className="btn btn-primary btn-small" onClick={onTakeAction}>
-          Take action
+        <button type="button" className="btn btn-primary btn-small" onClick={onOpenPatient} disabled={!canOpenPatient}>
+          Open Patient
         </button>
-      </div>
-      <div className="dropout-dashboard__currentRiskFooter">
-        <span>Last publish: {formatDateTimeValue(entry?.published_at, 'N/A')}</span>
-        <span>{formatTrendDeltaLabel(delta)}</span>
-        <span className={`metric-pill metric-pill--${getTrendDirectionTone(trendDirection)}`}>
-          {formatRecentTrendDirectionLabel(trendDirection)}
-        </span>
       </div>
     </div>
   );
@@ -1157,7 +1337,7 @@ function ModelContractBriefCard({ entry }) {
   );
 }
 
-function QueueRow({ entry, rank, isSelected, onSelect, trendDirection = '' }) {
+function QueueRow({ entry, rank, isSelected, onSelect }) {
   return (
     <button
       type="button"
@@ -1175,17 +1355,16 @@ function QueueRow({ entry, rank, isSelected, onSelect, trendDirection = '' }) {
             <span className={`dropout-card__bucket dropout-card__bucket--${String(entry?.risk_bucket || 'low').toLowerCase()}`}>
               {renderSnapshotStateLabel(entry)}
             </span>
-            <RecentPublishQueueTrendBadge direction={trendDirection} />
           </div>
         </div>
         <div className="dropout-dashboard__queueStats">
           <div>
             <span>Risk probability</span>
-            <strong>{formatSnapshotProbabilityPercent(entry)}</strong>
+            <strong className="dropout-dashboard__queueProbability">{formatSnapshotProbabilityPercent(entry)}</strong>
           </div>
           <div>
             <span>Recommended action</span>
-            <strong>{formatRecommendedAction(entry)}</strong>
+            <strong className="dropout-dashboard__queueAction">{formatRecommendedAction(entry)}</strong>
           </div>
         </div>
         <div className="dropout-dashboard__queueFoot">
@@ -1216,7 +1395,7 @@ function deriveDataGapTone(items = []) {
 
 function getDetailedGridClassName(index) {
   if (index < 4) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--quarter';
-  if (index < 6) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--half';
+  if (index < 6) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--half dropout-dashboard__detailCell--action';
   if (index < 9) return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--third';
   return 'dropout-dashboard__detailCell dropout-dashboard__detailCell--third';
 }
@@ -1367,27 +1546,43 @@ function buildDetailedExplainabilitySections({
   ];
 }
 
-function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onViewDetailedTrend = null }) {
+function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
   const trendData = buildRecentPublishTrendData(rows, currentEntry);
-  const { chronologicalRows, trendDirection, headline, jumpSummary, latestDelta, netDelta } = trendData;
+  const { chronologicalRows, trendDirection, latestDelta, netDelta } = trendData;
 
   if (!currentEntry) {
     return null;
   }
 
-  const chartWidth = 480;
-  const chartHeight = 136;
-  const leftPadding = 22;
-  const rightPadding = 18;
-  const topPadding = 18;
-  const bottomPadding = 26;
+  const chartWidth = 760;
+  const chartHeight = 248;
+  const leftPadding = 42;
+  const rightPadding = 38;
+  const topPadding = 42;
+  const bottomPadding = 76;
   const usableWidth = chartWidth - leftPadding - rightPadding;
   const usableHeight = chartHeight - topPadding - bottomPadding;
+  const probabilities = chronologicalRows
+    .map((entry) => getProbabilityNumber(entry?.dropout_probability))
+    .filter((value) => Number.isFinite(value));
+  const rawMinProbability = probabilities.length ? Math.min(...probabilities) : 0;
+  const rawMaxProbability = probabilities.length ? Math.max(...probabilities) : 1;
+  const rawRange = rawMaxProbability - rawMinProbability;
+  const domainPadding = Math.max(0.04, rawRange * 0.32);
+  let chartMinProbability = Math.max(0, rawMinProbability - domainPadding);
+  let chartMaxProbability = Math.min(1, rawMaxProbability + domainPadding);
+  if (chartMaxProbability - chartMinProbability < 0.12) {
+    const center = (chartMaxProbability + chartMinProbability) / 2;
+    chartMinProbability = Math.max(0, center - 0.06);
+    chartMaxProbability = Math.min(1, center + 0.06);
+  }
+  const chartProbabilityRange = Math.max(chartMaxProbability - chartMinProbability, 0.01);
   const chartPoints = chronologicalRows.map((entry, index) => {
     const pointCount = Math.max(chronologicalRows.length - 1, 1);
     const x = leftPadding + (usableWidth * index) / pointCount;
     const probability = Math.max(0, Math.min(1, getProbabilityNumber(entry?.dropout_probability) ?? 0));
-    const y = topPadding + (1 - probability) * usableHeight;
+    const normalizedProbability = Math.max(0, Math.min(1, (probability - chartMinProbability) / chartProbabilityRange));
+    const y = topPadding + (1 - normalizedProbability) * usableHeight;
     return {
       x,
       y,
@@ -1404,34 +1599,30 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
     <section ref={sectionRef} className="dropout-dashboard__trendCard">
       <div className="dropout-dashboard__cardHeader">
         <div>
-          <strong>Recent 7 publishes</strong>
-          <div className="dropout-dashboard__cardSubtitle">Risk trend</div>
+          <strong>
+            Recent 7 publishes
+          </strong>
         </div>
         <span className={`metric-pill metric-pill--${getTrendDirectionTone(trendDirection)}`}>
           {formatRecentTrendDirectionLabel(trendDirection)}
         </span>
       </div>
-      <div className="dropout-dashboard__trendHeadline">
-        {headline || 'This trend view will fill in as more published disengagement snapshots accumulate for this patient.'}
-      </div>
       <div className="dropout-dashboard__trendLayout">
         <div className="dropout-dashboard__trendChartSurface">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="184" aria-label="Recent disengagement publish trend">
-            <line x1={leftPadding} y1={topPadding} x2={chartWidth - rightPadding} y2={topPadding} stroke="rgba(33, 74, 111, 0.12)" strokeWidth="1" />
-            <line x1={leftPadding} y1={chartHeight / 2} x2={chartWidth - rightPadding} y2={chartHeight / 2} stroke="rgba(33, 74, 111, 0.08)" strokeWidth="1" />
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%" height="270" aria-label="Recent disengagement publish trend">
             <line
               x1={leftPadding}
               y1={chartHeight - bottomPadding}
               x2={chartWidth - rightPadding}
               y2={chartHeight - bottomPadding}
-              stroke="rgba(33, 74, 111, 0.18)"
-              strokeWidth="1"
+              stroke="rgba(33, 74, 111, 0.2)"
+              strokeWidth="1.2"
             />
           {polylinePoints ? (
             <polyline
               fill="none"
-              stroke="rgba(47, 96, 146, 0.44)"
-              strokeWidth="2.6"
+              stroke="rgba(184, 89, 86, 0.5)"
+              strokeWidth="2.8"
               strokeLinejoin="round"
               strokeLinecap="round"
               points={polylinePoints}
@@ -1444,31 +1635,32 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
               <g key={point.key}>
                 <text
                   x={point.x}
-                  y={Math.max(point.y - 10, 10)}
+                  y={Math.max(point.y - 12, 14)}
                   textAnchor="middle"
-                  fontSize="10"
-                  fill="rgba(38, 62, 86, 0.88)"
-                  fontWeight="700"
+                  fontSize="14"
+                  fill="rgba(28, 53, 79, 0.9)"
+                  fontWeight="800"
                 >
                   {label}
                 </text>
                 {point.isCurrent ? (
-                  <circle cx={point.x} cy={point.y} r="8" fill="rgba(27, 92, 151, 0.14)" stroke="none" />
+                  <circle cx={point.x} cy={point.y} r="10" fill="rgba(27, 92, 151, 0.14)" stroke="none" />
                 ) : null}
                 <circle
                   cx={point.x}
                   cy={point.y}
-                  r={point.isCurrent ? 4.8 : 4}
+                  r={point.isCurrent ? 6.2 : 5.2}
                   fill={point.color}
                   stroke="#ffffff"
-                  strokeWidth={point.isCurrent ? 2.2 : 1.6}
+                  strokeWidth={point.isCurrent ? 2.4 : 1.8}
                 />
                 <text
                   x={point.x}
-                  y={chartHeight - 8}
+                  y={chartHeight - 38}
                   textAnchor="middle"
-                  fontSize="10"
-                  fill="rgba(76, 99, 122, 0.94)"
+                  fontSize="13"
+                  fill="rgba(48, 70, 94, 0.95)"
+                  fontWeight="800"
                 >
                   {entry?.published_at ? new Date(entry.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'N/A'}
                 </text>
@@ -1476,8 +1668,9 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
                   x={point.x}
                   y={chartHeight - 18}
                   textAnchor="middle"
-                  fontSize="9"
-                  fill="rgba(98, 120, 143, 0.86)"
+                  fontSize="13"
+                  fill="rgba(48, 70, 94, 0.9)"
+                  fontWeight="700"
                 >
                   {entry?.published_at ? new Date(entry.published_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
                 </text>
@@ -1485,11 +1678,6 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
             );
           })}
           </svg>
-          <div className="dropout-dashboard__trendLegend">
-            <span><i style={{ background: getRiskBucketTone('high') }} />High (≥ 60%)</span>
-            <span><i style={{ background: getRiskBucketTone('medium') }} />Medium (30–59%)</span>
-            <span><i style={{ background: getRiskBucketTone('low') }} />Low (&lt; 30%)</span>
-          </div>
         </div>
         <aside className="dropout-dashboard__trendMeta">
           <div className="dropout-dashboard__trendMetaRow">
@@ -1498,7 +1686,7 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
           </div>
           <div className="dropout-dashboard__trendMetaRow">
             <span>Change vs prior</span>
-            <strong>{formatTrendDeltaLabel(latestDelta)}</strong>
+            <strong>{formatWeekTrendLabel(latestDelta)}</strong>
           </div>
           <div className="dropout-dashboard__trendMetaRow">
             <span>Trend vs week</span>
@@ -1506,9 +1694,12 @@ function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null, onVi
               {formatWeekTrendLabel(netDelta)}
             </strong>
           </div>
-          {jumpSummary ? <div className="dropout-dashboard__trendJump">{jumpSummary}</div> : null}
-          {onViewDetailedTrend ? renderInlineActionButton('View full trend', onViewDetailedTrend) : null}
         </aside>
+      </div>
+      <div className="dropout-dashboard__trendLegend">
+        <span><i style={{ background: getRiskBucketTone('high') }} />High (≥ 60%)</span>
+        <span><i style={{ background: getRiskBucketTone('medium') }} />Medium (30–59%)</span>
+        <span><i style={{ background: getRiskBucketTone('low') }} />Low (&lt; 30%)</span>
       </div>
     </section>
   );
@@ -1522,6 +1713,7 @@ export default function DropoutRiskPanel({
   const trendSectionRef = useRef(null);
   const interventionSectionRef = useRef(null);
   const explainabilitySectionRef = useRef(null);
+  const queuePanelRef = useRef(null);
   const [snapshotRows, setSnapshotRows] = useState([]);
   const [fallbackSnapshotRows, setFallbackSnapshotRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1542,6 +1734,7 @@ export default function DropoutRiskPanel({
   const [interventionCaseError, setInterventionCaseError] = useState('');
   const [isUpdatingInterventionCase, setIsUpdatingInterventionCase] = useState(false);
   const [interventionCaseMutationError, setInterventionCaseMutationError] = useState('');
+  const [queuePanelHeight, setQueuePanelHeight] = useState(null);
 
   const loadedUserIds = useMemo(() => patients.map((patient) => patient.id).filter(Boolean), [patients]);
   const loadedUserSignature = useMemo(() => loadedUserIds.join('|'), [loadedUserIds]);
@@ -1640,6 +1833,44 @@ export default function DropoutRiskPanel({
     () => buildRecentPublishTrendData(recentPublishHistory, activeEntry),
     [activeEntry, recentPublishHistory]
   );
+
+  useEffect(() => {
+    const queueNode = queuePanelRef.current;
+    const timelineNode = interventionSectionRef.current;
+    if (!queueNode || !timelineNode || typeof window === 'undefined') return undefined;
+
+    let frameId = 0;
+    const syncQueueHeight = () => {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        const queueRect = queueNode.getBoundingClientRect();
+        const timelineRect = timelineNode.getBoundingClientRect();
+        const nextHeight = Math.ceil(timelineRect.bottom - queueRect.top);
+        if (!Number.isFinite(nextHeight) || nextHeight < 320) return;
+        setQueuePanelHeight((currentHeight) => (
+          Math.abs((currentHeight || 0) - nextHeight) > 1 ? nextHeight : currentHeight
+        ));
+      });
+    };
+
+    syncQueueHeight();
+    window.addEventListener('resize', syncQueueHeight);
+    window.visualViewport?.addEventListener('resize', syncQueueHeight);
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(syncQueueHeight);
+      resizeObserver.observe(queueNode);
+      resizeObserver.observe(timelineNode);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', syncQueueHeight);
+      window.visualViewport?.removeEventListener('resize', syncQueueHeight);
+      resizeObserver?.disconnect();
+    };
+  }, [activeEntry?.userId, visibleRows.length, recentInterventionCases.length, interventionCaseMutationError, interventionCaseError]);
 
   useEffect(() => {
     if (!activeEntry?.userId) {
@@ -2105,7 +2336,9 @@ export default function DropoutRiskPanel({
     : activeExplainabilityReady
       ? 'No missing-input issues were reported for the current snapshot.'
       : 'Loading explainability summary...';
-
+  const queuePanelStyle = queuePanelHeight
+    ? { '--dropout-queue-panel-height': `${queuePanelHeight}px` }
+    : undefined;
   const content = (() => {
     if (error) {
       return (
@@ -2131,16 +2364,6 @@ export default function DropoutRiskPanel({
 
     return (
       <>
-        <div className="dropout-dashboard__hero">
-          <div>
-            <h3 className="mt-0">Patient Disengagement Prediction</h3>
-            <div className="section-note">
-              CRC-only module for continuous risk monitoring, intervention case management, and explainability.
-            </div>
-          </div>
-          <span className="metric-pill">CRC only</span>
-        </div>
-
         <div className="dropout-dashboard__metrics">
           <MetricCard
             label="Scored patients"
@@ -2167,36 +2390,14 @@ export default function DropoutRiskPanel({
                 : formatProbabilityPercent(effectiveSummaryMetrics.averageProbability)
             }
             supportingCopy="Across all scored"
-            trailingMeta={
-              effectiveSummaryMetrics.publishedAt
-                ? `Snapshot as of ${formatDateTimeValue(effectiveSummaryMetrics.publishedAt)}`
-                : ''
-            }
+            metaTitle={effectiveSummaryMetrics.publishedAt ? 'Snapshot as of' : ''}
+            metaPrimary={effectiveSummaryMetrics.publishedAt ? formatDateOnlyValue(effectiveSummaryMetrics.publishedAt) : ''}
+            metaSecondary={effectiveSummaryMetrics.publishedAt ? `${formatTimeOnlyValue(effectiveSummaryMetrics.publishedAt)} GMT+8` : ''}
           />
         </div>
 
-        <div className="section-note section-note--spaced">
-          {summary
-            ? `Summary cards reflect the latest published disengagement dashboard summary${
-                effectiveSummaryMetrics.publishedAt
-                  ? ` from ${formatDateTimeValue(effectiveSummaryMetrics.publishedAt)}`
-                  : ''
-              }. ${
-                isUsingFallbackRows
-                  ? 'The ranked list is temporarily using fallback current-snapshot rows while the loaded patient window catches up.'
-                  : 'The ranked list below remains paginated from the current loaded patient window.'
-              }`
-            : summaryReady
-              ? `No published disengagement summary is available yet. ${
-                  isUsingFallbackRows
-                    ? 'Fallback current-snapshot rows are being shown while the dashboard summary is still missing.'
-                    : 'This workspace will stay empty until the next published snapshot is available.'
-                }`
-              : 'Loading the latest published disengagement dashboard summary...'}
-        </div>
-
         <div className="dropout-dashboard__a2Layout">
-          <aside className="dropout-dashboard__queuePanel">
+          <aside className="dropout-dashboard__queuePanel" ref={queuePanelRef} style={queuePanelStyle}>
             <div className="dropout-dashboard__queueHeader">
               <div>
                 <h4 className="mt-0">Risk-ranked patient queue</h4>
@@ -2216,7 +2417,6 @@ export default function DropoutRiskPanel({
             />
 
             <div className="dropout-dashboard__queueControls">
-              <div className="dropout-dashboard__queueSortChip">Sorted by risk (high → low)</div>
               <WindowPaginationControls
                 page={effectiveSnapshotPage}
                 pageSize={snapshotPageSize}
@@ -2241,7 +2441,6 @@ export default function DropoutRiskPanel({
                       entry={entry}
                       rank={absoluteRank}
                       isSelected={isSelected}
-                      trendDirection={isSelected ? activeTrendData?.trendDirection : ''}
                       onSelect={() => setSelectedUserId(entry.userId)}
                     />
                   );
@@ -2267,20 +2466,11 @@ export default function DropoutRiskPanel({
           <section className="dropout-dashboard__workspacePanel">
             {activeEntry ? (
               <>
-                <div className="dropout-dashboard__workspaceHeader">
-                  <div>
-                    <h3 className="mt-0">Patient disengagement detail</h3>
-                  </div>
-                  <button className="btn btn-secondary btn-small" onClick={openPatientRoster} disabled={!activeEntry.patient}>
-                    Open Patient
-                  </button>
-                </div>
-
                 <div className="dropout-dashboard__briefTopRow">
                   <CurrentRiskBriefCard
                     entry={activeEntry}
-                    trendData={activeTrendData}
-                    onTakeAction={() => scrollToSection(interventionSectionRef)}
+                    onOpenPatient={openPatientRoster}
+                    canOpenPatient={Boolean(activeEntry.patient)}
                   />
                   <ModelContractBriefCard entry={activeEntry} />
                 </div>
@@ -2288,6 +2478,8 @@ export default function DropoutRiskPanel({
                 <div className="dropout-dashboard__highlightGrid">
                   <HighlightSummaryCard
                     title="Risk change since last publish"
+                    icon="trend"
+                    accent="trend"
                     badge={explainabilityRiskChangeSummary ? formatRiskChangeDirectionLabel(activeExplainabilityPayload?.risk_change_direction) : 'Pending'}
                     badgeTone={getRiskChangeDirectionTone(activeExplainabilityPayload?.risk_change_direction)}
                     summary={riskChangeHighlightSummary}
@@ -2297,6 +2489,8 @@ export default function DropoutRiskPanel({
                   />
                   <HighlightSummaryCard
                     title="Why flagged"
+                    icon="target"
+                    accent="flagged"
                     items={explainabilityWhyFlagged}
                     summary={whyFlaggedHighlightSummary}
                     ctaLabel="View details"
@@ -2304,6 +2498,8 @@ export default function DropoutRiskPanel({
                   />
                   <HighlightSummaryCard
                     title="Challenger cross-check"
+                    icon="shield"
+                    accent="model"
                     badge={formatHighlightBadgeText(challengerHighlightStatus)}
                     badgeTone={challengerHighlightStatus ? (String(challengerHighlightStatus).toLowerCase() === 'aligned' ? 'success' : 'default') : 'default'}
                     summary={challengerHighlightSummary}
@@ -2313,6 +2509,8 @@ export default function DropoutRiskPanel({
                   />
                   <HighlightSummaryCard
                     title="Data gaps affecting confidence"
+                    icon="database"
+                    accent="data"
                     badge={deriveDataGapBadge(explainabilityMissingInputs)}
                     badgeTone={deriveDataGapTone(explainabilityMissingInputs)}
                     summary={dataGapHighlightSummary}
@@ -2326,7 +2524,6 @@ export default function DropoutRiskPanel({
                   rows={recentPublishHistory}
                   currentEntry={activeEntry}
                   sectionRef={trendSectionRef}
-                  onViewDetailedTrend={() => scrollToSection(explainabilitySectionRef)}
                 />
 
                 {recentPublishHistoryError ? (
@@ -2366,79 +2563,83 @@ export default function DropoutRiskPanel({
                   mutationError={interventionCaseMutationError}
                   sectionRef={interventionSectionRef}
                 />
-
-                {isEarlyHistorySnapshot(activeEntry) ? (
-                  <div className="info-banner section-note--spaced">{buildEarlyHistorySummary(activeEntry)}</div>
-                ) : null}
-
-                <details className="dropout-dashboard__legacyContext">
-                  <summary>
-                    <strong>Legacy operational context</strong>
-                  </summary>
-                  <div className="dropout-dashboard__legacyGrid">
-                    <DetailSection
-                      title="Legacy snapshot signals"
-                      items={legacyExplanationSignals}
-                      emptyLabel="No legacy explanation signals were included in the current snapshot payload."
-                    />
-                    <DetailSection
-                      title="Legacy snapshot input gaps"
-                      items={legacyMissingInputs}
-                      emptyLabel="No legacy missing-input issues were reported for the current snapshot."
-                    />
-                    <DetailSection
-                      title="Legacy snapshot data-quality flags"
-                      items={legacyDataQualityFlags}
-                      emptyLabel="No legacy data-quality flags were reported for the current snapshot."
-                    />
-                  </div>
-                </details>
-
-                <section ref={explainabilitySectionRef} className="dropout-dashboard__detailedExplainability">
-                  <div className="dropout-dashboard__detailedHeader">
-                    <div>
-                      <h3 className="mt-0">Explainability Summary <span className="dropout-dashboard__inlineQualifier">(detailed)</span></h3>
-                    </div>
-                  </div>
-
-                  {activeExplainabilityPayload ? (
-                    <>
-                      <div className="info-banner section-note--spaced">
-                        Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
-                        {explainabilityBlockedReasons.length ? (
-                          <div className="section-note section-note--dense">
-                            Blocked or partial reason: {explainabilityBlockedReasons.join('; ')}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="dropout-dashboard__detailedGrid">
-                        {visibleDetailedExplainabilitySections.map((renderSection, index) =>
-                          renderSection({ className: getDetailedGridClassName(index) })
-                        )}
-                      </div>
-                    </>
-                  ) : activeExplainabilityReady && activeExplainabilityUserId === activeEntry?.userId ? (
-                    <div className="empty-panel">
-                      Explainability mirror has not been published for this patient.
-                      <div className="section-note section-note--spaced">
-                        The current prediction snapshot can still be shown above, but CRC should not treat legacy snapshot fields as a dedicated explainability mirror.
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="empty-panel">
-                      Loading explainability summary...
-                    </div>
-                  )}
-                </section>
               </>
             ) : (
               <div className="empty-panel">Select a ranked patient to inspect the current disengagement snapshot.</div>
             )}
           </section>
         </div>
+
+        {activeEntry ? (
+          <>
+            {isEarlyHistorySnapshot(activeEntry) ? (
+              <div className="info-banner section-note--spaced">{buildEarlyHistorySummary(activeEntry)}</div>
+            ) : null}
+
+            <details className="dropout-dashboard__legacyContext">
+              <summary>
+                <strong>Legacy operational context</strong>
+              </summary>
+              <div className="dropout-dashboard__legacyGrid">
+                <DetailSection
+                  title="Legacy snapshot signals"
+                  items={legacyExplanationSignals}
+                  emptyLabel="No legacy explanation signals were included in the current snapshot payload."
+                />
+                <DetailSection
+                  title="Legacy snapshot input gaps"
+                  items={legacyMissingInputs}
+                  emptyLabel="No legacy missing-input issues were reported for the current snapshot."
+                />
+                <DetailSection
+                  title="Legacy snapshot data-quality flags"
+                  items={legacyDataQualityFlags}
+                  emptyLabel="No legacy data-quality flags were reported for the current snapshot."
+                />
+              </div>
+            </details>
+
+            <section ref={explainabilitySectionRef} className="dropout-dashboard__detailedExplainability">
+              <div className="dropout-dashboard__detailedHeader">
+                <div>
+                  <h3 className="mt-0">Explainability Summary <span className="dropout-dashboard__inlineQualifier">(detailed)</span></h3>
+                </div>
+              </div>
+
+              {activeExplainabilityPayload ? (
+                <>
+                  <div className="info-banner section-note--spaced">
+                    Explainability mirror status: <strong>{mirrorStatusLabel}</strong>
+                    {explainabilityBlockedReasons.length ? (
+                      <div className="section-note section-note--dense">
+                        Blocked or partial reason: {explainabilityBlockedReasons.join('; ')}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="dropout-dashboard__detailedGrid">
+                    {visibleDetailedExplainabilitySections.map((renderSection, index) =>
+                      renderSection({ className: getDetailedGridClassName(index) })
+                    )}
+                  </div>
+                </>
+              ) : activeExplainabilityReady && activeExplainabilityUserId === activeEntry?.userId ? (
+                <div className="empty-panel">
+                  Explainability mirror has not been published for this patient.
+                  <div className="section-note section-note--spaced">
+                    The current prediction snapshot can still be shown above, but CRC should not treat legacy snapshot fields as a dedicated explainability mirror.
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-panel">
+                  Loading explainability summary...
+                </div>
+              )}
+            </section>
+          </>
+        ) : null}
       </>
     );
   })();
 
-  return <div className="card workspace-card intelligence-card intelligence-card--dropout">{content}</div>;
+  return <div className="dropout-board-root intelligence-card--dropout">{content}</div>;
 }

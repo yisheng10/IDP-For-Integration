@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function TrialLightCrcIllustration() {
   return (
-    <svg viewBox="0 0 560 520" className="login-portal__illustration" aria-hidden="true" focusable="false">
+    <svg viewBox="34 42 492 394" className="login-portal__illustration" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id="triallight-crc-illustration-panel" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="#F9FCFF" />
@@ -63,4 +63,3 @@ export default function TrialLightCrcIllustration() {
     </svg>
   );
 }
-

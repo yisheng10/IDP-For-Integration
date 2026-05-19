@@ -5,11 +5,9 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { db } from '../firebase';
-import { functions } from '../firebase';
 
-const fetchCrcUrgentIncidentSummaryCallable = httpsCallable(functions, 'fetchCrcUrgentIncidentSummary');
+const UNRESOLVED_INCIDENT_STATUSES = ['open', 'acknowledged'];
 
 async function safeCount(targetQuery) {
   const snapshot = await getCountFromServer(targetQuery);
@@ -71,7 +69,7 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
 
   const [openIncidents, resolvedIncidents, groupedIncidents, overdueIncidents] = await Promise.all([
     safeCountOrZero(
-      query(baseRef, ...patientFilter, where('status', 'in', ['open', 'acknowledged']))
+      query(baseRef, ...patientFilter, where('status', '!=', 'resolved'))
     ),
     safeCountOrZero(
       query(baseRef, ...patientFilter, where('status', '==', 'resolved'))
@@ -83,7 +81,7 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
       query(
         baseRef,
         ...patientFilter,
-        where('status', 'in', ['open', 'acknowledged']),
+        where('status', '!=', 'resolved'),
         where('due_at', '<=', new Date().toISOString())
       )
     ),
@@ -98,7 +96,14 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
   };
 }
 
+export async function fetchOpenIncidentSummary() {
+  const openIncidents = await safeCountOrZero(
+    query(collection(db, 'incident_records'), where('status', '!=', 'resolved'))
+  );
+  return { openIncidents };
+}
+
 export async function fetchCrcUrgentIncidentSummary() {
-  const response = await fetchCrcUrgentIncidentSummaryCallable();
-  return response.data || { urgentCount: 0 };
+  const { openIncidents } = await fetchOpenIncidentSummary();
+  return { urgentCount: openIncidents };
 }

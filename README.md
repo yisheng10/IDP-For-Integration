@@ -39,3 +39,16 @@ firebase deploy --only hosting
 
 npm run build && firebase deploy --only hosting #Push updates to live server
 firebase hosting:disable #Disable the live server
+
+/mnt/e/Triallight/IDP-for-integration-2/MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2
+
+## Build
+
+subst U: E:\TrialLight\IDP-For-Integration-2\MyClinicalApp_AndroidAPK_5Jan2026_2138
+cd U:\MyClinicalApp2\android
+$env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
+$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
+$env:TRIALLIGHT_CXX_STAGING_DIR='C:\tl-cxx'
+$env:NODE_ENV='production'
+.\gradlew.bat :app:assembleRelease --no-daemon
+U:\MyClinicalApp2\android\app\build\outputs\apk\release\app-release.apk

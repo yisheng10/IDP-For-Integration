@@ -941,14 +941,7 @@ const ProtocolManager = ({ selectedPatient, patients = [] }) => {
   return (
     <div className="protocol-library">
       <div className="card workspace-card">
-        <div className="section-header">
-          <div>
-            <h3>Protocols</h3>
-            <div className="section-note">
-              Protocol PDFs act as trial templates. Each template owns its vital sign template, threshold rules, and mild,
-              moderate, and serious follow-up policy.
-            </div>
-          </div>
+        <div className="section-header protocol-library__uploadHeader">
           <div className="protocol-library__toolbar">
             <input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files[0] || null)} />
             <button onClick={() => handleUpload('')} disabled={!file || uploading} className="btn btn-primary btn-small">
