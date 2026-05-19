@@ -42,7 +42,7 @@ const SEVERITY_RANK = {
   serious: 3,
 };
 
-const OPEN_INCIDENT_STATUSES = new Set(['open', 'acknowledged']);
+const UNRESOLVED_INCIDENT_STATUSES = new Set(['open', 'acknowledged']);
 
 export function getDefaultNotificationPolicy() {
   return JSON.parse(JSON.stringify(DEFAULT_NOTIFICATION_POLICY));
@@ -200,7 +200,7 @@ async function findMatchingOpenIncident(primaryCrcId, eventKey) {
 
   const candidates = incidentSnapshot.docs
     .map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }))
-    .filter((incident) => OPEN_INCIDENT_STATUSES.has(incident.status || 'open'))
+    .filter((incident) => UNRESOLVED_INCIDENT_STATUSES.has(incident.status || 'open'))
     .sort((left, right) => {
       const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
       const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();
@@ -455,17 +455,6 @@ export function subscribeToIncidentRecords(onUpdate, onError, options = {}) {
     },
     onError
   );
-}
-
-export async function acknowledgeIncident(incidentId, crcMeta = {}) {
-  const nowIso = new Date().toISOString();
-  await updateDoc(doc(db, 'incident_records', incidentId), {
-    status: 'acknowledged',
-    acknowledged_at: nowIso,
-    acknowledged_by: crcMeta.uid || null,
-    acknowledged_by_name: crcMeta.name || crcMeta.email || null,
-    updated_at: nowIso,
-  });
 }
 
 export async function updateIncidentNote(incidentId, crcNote) {

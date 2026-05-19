@@ -41,8 +41,8 @@ import {
 } from '../services/browserPushService';
 import {
   fetchAlertHistorySummary,
-  fetchCrcUrgentIncidentSummary,
   fetchIncidentSummary,
+  fetchOpenIncidentSummary,
   fetchPatientRosterSummary,
 } from '../services/crcSummaryService';
 import {
@@ -115,42 +115,6 @@ function normalizeIncidentText(value) {
 
 function isUnresolvedIncident(incident) {
   return ['open', 'acknowledged'].includes(normalizeIncidentText(incident?.status));
-}
-
-function isAbnormalVitalIncident(incident) {
-  const incidentType = normalizeIncidentText(incident?.incident_type);
-  const latestSourceSystem = normalizeIncidentText(incident?.latest_source_system);
-  const eventTitle = normalizeIncidentText(incident?.event_title || incident?.reason);
-
-  return (
-    incidentType === 'vital_monitor' ||
-    latestSourceSystem === 'patient_vitals_auto_monitor' ||
-    eventTitle.includes('critical vitals') ||
-    eventTitle.includes('abnormal vitals')
-  );
-}
-
-function isCrcActionableAdverseEvent(incident) {
-  if (isAbnormalVitalIncident(incident)) return false;
-
-  const severity = normalizeIncidentText(incident?.severity);
-  const urgency = normalizeIncidentText(incident?.urgency);
-  const incidentType = normalizeIncidentText(incident?.incident_type);
-
-  return (
-    incidentType === 'side_effect' ||
-    incidentType === 'emergency' ||
-    Boolean(incident?.immediate_help_requested) ||
-    severity === 'serious' ||
-    ['urgent', 'immediate', 'critical'].includes(urgency)
-  );
-}
-
-function isHeaderUrgentIncident(incident) {
-  return (
-    isUnresolvedIncident(incident) &&
-    (isAbnormalVitalIncident(incident) || isCrcActionableAdverseEvent(incident))
-  );
 }
 
 function isHospitalEmailAddress(value = '') {
@@ -275,7 +239,7 @@ export default function CRCHome({ user, onLogout }) {
   const [globalAlertSummary, setGlobalAlertSummary] = useState(null);
   const [selectedAlertSummary, setSelectedAlertSummary] = useState(null);
   const [globalIncidentSummary, setGlobalIncidentSummary] = useState(null);
-  const [globalUrgentIncidentSummary, setGlobalUrgentIncidentSummary] = useState(null);
+  const [globalOpenIncidentSummary, setGlobalOpenIncidentSummary] = useState(null);
   const [selectedIncidentSummary, setSelectedIncidentSummary] = useState(null);
   const [disengagementSummary, setDisengagementSummary] = useState(null);
   const [rosterSearchQuery, setRosterSearchQuery] = useState('');
@@ -483,21 +447,21 @@ export default function CRCHome({ user, onLogout }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadUrgentIncidentSummary() {
+    async function loadOpenIncidentSummary() {
       try {
-        const payload = await fetchCrcUrgentIncidentSummary();
+        const payload = await fetchOpenIncidentSummary();
         if (!cancelled) {
-          setGlobalUrgentIncidentSummary(payload);
+          setGlobalOpenIncidentSummary(payload);
         }
       } catch (error) {
-        console.error('Failed to load urgent incident summary:', error);
+        console.error('Failed to load open incident summary:', error);
         if (!cancelled) {
-          setGlobalUrgentIncidentSummary(null);
+          setGlobalOpenIncidentSummary(null);
         }
       }
     }
 
-    loadUrgentIncidentSummary();
+    loadOpenIncidentSummary();
     return () => {
       cancelled = true;
     };
@@ -1575,7 +1539,6 @@ export default function CRCHome({ user, onLogout }) {
   const urgentIncidentRows = useMemo(
     () =>
       openIncidents
-        .filter((incident) => isHeaderUrgentIncident(incident))
         .sort((left, right) => {
           const leftTime = new Date(left.updated_at || left.created_at || left.timestamp || 0).getTime();
           const rightTime = new Date(right.updated_at || right.created_at || right.timestamp || 0).getTime();
@@ -1602,7 +1565,7 @@ export default function CRCHome({ user, onLogout }) {
             incident.reason ||
             incident.title ||
             incident.protocol_rule_summary ||
-            'Serious safety incident requires CRC review.',
+            'Open safety incident requires CRC review.',
           occurredAt: incident.updated_at || incident.created_at || incident.timestamp || '',
         };
       }),
@@ -1617,8 +1580,8 @@ export default function CRCHome({ user, onLogout }) {
     return selectedIncidentSummary?.totalIncidents ?? incidents.filter((incident) => (incident.linked_patient_ids || []).includes(selPatient.id)).length;
   }, [incidents, selPatient, selectedIncidentSummary]);
   const urgentIncidentCount = useMemo(
-    () => Math.max(Number(globalUrgentIncidentSummary?.urgentCount ?? 0), urgentIncidentRows.length),
-    [globalUrgentIncidentSummary, urgentIncidentRows.length]
+    () => Math.max(Number(globalOpenIncidentSummary?.openIncidents ?? 0), openIncidentCount),
+    [globalOpenIncidentSummary, openIncidentCount]
   );
 
   const currentHeaderSection = isPatientWorkspaceOpen
@@ -1711,7 +1674,7 @@ export default function CRCHome({ user, onLogout }) {
       value: urgentIncidentCount,
       note:
         urgentIncidentCount > 0
-          ? `${urgentIncidentCount} serious safety case${urgentIncidentCount > 1 ? 's are' : ' is'} waiting for immediate CRC follow-up.`
+          ? `${urgentIncidentCount} open safety case${urgentIncidentCount > 1 ? 's are' : ' is'} waiting for CRC follow-up.`
           : 'Guidance workspace is ready for patient-level symptom support.',
       actionLabel: 'Open Guidance',
       onClick: () => openWorkspaceSection('side-effect-guidance'),
@@ -2001,7 +1964,7 @@ export default function CRCHome({ user, onLogout }) {
                     <div>
                       <h3>Urgent safety</h3>
                       <div className="section-note">
-                        Keep serious safety incidents visible from the Today workspace while triaging next steps.
+                        Keep open safety incidents visible from the Today workspace while triaging next steps.
                       </div>
                     </div>
                   </div>
@@ -2021,7 +1984,7 @@ export default function CRCHome({ user, onLogout }) {
                       ))}
                     </div>
                   ) : (
-                    <div className="empty-panel">No serious safety incidents are active right now.</div>
+                    <div className="empty-panel">No open safety incidents are active right now.</div>
                   )}
                 </div>
               </div>

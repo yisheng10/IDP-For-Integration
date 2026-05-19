@@ -249,42 +249,6 @@ function isUnresolvedIncident(incident) {
   return ['open', 'acknowledged'].includes(normalizeText(incident?.status));
 }
 
-function isAbnormalVitalIncident(incident) {
-  const incidentType = normalizeText(incident?.incident_type);
-  const latestSourceSystem = normalizeText(incident?.latest_source_system);
-  const eventTitle = normalizeText(incident?.event_title || incident?.reason);
-
-  return (
-    incidentType === 'vital_monitor' ||
-    latestSourceSystem === 'patient_vitals_auto_monitor' ||
-    eventTitle.includes('critical vitals') ||
-    eventTitle.includes('abnormal vitals')
-  );
-}
-
-function isCrcActionableAdverseEvent(incident) {
-  if (isAbnormalVitalIncident(incident)) return false;
-
-  const severity = normalizeText(incident?.severity);
-  const urgency = normalizeText(incident?.urgency);
-  const incidentType = normalizeText(incident?.incident_type);
-
-  return (
-    incidentType === 'side_effect' ||
-    incidentType === 'emergency' ||
-    Boolean(incident?.immediate_help_requested) ||
-    severity === 'serious' ||
-    ['urgent', 'immediate', 'critical'].includes(urgency)
-  );
-}
-
-function isHeaderUrgentIncident(incident) {
-  return (
-    isUnresolvedIncident(incident) &&
-    (isAbnormalVitalIncident(incident) || isCrcActionableAdverseEvent(incident))
-  );
-}
-
 export const fetchCrcUrgentIncidentSummary = onCall(async (request) => {
   await assertAuthenticatedCrcRequest(request);
 
@@ -295,7 +259,7 @@ export const fetchCrcUrgentIncidentSummary = onCall(async (request) => {
 
   const urgentCount = snapshot.docs
     .map((entry) => ({ id: entry.id, ...entry.data() }))
-    .filter(isHeaderUrgentIncident)
+    .filter(isUnresolvedIncident)
     .length;
 
   return {

@@ -21,6 +21,10 @@ function historyStatusLabel(status) {
   return status === 'unread' ? 'Active' : 'Documented';
 }
 
+function incidentStatusLabel(status) {
+  return status === 'resolved' ? 'resolved' : 'open';
+}
+
 const SAFETY_TABS = [
   { id: 'open', label: 'Open' },
   { id: 'resolved', label: 'Documented' },
@@ -431,7 +435,7 @@ const SafetyInboxPanel = ({
                     <div className="incident-row__copy">
                       <div className="incident-row__top">
                         <strong>{incident.event_title}</strong>
-                        <span className="incident-row__status">{incident.status}</span>
+                        <span className="incident-row__status">{incidentStatusLabel(incident.status)}</span>
                         {incident.compare_ready ? (
                           <span className="incident-row__group">compare {incident.patient_count}</span>
                         ) : null}

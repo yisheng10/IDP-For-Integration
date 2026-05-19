@@ -32,6 +32,10 @@ function renderVitalRow(record) {
   return bits.join(' | ') || 'No structured vitals in the latest record.';
 }
 
+function renderIncidentStatus(status) {
+  return status === 'resolved' ? 'resolved' : 'open';
+}
+
 const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) => {
   const [patientContexts, setPatientContexts] = useState([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
@@ -124,7 +128,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenChat }) =
           <div style={styles.metaGrid}>
             <div style={styles.metaCard}>
               <strong>Status</strong>
-              <div>{incident.status}</div>
+              <div>{renderIncidentStatus(incident.status)}</div>
               <div style={styles.metaHint}>Due: {incident.due_at ? new Date(incident.due_at).toLocaleString() : 'Not tracked'}</div>
             </div>
             <div style={styles.metaCard}>
