@@ -266,7 +266,7 @@ export default function CRCWorkspaceShell({
             {isCollapsed ? (
               <TrialLightCrcMark size={50} />
             ) : (
-              <TrialLightCrcWordmark className="crc-sidebar__brandLockup" subline="CRC Workspace" />
+              <TrialLightCrcWordmark className="crc-sidebar__brandLockup" subline="CRC Portal" />
             )}
           </button>
 

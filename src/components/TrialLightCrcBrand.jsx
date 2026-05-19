@@ -12,31 +12,45 @@ export function TrialLightCrcMark({ size = 48, className = '' }) {
     >
       <defs>
         <linearGradient id="triallight-crc-mark-fill" x1="14%" y1="10%" x2="88%" y2="90%">
-          <stop offset="0%" stopColor="#2B8CFF" />
-          <stop offset="100%" stopColor="#0B4F82" />
+          <stop offset="0%" stopColor="#258BFF" />
+          <stop offset="52%" stopColor="#0C67C8" />
+          <stop offset="100%" stopColor="#063D70" />
         </linearGradient>
       </defs>
-      <rect x="2" y="2" width="60" height="60" rx="20" fill="url(#triallight-crc-mark-fill)" />
+      <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#triallight-crc-mark-fill)" />
       <path
-        d="M32 12 18.5 18.5v10.2c0 9.1 5.7 16 13.5 18.8 7.8-2.8 13.5-9.7 13.5-18.8V18.5L32 12Z"
+        d="M32 9.8c11.6 0 21 9.4 21 21 0 11.7-9.4 21.1-21 21.1S11 42.5 11 30.8c0-11.6 9.4-21 21-21Z"
         fill="none"
         stroke="#FFFFFF"
-        strokeWidth="3.2"
-        strokeLinejoin="round"
+        strokeWidth="3.3"
       />
-      <circle cx="32" cy="24.5" r="5.5" fill="none" stroke="#FFFFFF" strokeWidth="3" />
       <path
-        d="M24.4 39.6c1.9-5.1 5.2-7.6 7.6-7.6 2.4 0 5.7 2.5 7.6 7.6"
+        d="M45.8 16.2c3.5 2.4 6.1 5.8 7.3 9.8"
+        fill="none"
+        stroke="#D8ECFF"
+        strokeWidth="3.3"
+        strokeLinecap="round"
+      />
+      <circle cx="30" cy="27" r="5.2" fill="none" stroke="#FFFFFF" strokeWidth="3.1" />
+      <path
+        d="M21.8 42.6c1.6-6.8 5.2-10.2 8.2-10.2s6.6 3.4 8.2 10.2"
         fill="none"
         stroke="#FFFFFF"
-        strokeWidth="3"
+        strokeWidth="3.1"
         strokeLinecap="round"
       />
       <path
-        d="M44 22h6M47 19v6"
+        d="M43.2 34.8 53 39v5.4c0 5.6-3.5 9-9.8 11.3-6.3-2.3-9.8-5.7-9.8-11.3V39l9.8-4.2Z"
+        fill="#0F6EC8"
+        stroke="#FFFFFF"
+        strokeWidth="2.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M39.6 45.1h7.2M43.2 41.5v7.2"
         fill="none"
-        stroke="#D7ECFF"
-        strokeWidth="2.2"
+        stroke="#FFFFFF"
+        strokeWidth="2.5"
         strokeLinecap="round"
       />
     </svg>
@@ -54,4 +68,3 @@ export function TrialLightCrcWordmark({ className = '', subline = 'CRC Portal' }
     </div>
   );
 }
-
