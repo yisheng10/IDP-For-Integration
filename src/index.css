@@ -5539,16 +5539,6 @@ body {
   gap: 16px;
 }
 
-.patient-tabPanel--chat {
-  min-height: 640px;
-  height: min(760px, calc(100vh - 300px));
-}
-
-.patient-tabPanel--chat > .intelligence-card {
-  min-height: 0;
-  height: 100%;
-}
-
 .patient-tabPanel__header {
   display: flex;
   justify-content: space-between;

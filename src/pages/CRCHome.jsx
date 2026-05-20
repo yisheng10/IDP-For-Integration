@@ -20,6 +20,7 @@ import PatientConversationTimeline from '../components/PatientConversationTimeli
 import ProtocolManager from '../components/ProtocolManager';
 import PatientList from '../components/PatientList';
 import PatientEditMenu from '../components/PatientEditMenu';
+import PatientNotesPanel from '../components/PatientNotesPanel';
 import EproReviewWorkspace from '../components/EproReviewWorkspace';
 import DropoutRiskPanel from '../components/DropoutRiskPanel';
 import SafetyInboxPanel from '../components/SafetyInboxPanel';
@@ -67,7 +68,7 @@ const MAX_GLOBAL_ALERT_LIMIT = 500;
 const MAX_GLOBAL_EPRO_LIMIT = 500;
 const MAX_GLOBAL_INCIDENT_LIMIT = 500;
 const DEFAULT_WINDOW_PAGE_SIZE = 30;
-const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'chat', 'coordination'];
+const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'notes', 'coordination'];
 const GUIDANCE_PANE_STORAGE_KEY = 'crc-adverse-event-guidance-left-pane-width';
 const DEFAULT_GUIDANCE_LEFT_PANE_WIDTH = 56;
 const MIN_GUIDANCE_LEFT_PANE_WIDTH = 32;
@@ -268,16 +269,9 @@ export default function CRCHome({ user, onLogout }) {
     const sectionId = searchParams.get('section') || 'today';
     return HOME_SECTIONS[sectionId] ? sectionId : 'today';
   }, [searchParams]);
-  const activeGuidanceFocus = useMemo(() => {
-    if (activeHomeSection !== 'side-effect-guidance') return '';
-    return searchParams.get('focus') || '';
-  }, [activeHomeSection, searchParams]);
   const activePatientId = useMemo(() => {
-    if (activeHomeSection === 'patients') return searchParams.get('patient') || '';
-    if (activeHomeSection === 'side-effect-guidance' && searchParams.get('focus') === 'open-thread') {
-      return searchParams.get('patient') || '';
-    }
-    return '';
+    if (activeHomeSection !== 'patients') return '';
+    return searchParams.get('patient') || '';
   }, [activeHomeSection, searchParams]);
   const activePatientTab = useMemo(() => {
     if (activeHomeSection !== 'patients') return 'overview';
@@ -291,8 +285,6 @@ export default function CRCHome({ user, onLogout }) {
   }, [activeHomeSection, searchParams]);
   const activeNavId = activeHomeSection;
   const isPatientWorkspaceOpen = activeHomeSection === 'patients' && Boolean(selPatient);
-  const isGuidanceOpenThreadMode =
-    activeHomeSection === 'side-effect-guidance' && activeGuidanceFocus === 'open-thread' && Boolean(selPatient?.id);
 
   const shouldLoadPatientRoster = PATIENT_SEARCH_SECTIONS.includes(activeHomeSection) || Boolean(activePatientId);
   const shouldLoadCrcUsers = activeHomeSection === 'patients';
@@ -1127,8 +1119,8 @@ export default function CRCHome({ user, onLogout }) {
       const nextParams = new URLSearchParams(prev);
       nextParams.delete('incident');
       nextParams.set('section', 'side-effect-guidance');
-      nextParams.set('focus', 'open-thread');
-      nextParams.set('patient', uid);
+      nextParams.delete('focus');
+      nextParams.delete('patient');
       nextParams.delete('tab');
       return nextParams;
     }, { replace: true });
@@ -1560,9 +1552,7 @@ export default function CRCHome({ user, onLogout }) {
       changed = true;
     }
 
-    const shouldKeepGuidanceFocus =
-      normalizedSection === 'side-effect-guidance' && nextParams.get('focus') === 'open-thread';
-    if (nextParams.has('focus') && !shouldKeepGuidanceFocus) {
+    if (nextParams.has('focus')) {
       nextParams.delete('focus');
       changed = true;
     }
@@ -1679,13 +1669,10 @@ export default function CRCHome({ user, onLogout }) {
   }, [patients, rosterSearchQuery]);
 
   useEffect(() => {
-    const shouldSyncPatientFromUrl =
-      activeHomeSection === 'patients' ||
-      (activeHomeSection === 'side-effect-guidance' && activeGuidanceFocus === 'open-thread');
-    if (!shouldSyncPatientFromUrl) return;
+    if (activeHomeSection !== 'patients') return;
 
     if (!activePatientId) {
-      if (activeHomeSection === 'patients' && (selectedPatientId || selPatient)) {
+      if (selectedPatientId || selPatient) {
         selectP(null);
       }
       return;
@@ -1695,7 +1682,7 @@ export default function CRCHome({ user, onLogout }) {
     if (matchedPatient && matchedPatient.id !== selectedPatientId) {
       selectP(matchedPatient);
     }
-  }, [activeGuidanceFocus, activeHomeSection, activePatientId, patients, selectedPatientId, selPatient, selectP]);
+  }, [activeHomeSection, activePatientId, patients, selectedPatientId, selPatient, selectP]);
 
   const openWorkspaceSection = (section, { tab, patientId, preservePatient = false } = {}) => {
     setSearchParams(prevParams => {
@@ -2174,8 +2161,6 @@ export default function CRCHome({ user, onLogout }) {
                                 ? 'Study Coordination'
                                 : tabId === 'epro'
                                   ? 'ePRO'
-                                  : tabId === 'chat'
-                                    ? 'Patient Chat'
                                   : tabId.charAt(0).toUpperCase() + tabId.slice(1)}
                             </button>
                           ))}
@@ -2391,13 +2376,11 @@ export default function CRCHome({ user, onLogout }) {
                             </div>
                           ) : null}
 
-                          {activePatientTab === 'chat' ? (
-                            <div className="patient-tabPanel patient-tabPanel--chat">
-                              <PatientConversationTimeline
-                                patient={selPatient}
-                                crcName={crcName}
-                              />
-                            </div>
+                          {activePatientTab === 'notes' ? (
+                            <PatientNotesPanel
+                              patientId={selPatient.id}
+                              currentUser={{ uid: user.uid, name: currentCrcDisplayName }}
+                            />
                           ) : null}
 
                           {activePatientTab === 'coordination' ? (
@@ -2636,63 +2619,59 @@ export default function CRCHome({ user, onLogout }) {
                   minHeight: '74vh',
                 }}
               >
-                {isGuidanceOpenThreadMode ? (
-                  <>
+                <div
+                  style={{
+                    flex: isGuidanceStacked ? '1 1 auto' : `0 0 calc(${guidanceLeftPaneWidth}% - 8px)`,
+                    minWidth: isGuidanceStacked ? 0 : '360px',
+                    minHeight: 0,
+                    display: 'flex',
+                  }}
+                >
+                  <PatientConversationTimeline
+                    patient={selPatient}
+                    crcName={crcName}
+                  />
+                </div>
+                {!isGuidanceStacked ? (
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize patient mixed timeline and adverse event guidance panels"
+                    title="Drag to resize panels. Double-click to reset."
+                    onPointerDown={handleGuidanceResizeStart}
+                    onDoubleClick={() => setGuidanceLeftPaneWidth(DEFAULT_GUIDANCE_LEFT_PANE_WIDTH)}
+                    style={{
+                      width: '16px',
+                      flex: '0 0 16px',
+                      cursor: 'col-resize',
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      touchAction: 'none',
+                    }}
+                  >
                     <div
                       style={{
-                        flex: isGuidanceStacked ? '1 1 auto' : `0 0 calc(${guidanceLeftPaneWidth}% - 8px)`,
-                        minWidth: isGuidanceStacked ? 0 : '360px',
-                        minHeight: 0,
-                        display: 'flex',
+                        position: 'absolute',
+                        inset: '18px 7px',
+                        borderRadius: '999px',
+                        background: 'linear-gradient(180deg, rgba(15,96,155,0.12), rgba(15,96,155,0.28), rgba(15,96,155,0.12))',
                       }}
-                    >
-                      <PatientConversationTimeline
-                        patient={selPatient}
-                        crcName={crcName}
-                      />
-                    </div>
-                    {!isGuidanceStacked ? (
-                      <div
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label="Resize patient safety thread and adverse event guidance panels"
-                        title="Drag to resize panels. Double-click to reset."
-                        onPointerDown={handleGuidanceResizeStart}
-                        onDoubleClick={() => setGuidanceLeftPaneWidth(DEFAULT_GUIDANCE_LEFT_PANE_WIDTH)}
-                        style={{
-                          width: '16px',
-                          flex: '0 0 16px',
-                          cursor: 'col-resize',
-                          position: 'relative',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          touchAction: 'none',
-                        }}
-                      >
-                        <div
-                          style={{
-                            position: 'absolute',
-                            inset: '18px 7px',
-                            borderRadius: '999px',
-                            background: 'linear-gradient(180deg, rgba(15,96,155,0.12), rgba(15,96,155,0.28), rgba(15,96,155,0.12))',
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: 'relative',
-                            zIndex: 1,
-                            width: '8px',
-                            height: '96px',
-                            borderRadius: '999px',
-                            background: '#ffffff',
-                            border: '1px solid rgba(15, 96, 155, 0.24)',
-                            boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)',
-                          }}
-                        />
-                      </div>
-                    ) : null}
-                  </>
+                    />
+                    <div
+                      style={{
+                        position: 'relative',
+                        zIndex: 1,
+                        width: '8px',
+                        height: '96px',
+                        borderRadius: '999px',
+                        background: '#ffffff',
+                        border: '1px solid rgba(15, 96, 155, 0.24)',
+                        boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)',
+                      }}
+                    />
+                  </div>
                 ) : null}
                 <div
                   style={{
@@ -2722,11 +2701,7 @@ export default function CRCHome({ user, onLogout }) {
                     workspaceIncidents={incidents}
                     presentation="docked"
                     titleOverride="Adverse Event Guidance"
-                    panelDescription={
-                      isGuidanceOpenThreadMode
-                        ? 'Use the right pane for CRC adverse event guidance while the left pane keeps the safety thread visible.'
-                        : 'Use this workspace for CRC adverse event guidance with the selected patient context.'
-                    }
+                    panelDescription="Use the right pane for CRC adverse event guidance and the left pane for the patient, AI, and CRC mixed timeline."
                   />
                 </div>
 
