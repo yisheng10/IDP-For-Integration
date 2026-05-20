@@ -53,6 +53,50 @@ export function normalizeSafetySeverity(value) {
   return SEVERITY_OPTIONS.includes(normalized) ? normalized : 'moderate';
 }
 
+function normalizeCtcaeGrade(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const rounded = Math.round(parsed);
+  return rounded >= 1 && rounded <= 5 ? rounded : null;
+}
+
+function severityToCtcaeGrade(value) {
+  const normalized = normalizeSafetySeverity(value);
+  if (normalized === 'serious') return 3;
+  if (normalized === 'moderate') return 2;
+  if (normalized === 'mild') return 1;
+  return null;
+}
+
+function extractStructuredCtcaeGrade(reportData = {}) {
+  return (
+    normalizeCtcaeGrade(reportData?.ctcae_grade) ??
+    normalizeCtcaeGrade(reportData?.extracted_data?.ctcae_grade)
+  );
+}
+
+function resolveCtcaeGradeSource(reportData = {}) {
+  if (normalizeCtcaeGrade(reportData?.ctcae_grade) != null) {
+    return String(reportData?.ctcae_grade_source || 'report').trim() || 'report';
+  }
+  if (normalizeCtcaeGrade(reportData?.extracted_data?.ctcae_grade) != null) {
+    return String(reportData?.extracted_data?.ctcae_grade_source || 'extracted_data').trim() || 'extracted_data';
+  }
+  return severityToCtcaeGrade(reportData?.severity) != null ? 'severity_fallback' : null;
+}
+
+function resolveIncidentCtcaeGrade(reportData = {}, severity = null) {
+  return extractStructuredCtcaeGrade(reportData) ?? severityToCtcaeGrade(severity || reportData?.severity);
+}
+
+function getHigherCtcaeGrade(left, right) {
+  const safeLeft = normalizeCtcaeGrade(left);
+  const safeRight = normalizeCtcaeGrade(right);
+  if (safeLeft == null) return safeRight;
+  if (safeRight == null) return safeLeft;
+  return Math.max(safeLeft, safeRight);
+}
+
 export function isLegacyResolvedIncident(incident = {}) {
   return String(incident?.status || '').trim().toLowerCase() === 'resolved';
 }
@@ -173,6 +217,8 @@ function buildLinkedPatient(patientId, patientProfile, protocolDoc, primaryCrcId
 function buildReportLink(patientId, reportId, reportData) {
   if (!reportId) return null;
 
+  const ctcaeGrade = resolveIncidentCtcaeGrade(reportData, reportData?.severity);
+
   return {
     uid: patientId,
     report_id: reportId,
@@ -180,6 +226,8 @@ function buildReportLink(patientId, reportId, reportData) {
     submitted_at: reportData.submitted_at || new Date().toISOString(),
     symptom_title: reportData.symptom_title,
     severity: reportData.severity,
+    ctcae_grade: ctcaeGrade,
+    ctcae_grade_source: resolveCtcaeGradeSource(reportData),
     protocol_covered:
       typeof reportData.protocol_covered === 'boolean' ? reportData.protocol_covered : null,
     source_system: reportData.source_system || null,
@@ -320,6 +368,7 @@ export async function upsertSafetyIncident({
     immediateHelpRequested,
     protocolDoc
   );
+  const incomingCtcaeGrade = resolveIncidentCtcaeGrade(linkedReport || {}, normalizedSeverity);
   const finalIncidentType = incidentTypeOverride || routingSnapshot.incident_type;
   const finalEventKey = eventKey || normalizeEventKey(eventTitle);
   const matchedIncident = await findMatchingOpenIncident(primaryCrcId, finalEventKey);
@@ -338,6 +387,7 @@ export async function upsertSafetyIncident({
       (item) => item
     );
     const updatedSeverity = getHigherSeverity(matchedIncident.severity, normalizedSeverity);
+    const updatedCtcaeGrade = getHigherCtcaeGrade(matchedIncident.ctcae_grade, incomingCtcaeGrade);
     const updatedDueAt = getEarlierIso(matchedIncident.due_at, routingSnapshot.due_at);
 
     const updatePayload = {
@@ -363,6 +413,7 @@ export async function upsertSafetyIncident({
         [...(matchedIncident.source_systems || []), sourceSystem],
         (item) => item
       ),
+      ctcae_grade: updatedCtcaeGrade,
       compare_ready: mergedPatients.length > 1,
       patient_count: mergedPatients.length,
       report_count: mergedReports.length,
@@ -386,6 +437,7 @@ export async function upsertSafetyIncident({
     event_key: finalEventKey,
     event_title: eventTitle,
     severity: normalizedSeverity,
+    ctcae_grade: incomingCtcaeGrade,
     urgency: routingSnapshot.urgency,
     status: 'open',
     ae_documentation_status: 'pending',
