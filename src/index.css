@@ -3958,9 +3958,29 @@ body {
   font-size: 17px;
 }
 
+.patient-overview__stack--scrollable {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.data-list-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  padding-right: 4px;
+}
+
 .patient-overview__vitalsTable {
   display: grid;
   gap: 10px;
+}
+
+.patient-overview__vitalsTable--scrollable {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .patient-overview__vitalsRow {

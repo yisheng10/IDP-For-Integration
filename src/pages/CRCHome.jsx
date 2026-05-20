@@ -1398,8 +1398,8 @@ export default function CRCHome({ user, onLogout }) {
     [editingProtocolTemplate]
   );
   const selectedProtocolName = editingProtocolTemplate?.name || selPatient?.protocolName || 'Not assigned';
-  const coordinationVitalsPreview = useMemo(() => pVitals.slice(0, 5), [pVitals]);
-  const coordinationAppointmentsPreview = useMemo(() => pAppts.slice(0, 5), [pAppts]);
+  const coordinationVitalsPreview = useMemo(() => pVitals, [pVitals]);
+  const coordinationAppointmentsPreview = useMemo(() => pAppts, [pAppts]);
   const currentCrcDisplayName = crcName || user.email || 'CRC';
 
   const patientRosterRows = useMemo(() => {
@@ -2203,8 +2203,8 @@ export default function CRCHome({ user, onLogout }) {
                                   </div>
                                 </div>
                                 {coordinationAppointmentsPreview.length ? (
-                                  <div className="patient-overview__stack">
-                                    {coordinationAppointmentsPreview.slice(0, 3).map((appointment) => (
+                                  <div className="patient-overview__stack patient-overview__stack--scrollable">
+                                    {coordinationAppointmentsPreview.map((appointment) => (
                                       <div key={appointment.id} className="patient-overview__stackRow">
                                         <span>{new Date(appointment.datetime).toLocaleString()}</span>
                                         <strong>{getStatusText(appointment.status)}</strong>
@@ -2466,7 +2466,7 @@ export default function CRCHome({ user, onLogout }) {
                                     </div>
                                   </div>
                                   {coordinationVitalsPreview.length ? (
-                                    <div className="patient-overview__vitalsTable">
+                                    <div className="patient-overview__vitalsTable patient-overview__vitalsTable--scrollable">
                                       {coordinationVitalsPreview.map((record) => (
                                         <div key={record.id} className="patient-overview__vitalsRow">
                                           <div>{new Date(record.timestamp).toLocaleString()}</div>
@@ -2522,21 +2522,23 @@ export default function CRCHome({ user, onLogout }) {
                                     )}
                                   </div>
                                   {coordinationAppointmentsPreview.length ? (
-                                    coordinationAppointmentsPreview.map((appointment) => (
-                                      <div key={appointment.id} className="data-list-card">
-                                        <div>
-                                          <div className="data-list-card__title">{new Date(appointment.datetime).toLocaleString()}</div>
-                                          <div className="data-list-card__status" style={getStatusStyle(appointment.status)}>
-                                            {getStatusText(appointment.status)}
+                                    <div className="data-list-scroll">
+                                      {coordinationAppointmentsPreview.map((appointment) => (
+                                        <div key={appointment.id} className="data-list-card">
+                                          <div>
+                                            <div className="data-list-card__title">{new Date(appointment.datetime).toLocaleString()}</div>
+                                            <div className="data-list-card__status" style={getStatusStyle(appointment.status)}>
+                                              {getStatusText(appointment.status)}
+                                            </div>
                                           </div>
+                                          {String(appointment.status || '').trim().toLowerCase() === 'accepted' ? (
+                                            <button onClick={() => handleMarkComplete(appointment.id)} className="btn btn-success btn-small">
+                                              Mark complete
+                                            </button>
+                                          ) : null}
                                         </div>
-                                        {String(appointment.status || '').trim().toLowerCase() === 'accepted' ? (
-                                          <button onClick={() => handleMarkComplete(appointment.id)} className="btn btn-success btn-small">
-                                            Mark complete
-                                          </button>
-                                        ) : null}
-                                      </div>
-                                    ))
+                                      ))}
+                                    </div>
                                   ) : (
                                     <div className="empty-panel">No appointments recorded yet.</div>
                                   )}
