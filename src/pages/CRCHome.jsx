@@ -52,7 +52,14 @@ import {
 } from '../services/dropoutService';
 import { getProtocolStaticContextStatus } from '../services/protocolStaticContextService';
 import { normalizeDropoutTrialId } from '../services/dropoutTrialRegistryService';
-import { ensureIncidentAlertThread, resolveIncident, subscribeToIncidentRecords } from '../services/incidentService';
+import {
+  deriveIncidentWorkflowStatus,
+  documentIncidentAe,
+  ensureIncidentAlertThread,
+  isOpenIncidentWorkflow,
+  resolveIncidentAe,
+  subscribeToIncidentRecords,
+} from '../services/incidentService';
 import { purgePatientRecord } from '../services/patientAdminService';
 import { getSignedUrl } from '../services/storageService';
 import {
@@ -109,12 +116,8 @@ function clampGuidancePaneWidth(nextWidth, containerWidth = 0) {
   return Math.min(safeMaxWidth, Math.max(minWidth, nextWidth));
 }
 
-function normalizeIncidentText(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
 function isUnresolvedIncident(incident) {
-  return normalizeIncidentText(incident?.status) !== 'resolved';
+  return isOpenIncidentWorkflow(incident);
 }
 
 function isHospitalEmailAddress(value = '') {
@@ -281,7 +284,7 @@ export default function CRCHome({ user, onLogout }) {
   const activeSafetyTab = useMemo(() => {
     if (activeHomeSection !== 'safety') return 'open';
     const tabId = searchParams.get('tab');
-    return ['open', 'resolved', 'history'].includes(tabId) ? tabId : 'open';
+    return ['open', 'documented', 'ae_resolved', 'documented_resolved', 'history'].includes(tabId) ? tabId : 'open';
   }, [activeHomeSection, searchParams]);
   const activeNavId = activeHomeSection;
   const isPatientWorkspaceOpen = activeHomeSection === 'patients' && Boolean(selPatient);
@@ -1083,23 +1086,35 @@ export default function CRCHome({ user, onLogout }) {
     }, { replace: true });
   };
 
+  const handleDocumentIncidentFromSafety = async (incident) => {
+    if (!incident?.id) {
+      return;
+    }
+
+    try {
+      await documentIncidentAe(incident.id, {
+        uid: user.uid,
+        name: crcName || user.email,
+        email: user.email,
+      });
+    } catch (error) {
+      window.alert(`Failed to document incident: ${error.message}`);
+    }
+  };
+
   const handleResolveIncidentFromSafety = async (incident) => {
     if (!incident?.id) {
       return;
     }
 
     try {
-      await resolveIncident(incident.id, {
+      await resolveIncidentAe(incident.id, {
         uid: user.uid,
         name: crcName || user.email,
         email: user.email,
       });
-
-      if (activeIncident?.id === incident.id) {
-        handleCloseIncident();
-      }
     } catch (error) {
-      window.alert(`Failed to resolve incident: ${error.message}`);
+      window.alert(`Failed to mark AE resolved: ${error.message}`);
     }
   };
 
@@ -1346,8 +1361,14 @@ export default function CRCHome({ user, onLogout }) {
     : derivedAssignedPatientCount;
   const activeHistorySummary = selPatient ? selectedAlertSummary : globalAlertSummary;
   const loadedOpenIncidentCount = incidents.filter((incident) => isUnresolvedIncident(incident)).length;
-  const loadedResolvedIncidentCount = incidents.filter(
-    (incident) => normalizeIncidentText(incident?.status) === 'resolved'
+  const loadedDocumentedIncidentCount = incidents.filter(
+    (incident) => deriveIncidentWorkflowStatus(incident) === 'documented'
+  ).length;
+  const loadedAeResolvedIncidentCount = incidents.filter(
+    (incident) => deriveIncidentWorkflowStatus(incident) === 'ae_resolved'
+  ).length;
+  const loadedDocumentedResolvedIncidentCount = incidents.filter(
+    (incident) => deriveIncidentWorkflowStatus(incident) === 'documented_resolved'
   ).length;
   const loadedGroupedIncidentCount = incidents.filter((incident) => incident.compare_ready).length;
   const effectiveGlobalIncidentSummary = {
@@ -1357,10 +1378,13 @@ export default function CRCHome({ user, onLogout }) {
       Number(globalOpenIncidentSummary?.openIncidents ?? 0),
       loadedOpenIncidentCount
     ),
-    resolvedIncidents: Math.max(
-      Number(globalIncidentSummary?.resolvedIncidents ?? 0),
-      loadedResolvedIncidentCount
+    documentedIncidents: Math.max(Number(globalIncidentSummary?.documentedIncidents ?? 0), loadedDocumentedIncidentCount),
+    aeResolvedIncidents: Math.max(Number(globalIncidentSummary?.aeResolvedIncidents ?? 0), loadedAeResolvedIncidentCount),
+    documentedResolvedIncidents: Math.max(
+      Number(globalIncidentSummary?.documentedResolvedIncidents ?? 0),
+      loadedDocumentedResolvedIncidentCount
     ),
+    resolvedIncidents: Math.max(Number(globalIncidentSummary?.resolvedIncidents ?? 0), loadedDocumentedResolvedIncidentCount),
     groupedIncidents: Math.max(
       Number(globalIncidentSummary?.groupedIncidents ?? 0),
       loadedGroupedIncidentCount
@@ -1386,8 +1410,8 @@ export default function CRCHome({ user, onLogout }) {
     ? `Showing ${safetyHistoryAlerts.length} loaded alert-history records for ${selPatient.nickname || 'the selected patient'}. Full patient alert summary: ${selectedAlertSummary?.activeAlerts ?? 0} active, ${selectedAlertSummary?.resolvedAlerts ?? 0} resolved.`
     : `Showing ${globalAlerts.length} loaded global alert-history records from the current recent window. Full alert summary: ${globalAlertSummary?.activeAlerts ?? 0} active, ${globalAlertSummary?.resolvedAlerts ?? 0} resolved.`;
   const incidentWindowLabel = selPatient
-    ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.resolvedIncidents ?? 0} documented, ${selectedIncidentSummary?.groupedIncidents ?? 0} grouped.`
-    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${effectiveGlobalIncidentSummary.openIncidents} open, ${effectiveGlobalIncidentSummary.resolvedIncidents} documented, ${effectiveGlobalIncidentSummary.groupedIncidents} grouped.`;
+    ? `Showing ${incidents.length} loaded safety cases for ${selPatient.nickname || 'the selected patient'}. Full patient safety summary: ${selectedIncidentSummary?.openIncidents ?? 0} open, ${selectedIncidentSummary?.documentedIncidents ?? 0} documented, ${selectedIncidentSummary?.aeResolvedIncidents ?? 0} AE resolved, ${selectedIncidentSummary?.documentedResolvedIncidents ?? 0} documented & resolved.`
+    : `Showing ${incidents.length} loaded safety cases from the current recent window. Full safety summary: ${effectiveGlobalIncidentSummary.openIncidents} open, ${effectiveGlobalIncidentSummary.documentedIncidents} documented, ${effectiveGlobalIncidentSummary.aeResolvedIncidents} AE resolved, ${effectiveGlobalIncidentSummary.documentedResolvedIncidents} documented & resolved.`;
   const pendingEproCount = useMemo(
     () => eproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length,
     [eproEntries]
@@ -1603,7 +1627,7 @@ export default function CRCHome({ user, onLogout }) {
       }
     } else if (normalizedSection === 'safety') {
       const tab = nextParams.get('tab');
-      if (!['open', 'resolved', 'history'].includes(tab)) {
+      if (!['open', 'documented', 'ae_resolved', 'documented_resolved', 'history'].includes(tab)) {
         nextParams.set('tab', 'open');
         changed = true;
       }
@@ -2614,6 +2638,7 @@ export default function CRCHome({ user, onLogout }) {
               onEnablePush={handleEnablePush}
               onOpenIncident={handleOpenIncident}
               onOpenAlertThread={handleNavAlertClick}
+              onDocumentIncident={handleDocumentIncidentFromSafety}
               onResolveIncident={handleResolveIncidentFromSafety}
               initialTab={activeSafetyTab}
               onTabChange={handleSafetyInboxTabChange}
@@ -2734,100 +2759,6 @@ export default function CRCHome({ user, onLogout }) {
                   />
                 </div>
 
-                {false ? (
-                <div className="card workspace-card guidance-contextCard">
-                  <div className="section-header section-header--tight">
-                    <div>
-                      <h3>Patient context</h3>
-                      <div className="section-note">Pinned CRC context that stays visible while you ask questions.</div>
-                    </div>
-                    {selPatient ? (
-                      <button className="btn btn-secondary btn-small" onClick={() => openWorkspaceSection('patients', { patientId: selPatient.id, tab: 'overview' })}>
-                        Open patient
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {selPatient ? (
-                    <>
-                      <div className="guidance-contextCard__patient">
-                        <div className="guidance-contextCard__patientName">{selPatient.nickname || 'Unnamed patient'}</div>
-                        <div className="guidance-contextCard__patientMeta">
-                          <span>{selPatient.subject_id || selPatient.subjectId || 'No subject ID'}</span>
-                          <span>{selectedProtocolName}</span>
-                        </div>
-                      </div>
-
-                      <div className="guidance-contextCard__section">
-                        <strong>Protocol grounding</strong>
-                        <div className="section-note">{selectedProtocolName}</div>
-                        <div className="workspace-actionStrip">
-                          <button className="btn btn-secondary btn-small" onClick={() => handleOpenClinicalResource('CTCAE.pdf')}>
-                            Open CTCAE
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-small"
-                            onClick={() => handleOpenClinicalResource(selectedProtocolFilePath, 'protocol')}
-                            disabled={!selectedProtocolFilePath}
-                          >
-                            Open protocol
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="guidance-contextCard__section">
-                        <strong>Recent safety</strong>
-                        <div className="patient-overview__stack">
-                          <div className="patient-overview__stackRow">
-                            <span>Active alerts</span>
-                            <strong>{selectedPatientAlertCount}</strong>
-                          </div>
-                          <div className="patient-overview__stackRow">
-                            <span>Linked incidents</span>
-                            <strong>{selectedPatientIncidentCount}</strong>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="guidance-contextCard__section">
-                        <strong>Recent vitals</strong>
-                        {coordinationVitalsPreview.length ? (
-                          <div className="guidance-contextCard__miniList">
-                            {coordinationVitalsPreview.slice(0, 4).map((record) => (
-                              <div key={record.id} className="guidance-contextCard__miniRow">
-                                <span>{new Date(record.timestamp).toLocaleString()}</span>
-                                <strong>
-                                  BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'} • SpO2 {record.spo2 ? `${record.spo2}%` : '-'}
-                                </strong>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="section-note">No recent vitals are visible for this patient.</div>
-                        )}
-                      </div>
-
-                      <div className="guidance-contextCard__section">
-                        <strong>ePRO</strong>
-                        <div className="patient-overview__stack">
-                          <div className="patient-overview__stackRow">
-                            <span>Loaded entries</span>
-                            <strong>{selectedPatientEproEntries.length}</strong>
-                          </div>
-                          <div className="patient-overview__stackRow">
-                            <span>Pending</span>
-                            <strong>{selectedPatientEproEntries.filter((entry) => String(entry?.status || '').toLowerCase() !== 'submitted').length}</strong>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="empty-panel">
-                      Select a patient from the Patients workspace first. Then this right-hand panel will pin protocol, CTCAE, safety, vitals, and ePRO context beside the guidance conversation.
-                    </div>
-                  )}
-                </div>
-                ) : null}
               </div>
             </section>
           ) : null}

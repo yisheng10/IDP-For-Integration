@@ -7,8 +7,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const UNRESOLVED_INCIDENT_STATUSES = ['open', 'acknowledged'];
-
 async function safeCount(targetQuery) {
   const snapshot = await getCountFromServer(targetQuery);
   return Number(snapshot.data().count || 0);
@@ -67,9 +65,26 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
     ? [where('linked_patient_ids', 'array-contains', selectedPatientId)]
     : [];
 
-  const [openIncidents, resolvedIncidents, groupedIncidents, overdueIncidents] = await Promise.all([
+  const [
+    openIncidents,
+    documentedIncidents,
+    aeResolvedIncidents,
+    modernDocumentedResolvedIncidents,
+    legacyResolvedIncidents,
+    groupedIncidents,
+    overdueIncidents,
+  ] = await Promise.all([
     safeCountOrZero(
-      query(baseRef, ...patientFilter, where('status', '!=', 'resolved'))
+      query(baseRef, ...patientFilter, where('status', '==', 'open'))
+    ),
+    safeCountOrZero(
+      query(baseRef, ...patientFilter, where('status', '==', 'documented'))
+    ),
+    safeCountOrZero(
+      query(baseRef, ...patientFilter, where('status', '==', 'ae_resolved'))
+    ),
+    safeCountOrZero(
+      query(baseRef, ...patientFilter, where('status', '==', 'documented_resolved'))
     ),
     safeCountOrZero(
       query(baseRef, ...patientFilter, where('status', '==', 'resolved'))
@@ -81,24 +96,29 @@ export async function fetchIncidentSummary({ selectedPatientId = null } = {}) {
       query(
         baseRef,
         ...patientFilter,
-        where('status', '!=', 'resolved'),
+        where('status', '==', 'open'),
         where('due_at', '<=', new Date().toISOString())
       )
     ),
   ]);
+  const documentedResolvedIncidents = modernDocumentedResolvedIncidents + legacyResolvedIncidents;
+  const resolvedIncidents = documentedResolvedIncidents;
 
   return {
     openIncidents,
+    documentedIncidents,
+    aeResolvedIncidents,
+    documentedResolvedIncidents,
     resolvedIncidents,
     groupedIncidents,
     overdueIncidents,
-    totalIncidents: openIncidents + resolvedIncidents,
+    totalIncidents: openIncidents + documentedIncidents + aeResolvedIncidents + documentedResolvedIncidents,
   };
 }
 
 export async function fetchOpenIncidentSummary() {
   const openIncidents = await safeCountOrZero(
-    query(collection(db, 'incident_records'), where('status', '!=', 'resolved'))
+    query(collection(db, 'incident_records'), where('status', '==', 'open'))
   );
   return { openIncidents };
 }

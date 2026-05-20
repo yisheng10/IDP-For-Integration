@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { sendAlert, sendChatMessage, startDirectMessage, subscribeToChat, resolveAlert } from '../services/alertService';
 import { useCall } from '../context/CallContext';
-import { resolveIncident } from '../services/incidentService';
+import { documentIncidentAe, resolveIncidentAe } from '../services/incidentService';
 
 function PhoneIcon() {
   return (
@@ -350,13 +350,28 @@ const LiveChatWidget = ({
     finally { setIsSending(false); }
   };
 
-  const handleResolve = async () => {
+  const handleDocumentAe = async () => {
     if (!activeAlertRef) return;
-    if (!window.confirm("Mark as resolved?")) return;
+    if (!window.confirm('Mark this AE case as documented by CRC? This does not mean the patient has clinically recovered.')) return;
     try {
       const incidentId = String(activeAlertData?.source_incident_id || '').trim();
       if (incidentId) {
-        await resolveIncident(incidentId, {
+        await documentIncidentAe(incidentId, {
+          uid: user?.uid || null,
+          name: userName || user?.email || 'CRC',
+          email: user?.email || null,
+        });
+      }
+    } catch (e) { alert(e.message); }
+  };
+
+  const handleResolve = async () => {
+    if (!activeAlertRef) return;
+    if (!window.confirm('Mark this AE as clinically resolved? Use this only when the patient adverse event has actually resolved.')) return;
+    try {
+      const incidentId = String(activeAlertData?.source_incident_id || '').trim();
+      if (incidentId) {
+        await resolveIncidentAe(incidentId, {
           uid: user?.uid || null,
           name: userName || user?.email || 'CRC',
           email: user?.email || null,
@@ -514,6 +529,12 @@ const LiveChatWidget = ({
   const callTargetName = viewMode === 'chat'
     ? activeAlertData?.patientName || activeAlertData?.senderName || recipientName || 'Patient'
     : recipientName || 'Patient';
+  const activeAlertAeDocumented =
+    activeAlertData?.ae_documentation_status === 'documented' ||
+    Boolean(activeAlertData?.ae_documented_at);
+  const activeAlertAeResolved =
+    activeAlertData?.ae_clinical_status === 'resolved' ||
+    Boolean(activeAlertData?.ae_resolved_at);
 
   const handleStartCall = async (isVideo) => {
     if (!callTargetId) {
@@ -602,8 +623,12 @@ const LiveChatWidget = ({
               </>
             )}
 
-            {viewMode === 'chat' && role === 'crc' && !isResolved && (
-              <button onClick={handleResolve} style={styles.resolveButton}>Resolved</button>
+            {viewMode === 'chat' && role === 'crc' && activeAlertData?.source_incident_id && !activeAlertAeDocumented && (
+              <button onClick={handleDocumentAe} style={styles.resolveButton}>AE Documented</button>
+            )}
+
+            {viewMode === 'chat' && role === 'crc' && !activeAlertAeResolved && (
+              <button onClick={handleResolve} style={styles.resolveButton}>AE Resolved</button>
             )}
 
             {viewMode === 'chat' && <button onClick={() => { setActiveAlertRef(null); setActiveAlertData(null); setViewMode('list'); }} style={styles.iconBtn}>‹ Back</button>}

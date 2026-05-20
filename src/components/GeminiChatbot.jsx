@@ -128,14 +128,12 @@ function getAlertOperationalState(alert = {}) {
     return 'active';
   }
 
-  if (
-    status === 'read' ||
-    status === 'resolved' ||
-    status === 'closed' ||
-    status === 'documented' ||
-    alert.threadClosed
-  ) {
+  if (alert.ae_clinical_status === 'resolved' || alert.ae_resolved_at) {
     return 'resolved';
+  }
+
+  if (status === 'read' || status === 'closed' || status === 'documented' || alert.threadClosed) {
+    return 'documented_ongoing';
   }
 
   return 'unknown';
@@ -143,10 +141,23 @@ function getAlertOperationalState(alert = {}) {
 
 function getIncidentOperationalState(incident = {}) {
   const status = normalizeText(incident.status || 'open');
-  if (status === 'resolved' || status === 'closed' || status === 'read' || incident.resolved_at) {
+  if (
+    incident.ae_clinical_status === 'resolved' ||
+    incident.ae_resolved_at ||
+    status === 'ae_resolved' ||
+    status === 'documented_resolved' ||
+    status === 'resolved'
+  ) {
     return 'resolved';
   }
-  if (status === 'open' || status === 'unread' || status === 'active') {
+  if (
+    incident.ae_documentation_status === 'documented' ||
+    incident.ae_documented_at ||
+    status === 'documented'
+  ) {
+    return 'documented_ongoing';
+  }
+  if (status === 'open' || status === 'unread' || status === 'active' || status === 'closed' || status === 'read') {
     return 'active';
   }
   return 'unknown';
@@ -186,7 +197,7 @@ function findResolvedIncidentCoveringAlert(alert = {}, incidents = []) {
     ]
       .map((value) => normalizeEventKeyForGuidance(value))
       .filter(Boolean);
-    const resolvedTime = getTimestampMs(incident, ['resolved_at', 'resolvedAt', 'updated_at']);
+    const resolvedTime = getTimestampMs(incident, ['ae_resolved_at', 'resolved_at', 'resolvedAt', 'updated_at']);
 
     return Boolean(
       alertTime &&
@@ -208,9 +219,13 @@ function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [], audienc
       incident_type: incident.incident_type || null,
       severity: incident.severity || null,
       status: incident.status || null,
+      ae_documentation_status: incident.ae_documentation_status || null,
+      ae_documented_at: incident.ae_documented_at || null,
+      ae_clinical_status: incident.ae_clinical_status || null,
+      ae_resolved_at: incident.ae_resolved_at || null,
       operational_state: operationalState,
-      is_current_active: operationalState === 'active',
-      resolved_at: incident.resolved_at || incident.resolvedAt || null,
+      is_current_active: operationalState === 'active' || operationalState === 'documented_ongoing',
+      resolved_at: incident.ae_resolved_at || incident.resolved_at || incident.resolvedAt || null,
       last_event_at: getMostRelevantTimestamp(incident, ['updated_at', 'last_event_at', 'created_at']),
       ...(isPatientAudience
         ? {}
@@ -234,8 +249,8 @@ function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [], audienc
         reason: alert.reason || alert.symptom_title || alert.event_title || null,
         raw_status: alert.status || null,
         operational_state: operationalState,
-        is_current_active: operationalState === 'active',
-        resolved_at: alert.resolvedAt || alert.resolved_at || null,
+        is_current_active: operationalState === 'active' || operationalState === 'documented_ongoing',
+        resolved_at: alert.ae_resolved_at || alert.resolvedAt || alert.resolved_at || null,
         operational_state_reason: resolvedIncident
           ? 'The alert is covered by a linked or event-matched resolved incident, so it is treated as historical even if the raw alert status is still unread.'
           : null,
@@ -257,7 +272,7 @@ function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [], audienc
 
   return {
     interpretation_rule:
-      'Use this section before describing an emergency or adverse event as current, active, unresolved, or ongoing. operational_state is the source of truth. Items with operational_state "resolved" are historical/documented, not current active events, even if their raw alert status still says unread.',
+      'Use this section before describing an emergency or adverse event as current, active, unresolved, or ongoing. operational_state is the source of truth. Items with operational_state "resolved" are clinically resolved. Items with operational_state "documented_ongoing" are CRC-documented but not clinically resolved, so do not describe them as recovered.',
     active_emergency_or_ae_count: activeAlerts.length + activeIncidents.length,
     resolved_emergency_or_ae_count:
       aeAlerts.filter((alert) => alert.operational_state === 'resolved').length +
@@ -270,6 +285,10 @@ function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [], audienc
     resolved_alerts: aeAlerts.filter((alert) => alert.operational_state === 'resolved'),
     active_incidents: activeIncidents,
     resolved_incidents: aeIncidents.filter((incident) => incident.operational_state === 'resolved'),
+    documented_ongoing_items: [
+      ...aeAlerts.filter((alert) => alert.operational_state === 'documented_ongoing'),
+      ...aeIncidents.filter((incident) => incident.operational_state === 'documented_ongoing'),
+    ],
     unknown_status_items: [
       ...aeAlerts.filter((alert) => alert.operational_state === 'unknown'),
       ...aeIncidents.filter((incident) => incident.operational_state === 'unknown'),
@@ -476,11 +495,12 @@ function buildStableSystemPrompt(aiName, role = 'crc') {
       'Role: patient-facing TrialLight safety assistant.',
       'The current user is the patient. Speak directly to the patient in clear, calm language.',
       'Use the directly injected patient context as the live source of truth.',
-      'You may explain whether the patient currently has active AE/emergency items, and which safety events appear documented or resolved.',
+      'You may explain whether the patient currently has active AE/emergency items, which safety events are CRC-documented, and which events are clinically resolved.',
       'Do not expose CRC-only or internal operational details, including internal prediction scores, prioritization labels, staff workflow recommendations, CRC ownership or routing, staff resolver identity, linked record paths, patient-id lists, report-linkage details, source-system metadata, rule snapshots, internal notes, or explanation-signal details.',
       'Do not present yourself as a diagnosis service or autonomous emergency care. TrialLight chat is a support and documentation layer and does not replace direct emergency escalation.',
       'Before describing an emergency or adverse event as current, active, unresolved, or ongoing, check the injected EMERGENCY / AE OPERATIONAL STATUS section. operational_state is the source of truth.',
-      'If an unread raw alert is listed there as operational_state "resolved" because it is covered by a resolved incident, do not call it active. Explain it as a historical documented/resolved event if relevant.',
+      'If an item is listed as operational_state "documented_ongoing", explain that CRC has documented or handled it, but do not say the patient has clinically recovered.',
+      'If an unread raw alert is listed there as operational_state "resolved" because it is covered by a clinically resolved incident, do not call it active. Explain it as a historical clinically resolved event if relevant.',
       'Treat vital sign records as measurements, not as resolved/unresolved cases by themselves. A vital value is only a current active AE/emergency if a linked active alert or incident remains unresolved.',
       'If the patient describes severe or worsening symptoms, advise them to use the study emergency number or local emergency services immediately.',
       '',
@@ -499,8 +519,9 @@ function buildStableSystemPrompt(aiName, role = 'crc') {
     'Do not expose dropout model internals to the patient side.',
     'Use retrieved CTCAE and protocol excerpts as the only cited source material for clinical or protocol claims.',
     'If protocol excerpts are missing, say protocol grounding was not retrieved.',
-    'Before describing an emergency or adverse event as current, active, unresolved, or ongoing, check the injected EMERGENCY / AE OPERATIONAL STATUS section. Treat status values such as read, resolved, closed, documented, or threadClosed as historical/resolved unless a newer active alert or incident says otherwise.',
-    'If an unread raw alert is listed there as operational_state "resolved" because it is covered by a resolved incident, do not call it active. Mention it only as stale or historical operational data if relevant.',
+    'Before describing an emergency or adverse event as current, active, unresolved, or ongoing, check the injected EMERGENCY / AE OPERATIONAL STATUS section. Treat documented_ongoing as CRC-documented but not clinically resolved.',
+    'Only operational_state "resolved" means clinically resolved. Do not treat documented, read, closed, or threadClosed by themselves as clinical recovery.',
+    'If an unread raw alert is listed there as operational_state "resolved" because it is covered by a clinically resolved incident, do not call it active. Mention it only as stale or historical operational data if relevant.',
     'Treat vital sign records as measurements, not as resolved/unresolved cases by themselves. If abnormal vitals are historical and no linked active alert or incident remains open, say that clearly.',
     '',
     '=== SAFETY & RULES ===',
@@ -532,6 +553,10 @@ function buildPatientContextText({
         reason: alert.reason || null,
         message: alert.message || null,
         status: alert.status || null,
+        ae_documentation_status: alert.ae_documentation_status || null,
+        ae_documented_at: alert.ae_documented_at || null,
+        ae_clinical_status: alert.ae_clinical_status || null,
+        ae_resolved_at: alert.ae_resolved_at || null,
         timestamp: alert.timestamp || null,
         threadClosed: Boolean(alert.threadClosed),
         resolvedAt: alert.resolvedAt || alert.resolved_at || null,
@@ -547,6 +572,10 @@ function buildPatientContextText({
         incident_type: incident.incident_type || null,
         severity: incident.severity || null,
         status: incident.status || null,
+        ae_documentation_status: incident.ae_documentation_status || null,
+        ae_documented_at: incident.ae_documented_at || null,
+        ae_clinical_status: incident.ae_clinical_status || null,
+        ae_resolved_at: incident.ae_resolved_at || null,
         created_at: incident.created_at || null,
         updated_at: incident.updated_at || null,
         resolved_at: incident.resolved_at || incident.resolvedAt || null,

@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   getIncidentDueState,
   hydrateIncidentPatientContext,
-  resolveIncident,
+  deriveIncidentWorkflowStatus,
+  documentIncidentAe,
+  resolveIncidentAe,
   updateIncidentNote,
 } from '../services/incidentService';
 
@@ -13,7 +15,13 @@ function renderDueStateLabel(state) {
     case 'due_24h':
       return 'Due within 24h';
     case 'resolved':
+      return 'Documented & Resolved';
+    case 'documented':
       return 'Documented';
+    case 'ae_resolved':
+      return 'AE Resolved';
+    case 'documented_resolved':
+      return 'Documented & Resolved';
     case 'scheduled':
       return 'Scheduled';
     default:
@@ -32,12 +40,17 @@ function renderVitalRow(record) {
   return bits.join(' | ') || 'No structured vitals in the latest record.';
 }
 
-function renderIncidentStatus(status) {
-  return String(status || '').trim().toLowerCase() === 'resolved' ? 'resolved' : 'open';
-}
-
-function isOpenIncidentStatus(status) {
-  return String(status || '').trim().toLowerCase() !== 'resolved';
+function renderIncidentStatus(incident) {
+  switch (deriveIncidentWorkflowStatus(incident)) {
+    case 'documented':
+      return 'AE documented';
+    case 'ae_resolved':
+      return 'AE resolved';
+    case 'documented_resolved':
+      return 'Documented & resolved';
+    default:
+      return 'open';
+  }
 }
 
 const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenGuidance }) => {
@@ -94,17 +107,33 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenGuidance 
     }
   };
 
-  const handleResolve = async () => {
-    if (!window.confirm('Document this incident as resolved?')) return;
+  const handleDocumented = async () => {
+    if (!window.confirm('Mark this AE case as documented by CRC? This does not mean the patient has clinically recovered.')) return;
     setChangingStatus(true);
     try {
-      await resolveIncident(incident.id, {
+      await documentIncidentAe(incident.id, {
         uid: user.uid,
         name: crcName || user.email,
         email: user.email,
       });
     } catch (error) {
-      alert('Failed to resolve incident: ' + error.message);
+      alert('Failed to document incident: ' + error.message);
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
+  const handleAeResolved = async () => {
+    if (!window.confirm('Mark this AE as clinically resolved? Use this only when the patient adverse event has actually resolved.')) return;
+    setChangingStatus(true);
+    try {
+      await resolveIncidentAe(incident.id, {
+        uid: user.uid,
+        name: crcName || user.email,
+        email: user.email,
+      });
+    } catch (error) {
+      alert('Failed to mark AE resolved: ' + error.message);
     } finally {
       setChangingStatus(false);
     }
@@ -150,7 +179,7 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenGuidance 
           <div style={styles.metaGrid}>
             <div style={styles.metaCard}>
               <strong>Status</strong>
-              <div>{renderIncidentStatus(incident.status)}</div>
+              <div>{renderIncidentStatus(incident)}</div>
               <div style={styles.metaHint}>Due: {incident.due_at ? new Date(incident.due_at).toLocaleString() : 'Not tracked'}</div>
             </div>
             <div style={styles.metaCard}>
@@ -180,11 +209,16 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenGuidance 
               <button onClick={handleSaveNote} className="btn btn-primary" disabled={savingNote}>
                 {savingNote ? 'Saving...' : 'Save Note'}
               </button>
-              {isOpenIncidentStatus(incident.status) && (
-                <button onClick={handleResolve} className="btn btn-success" disabled={changingStatus}>
-                  Document
+              {!['documented', 'documented_resolved'].includes(deriveIncidentWorkflowStatus(incident)) ? (
+                <button onClick={handleDocumented} className="btn btn-primary" disabled={changingStatus}>
+                  AE Documented
                 </button>
-              )}
+              ) : null}
+              {!['ae_resolved', 'documented_resolved'].includes(deriveIncidentWorkflowStatus(incident)) ? (
+                <button onClick={handleAeResolved} className="btn btn-success" disabled={changingStatus}>
+                  AE Resolved
+                </button>
+              ) : null}
             </div>
           </div>
 

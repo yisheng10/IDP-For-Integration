@@ -53,6 +53,46 @@ export function normalizeSafetySeverity(value) {
   return SEVERITY_OPTIONS.includes(normalized) ? normalized : 'moderate';
 }
 
+export function isLegacyResolvedIncident(incident = {}) {
+  return String(incident?.status || '').trim().toLowerCase() === 'resolved';
+}
+
+export function isAeDocumentedIncident(incident = {}) {
+  const status = String(incident?.status || '').trim().toLowerCase();
+  return (
+    incident?.ae_documentation_status === 'documented' ||
+    Boolean(incident?.ae_documented_at) ||
+    status === 'documented' ||
+    status === 'documented_resolved' ||
+    isLegacyResolvedIncident(incident)
+  );
+}
+
+export function isAeClinicallyResolvedIncident(incident = {}) {
+  const status = String(incident?.status || '').trim().toLowerCase();
+  return (
+    incident?.ae_clinical_status === 'resolved' ||
+    Boolean(incident?.ae_resolved_at) ||
+    status === 'ae_resolved' ||
+    status === 'documented_resolved' ||
+    isLegacyResolvedIncident(incident)
+  );
+}
+
+export function deriveIncidentWorkflowStatus(incident = {}) {
+  const documented = isAeDocumentedIncident(incident);
+  const clinicallyResolved = isAeClinicallyResolvedIncident(incident);
+
+  if (documented && clinicallyResolved) return 'documented_resolved';
+  if (documented) return 'documented';
+  if (clinicallyResolved) return 'ae_resolved';
+  return 'open';
+}
+
+export function isOpenIncidentWorkflow(incident = {}) {
+  return deriveIncidentWorkflowStatus(incident) === 'open';
+}
+
 export function coerceNotificationPolicy(policy = {}) {
   const normalized = getDefaultNotificationPolicy();
 
@@ -200,7 +240,7 @@ async function findMatchingOpenIncident(primaryCrcId, eventKey) {
 
   const candidates = incidentSnapshot.docs
     .map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }))
-    .filter((incident) => String(incident.status || 'open').trim().toLowerCase() !== 'resolved')
+    .filter((incident) => !isAeClinicallyResolvedIncident(incident))
     .sort((left, right) => {
       const leftTime = new Date(left.updated_at || left.created_at || 0).getTime();
       const rightTime = new Date(right.updated_at || right.created_at || 0).getTime();
@@ -303,7 +343,6 @@ export async function upsertSafetyIncident({
     const updatePayload = {
       updated_at: nowIso,
       last_event_at: nowIso,
-      status: 'open',
       incident_type: finalIncidentType,
       severity: updatedSeverity,
       urgency: routingSnapshot.urgency,
@@ -328,6 +367,10 @@ export async function upsertSafetyIncident({
       patient_count: mergedPatients.length,
       report_count: mergedReports.length,
     };
+    updatePayload.status = deriveIncidentWorkflowStatus({
+      ...matchedIncident,
+      ...updatePayload,
+    });
 
     await updateDoc(doc(db, 'incident_records', matchedIncident.id), updatePayload);
 
@@ -345,6 +388,8 @@ export async function upsertSafetyIncident({
     severity: normalizedSeverity,
     urgency: routingSnapshot.urgency,
     status: 'open',
+    ae_documentation_status: 'pending',
+    ae_clinical_status: 'ongoing',
     created_at: nowIso,
     updated_at: nowIso,
     last_event_at: nowIso,
@@ -402,7 +447,7 @@ export async function syncPatientEmergencyToIncident({
 
 export function getIncidentDueState(incident) {
   if (!incident) return 'unknown';
-  if (incident.status === 'resolved') return 'resolved';
+  if (!isOpenIncidentWorkflow(incident)) return deriveIncidentWorkflowStatus(incident);
 
   const dueAt = incident.due_at ? new Date(incident.due_at).getTime() : null;
   if (!dueAt) return 'untracked';
@@ -436,11 +481,11 @@ function getIncidentEventKeys(incident = {}) {
   );
 }
 
-function shouldCloseAlertForResolvedIncident(alert = {}, incidentEventKeys = new Set()) {
+function shouldMarkAlertForResolvedIncident(alert = {}, incidentEventKeys = new Set()) {
   const alertType = String(alert.type || '').trim().toLowerCase();
   const alertStatus = String(alert.status || '').trim().toLowerCase();
   if (alertType === 'message') return false;
-  if (['read', 'resolved', 'closed', 'documented'].includes(alertStatus) || alert.threadClosed) return false;
+  if (['read', 'resolved', 'closed'].includes(alertStatus)) return false;
 
   const alertEventKeys = [
     alert.reason,
@@ -487,7 +532,7 @@ async function collectAlertRefsForIncidentResolution(incidentId, incident = {}) 
         query(alertsRef, orderBy('timestamp', 'desc'), limit(50))
       );
       recentSnapshot.docs.forEach((entry) => {
-        if (shouldCloseAlertForResolvedIncident(entry.data(), incidentEventKeys)) {
+        if (shouldMarkAlertForResolvedIncident(entry.data(), incidentEventKeys)) {
           alertRefsByPath.set(entry.ref.path, entry.ref);
         }
       });
@@ -673,34 +718,83 @@ export async function ensureIncidentAlertThread(incident, linkedPatient, crcMeta
   return alertRef.path;
 }
 
-export async function resolveIncident(incidentId, crcMeta = {}) {
+function buildIncidentStatusPatch(incident = {}, patch = {}) {
+  const nextIncident = {
+    ...incident,
+    ...patch,
+  };
+
+  return {
+    ...patch,
+    status: deriveIncidentWorkflowStatus(nextIncident),
+  };
+}
+
+export async function documentIncidentAe(incidentId, crcMeta = {}) {
+  const nowIso = new Date().toISOString();
+  const incidentRef = doc(db, 'incident_records', incidentId);
+  const incidentSnapshot = await getDoc(incidentRef);
+  const incident = incidentSnapshot.exists() ? incidentSnapshot.data() : {};
+  const alertRefsToDocument = await collectAlertRefsForIncidentResolution(incidentId, incident);
+  const patch = buildIncidentStatusPatch(incident, {
+    ae_documentation_status: 'documented',
+    ae_documented_at: nowIso,
+    ae_documented_by: crcMeta.uid || null,
+    ae_documented_by_name: crcMeta.name || crcMeta.email || null,
+  });
+  const batch = writeBatch(db);
+
+  batch.update(incidentRef, {
+    ...patch,
+    updated_at: nowIso,
+  });
+
+  alertRefsToDocument.forEach((alertRef) => {
+    batch.set(alertRef, {
+      ae_documentation_status: 'documented',
+      ae_documented_at: nowIso,
+      ae_documented_by: crcMeta.uid || null,
+      ae_documented_by_name: crcMeta.name || crcMeta.email || null,
+      updated_at: nowIso,
+    }, { merge: true });
+  });
+
+  await batch.commit();
+}
+
+export async function resolveIncidentAe(incidentId, crcMeta = {}) {
   const nowIso = new Date().toISOString();
   const incidentRef = doc(db, 'incident_records', incidentId);
   const incidentSnapshot = await getDoc(incidentRef);
   const incident = incidentSnapshot.exists() ? incidentSnapshot.data() : {};
   const alertRefsToResolve = await collectAlertRefsForIncidentResolution(incidentId, incident);
+  const patch = buildIncidentStatusPatch(incident, {
+    ae_clinical_status: 'resolved',
+    ae_resolved_at: nowIso,
+    ae_resolved_by: crcMeta.uid || null,
+    ae_resolved_by_name: crcMeta.name || crcMeta.email || null,
+  });
   const batch = writeBatch(db);
 
   batch.update(incidentRef, {
-    status: 'resolved',
-    resolved_at: nowIso,
-    resolved_by: crcMeta.uid || null,
-    resolved_by_name: crcMeta.name || crcMeta.email || null,
+    ...patch,
     updated_at: nowIso,
   });
 
   alertRefsToResolve.forEach((alertRef) => {
-      batch.set(alertRef, {
-        status: 'resolved',
-        threadClosed: true,
-        resolvedAt: nowIso,
-        resolvedBy: crcMeta.uid || null,
-        resolvedByName: crcMeta.name || crcMeta.email || null,
-      }, { merge: true });
+    batch.set(alertRef, {
+      ae_clinical_status: 'resolved',
+      ae_resolved_at: nowIso,
+      ae_resolved_by: crcMeta.uid || null,
+      ae_resolved_by_name: crcMeta.name || crcMeta.email || null,
+      updated_at: nowIso,
+    }, { merge: true });
   });
 
   await batch.commit();
 }
+
+export const resolveIncident = resolveIncidentAe;
 
 export async function hydrateIncidentPatientContext(incident) {
   const linkedPatients = incident?.linked_patients || [];

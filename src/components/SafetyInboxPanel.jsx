@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getIncidentDueState } from '../services/incidentService';
+import {
+  deriveIncidentWorkflowStatus,
+  getIncidentDueState,
+  isOpenIncidentWorkflow,
+} from '../services/incidentService';
 import WindowPaginationControls from './WindowPaginationControls';
 
 function dueLabel(state) {
@@ -9,7 +13,13 @@ function dueLabel(state) {
     case 'due_24h':
       return 'Due < 24h';
     case 'resolved':
+      return 'Documented & Resolved';
+    case 'documented':
       return 'Documented';
+    case 'ae_resolved':
+      return 'AE Resolved';
+    case 'documented_resolved':
+      return 'Documented & Resolved';
     case 'scheduled':
       return 'Scheduled';
     default:
@@ -21,17 +31,24 @@ function historyStatusLabel(status) {
   return status === 'unread' ? 'Active' : 'Documented';
 }
 
-function incidentStatusLabel(status) {
-  return String(status || '').trim().toLowerCase() === 'resolved' ? 'resolved' : 'open';
-}
-
-function isOpenIncidentStatus(status) {
-  return String(status || '').trim().toLowerCase() !== 'resolved';
+function incidentStatusLabel(incident) {
+  switch (deriveIncidentWorkflowStatus(incident)) {
+    case 'documented':
+      return 'AE documented';
+    case 'ae_resolved':
+      return 'AE resolved';
+    case 'documented_resolved':
+      return 'Documented & resolved';
+    default:
+      return 'open';
+  }
 }
 
 const SAFETY_TABS = [
   { id: 'open', label: 'Open' },
-  { id: 'resolved', label: 'Documented' },
+  { id: 'documented', label: 'Documented' },
+  { id: 'ae_resolved', label: 'AE Resolved' },
+  { id: 'documented_resolved', label: 'Documented & Resolved' },
   { id: 'history', label: 'History' },
 ];
 
@@ -43,6 +60,7 @@ const SafetyInboxPanel = ({
   onEnablePush,
   onOpenIncident,
   onOpenAlertThread,
+  onDocumentIncident,
   onResolveIncident,
   initialTab = 'open',
   onTabChange,
@@ -70,6 +88,7 @@ const SafetyInboxPanel = ({
   const [historyDate, setHistoryDate] = useState('');
   const [historyStatusFilter, setHistoryStatusFilter] = useState('all');
   const [historySort, setHistorySort] = useState({ key: 'timestamp', direction: 'desc' });
+  const [documentingIncidentId, setDocumentingIncidentId] = useState('');
   const [resolvingIncidentId, setResolvingIncidentId] = useState('');
 
   useEffect(() => {
@@ -102,16 +121,18 @@ const SafetyInboxPanel = ({
       const matchesPatient = selectedPatient
         ? (incident.linked_patient_ids || []).includes(selectedPatient.id)
         : true;
-      const matchesTab = activeTab === 'resolved'
-        ? !isOpenIncidentStatus(incident.status)
-        : isOpenIncidentStatus(incident.status);
+      const workflowStatus = deriveIncidentWorkflowStatus(incident);
+      const matchesTab = activeTab === workflowStatus;
       const matchesSeverity = severityFilter === 'all' ? true : incident.severity === severityFilter;
       const matchesStatus =
+        activeTab !== 'open'
+          ? true
+          :
         incidentStatusFilter === 'all'
           ? true
           : incidentStatusFilter === 'open'
-            ? isOpenIncidentStatus(incident.status)
-            : incident.status === incidentStatusFilter;
+            ? isOpenIncidentWorkflow(incident)
+            : deriveIncidentWorkflowStatus(incident) === incidentStatusFilter;
       const protocolName = incident.protocol_snapshot?.protocol_name || '';
       const matchesProtocol = protocolFilter
         ? protocolName.toLowerCase().includes(protocolFilter.toLowerCase())
@@ -182,10 +203,16 @@ const SafetyInboxPanel = ({
 
   const openCount = Number.isFinite(Number(incidentSummary?.openIncidents))
     ? Number(incidentSummary.openIncidents)
-    : patientScopedIncidents.filter((incident) => isOpenIncidentStatus(incident.status)).length;
-  const resolvedCount = Number.isFinite(Number(incidentSummary?.resolvedIncidents))
-    ? Number(incidentSummary.resolvedIncidents)
-    : patientScopedIncidents.filter((incident) => !isOpenIncidentStatus(incident.status)).length;
+    : patientScopedIncidents.filter((incident) => isOpenIncidentWorkflow(incident)).length;
+  const documentedCount = Number.isFinite(Number(incidentSummary?.documentedIncidents))
+    ? Number(incidentSummary.documentedIncidents)
+    : patientScopedIncidents.filter((incident) => deriveIncidentWorkflowStatus(incident) === 'documented').length;
+  const aeResolvedCount = Number.isFinite(Number(incidentSummary?.aeResolvedIncidents))
+    ? Number(incidentSummary.aeResolvedIncidents)
+    : patientScopedIncidents.filter((incident) => deriveIncidentWorkflowStatus(incident) === 'ae_resolved').length;
+  const documentedResolvedCount = Number.isFinite(Number(incidentSummary?.documentedResolvedIncidents))
+    ? Number(incidentSummary.documentedResolvedIncidents)
+    : patientScopedIncidents.filter((incident) => deriveIncidentWorkflowStatus(incident) === 'documented_resolved').length;
   const activeHistoryCount = Number.isFinite(Number(historySummary?.activeAlerts))
     ? Number(historySummary.activeAlerts)
     : patientScopedHistory.filter((alert) => alert.status === 'unread').length;
@@ -223,6 +250,25 @@ const SafetyInboxPanel = ({
     onOpenIncident?.(incident);
   };
 
+  const handleDocumentIncidentClick = async (event, incident) => {
+    event.stopPropagation();
+
+    if (!incident?.id || documentingIncidentId) {
+      return;
+    }
+
+    if (!window.confirm('Mark this AE case as documented by CRC? This does not mean the patient has clinically recovered.')) {
+      return;
+    }
+
+    setDocumentingIncidentId(incident.id);
+    try {
+      await onDocumentIncident?.(incident);
+    } finally {
+      setDocumentingIncidentId('');
+    }
+  };
+
   const handleResolveIncidentClick = async (event, incident) => {
     event.stopPropagation();
 
@@ -230,7 +276,7 @@ const SafetyInboxPanel = ({
       return;
     }
 
-    if (!window.confirm('Mark this active AE/emergency case as resolved?')) {
+    if (!window.confirm('Mark this AE as clinically resolved? Use this only when the patient adverse event has actually resolved.')) {
       return;
     }
 
@@ -254,7 +300,9 @@ const SafetyInboxPanel = ({
           >
             {tab.label}
             {tab.id === 'open' ? <span className="inbox-tabBadge">{openCount}</span> : null}
-            {tab.id === 'resolved' ? <span className="inbox-tabBadge">{resolvedCount}</span> : null}
+            {tab.id === 'documented' ? <span className="inbox-tabBadge">{documentedCount}</span> : null}
+            {tab.id === 'ae_resolved' ? <span className="inbox-tabBadge">{aeResolvedCount}</span> : null}
+            {tab.id === 'documented_resolved' ? <span className="inbox-tabBadge">{documentedResolvedCount}</span> : null}
             {tab.id === 'history' ? <span className="inbox-tabBadge">{activeHistoryCount}</span> : null}
           </button>
         ))}
@@ -413,7 +461,9 @@ const SafetyInboxPanel = ({
               <option value="overdue">Overdue</option>
               <option value="due_24h">Due within 24h</option>
               <option value="scheduled">Scheduled</option>
-              <option value="resolved">Documented</option>
+              <option value="documented">Documented</option>
+              <option value="ae_resolved">AE Resolved</option>
+              <option value="documented_resolved">Documented & Resolved</option>
             </select>
             <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
               <option value="all">All severities</option>
@@ -432,7 +482,7 @@ const SafetyInboxPanel = ({
                 <option value="open">Open</option>
               </select>
             ) : (
-              <div className="inbox-filterHint">Documented cases stay in the archive until reopened manually.</div>
+              <div className="inbox-filterHint">AE documentation and clinical resolution are tracked separately.</div>
             )}
           </div>
 
@@ -459,9 +509,7 @@ const SafetyInboxPanel = ({
             />
             {visibleIncidents.length === 0 ? (
               <div className="empty-panel">
-                {activeTab === 'resolved'
-                  ? 'No documented incidents match the current filters.'
-                  : 'No active incidents match the current filters.'}
+                No {SAFETY_TABS.find((tab) => tab.id === activeTab)?.label.toLowerCase() || 'safety'} cases match the current filters.
               </div>
             ) : (
               visibleIncidents.map((incident, rowIndex) => {
@@ -483,7 +531,7 @@ const SafetyInboxPanel = ({
                     <div className="incident-row__copy">
                       <div className="incident-row__top">
                         <strong>{incident.event_title}</strong>
-                        <span className="incident-row__status">{incidentStatusLabel(incident.status)}</span>
+                        <span className="incident-row__status">{incidentStatusLabel(incident)}</span>
                         {incident.compare_ready ? (
                           <span className="incident-row__group">compare {incident.patient_count}</span>
                         ) : null}
@@ -498,16 +546,28 @@ const SafetyInboxPanel = ({
                     </div>
                     <div className="incident-row__time">
                       <span>{new Date(incident.updated_at || incident.created_at).toLocaleString()}</span>
-                      {activeTab === 'open' && isOpenIncidentStatus(incident.status) ? (
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      {deriveIncidentWorkflowStatus(incident) !== 'documented_resolved' && deriveIncidentWorkflowStatus(incident) !== 'documented' ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-small incident-row__resolveButton"
+                          onClick={(event) => handleDocumentIncidentClick(event, incident)}
+                          disabled={documentingIncidentId === incident.id}
+                        >
+                          {documentingIncidentId === incident.id ? 'Documenting...' : 'AE Documented'}
+                        </button>
+                      ) : null}
+                      {deriveIncidentWorkflowStatus(incident) !== 'documented_resolved' && deriveIncidentWorkflowStatus(incident) !== 'ae_resolved' ? (
                         <button
                           type="button"
                           className="btn btn-success btn-small incident-row__resolveButton"
                           onClick={(event) => handleResolveIncidentClick(event, incident)}
                           disabled={resolvingIncidentId === incident.id}
                         >
-                          {resolvingIncidentId === incident.id ? 'Resolving...' : 'Resolve'}
+                          {resolvingIncidentId === incident.id ? 'Resolving...' : 'AE Resolved'}
                         </button>
                       ) : null}
+                      </div>
                     </div>
                   </div>
                 );
