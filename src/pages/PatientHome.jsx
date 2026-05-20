@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { addDoc, collection, doc, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
 import { analyzeVitals } from '../components/EmergencyHandler';
@@ -10,6 +10,56 @@ import TopNavbar from '../components/TopNavbar';
 import { subscribeToAlertHistory } from '../services/alertService';
 import { subscribeToAppointments, updateAppointmentStatus } from '../services/appointmentService';
 import { getStatusText } from '../utils';
+
+const PATIENT_INCIDENT_CONTEXT_LIMIT = 50;
+
+function getPatientContextTimeMs(value) {
+  if (!value) return 0;
+  if (typeof value?.toDate === 'function') {
+    const converted = value.toDate();
+    return Number.isNaN(converted?.getTime?.()) ? 0 : converted.getTime();
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function sortByRecentIncidentTime(rows = []) {
+  return [...rows].sort((left, right) => {
+    const leftTime = getPatientContextTimeMs(left.updated_at || left.created_at);
+    const rightTime = getPatientContextTimeMs(right.updated_at || right.created_at);
+    return rightTime - leftTime;
+  });
+}
+
+function sanitizePatientAlertForPrompt(alert = {}) {
+  return {
+    id: alert.id || null,
+    type: alert.type || null,
+    reason: alert.reason || null,
+    message: alert.message || null,
+    status: alert.status || null,
+    timestamp: alert.timestamp || null,
+    threadClosed: Boolean(alert.threadClosed),
+    resolvedAt: alert.resolvedAt || alert.resolved_at || null,
+    lastSender: alert.lastSender || alert.senderRole || null,
+    source_incident_id: alert.source_incident_id || null,
+  };
+}
+
+function sanitizePatientIncidentForPrompt(incident = {}) {
+  return {
+    id: incident.id || null,
+    event_key: incident.event_key || null,
+    event_title: incident.event_title || null,
+    incident_type: incident.incident_type || null,
+    severity: incident.severity || null,
+    status: incident.status || null,
+    created_at: incident.created_at || null,
+    updated_at: incident.updated_at || null,
+    resolved_at: incident.resolved_at || incident.resolvedAt || null,
+    linked_alert_paths: Array.isArray(incident.linked_alert_paths) ? incident.linked_alert_paths : [],
+  };
+}
 
 const PatientHome = ({ user, onLogout }) => {
   const [temp, setTemp] = useState('');
@@ -39,6 +89,7 @@ const PatientHome = ({ user, onLogout }) => {
   const [triggerReason, setTriggerReason] = useState(null);
   const [activeEmergencies, setActiveEmergencies] = useState([]);
   const [allAlerts, setAllAlerts] = useState([]); 
+  const [patientIncidents, setPatientIncidents] = useState([]);
   const [notifications, setNotifications] = useState([]); 
   const [selectedChatAlert, setSelectedChatAlert] = useState(null);
 
@@ -69,6 +120,28 @@ const PatientHome = ({ user, onLogout }) => {
     });
     
     return () => { unsubUser(); unsubHistory(); unsubAppt(); unsubAlerts(); };
+  }, [user.uid]);
+
+  useEffect(() => {
+    const incidentQuery = query(
+      collection(db, 'incident_records'),
+      where('linked_patient_ids', 'array-contains', user.uid),
+      limit(PATIENT_INCIDENT_CONTEXT_LIMIT)
+    );
+
+    const unsubscribe = onSnapshot(
+      incidentQuery,
+      (snapshot) => {
+        const rows = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+        setPatientIncidents(sortByRecentIncidentTime(rows));
+      },
+      (error) => {
+        console.error('Patient incident context subscription failed:', error);
+        setPatientIncidents([]);
+      }
+    );
+
+    return () => unsubscribe();
   }, [user.uid]);
 
   const bmi = useMemo(() => {
@@ -132,6 +205,14 @@ const PatientHome = ({ user, onLogout }) => {
 
   const show = (key) => requiredVitals.includes(key);
   const stablePatientData = useMemo(() => ({ id: user.uid, appointments, vitals: history }), [user.uid, appointments, history]);
+  const patientAlertsForPrompt = useMemo(
+    () => allAlerts.map((alert) => sanitizePatientAlertForPrompt(alert)),
+    [allAlerts]
+  );
+  const patientIncidentsForPrompt = useMemo(
+    () => patientIncidents.map((incident) => sanitizePatientIncidentForPrompt(incident)),
+    [patientIncidents]
+  );
 
   const handleHomeClick = () => {
     window.scrollTo({top:0, behavior:'smooth'});
@@ -221,6 +302,10 @@ const PatientHome = ({ user, onLogout }) => {
         userId={user.uid} 
         userNickname={nickname} 
         patientData={stablePatientData} 
+        patientVitals={history}
+        patientAppointments={appointments}
+        patientAlerts={patientAlertsForPrompt}
+        patientIncidents={patientIncidentsForPrompt}
         protocolUrl={protocolUrl} 
         activeProtocolName={protocolName} 
         onEmergencyTrigger={handleAIAlert} 
