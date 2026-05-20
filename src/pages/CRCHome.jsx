@@ -1351,13 +1351,16 @@ export default function CRCHome({ user, onLogout }) {
     : 0;
 
   const getStatusStyle = (status) => {
-    switch (status) {
+    switch (String(status || '').trim().toLowerCase()) {
+      case 'accepted':
       case 'confirmed':
         return { color: '#1f7a45', fontWeight: 'bold' };
+      case 'missed':
+        return { color: '#b42318', fontWeight: 'bold' };
       case 'reschedule_requested':
         return { color: '#9a6200', fontWeight: 'bold' };
       case 'pending':
-        return { color: '#b42318', fontWeight: 'bold' };
+        return { color: '#9a6200', fontWeight: 'bold' };
       case 'completed':
         return { color: '#64748b', fontWeight: 'bold', textDecoration: 'line-through' };
       default:
@@ -2196,7 +2199,7 @@ export default function CRCHome({ user, onLogout }) {
                                 <div className="section-header section-header--tight">
                                   <div>
                                     <h4>Upcoming Appointments</h4>
-                                    <div className="section-note">Keep the next confirmed or pending visits visible while planning follow-up.</div>
+                                    <div className="section-note">Keep the next accepted or pending visits visible while planning follow-up.</div>
                                   </div>
                                 </div>
                                 {coordinationAppointmentsPreview.length ? (
@@ -2483,7 +2486,7 @@ export default function CRCHome({ user, onLogout }) {
                                     <div>
                                       <h4>Appointments</h4>
                                       <div className="section-note">
-                                        Schedule, inspect AI date suggestions, and complete confirmed visits from one coordination surface.
+                                        Schedule, inspect AI date suggestions, and complete accepted visits from one coordination surface.
                                       </div>
                                     </div>
                                   </div>
@@ -2527,7 +2530,7 @@ export default function CRCHome({ user, onLogout }) {
                                             {getStatusText(appointment.status)}
                                           </div>
                                         </div>
-                                        {appointment.status === 'confirmed' ? (
+                                        {String(appointment.status || '').trim().toLowerCase() === 'accepted' ? (
                                           <button onClick={() => handleMarkComplete(appointment.id)} className="btn btn-success btn-small">
                                             Mark complete
                                           </button>

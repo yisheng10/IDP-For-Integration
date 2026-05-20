@@ -78,17 +78,41 @@ export const suggestAppointmentDate = async (protocolUrl, appointmentHistory) =>
 export const purgeOldAppointments = async (userId) => {
   try {
     const now = new Date();
-    const q = query(collection(db, "users", userId, "appointments"), where("status", "==", "pending"));
-    const snapshot = await getDocs(q);
+    const pendingQuery = query(
+      collection(db, "users", userId, "appointments"),
+      where("status", "==", "pending"),
+      limit(50)
+    );
+    const acceptedQuery = query(
+      collection(db, "users", userId, "appointments"),
+      where("status", "==", "accepted"),
+      limit(50)
+    );
+    const [pendingSnapshot, acceptedSnapshot] = await Promise.all([
+      getDocs(pendingQuery),
+      getDocs(acceptedQuery),
+    ]);
     const batch = writeBatch(db);
-    let count = 0;
+    let missedCount = 0;
+    let completedCount = 0;
 
-    snapshot.docs.forEach((doc) => {
+    pendingSnapshot.docs.forEach((doc) => {
       if (new Date(doc.data().datetime) < now) {
-        batch.delete(doc.ref);
-        count++;
+        batch.update(doc.ref, { status: 'missed' });
+        missedCount++;
       }
     });
-    if (count > 0) { await batch.commit(); console.log(`Purged ${count} pending appts.`); }
+
+    acceptedSnapshot.docs.forEach((doc) => {
+      if (new Date(doc.data().datetime) < now) {
+        batch.update(doc.ref, { status: 'completed' });
+        completedCount++;
+      }
+    });
+
+    if (missedCount > 0 || completedCount > 0) {
+      await batch.commit();
+      console.log(`Updated expired appointments. missed=${missedCount} completed=${completedCount}`);
+    }
   } catch (error) { console.error(error); }
 };
