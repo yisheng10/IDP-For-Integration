@@ -69,6 +69,22 @@ const LiveChatWidget = ({
   const [chatInput, setChatInput] = useState("");
   const [isResolved, setIsResolved] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [windowFrame, setWindowFrame] = useState(() => {
+    const width = 560;
+    const height = 620;
+    if (typeof window === 'undefined') {
+      return { left: 24, top: 24, width, height };
+    }
+
+    const safeWidth = Math.min(width, Math.max(340, window.innerWidth - 32));
+    const safeHeight = Math.min(height, Math.max(420, window.innerHeight - 32));
+    return {
+      left: Math.max(16, window.innerWidth - safeWidth - 22),
+      top: Math.max(16, window.innerHeight - safeHeight - 22),
+      width: safeWidth,
+      height: safeHeight,
+    };
+  });
 
   // --- NEW: FILTER STATES ---
   const [searchText, setSearchText] = useState(""); // For Name, ID, Title
@@ -80,6 +96,79 @@ const LiveChatWidget = ({
   const isControlled = typeof controlledOpen === 'boolean';
   const isOpen = isControlled ? controlledOpen : internalIsOpen;
 
+  const clampWindowFrame = useCallback((nextFrame) => {
+    if (typeof window === 'undefined') return nextFrame;
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const minWidth = Math.min(340, Math.max(280, viewportWidth - 24));
+    const minHeight = Math.min(390, Math.max(320, viewportHeight - 24));
+    const maxWidth = Math.max(minWidth, viewportWidth - 16);
+    const maxHeight = Math.max(minHeight, viewportHeight - 16);
+    const width = Math.min(maxWidth, Math.max(minWidth, nextFrame.width));
+    const height = Math.min(maxHeight, Math.max(minHeight, nextFrame.height));
+    const left = Math.min(Math.max(8, nextFrame.left), Math.max(8, viewportWidth - width - 8));
+    const top = Math.min(Math.max(8, nextFrame.top), Math.max(8, viewportHeight - height - 8));
+
+    return { left, top, width, height };
+  }, []);
+
+  const handleWindowDragStart = useCallback((event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest('button, input, textarea, select, a')) return;
+
+    event.preventDefault();
+    const startFrame = windowFrame;
+    const startX = event.clientX;
+    const startY = event.clientY;
+
+    const handleMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      setWindowFrame(clampWindowFrame({
+        ...startFrame,
+        left: startFrame.left + deltaX,
+        top: startFrame.top + deltaY,
+      }));
+    };
+
+    const stopDragging = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', stopDragging);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', stopDragging);
+  }, [clampWindowFrame, windowFrame]);
+
+  const handleWindowResizeStart = useCallback((event) => {
+    if (event.button !== 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const startFrame = windowFrame;
+    const startX = event.clientX;
+    const startY = event.clientY;
+
+    const handleMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      setWindowFrame(clampWindowFrame({
+        ...startFrame,
+        width: startFrame.width + deltaX,
+        height: startFrame.height + deltaY,
+      }));
+    };
+
+    const stopResizing = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', stopResizing);
+  }, [clampWindowFrame, windowFrame]);
+
   const setOpenState = useCallback((nextOpen) => {
     if (!isControlled) {
       setInternalIsOpen(nextOpen);
@@ -90,6 +179,15 @@ const LiveChatWidget = ({
   useEffect(() => {
     if (isOpenInitially && !isControlled) setInternalIsOpen(true);
   }, [isControlled, isOpenInitially]);
+
+  useEffect(() => {
+    const handleViewportResize = () => {
+      setWindowFrame((current) => clampWindowFrame(current));
+    };
+
+    window.addEventListener('resize', handleViewportResize);
+    return () => window.removeEventListener('resize', handleViewportResize);
+  }, [clampWindowFrame]);
 
   // 1. Handle "Trigger Reason"
   useEffect(() => {
@@ -286,29 +384,24 @@ const LiveChatWidget = ({
     const summary = activeAlertData?.safety_case_summary;
     if (role !== 'crc' || viewMode !== 'chat' || !summary) return null;
 
-    const detailRows = [
-      ['Patient', summary.patientName || activeAlertData?.patientName || callTargetName],
-      ['Severity', summary.severity],
-      ['Case type', summary.incidentType],
-      ['Protocol', summary.protocolName],
-      ['Coverage', summary.protocolCoverage],
-      ['Reports', summary.reportCount ? String(summary.reportCount) : '0'],
-      ['Latest report', summary.latestReportAt || 'Not recorded'],
-    ].filter(([, value]) => String(value || '').trim());
+    const metaItems = [
+      summary.severity ? `Severity: ${summary.severity}` : '',
+      summary.incidentType ? `Type: ${summary.incidentType}` : '',
+      summary.protocolName ? `Protocol: ${summary.protocolName}` : '',
+      summary.protocolCoverage ? `Coverage: ${summary.protocolCoverage}` : '',
+      summary.reportCount ? `Reports: ${summary.reportCount}` : '',
+      summary.latestReportAt ? `Latest: ${summary.latestReportAt}` : '',
+    ].filter((value) => String(value || '').trim());
 
     return (
       <section style={styles.caseSummaryCard} aria-label="Safety case summary">
         <div style={styles.caseSummaryTopRow}>
           <span style={styles.caseSummaryBadge}>Safety AE case</span>
-          <strong style={styles.caseSummaryPatient}>{summary.patientName || activeAlertData?.patientName || callTargetName}</strong>
         </div>
         <h3 style={styles.caseSummaryTitle}>{summary.title || activeAlertData?.reason || 'Safety follow-up'}</h3>
-        <div style={styles.caseSummaryGrid}>
-          {detailRows.map(([label, value]) => (
-            <div key={label} style={styles.caseSummaryMetric}>
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </div>
+        <div style={styles.caseSummaryMeta}>
+          {metaItems.map((value) => (
+            <span key={value} style={styles.caseSummaryMetaItem}>{value}</span>
           ))}
         </div>
         <div style={styles.caseSummarySection}>
@@ -390,9 +483,21 @@ const LiveChatWidget = ({
 
   return (
     <div style={styles.modalContainer}>
-      <div style={styles.chatWindow}>
+      <div
+        style={{
+          ...styles.chatWindow,
+          left: `${windowFrame.left}px`,
+          top: `${windowFrame.top}px`,
+          width: `${windowFrame.width}px`,
+          height: `${windowFrame.height}px`,
+        }}
+      >
         
-        <div style={{...styles.header, backgroundColor: isResolved ? '#666' : (role==='crc'?'#007bff':'#d32f2f')}}>
+        <div
+          style={{...styles.header, backgroundColor: isResolved ? '#666' : (role==='crc'?'#007bff':'#d32f2f')}}
+          onMouseDown={handleWindowDragStart}
+          title="Drag to move"
+        >
           <div>
             {viewMode === 'list' && (
               <span style={styles.headerTitle}>
@@ -529,6 +634,11 @@ const LiveChatWidget = ({
             </form>
           ) : <div style={{padding: '15px', background: '#f5f5f5', borderTop: '1px solid #ddd', textAlign: 'center', color: '#999'}}>🔒 <i>Case Resolved - Read Only</i></div>
         )}
+        <div
+          style={styles.resizeHandle}
+          onMouseDown={handleWindowResizeStart}
+          aria-hidden="true"
+        />
       </div>
     </div>
   );
@@ -538,13 +648,13 @@ const styles = {
   // ... (Previous styles) ...
   fab: { position: 'fixed', bottom: '30px', right: '20px', backgroundColor: '#007bff', padding: '15px 20px', borderRadius: '30px', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', cursor: 'pointer', zIndex: 9999, display: 'flex', alignItems: 'center' },
   fabText: { color: 'white', fontWeight: 'bold', fontSize: '16px' },
-  modalContainer: { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', padding: '0 22px 22px', pointerEvents: 'none' },
-  chatWindow: { width: 'min(640px, calc(100vw - 32px))', height: 'min(760px, calc(100dvh - 42px))', backgroundColor: 'white', borderRadius: '18px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(15, 23, 42, 0.28)', border: '1px solid rgba(15, 96, 155, 0.18)', pointerEvents: 'auto' },
-  header: { padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' },
-  headerTitle: { fontWeight: 'bold', fontSize: '18px', display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
+  modalContainer: { position: 'fixed', inset: 0, zIndex: 10000, pointerEvents: 'none' },
+  chatWindow: { position: 'fixed', backgroundColor: 'white', borderRadius: '14px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 18px 48px rgba(15, 23, 42, 0.26)', border: '1px solid rgba(15, 96, 155, 0.18)', pointerEvents: 'auto' },
+  header: { padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white', cursor: 'move', userSelect: 'none', gap: '10px' },
+  headerTitle: { fontWeight: 'bold', fontSize: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
   headerPatientName: { fontSize: '13px', fontWeight: 700, backgroundColor: 'rgba(255,255,255,0.18)', color: 'white', borderRadius: '999px', padding: '4px 9px' },
-  iconBtn: { minWidth: '36px', minHeight: '36px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '10px', color: 'white', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
-  resolveButton: { minHeight: '36px', border: 'none', backgroundColor: 'white', color: '#147a3f', borderRadius: '10px', padding: '0 12px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' },
+  iconBtn: { minWidth: '32px', minHeight: '32px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '9px', color: 'white', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+  resolveButton: { minHeight: '32px', border: 'none', backgroundColor: 'white', color: '#147a3f', borderRadius: '9px', padding: '0 11px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' },
   body: { flex: 1, backgroundColor: '#f5f7fa', overflowY: 'auto' },
   centerContent: { padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   promptText: { fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' },
@@ -557,25 +667,25 @@ const styles = {
   alertReason: { fontWeight: 'bold', fontSize: '16px', marginBottom: '5px' },
   alertDate: { color: '#666', fontSize: '12px' },
   arrow: { fontSize: '20px', color: '#ccc' },
-  msgRow: { marginBottom: '10px', display: 'flex' },
-  msgBubble: { maxWidth: '80%', padding: '10px 15px', borderRadius: '12px', wordWrap: 'break-word' },
+  msgRow: { marginBottom: '8px', display: 'flex' },
+  msgBubble: { maxWidth: '82%', padding: '8px 11px', borderRadius: '10px', wordWrap: 'break-word', lineHeight: 1.45 },
   msgMe: { backgroundColor: '#007bff', borderBottomRightRadius: 0, color: 'white' },
   msgThem: { backgroundColor: '#e0e0e0', borderBottomLeftRadius: 0, color: 'black' },
   msgName: { fontSize: '10px', marginBottom: '4px', opacity: 0.8 },
-  caseSummaryCard: { marginBottom: '14px', padding: '14px', borderRadius: '16px', border: '1px solid #cfe2f3', backgroundColor: '#ffffff', boxShadow: '0 10px 24px rgba(15, 96, 155, 0.08)' },
-  caseSummaryTopRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' },
-  caseSummaryBadge: { display: 'inline-flex', alignItems: 'center', minHeight: '24px', padding: '0 9px', borderRadius: '999px', backgroundColor: '#e8f4ff', color: '#0f609b', fontSize: '11px', fontWeight: 800, letterSpacing: '0.02em', textTransform: 'uppercase' },
-  caseSummaryPatient: { color: '#14324a', fontSize: '14px' },
-  caseSummaryTitle: { margin: '0 0 12px', color: '#12324a', fontSize: '18px', lineHeight: 1.35 },
-  caseSummaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginBottom: '12px' },
-  caseSummaryMetric: { padding: '9px 10px', borderRadius: '12px', backgroundColor: '#f6f9fc', border: '1px solid #e1edf7', display: 'grid', gap: '3px' },
-  caseSummarySection: { paddingTop: '10px', borderTop: '1px solid #e6eef7', marginTop: '10px' },
-  caseSummarySectionLabel: { display: 'block', color: '#5f7488', fontSize: '11px', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '5px' },
-  caseSummaryText: { margin: 0, color: '#14324a', fontSize: '14px', lineHeight: 1.55 },
-  caseSummaryAction: { marginTop: '12px', padding: '11px 12px', borderRadius: '12px', backgroundColor: '#eef8f2', color: '#17603b', border: '1px solid #cfeada', display: 'grid', gap: '4px', lineHeight: 1.45 },
-  inputArea: { display: 'flex', padding: '10px', borderTop: '1px solid #eee', backgroundColor: 'white' },
-  input: { flex: 1, border: '1px solid #ddd', borderRadius: '20px', padding: '10px 15px', outline: 'none' },
-  sendBtn: { width: '40px', height: '40px', backgroundColor: '#333', borderRadius: '50%', border: 'none', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginLeft: '5px', cursor: 'pointer' },
+  caseSummaryCard: { marginBottom: '10px', padding: '10px 12px', borderRadius: '12px', border: '1px solid #cfe2f3', backgroundColor: '#ffffff', boxShadow: '0 8px 18px rgba(15, 96, 155, 0.06)' },
+  caseSummaryTopRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' },
+  caseSummaryBadge: { display: 'inline-flex', alignItems: 'center', minHeight: '22px', padding: '0 8px', borderRadius: '999px', backgroundColor: '#e8f4ff', color: '#0f609b', fontSize: '10px', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase' },
+  caseSummaryTitle: { margin: '0 0 7px', color: '#12324a', fontSize: '16px', lineHeight: 1.25 },
+  caseSummaryMeta: { display: 'flex', flexWrap: 'wrap', gap: '5px 7px', marginBottom: '8px' },
+  caseSummaryMetaItem: { display: 'inline-flex', alignItems: 'center', maxWidth: '100%', padding: '3px 7px', borderRadius: '999px', backgroundColor: '#f4f8fc', border: '1px solid #dbe9f4', color: '#294966', fontSize: '12px', fontWeight: 650, lineHeight: 1.25 },
+  caseSummarySection: { paddingTop: '7px', borderTop: '1px solid #e6eef7', marginTop: '7px' },
+  caseSummarySectionLabel: { display: 'block', color: '#5f7488', fontSize: '10px', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase', marginBottom: '3px' },
+  caseSummaryText: { margin: 0, color: '#14324a', fontSize: '13px', lineHeight: 1.45 },
+  caseSummaryAction: { marginTop: '8px', padding: '8px 9px', borderRadius: '10px', backgroundColor: '#eef8f2', color: '#17603b', border: '1px solid #cfeada', display: 'grid', gap: '3px', fontSize: '13px', lineHeight: 1.35 },
+  inputArea: { display: 'flex', padding: '8px', borderTop: '1px solid #eee', backgroundColor: 'white' },
+  input: { flex: 1, border: '1px solid #ddd', borderRadius: '18px', padding: '9px 13px', outline: 'none' },
+  sendBtn: { width: '36px', height: '36px', backgroundColor: '#333', borderRadius: '50%', border: 'none', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginLeft: '5px', cursor: 'pointer' },
+  resizeHandle: { position: 'absolute', right: 0, bottom: 0, width: '18px', height: '18px', cursor: 'nwse-resize', background: 'linear-gradient(135deg, transparent 0 45%, rgba(15, 96, 155, 0.28) 46% 55%, transparent 56% 65%, rgba(15, 96, 155, 0.42) 66% 75%, transparent 76%)' },
   
   // NEW STYLES FOR FILTERS
   filterContainer: { display: 'flex', gap: '8px', marginBottom: '15px', padding: '0 5px' },
