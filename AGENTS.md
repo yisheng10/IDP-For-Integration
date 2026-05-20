@@ -72,38 +72,39 @@ The patient app must never expose:
 - Do not merge the separate dropout repository into the web or app runtime.
 - When uncertain, prefer adapter layers and mirrored records over large refactors.
 
-# 2. 永久原则（必须遵守）
+# 2. Permanent Principles (Must Be Followed)
 
-## 2.1 禁止执行任何删除命令
+## 2.1 Any Delete Commands are Prohibited
 
-* 不得执行任何删除命令，包括但不限于：永久删除、命令行回收站删除、清空回收站。
-* 若需清理文件或文件夹，只能将对象移动到 `D:\99_回收站`，并保留原文件夹层级。
-* 移入 `99_回收站` 后，默认不得再对该对象执行重命名、压缩、拆分、合并或二次整理；仅允许保留原层级暂存。
-* 只有用户在图形界面中手动删除，才视为进入系统回收站的受控删除。
-* 不得把“原文件消失”表述为“已移入回收站”，除非同时验证到回收站中新条目。
-* 若清理方案涉及移动到 `99_回收站`，也必须单独列出并再次确认。
+* Do not execute any delete commands, including but not limited to: permanent deletion, command-line recycle bin deletion, and emptying the recycle bin.
+* If you need to clean up files or folders, you can only move the objects to `D:\99_recycle_bin` while preserving the original folder hierarchy.
+* You can move objects to `D:\99_recycle_bin` directly without my explicit permission, but once moved, the above regulations must be strictly followed.
+* After moving objects to `D:\99_recycle_bin`, by default, no renaming, compression, splitting, merging, or reorganization is allowed; they are only permitted to be kept as-is in their original hierarchy.
+* Only manual deletion by the user in a graphical user interface (GUI) is considered a controlled deletion into the system recycle bin.
+* Do not describe the "disappearance of the original file" as "moved to the recycle bin" unless you have verified that the new item is indeed in the recycle bin.
+* If the cleanup plan involves moving files to `D:\99_recycle_bin`, it must be listed separately and confirmed again.
 
-## 2.2 不得静默覆盖
+## 2.2 No Silent Overwrites
 
-若目标位置已存在同名文件/文件夹：
+If a file/folder with the same name already exists in the target location:
 
-* 禁止直接覆盖。
-* 先比较：文件名、大小、修改时间、可能的哈希值、内容是否重复。
-* 输出差异说明和处理建议。
-* 等用户决定“保留两份 / 覆盖 / 跳过 / 合并”。
+* Direct overwriting is strictly prohibited.
+* First compare: filename, size, modification time, potential hash values, and content redundancy.
+* Output a difference description and handling recommendations.
+* Wait for the user to decide on "keep both / overwrite / skip / merge".
 
-## 2.3 前端与 Firebase 交互的绝对红线（防范 Read Storm 事故）
+## 2.3 Absolute Red Lines for Frontend Interaction with Firebase (Preventing Read Storm Incidents)
 
-历史教训：曾因前端 React 生命周期与 Firebase 监听器配置不当，导致数百万次非预期 Reads。在生成任何前端查询代码时，必须严格遵守以下规范：
+Historical Lesson: An improper configuration of the frontend React lifecycle and Firebase listeners once led to millions of unintended reads. When generating any frontend query code, the following standards must be strictly followed:
 
-* **禁止全表扫描 (No Unbounded Queries):**
-  任何通过 `getDocs` 获取集合数据的代码，除非有极特殊的白名单理由，否则强制要求使用 `query()` 并配合 `limit()`（默认最大 50）。禁止写出 `getDocs(collection(db, "collectionName"))` 这种裸查询。
+* **No Unbounded Queries:**
+  Any code fetching collection data via `getDocs` must enforce the use of `query()` combined with `limit()` (default maximum of 50), unless there is an extremely specific, approved whitelist reason. Naked queries like `getDocs(collection(db, "collectionName"))` are strictly prohibited.
 
-* **严格的 onSnapshot 生命周期管理 (Strict Listener Hygiene):**
-  凡是使用 `onSnapshot` 进行实时订阅的 React 组件，必须满足：
-  1. 必须包裹在 `useEffect` 中。
-  2. `useEffect` 的依赖数组必须极其精确，严禁因为无关 state 变化导致 effect 反复执行。
-  3. **必须**在 `useEffect` 中 return `unsubscribe` 函数，确保组件卸载时断开连接。
+* **Strict Listener Hygiene (onSnapshot Lifecycle Management):**
+  Any React component that uses `onSnapshot` for real-time subscription must satisfy:
+  1. It must be wrapped inside a `useEffect`.
+  2. The dependency array of `useEffect` must be extremely precise; it is strictly prohibited to trigger the effect repeatedly due to unrelated state changes.
+  3. It **MUST** return an `unsubscribe` function in `useEffect` to ensure the connection is disconnected when the component unmounts.
 
-* **禁止在错误捕获中触发重试副作用 (No Retry on Denial):**
-  在处理 Firebase 调用的 `try...catch` 时，遇到错误（特别是 `permission-denied` 或 `quota-exceeded`），仅允许阻断逻辑并展示静态 UI 提示。绝对禁止在 Catch 块中修改触发重新渲染并导致重新请求的 State，防止陷入无限请求死循环。
+* **No Retry on Denial (Do not trigger retry side effects in catch blocks):**
+  When handling `try...catch` for Firebase calls, if an error is encountered (especially `permission-denied` or `quota-exceeded`), you are only allowed to block the logic and display a static UI prompt. Modifying states that trigger a re-render and lead to a re-request inside the catch block is absolutely prohibited, preventing infinite request loops.

@@ -309,7 +309,7 @@ Current intended roles:
 - `Safety Inbox`: the main structured safety workflow workspace
 - `History`: archive/audit view inside Safety Inbox, not a competing top-level workflow
 
-This separation matters because earlier designs overused the term 鈥渁lerts鈥?and made it difficult
+This separation matters because earlier designs overused the term "alerts" and made it difficult
 for CRCs to distinguish:
 
 - immediate response work
@@ -468,7 +468,7 @@ Signals derived include:
 
 ### 8.7 Chat / Follow-Up Layer
 
-The system鈥檚 support/chat flow is not intended to replace emergency care.
+The system's support/chat flow is not intended to replace emergency care.
 
 Its real value is:
 
