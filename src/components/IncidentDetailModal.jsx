@@ -114,14 +114,14 @@ const IncidentDetailModal = ({ incident, user, crcName, onClose, onOpenGuidance 
     if (!context?.uid || openingThreadUid) return;
     setOpeningThreadUid(context.uid);
     try {
-      onOpenGuidance?.({
+      await onOpenGuidance?.({
         uid: context.uid,
         patientName: context.patient_name,
         patientProfile: context.patient_profile || null,
         protocolName: context.protocol_name || context.patient_profile?.protocolName || null,
       });
     } catch (error) {
-      alert('Unable to open this patient in Adverse Event Guidance: ' + error.message);
+      alert('Unable to open this safety thread: ' + error.message);
     } finally {
       setOpeningThreadUid('');
     }

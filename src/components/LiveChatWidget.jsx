@@ -2,6 +2,45 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { sendAlert, sendChatMessage, startDirectMessage, subscribeToChat, resolveAlert } from '../services/alertService';
 import { useCall } from '../context/CallContext';
+import { resolveIncident } from '../services/incidentService';
+
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+      <path
+        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.63 2.6a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.48-1.2a2 2 0 0 1 2.11-.45c.83.3 1.7.51 2.6.63A2 2 0 0 1 22 16.92z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function VideoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+      <path
+        d="M15 10.5 21 7v10l-6-3.5V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+      <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 const LiveChatWidget = ({ 
   user, 
@@ -99,7 +138,18 @@ const LiveChatWidget = ({
     if (!activeAlertRef) return;
     const unsubChat = subscribeToChat(activeAlertRef, (msgs) => setMessages(msgs));
     const unsubAlert = onSnapshot(activeAlertRef, (doc) => {
-      if (doc.exists()) setIsResolved(doc.data().status === 'read');
+      if (doc.exists()) {
+        const data = doc.data();
+        const status = String(data.status || '').trim().toLowerCase();
+        setIsResolved(status === 'read' || status === 'resolved' || Boolean(data.threadClosed));
+        setActiveAlertData((previous) => ({
+          ...(previous || {}),
+          id: doc.id,
+          ref: doc.ref,
+          uid: doc.ref.parent.parent?.id || previous?.uid || '',
+          ...data,
+        }));
+      }
     });
     return () => { unsubChat(); unsubAlert(); };
   }, [activeAlertRef]);
@@ -136,7 +186,18 @@ const LiveChatWidget = ({
   const handleResolve = async () => {
     if (!activeAlertRef) return;
     if (!window.confirm("Mark as resolved?")) return;
-    try { await resolveAlert(activeAlertRef); } catch (e) { alert(e.message); }
+    try {
+      const incidentId = String(activeAlertData?.source_incident_id || '').trim();
+      if (incidentId) {
+        await resolveIncident(incidentId, {
+          uid: user?.uid || null,
+          name: userName || user?.email || 'CRC',
+          email: user?.email || null,
+        });
+      } else {
+        await resolveAlert(activeAlertRef);
+      }
+    } catch (e) { alert(e.message); }
   };
 
   const handleSendChat = async (e) => {
@@ -221,6 +282,51 @@ const LiveChatWidget = ({
     );
   };
 
+  const renderSafetyCaseSummary = () => {
+    const summary = activeAlertData?.safety_case_summary;
+    if (role !== 'crc' || viewMode !== 'chat' || !summary) return null;
+
+    const detailRows = [
+      ['Patient', summary.patientName || activeAlertData?.patientName || callTargetName],
+      ['Severity', summary.severity],
+      ['Case type', summary.incidentType],
+      ['Protocol', summary.protocolName],
+      ['Coverage', summary.protocolCoverage],
+      ['Reports', summary.reportCount ? String(summary.reportCount) : '0'],
+      ['Latest report', summary.latestReportAt || 'Not recorded'],
+    ].filter(([, value]) => String(value || '').trim());
+
+    return (
+      <section style={styles.caseSummaryCard} aria-label="Safety case summary">
+        <div style={styles.caseSummaryTopRow}>
+          <span style={styles.caseSummaryBadge}>Safety AE case</span>
+          <strong style={styles.caseSummaryPatient}>{summary.patientName || activeAlertData?.patientName || callTargetName}</strong>
+        </div>
+        <h3 style={styles.caseSummaryTitle}>{summary.title || activeAlertData?.reason || 'Safety follow-up'}</h3>
+        <div style={styles.caseSummaryGrid}>
+          {detailRows.map(([label, value]) => (
+            <div key={label} style={styles.caseSummaryMetric}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
+        </div>
+        <div style={styles.caseSummarySection}>
+          <span style={styles.caseSummarySectionLabel}>Patient report</span>
+          <p style={styles.caseSummaryText}>{summary.details || 'No detailed symptom narrative was captured.'}</p>
+        </div>
+        <div style={styles.caseSummarySection}>
+          <span style={styles.caseSummarySectionLabel}>AI triage summary</span>
+          <p style={styles.caseSummaryText}>{summary.triageSummary || 'Review the linked report, patient context, and protocol before documenting follow-up.'}</p>
+        </div>
+        <div style={styles.caseSummaryAction}>
+          <span style={styles.caseSummarySectionLabel}>Recommended CRC action</span>
+          <strong>{summary.recommendedAction || 'Document follow-up and continue patient communication in this thread.'}</strong>
+        </div>
+      </section>
+    );
+  };
+
   const getAlertPatientId = (alert) => {
     if (!alert) return '';
     return String(
@@ -283,8 +389,8 @@ const LiveChatWidget = ({
   }
 
   return (
-    <div style={styles.modalContainer} onClick={() => { setOpenState(false); if(onClose) onClose(); }}>
-      <div style={styles.chatWindow} onClick={(event) => event.stopPropagation()}>
+    <div style={styles.modalContainer}>
+      <div style={styles.chatWindow}>
         
         <div style={{...styles.header, backgroundColor: isResolved ? '#666' : (role==='crc'?'#007bff':'#d32f2f')}}>
           <div>
@@ -297,7 +403,12 @@ const LiveChatWidget = ({
                     : 'Chat History'}
               </span>
             )}
-            {viewMode === 'chat' && <span style={styles.headerTitle}>Chat</span>}
+            {viewMode === 'chat' && (
+              <span style={styles.headerTitle}>
+                {activeAlertData?.source_incident_id ? 'Safety AE Thread' : 'Chat'}
+                {callTargetName ? <span style={styles.headerPatientName}>{callTargetName}</span> : null}
+              </span>
+            )}
             {viewMode === 'create' && <span style={styles.headerTitle}>New Message</span>}
           </div>
           
@@ -305,18 +416,24 @@ const LiveChatWidget = ({
             
             {role === 'crc' && callTargetId && (
               <>
-                 <button onClick={() => handleStartCall(false)} style={{...styles.iconBtn, fontSize:'20px'}} title={`Voice Call ${callTargetName}`}>📞</button>
-                 <button onClick={() => handleStartCall(true)} style={{...styles.iconBtn, fontSize:'20px'}} title={`Video Call ${callTargetName}`}>🎥</button>
+                 <button onClick={() => handleStartCall(true)} style={styles.iconBtn} title={`Video call ${callTargetName}`} aria-label={`Video call ${callTargetName}`}>
+                  <VideoIcon />
+                 </button>
+                 <button onClick={() => handleStartCall(false)} style={styles.iconBtn} title={`Voice call ${callTargetName}`} aria-label={`Voice call ${callTargetName}`}>
+                  <PhoneIcon />
+                 </button>
               </>
             )}
 
             {viewMode === 'chat' && role === 'crc' && !isResolved && (
-              <button onClick={handleResolve} style={{...styles.iconBtn, backgroundColor:'white', color:'#28a745', borderRadius:'4px', padding:'2px 8px', fontSize:'12px', fontWeight:'bold', marginRight:'5px'}}>✓ Resolve</button>
+              <button onClick={handleResolve} style={styles.resolveButton}>Resolved</button>
             )}
 
             {viewMode === 'chat' && <button onClick={() => { setActiveAlertRef(null); setActiveAlertData(null); setViewMode('list'); }} style={styles.iconBtn}>‹ Back</button>}
             
-            <button onClick={() => { setOpenState(false); if(onClose) onClose(); }} style={styles.iconBtn}>✕</button>
+            <button onClick={() => { setOpenState(false); if(onClose) onClose(); }} style={styles.iconBtn} aria-label="Close chat">
+              <CloseIcon />
+            </button>
           </div>
         </div>
 
@@ -397,6 +514,7 @@ const LiveChatWidget = ({
 
           {viewMode === 'chat' && (
             <div style={{padding: '10px', display: 'flex', flexDirection: 'column'}}>
+              {renderSafetyCaseSummary()}
               {messages.map((item, index) => renderMessage(item, index))}
               <div ref={messagesEndRef} />
             </div>
@@ -420,11 +538,13 @@ const styles = {
   // ... (Previous styles) ...
   fab: { position: 'fixed', bottom: '30px', right: '20px', backgroundColor: '#007bff', padding: '15px 20px', borderRadius: '30px', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', cursor: 'pointer', zIndex: 9999, display: 'flex', alignItems: 'center' },
   fabText: { color: 'white', fontWeight: 'bold', fontSize: '16px' },
-  modalContainer: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'flex-end' },
-  chatWindow: { width: '100%', maxWidth: '600px', height: '80%', backgroundColor: 'white', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  header: { padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' },
-  headerTitle: { fontWeight: 'bold', fontSize: '18px' },
-  iconBtn: { background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold' },
+  modalContainer: { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', padding: '0 22px 22px', pointerEvents: 'none' },
+  chatWindow: { width: 'min(640px, calc(100vw - 32px))', height: 'min(760px, calc(100dvh - 42px))', backgroundColor: 'white', borderRadius: '18px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(15, 23, 42, 0.28)', border: '1px solid rgba(15, 96, 155, 0.18)', pointerEvents: 'auto' },
+  header: { padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' },
+  headerTitle: { fontWeight: 'bold', fontSize: '18px', display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
+  headerPatientName: { fontSize: '13px', fontWeight: 700, backgroundColor: 'rgba(255,255,255,0.18)', color: 'white', borderRadius: '999px', padding: '4px 9px' },
+  iconBtn: { minWidth: '36px', minHeight: '36px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '10px', color: 'white', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+  resolveButton: { minHeight: '36px', border: 'none', backgroundColor: 'white', color: '#147a3f', borderRadius: '10px', padding: '0 12px', fontSize: '13px', fontWeight: 800, cursor: 'pointer' },
   body: { flex: 1, backgroundColor: '#f5f7fa', overflowY: 'auto' },
   centerContent: { padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   promptText: { fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' },
@@ -442,6 +562,17 @@ const styles = {
   msgMe: { backgroundColor: '#007bff', borderBottomRightRadius: 0, color: 'white' },
   msgThem: { backgroundColor: '#e0e0e0', borderBottomLeftRadius: 0, color: 'black' },
   msgName: { fontSize: '10px', marginBottom: '4px', opacity: 0.8 },
+  caseSummaryCard: { marginBottom: '14px', padding: '14px', borderRadius: '16px', border: '1px solid #cfe2f3', backgroundColor: '#ffffff', boxShadow: '0 10px 24px rgba(15, 96, 155, 0.08)' },
+  caseSummaryTopRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' },
+  caseSummaryBadge: { display: 'inline-flex', alignItems: 'center', minHeight: '24px', padding: '0 9px', borderRadius: '999px', backgroundColor: '#e8f4ff', color: '#0f609b', fontSize: '11px', fontWeight: 800, letterSpacing: '0.02em', textTransform: 'uppercase' },
+  caseSummaryPatient: { color: '#14324a', fontSize: '14px' },
+  caseSummaryTitle: { margin: '0 0 12px', color: '#12324a', fontSize: '18px', lineHeight: 1.35 },
+  caseSummaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginBottom: '12px' },
+  caseSummaryMetric: { padding: '9px 10px', borderRadius: '12px', backgroundColor: '#f6f9fc', border: '1px solid #e1edf7', display: 'grid', gap: '3px' },
+  caseSummarySection: { paddingTop: '10px', borderTop: '1px solid #e6eef7', marginTop: '10px' },
+  caseSummarySectionLabel: { display: 'block', color: '#5f7488', fontSize: '11px', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '5px' },
+  caseSummaryText: { margin: 0, color: '#14324a', fontSize: '14px', lineHeight: 1.55 },
+  caseSummaryAction: { marginTop: '12px', padding: '11px 12px', borderRadius: '12px', backgroundColor: '#eef8f2', color: '#17603b', border: '1px solid #cfeada', display: 'grid', gap: '4px', lineHeight: 1.45 },
   inputArea: { display: 'flex', padding: '10px', borderTop: '1px solid #eee', backgroundColor: 'white' },
   input: { flex: 1, border: '1px solid #ddd', borderRadius: '20px', padding: '10px 15px', outline: 'none' },
   sendBtn: { width: '40px', height: '40px', backgroundColor: '#333', borderRadius: '50%', border: 'none', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginLeft: '5px', cursor: 'pointer' },

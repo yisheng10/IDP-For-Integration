@@ -125,7 +125,13 @@ function normalizeTraceSummary(entry = {}) {
 }
 
 function buildMixedTimeline(entries = []) {
-  const normalized = [...entries].sort((left, right) => {
+  const normalized = entries
+    .filter((entry) => {
+      const messageText = String(entry?.messageText || '').trim();
+      return !messageText.startsWith('CRC follow-up thread opened for safety case:') &&
+        !messageText.startsWith('CRC opened a follow-up thread for ');
+    })
+    .sort((left, right) => {
     const leftTime = coerceChatTimestamp(left?.timestamp)?.getTime() || 0;
     const rightTime = coerceChatTimestamp(right?.timestamp)?.getTime() || 0;
     return leftTime - rightTime;

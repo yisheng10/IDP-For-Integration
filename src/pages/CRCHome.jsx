@@ -52,7 +52,7 @@ import {
 } from '../services/dropoutService';
 import { getProtocolStaticContextStatus } from '../services/protocolStaticContextService';
 import { normalizeDropoutTrialId } from '../services/dropoutTrialRegistryService';
-import { resolveIncident, subscribeToIncidentRecords } from '../services/incidentService';
+import { ensureIncidentAlertThread, resolveIncident, subscribeToIncidentRecords } from '../services/incidentService';
 import { purgePatientRecord } from '../services/patientAdminService';
 import { getSignedUrl } from '../services/storageService';
 import {
@@ -1103,27 +1103,56 @@ export default function CRCHome({ user, onLogout }) {
     }
   };
 
-  const handleOpenIncidentGuidance = ({ uid, patientName, patientProfile = null, protocolName = null }) => {
+  const handleOpenIncidentGuidance = async ({ uid, patientName, patientProfile = null, protocolName = null }) => {
     const target = patients.find((patient) => patient.id === uid);
-    selectP(target || {
+    const resolvedPatient = target || {
       id: uid,
       ...(patientProfile || {}),
       nickname: patientName || patientProfile?.nickname || patientProfile?.displayName || 'Unnamed patient',
       protocolName: protocolName || patientProfile?.protocolName || null,
-    });
+    };
+    selectP(resolvedPatient);
 
-    setChatAlert(null);
-    setIsAlertWidgetOpen(false);
-    setActiveIncident(null);
-    setSearchParams(prev => {
-      const nextParams = new URLSearchParams(prev);
-      nextParams.delete('incident');
-      nextParams.set('section', 'side-effect-guidance');
-      nextParams.delete('focus');
-      nextParams.delete('patient');
-      nextParams.delete('tab');
-      return nextParams;
-    }, { replace: true });
+    if (!activeIncident?.id) {
+      window.alert('Safety case context is not available for this thread.');
+      return;
+    }
+
+    try {
+      const alertPath = await ensureIncidentAlertThread(
+        activeIncident,
+        {
+          uid,
+          patient_name: patientName || resolvedPatient.nickname || resolvedPatient.email || 'Patient',
+          protocol_name: protocolName || resolvedPatient.protocolName || null,
+        },
+        {
+          uid: user.uid,
+          name: crcName || user.email,
+          email: user.email,
+        }
+      );
+      const alertRef = doc(db, alertPath);
+      const alertId = alertPath.split('/').filter(Boolean).pop();
+      setChatAlert({
+        id: alertId,
+        uid,
+        ref: alertRef,
+        patientName: patientName || resolvedPatient.nickname || resolvedPatient.email || 'Patient',
+        reason: activeIncident.event_title || activeIncident.reason || 'Safety follow-up',
+        source_incident_id: activeIncident.id,
+        source_system: 'crc_incident_thread',
+      });
+      setIsAlertWidgetOpen(true);
+      setActiveIncident(null);
+      setSearchParams(prev => {
+        const nextParams = new URLSearchParams(prev);
+        nextParams.delete('incident');
+        return nextParams;
+      }, { replace: true });
+    } catch (error) {
+      window.alert(`Unable to open this safety thread: ${error.message}`);
+    }
   };
 
   const handleSuggestDate = async () => {

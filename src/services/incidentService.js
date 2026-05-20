@@ -14,10 +14,6 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import {
-  buildConversationTimelineEventData,
-  queueConversationTimelineMirror,
-} from './conversationTimelineService';
 
 export const SEVERITY_OPTIONS = ['mild', 'moderate', 'serious'];
 
@@ -554,6 +550,65 @@ export async function updateIncidentNote(incidentId, crcNote) {
   });
 }
 
+function compactString(value, fallback = '') {
+  return String(value || '').trim() || fallback;
+}
+
+function formatSummaryDate(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString();
+}
+
+function buildSafetyCaseSummary(incident, linkedPatient) {
+  const linkedReports = Array.isArray(incident?.linked_reports)
+    ? incident.linked_reports.filter(Boolean)
+    : [];
+  const latestReport = linkedReports[0] || null;
+  const protocolRule = incident?.protocol_rule_snapshot || {};
+  const protocolSnapshot = incident?.protocol_snapshot || {};
+  const protocolName = compactString(protocolSnapshot.protocol_name, linkedPatient?.protocol_name || 'No protocol assigned');
+  const coverageLabel =
+    latestReport?.protocol_covered === true
+      ? 'Protocol listed'
+      : latestReport?.protocol_covered === false
+        ? 'Protocol not listed'
+        : 'Protocol coverage could not be confirmed automatically';
+  const actionInstruction = compactString(
+    protocolRule.instruction,
+    incident?.severity === 'serious'
+      ? 'Immediate CRC action is required.'
+      : 'CRC follow-up is required according to the active safety workflow.'
+  );
+
+  return {
+    title: compactString(incident?.event_title, 'Safety follow-up'),
+    patientName: compactString(linkedPatient?.patient_name, 'Patient'),
+    severity: compactString(incident?.severity, 'not set'),
+    incidentType: compactString(incident?.incident_type, 'safety'),
+    dueAt: compactString(incident?.due_at),
+    reportedAt: compactString(incident?.last_event_at || incident?.updated_at || incident?.created_at),
+    protocolName,
+    protocolCoverage: coverageLabel,
+    reportCount: linkedReports.length,
+    latestReportTitle: compactString(latestReport?.symptom_title),
+    latestReportAt: formatSummaryDate(latestReport?.submitted_at),
+    details: compactString(incident?.details_preview, 'No detailed symptom narrative was captured.'),
+    triageSummary: compactString(
+      incident?.ai_triage_summary || incident?.triage_summary,
+      incident?.immediate_help_requested
+        ? 'Patient requested immediate help or reported symptoms requiring urgent CRC attention.'
+        : 'Review the linked report, patient context, and protocol before documenting follow-up.'
+    ),
+    recommendedAction: actionInstruction,
+  };
+}
+
+function buildPatientThreadIntro(incident) {
+  const title = compactString(incident?.event_title, 'your safety report');
+  return `CRC opened a follow-up thread for ${title}. Please reply here with symptom updates, questions, or any change in your condition.`;
+}
+
 export async function ensureIncidentAlertThread(incident, linkedPatient, crcMeta = {}) {
   const patientUid = String(linkedPatient?.uid || linkedPatient?.patient_id || '').trim();
   const incidentId = String(incident?.id || '').trim();
@@ -567,13 +622,20 @@ export async function ensureIncidentAlertThread(incident, linkedPatient, crcMeta
   );
 
   if (existingPath) {
+    await updateDoc(doc(db, existingPath), {
+      safety_case_summary: buildSafetyCaseSummary(incident, linkedPatient),
+      source_incident_id: incidentId,
+      source_system: 'crc_incident_thread',
+      updated_at: new Date().toISOString(),
+    });
     return existingPath;
   }
 
   const nowIso = new Date().toISOString();
   const reason = incident?.event_title || incident?.reason || 'Safety follow-up';
   const senderName = crcMeta.name || crcMeta.email || 'CRC';
-  const messageText = `CRC follow-up thread opened for safety case: ${reason}.`;
+  const messageText = buildPatientThreadIntro(incident);
+  const safetyCaseSummary = buildSafetyCaseSummary(incident, linkedPatient);
   const alertRef = doc(collection(db, 'users', patientUid, 'alerts'));
   const messageRef = doc(collection(alertRef, 'messages'));
   const incidentRef = doc(db, 'incident_records', incidentId);
@@ -592,6 +654,7 @@ export async function ensureIncidentAlertThread(incident, linkedPatient, crcMeta
     source_system: 'crc_incident_thread',
     incident_type: incident?.incident_type || null,
     side_effect_severity: incident?.severity || null,
+    safety_case_summary: safetyCaseSummary,
   });
 
   batch.set(messageRef, {
@@ -600,18 +663,6 @@ export async function ensureIncidentAlertThread(incident, linkedPatient, crcMeta
     text: messageText,
     timestamp: nowIso,
   });
-
-  queueConversationTimelineMirror(batch, patientUid, buildConversationTimelineEventData({
-    actorType: 'crc',
-    channelType: 'crc_chat',
-    threadType: 'urgent_alert',
-    alertId: alertRef.id,
-    sourcePath: messageRef.path,
-    messageText,
-    timestamp: nowIso,
-    displayName: senderName,
-    threadLabel: reason,
-  }));
 
   batch.update(incidentRef, {
     linked_alert_paths: arrayUnion(alertRef.path),
