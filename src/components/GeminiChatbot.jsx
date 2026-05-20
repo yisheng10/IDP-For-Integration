@@ -1447,7 +1447,7 @@ export default function GeminiChatbot({
     setShowJumpToBottom(false);
   };
 
-  const handleHistoryTraceSelect = async (traceSummary) => {
+  const handleHistoryTraceSelect = useCallback(async (traceSummary) => {
     const traceRef = buildTraceRef(traceSummary);
     const traceKey = buildTraceKey(traceRef?.patientUid, traceRef?.traceId);
     if (!traceKey) return;
@@ -1461,7 +1461,7 @@ export default function GeminiChatbot({
         console.error('Failed to load historical trace detail:', error);
       }
     }
-  };
+  }, [loadTraceEvents]);
 
   const handleHistoryTraceChange = useCallback(async (event) => {
     const nextTraceKey = String(event.target.value || '');
@@ -1655,77 +1655,6 @@ export default function GeminiChatbot({
             </div>
           ) : selectedHistoryTraceKey ? (
             <div style={styles.traceEmptyState}>Loading the saved reasoning trace...</div>
-          ) : null}
-
-          {false ? (
-        <div style={styles.traceHistoryBody}>
-          <div style={styles.traceHistoryList}>
-            {traceHistory.map((traceSummary) => {
-              const traceRef = buildTraceRef(traceSummary);
-              const traceKey = buildTraceKey(traceRef?.patientUid, traceRef?.traceId);
-              const isSelected = selectedHistoryTraceKey === traceKey;
-
-              return (
-                <button
-                  key={traceKey}
-                  type="button"
-                  style={{
-                    ...styles.traceHistoryRow,
-                    ...(isSelected ? styles.traceHistoryRowActive : {}),
-                  }}
-                  onClick={() => handleHistoryTraceSelect(traceSummary)}
-                >
-                  <div style={styles.traceHistoryRowTop}>
-                    <span style={styles.traceHistoryRowTime}>
-                      {traceSummary.completedAt
-                        ? formatWhatsappStyleDayLabel(new Date(traceSummary.completedAt))
-                        : 'No date'}
-                    </span>
-                    <span style={styles.traceHistoryRowMask}>{traceSummary.sourceMask || 'none'}</span>
-                  </div>
-                  <div style={styles.traceHistoryRowQuestion}>
-                    {traceSummary.questionText || 'No question text saved.'}
-                  </div>
-                  <div style={styles.traceHistoryRowSummary}>
-                    {traceSummary.displaySummary || traceSummary.latestStepTitle || 'Trace saved.'}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={styles.traceHistoryDetail}>
-            {currentHistoryTraceDetail ? (
-              <>
-                <div style={styles.traceHistoryDetailHeader}>
-                  <div style={styles.traceHistoryDetailTitle}>
-                    {currentHistoryTraceDetail.displaySummary || 'Saved reasoning trace'}
-                  </div>
-                  <div style={styles.traceHistoryDetailMeta}>
-                    Subject: {currentHistoryTraceDetail.subjectId || 'Unknown'} | Source mask:{' '}
-                    {currentHistoryTraceDetail.sourceMask || 'none'}
-                  </div>
-                </div>
-                {currentHistoryTraceDetail.finalAnswerText ? (
-                  <div style={styles.traceHistoryAnswerCard}>
-                    <ReactMarkdown>{currentHistoryTraceDetail.finalAnswerText}</ReactMarkdown>
-                  </div>
-                ) : null}
-                <div style={styles.traceEventList}>
-                  {currentHistoryTraceDetail.events
-                    .filter((traceEvent) => traceEvent.type === 'trace_event')
-                    .map((traceEvent, eventIndex) => renderTraceEventCard(traceEvent, eventIndex))}
-                </div>
-              </>
-            ) : selectedHistoryTraceKey ? (
-              <div style={styles.traceEmptyState}>Loading the saved reasoning trace…</div>
-            ) : (
-              <div style={styles.traceEmptyState}>
-                Select a saved trace to review the full CRC reasoning record.
-              </div>
-            )}
-          </div>
-        </div>
           ) : null}
         </>
       )}
