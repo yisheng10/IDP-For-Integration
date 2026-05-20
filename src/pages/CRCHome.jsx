@@ -52,7 +52,7 @@ import {
 } from '../services/dropoutService';
 import { getProtocolStaticContextStatus } from '../services/protocolStaticContextService';
 import { normalizeDropoutTrialId } from '../services/dropoutTrialRegistryService';
-import { subscribeToIncidentRecords } from '../services/incidentService';
+import { resolveIncident, subscribeToIncidentRecords } from '../services/incidentService';
 import { purgePatientRecord } from '../services/patientAdminService';
 import { getSignedUrl } from '../services/storageService';
 import {
@@ -1081,6 +1081,26 @@ export default function CRCHome({ user, onLogout }) {
       nextParams.delete('incident');
       return nextParams;
     }, { replace: true });
+  };
+
+  const handleResolveIncidentFromSafety = async (incident) => {
+    if (!incident?.id) {
+      return;
+    }
+
+    try {
+      await resolveIncident(incident.id, {
+        uid: user.uid,
+        name: crcName || user.email,
+        email: user.email,
+      });
+
+      if (activeIncident?.id === incident.id) {
+        handleCloseIncident();
+      }
+    } catch (error) {
+      window.alert(`Failed to resolve incident: ${error.message}`);
+    }
   };
 
   const handleOpenIncidentGuidance = ({ uid, patientName, patientProfile = null, protocolName = null }) => {
@@ -2565,6 +2585,7 @@ export default function CRCHome({ user, onLogout }) {
               onEnablePush={handleEnablePush}
               onOpenIncident={handleOpenIncident}
               onOpenAlertThread={handleNavAlertClick}
+              onResolveIncident={handleResolveIncidentFromSafety}
               initialTab={activeSafetyTab}
               onTabChange={handleSafetyInboxTabChange}
               historyWindowLabel={historyWindowLabel}
