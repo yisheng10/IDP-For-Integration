@@ -42,6 +42,75 @@ function CloseIcon() {
   );
 }
 
+const SUMMARY_SECTION_MARKERS = [
+  ['Details:', 'Patient report'],
+  ['Severity:', 'Severity and protocol'],
+  ['Protocol guidance:', 'Protocol guidance'],
+  ['AI triage summary:', 'AI triage summary'],
+  ['Recommended CRC action:', 'Recommended CRC action'],
+  ['Measurements:', 'Measurements'],
+  ['Flagged issues:', 'Flagged issues'],
+];
+
+const parseStructuredSummaryText = (text) => {
+  const source = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!source) return null;
+
+  const matchingMarkers = SUMMARY_SECTION_MARKERS
+    .map(([marker, label]) => ({ marker, label, index: source.indexOf(marker) }))
+    .filter((item) => item.index >= 0)
+    .sort((a, b) => a.index - b.index);
+
+  const isSummaryLike = matchingMarkers.length >= 2 ||
+    /^Structured .* event documented for /i.test(source) ||
+    /^Auto-? ?detected abnormal vitals/i.test(source);
+
+  if (!isSummaryLike) return null;
+
+  const sections = [];
+  const firstMarker = matchingMarkers[0];
+  const lead = firstMarker ? source.slice(0, firstMarker.index).trim() : source;
+
+  if (lead) {
+    sections.push({ label: 'Overview', body: lead });
+  }
+
+  matchingMarkers.forEach((item, markerIndex) => {
+    const start = item.index + item.marker.length;
+    const end = matchingMarkers[markerIndex + 1]?.index ?? source.length;
+    const body = source.slice(start, end).trim();
+    if (body) {
+      sections.push({ label: item.label, body });
+    }
+  });
+
+  const expandedSections = sections.flatMap((section) => {
+    if (section.label === 'Severity and protocol') {
+      const protocolCoverageMatch = section.body.match(/^(.*?\.)\s+(Protocol coverage .*)$/i);
+      if (protocolCoverageMatch) {
+        return [
+          { label: 'Severity', body: protocolCoverageMatch[1].trim() },
+          { label: 'Protocol coverage', body: protocolCoverageMatch[2].trim() },
+        ];
+      }
+    }
+
+    if (section.label === 'AI triage summary') {
+      const ctcaeMatch = section.body.match(/^(.*?)(Relevant CTCAE terms.*)$/i);
+      if (ctcaeMatch) {
+        return [
+          { label: 'AI triage summary', body: ctcaeMatch[1].trim() },
+          { label: 'Relevant CTCAE terms', body: ctcaeMatch[2].trim() },
+        ].filter((item) => item.body);
+      }
+    }
+
+    return [section];
+  });
+
+  return expandedSections.length > 0 ? expandedSections : null;
+};
+
 const LiveChatWidget = ({ 
   user, 
   role = 'patient', 
@@ -339,11 +408,27 @@ const LiveChatWidget = ({
   const renderMessage = (item, index) => {
     const isMe = item.sender === role;
     const displayName = item.senderName || (item.sender === 'crc' ? 'CRC' : 'Patient');
+    const structuredSummary = parseStructuredSummaryText(item.text);
     return (
       <div key={index} style={{...styles.msgRow, justifyContent: isMe ? 'flex-end' : 'flex-start'}}>
-        <div style={{...styles.msgBubble, ...(isMe ? styles.msgMe : styles.msgThem)}}>
+        <div style={{
+          ...styles.msgBubble,
+          ...(isMe ? styles.msgMe : styles.msgThem),
+          ...(structuredSummary ? styles.structuredMsgBubble : null),
+        }}>
           <div style={styles.msgName}>{displayName}</div>
-          <div style={{ color: isMe ? 'white' : 'black' }}>{item.text}</div>
+          {structuredSummary ? (
+            <div style={styles.structuredMsg}>
+              {structuredSummary.map((section) => (
+                <section key={section.label} style={styles.structuredMsgSection}>
+                  <div style={styles.structuredMsgLabel}>{section.label}</div>
+                  <div style={styles.structuredMsgBody}>{section.body}</div>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <div style={{ ...styles.msgText, color: isMe ? 'white' : 'black' }}>{item.text}</div>
+          )}
         </div>
       </div>
     );
@@ -672,6 +757,12 @@ const styles = {
   msgMe: { backgroundColor: '#007bff', borderBottomRightRadius: 0, color: 'white' },
   msgThem: { backgroundColor: '#e0e0e0', borderBottomLeftRadius: 0, color: 'black' },
   msgName: { fontSize: '10px', marginBottom: '4px', opacity: 0.8 },
+  msgText: { fontSize: '13px', lineHeight: 1.45 },
+  structuredMsgBubble: { maxWidth: '92%', backgroundColor: '#f3f5f7', color: '#10263a', padding: '8px 10px' },
+  structuredMsg: { display: 'grid', gap: '6px', color: '#10263a' },
+  structuredMsgSection: { paddingTop: '6px', borderTop: '1px solid rgba(16, 38, 58, 0.12)' },
+  structuredMsgLabel: { color: '#52687a', fontSize: '10px', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase', marginBottom: '2px' },
+  structuredMsgBody: { color: '#10263a', fontSize: '12px', lineHeight: 1.42 },
   caseSummaryCard: { marginBottom: '10px', padding: '10px 12px', borderRadius: '12px', border: '1px solid #cfe2f3', backgroundColor: '#ffffff', boxShadow: '0 8px 18px rgba(15, 96, 155, 0.06)' },
   caseSummaryTopRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' },
   caseSummaryBadge: { display: 'inline-flex', alignItems: 'center', minHeight: '22px', padding: '0 8px', borderRadius: '999px', backgroundColor: '#e8f4ff', color: '#0f609b', fontSize: '10px', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase' },
