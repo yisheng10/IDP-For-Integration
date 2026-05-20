@@ -473,7 +473,6 @@ const LiveChatWidget = ({
       summary.severity ? `Severity: ${summary.severity}` : '',
       summary.incidentType ? `Type: ${summary.incidentType}` : '',
       summary.protocolName ? `Protocol: ${summary.protocolName}` : '',
-      summary.protocolCoverage ? `Coverage: ${summary.protocolCoverage}` : '',
       summary.reportCount ? `Reports: ${summary.reportCount}` : '',
       summary.latestReportAt ? `Latest: ${summary.latestReportAt}` : '',
     ].filter((value) => String(value || '').trim());
@@ -488,18 +487,6 @@ const LiveChatWidget = ({
           {metaItems.map((value) => (
             <span key={value} style={styles.caseSummaryMetaItem}>{value}</span>
           ))}
-        </div>
-        <div style={styles.caseSummarySection}>
-          <span style={styles.caseSummarySectionLabel}>Patient report</span>
-          <p style={styles.caseSummaryText}>{summary.details || 'No detailed symptom narrative was captured.'}</p>
-        </div>
-        <div style={styles.caseSummarySection}>
-          <span style={styles.caseSummarySectionLabel}>AI triage summary</span>
-          <p style={styles.caseSummaryText}>{summary.triageSummary || 'Review the linked report, patient context, and protocol before documenting follow-up.'}</p>
-        </div>
-        <div style={styles.caseSummaryAction}>
-          <span style={styles.caseSummarySectionLabel}>Recommended CRC action</span>
-          <strong>{summary.recommendedAction || 'Document follow-up and continue patient communication in this thread.'}</strong>
         </div>
       </section>
     );
@@ -763,16 +750,12 @@ const styles = {
   structuredMsgSection: { paddingTop: '6px', borderTop: '1px solid rgba(16, 38, 58, 0.12)' },
   structuredMsgLabel: { color: '#52687a', fontSize: '10px', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase', marginBottom: '2px' },
   structuredMsgBody: { color: '#10263a', fontSize: '12px', lineHeight: 1.42 },
-  caseSummaryCard: { marginBottom: '10px', padding: '10px 12px', borderRadius: '12px', border: '1px solid #cfe2f3', backgroundColor: '#ffffff', boxShadow: '0 8px 18px rgba(15, 96, 155, 0.06)' },
-  caseSummaryTopRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' },
+  caseSummaryCard: { marginBottom: '8px', padding: '8px 10px', borderRadius: '12px', border: '1px solid #cfe2f3', backgroundColor: '#ffffff', boxShadow: '0 6px 14px rgba(15, 96, 155, 0.05)' },
+  caseSummaryTopRow: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '5px' },
   caseSummaryBadge: { display: 'inline-flex', alignItems: 'center', minHeight: '22px', padding: '0 8px', borderRadius: '999px', backgroundColor: '#e8f4ff', color: '#0f609b', fontSize: '10px', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase' },
-  caseSummaryTitle: { margin: '0 0 7px', color: '#12324a', fontSize: '16px', lineHeight: 1.25 },
-  caseSummaryMeta: { display: 'flex', flexWrap: 'wrap', gap: '5px 7px', marginBottom: '8px' },
+  caseSummaryTitle: { margin: '0 0 6px', color: '#12324a', fontSize: '14px', lineHeight: 1.25 },
+  caseSummaryMeta: { display: 'flex', flexWrap: 'wrap', gap: '5px 7px' },
   caseSummaryMetaItem: { display: 'inline-flex', alignItems: 'center', maxWidth: '100%', padding: '3px 7px', borderRadius: '999px', backgroundColor: '#f4f8fc', border: '1px solid #dbe9f4', color: '#294966', fontSize: '12px', fontWeight: 650, lineHeight: 1.25 },
-  caseSummarySection: { paddingTop: '7px', borderTop: '1px solid #e6eef7', marginTop: '7px' },
-  caseSummarySectionLabel: { display: 'block', color: '#5f7488', fontSize: '10px', fontWeight: 800, letterSpacing: 0, textTransform: 'uppercase', marginBottom: '3px' },
-  caseSummaryText: { margin: 0, color: '#14324a', fontSize: '13px', lineHeight: 1.45 },
-  caseSummaryAction: { marginTop: '8px', padding: '8px 9px', borderRadius: '10px', backgroundColor: '#eef8f2', color: '#17603b', border: '1px solid #cfeada', display: 'grid', gap: '3px', fontSize: '13px', lineHeight: 1.35 },
   inputArea: { display: 'flex', padding: '8px', borderTop: '1px solid #eee', backgroundColor: 'white' },
   input: { flex: 1, border: '1px solid #ddd', borderRadius: '18px', padding: '9px 13px', outline: 'none' },
   sendBtn: { width: '36px', height: '36px', backgroundColor: '#333', borderRadius: '50%', border: 'none', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginLeft: '5px', cursor: 'pointer' },
