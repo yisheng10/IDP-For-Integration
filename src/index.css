@@ -863,6 +863,14 @@ textarea[aria-invalid='true'] {
   font-size: 12px;
   white-space: nowrap;
   align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.incident-row__resolveButton {
+  box-shadow: 0 8px 18px rgba(31, 122, 69, 0.16);
 }
 
 .dropout-card {
@@ -1256,6 +1264,11 @@ td {
   .history-pagination__controls {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .incident-row__time {
+    align-items: flex-start;
+    white-space: normal;
   }
 
   .data-list-row--vitals {

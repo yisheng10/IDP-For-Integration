@@ -417,6 +417,92 @@ export function getIncidentDueState(incident) {
   return 'scheduled';
 }
 
+function getLinkedPatientIds(incident = {}) {
+  const fromIds = Array.isArray(incident.linked_patient_ids) ? incident.linked_patient_ids : [];
+  const fromPatients = Array.isArray(incident.linked_patients)
+    ? incident.linked_patients.map((patient) => patient?.uid || patient?.patient_id)
+    : [];
+  return Array.from(new Set([...fromIds, ...fromPatients].map((value) => String(value || '').trim()).filter(Boolean)));
+}
+
+function getIncidentEventKeys(incident = {}) {
+  return new Set(
+    [
+      incident.event_key,
+      incident.event_title,
+      incident.reason,
+      ...(Array.isArray(incident.linked_reports)
+        ? incident.linked_reports.map((report) => report?.symptom_title)
+        : []),
+    ]
+      .map((value) => normalizeEventKey(value))
+      .filter(Boolean)
+  );
+}
+
+function shouldCloseAlertForResolvedIncident(alert = {}, incidentEventKeys = new Set()) {
+  const alertType = String(alert.type || '').trim().toLowerCase();
+  const alertStatus = String(alert.status || '').trim().toLowerCase();
+  if (alertType === 'message') return false;
+  if (['read', 'resolved', 'closed', 'documented'].includes(alertStatus) || alert.threadClosed) return false;
+
+  const alertEventKeys = [
+    alert.reason,
+    alert.symptom_title,
+    alert.event_title,
+    alert.message,
+  ].map((value) => normalizeEventKey(value));
+
+  return alertEventKeys.some((key) => incidentEventKeys.has(key));
+}
+
+async function collectAlertRefsForIncidentResolution(incidentId, incident = {}) {
+  const alertRefsByPath = new Map();
+  const linkedAlertPaths = Array.isArray(incident.linked_alert_paths)
+    ? incident.linked_alert_paths
+    : [];
+
+  linkedAlertPaths
+    .map((path) => String(path || '').trim())
+    .filter(Boolean)
+    .forEach((path) => {
+      alertRefsByPath.set(path, doc(db, path));
+    });
+
+  const patientIds = getLinkedPatientIds(incident);
+  const incidentEventKeys = getIncidentEventKeys(incident);
+
+  await Promise.all(patientIds.map(async (patientId) => {
+    const alertsRef = collection(db, 'users', patientId, 'alerts');
+
+    try {
+      const sourceSnapshot = await getDocs(
+        query(alertsRef, where('source_incident_id', '==', incidentId), limit(20))
+      );
+      sourceSnapshot.docs.forEach((entry) => {
+        alertRefsByPath.set(entry.ref.path, entry.ref);
+      });
+    } catch (error) {
+      console.warn('Unable to collect source-linked alert threads for incident resolution:', error);
+    }
+
+    try {
+      const recentSnapshot = await getDocs(
+        query(alertsRef, orderBy('timestamp', 'desc'), limit(50))
+      );
+      recentSnapshot.docs.forEach((entry) => {
+        if (shouldCloseAlertForResolvedIncident(entry.data(), incidentEventKeys)) {
+          alertRefsByPath.set(entry.ref.path, entry.ref);
+        }
+      });
+    } catch (error) {
+      console.warn('Unable to collect event-matched alert threads for incident resolution:', error);
+    }
+  }));
+
+  return Array.from(alertRefsByPath.values());
+}
+
 export function subscribeToIncidentRecords(onUpdate, onError, options = {}) {
   const safeLimit = Math.min(Math.max(Number(options?.limitCount) || 40, 1), 1000);
   const scopedCrcId = String(options?.crcId || '').trim();
@@ -541,6 +627,7 @@ export async function resolveIncident(incidentId, crcMeta = {}) {
   const incidentRef = doc(db, 'incident_records', incidentId);
   const incidentSnapshot = await getDoc(incidentRef);
   const incident = incidentSnapshot.exists() ? incidentSnapshot.data() : {};
+  const alertRefsToResolve = await collectAlertRefsForIncidentResolution(incidentId, incident);
   const batch = writeBatch(db);
 
   batch.update(incidentRef, {
@@ -551,20 +638,15 @@ export async function resolveIncident(incidentId, crcMeta = {}) {
     updated_at: nowIso,
   });
 
-  const linkedAlertPaths = Array.isArray(incident.linked_alert_paths)
-    ? incident.linked_alert_paths
-    : [];
-  linkedAlertPaths
-    .filter((path) => typeof path === 'string' && path.trim())
-    .forEach((path) => {
-      batch.set(doc(db, path.trim()), {
+  alertRefsToResolve.forEach((alertRef) => {
+      batch.set(alertRef, {
         status: 'resolved',
         threadClosed: true,
         resolvedAt: nowIso,
         resolvedBy: crcMeta.uid || null,
         resolvedByName: crcMeta.name || crcMeta.email || null,
       }, { merge: true });
-    });
+  });
 
   await batch.commit();
 }

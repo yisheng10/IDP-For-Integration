@@ -43,6 +43,7 @@ const SafetyInboxPanel = ({
   onEnablePush,
   onOpenIncident,
   onOpenAlertThread,
+  onResolveIncident,
   initialTab = 'open',
   onTabChange,
   historyWindowLabel = '',
@@ -69,6 +70,7 @@ const SafetyInboxPanel = ({
   const [historyDate, setHistoryDate] = useState('');
   const [historyStatusFilter, setHistoryStatusFilter] = useState('all');
   const [historySort, setHistorySort] = useState({ key: 'timestamp', direction: 'desc' });
+  const [resolvingIncidentId, setResolvingIncidentId] = useState('');
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -210,6 +212,34 @@ const SafetyInboxPanel = ({
   const historySortIndicator = (key) => {
     if (historySort.key !== key) return 'Sort';
     return historySort.direction === 'asc' ? 'Asc' : 'Desc';
+  };
+
+  const handleIncidentKeyDown = (event, incident) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    onOpenIncident?.(incident);
+  };
+
+  const handleResolveIncidentClick = async (event, incident) => {
+    event.stopPropagation();
+
+    if (!incident?.id || resolvingIncidentId) {
+      return;
+    }
+
+    if (!window.confirm('Mark this active AE/emergency case as resolved?')) {
+      return;
+    }
+
+    setResolvingIncidentId(incident.id);
+    try {
+      await onResolveIncident?.(incident);
+    } finally {
+      setResolvingIncidentId('');
+    }
   };
 
   return (
@@ -439,10 +469,13 @@ const SafetyInboxPanel = ({
                 const incidentNumber =
                   (incidentPage - 1) * incidentPageSize + rowIndex + 1;
                 return (
-                  <button
+                  <div
                     key={incident.id}
                     className="incident-row"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onOpenIncident?.(incident)}
+                    onKeyDown={(event) => handleIncidentKeyDown(event, incident)}
                   >
                     <div className="incident-row__index" aria-hidden="true">
                       {incidentNumber}
@@ -464,9 +497,19 @@ const SafetyInboxPanel = ({
                       </div>
                     </div>
                     <div className="incident-row__time">
-                      {new Date(incident.updated_at || incident.created_at).toLocaleString()}
+                      <span>{new Date(incident.updated_at || incident.created_at).toLocaleString()}</span>
+                      {activeTab === 'open' && isOpenIncidentStatus(incident.status) ? (
+                        <button
+                          type="button"
+                          className="btn btn-success btn-small incident-row__resolveButton"
+                          onClick={(event) => handleResolveIncidentClick(event, incident)}
+                          disabled={resolvingIncidentId === incident.id}
+                        >
+                          {resolvingIncidentId === incident.id ? 'Resolving...' : 'Resolve'}
+                        </button>
+                      ) : null}
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}

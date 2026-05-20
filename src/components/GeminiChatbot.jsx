@@ -81,6 +81,193 @@ function sortByRecentTimestamp(entries = [], keys = []) {
   });
 }
 
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getMostRelevantTimestamp(entry = {}, keys = []) {
+  return keys
+    .map((key) => String(entry?.[key] || '').trim())
+    .find((value) => value && !Number.isNaN(new Date(value).getTime())) || null;
+}
+
+function getTimestampMs(entry = {}, keys = []) {
+  const timestamp = getMostRelevantTimestamp(entry, keys);
+  if (!timestamp) return 0;
+  const parsed = new Date(timestamp).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getAlertDocumentPath(alert = {}) {
+  return String(
+    alert?.ref?.path ||
+      alert?.path ||
+      alert?.alert_path ||
+      alert?.sourcePath ||
+      ''
+  ).trim();
+}
+
+function normalizeEventKeyForGuidance(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function getAlertOperationalState(alert = {}) {
+  const status = normalizeText(alert.status);
+  const type = normalizeText(alert.type);
+
+  if (type === 'message') {
+    return 'direct_message_thread';
+  }
+
+  if (status === 'unread' || status === 'open' || status === 'active') {
+    return 'active';
+  }
+
+  if (
+    status === 'read' ||
+    status === 'resolved' ||
+    status === 'closed' ||
+    status === 'documented' ||
+    alert.threadClosed
+  ) {
+    return 'resolved';
+  }
+
+  return 'unknown';
+}
+
+function getIncidentOperationalState(incident = {}) {
+  const status = normalizeText(incident.status || 'open');
+  if (status === 'resolved' || status === 'closed' || status === 'read' || incident.resolved_at) {
+    return 'resolved';
+  }
+  if (status === 'open' || status === 'unread' || status === 'active') {
+    return 'active';
+  }
+  return 'unknown';
+}
+
+function findResolvedIncidentCoveringAlert(alert = {}, incidents = []) {
+  const alertPath = getAlertDocumentPath(alert);
+  const sourceIncidentId = String(alert.source_incident_id || '').trim();
+  const alertEventKeys = [
+    alert.reason,
+    alert.symptom_title,
+    alert.event_title,
+    alert.message,
+  ]
+    .map((value) => normalizeEventKeyForGuidance(value))
+    .filter(Boolean);
+  const alertTime = getTimestampMs(alert, ['timestamp', 'updated_at', 'created_at']);
+
+  return incidents.find((incident) => {
+    if (incident.operational_state !== 'resolved') {
+      return false;
+    }
+
+    if (sourceIncidentId && incident.id === sourceIncidentId) {
+      return true;
+    }
+
+    const linkedPaths = Array.isArray(incident.linked_alert_paths) ? incident.linked_alert_paths : [];
+    if (alertPath && linkedPaths.includes(alertPath)) {
+      return true;
+    }
+
+    const incidentEventKeys = [
+      incident.event_key,
+      incident.event_title,
+      incident.reason,
+    ]
+      .map((value) => normalizeEventKeyForGuidance(value))
+      .filter(Boolean);
+    const resolvedTime = getTimestampMs(incident, ['resolved_at', 'resolvedAt', 'updated_at']);
+
+    return Boolean(
+      alertTime &&
+        resolvedTime &&
+        alertTime <= resolvedTime &&
+        alertEventKeys.some((key) => incidentEventKeys.includes(key))
+    );
+  }) || null;
+}
+
+function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [] }) {
+  const aeIncidents = (Array.isArray(incidents) ? incidents : []).map((incident) => {
+    const operationalState = getIncidentOperationalState(incident);
+    return {
+      id: incident.id || null,
+      event_key: incident.event_key || null,
+      event_title: incident.event_title || incident.reason || null,
+      incident_type: incident.incident_type || null,
+      severity: incident.severity || null,
+      status: incident.status || null,
+      operational_state: operationalState,
+      is_current_active: operationalState === 'active',
+      resolved_at: incident.resolved_at || incident.resolvedAt || null,
+      resolved_by: incident.resolved_by_name || incident.resolvedByName || incident.resolved_by || null,
+      last_event_at: getMostRelevantTimestamp(incident, ['updated_at', 'last_event_at', 'created_at']),
+      linked_alert_paths: incident.linked_alert_paths || [],
+      linked_report_count: Array.isArray(incident.linked_reports) ? incident.linked_reports.length : 0,
+    };
+  });
+
+  const aeAlerts = (Array.isArray(alerts) ? alerts : [])
+    .filter((alert) => normalizeText(alert?.type) !== 'message')
+    .map((alert) => {
+      const resolvedIncident = findResolvedIncidentCoveringAlert(alert, aeIncidents);
+      const rawOperationalState = getAlertOperationalState(alert);
+      const operationalState = resolvedIncident ? 'resolved' : rawOperationalState;
+      return {
+        id: alert.id || null,
+        path: getAlertDocumentPath(alert) || null,
+        type: alert.type || null,
+        reason: alert.reason || alert.symptom_title || alert.event_title || null,
+        raw_status: alert.status || null,
+        operational_state: operationalState,
+        is_current_active: operationalState === 'active',
+        resolved_at: alert.resolvedAt || alert.resolved_at || null,
+        resolved_by_incident_id: resolvedIncident?.id || null,
+        operational_state_reason: resolvedIncident
+          ? 'The alert is covered by a linked or event-matched resolved incident, so it is treated as historical even if the raw alert status is still unread.'
+          : null,
+        thread_closed: Boolean(alert.threadClosed),
+        last_event_at: getMostRelevantTimestamp(alert, ['timestamp', 'updated_at', 'created_at']),
+        last_sender: alert.lastSender || alert.senderRole || null,
+        latest_message: alert.message || null,
+      };
+    });
+
+  const activeAlerts = aeAlerts.filter((alert) => alert.is_current_active);
+  const activeIncidents = aeIncidents.filter((incident) => incident.is_current_active);
+
+  return {
+    interpretation_rule:
+      'Use this section before describing an emergency or adverse event as current, active, unresolved, or ongoing. operational_state is the source of truth. Items with operational_state "resolved" are historical/documented, not current active events, even if their raw alert status still says unread.',
+    active_emergency_or_ae_count: activeAlerts.length + activeIncidents.length,
+    resolved_emergency_or_ae_count:
+      aeAlerts.filter((alert) => alert.operational_state === 'resolved').length +
+      aeIncidents.filter((incident) => incident.operational_state === 'resolved').length,
+    has_current_active_emergency_or_ae: activeAlerts.length + activeIncidents.length > 0,
+    vital_sign_records_have_direct_resolution_state: false,
+    vital_sign_note:
+      'Vitals are measurement history. A vital value is only an active AE/emergency if a linked active alert or incident remains unresolved.',
+    active_alerts: activeAlerts,
+    resolved_alerts: aeAlerts.filter((alert) => alert.operational_state === 'resolved'),
+    active_incidents: activeIncidents,
+    resolved_incidents: aeIncidents.filter((incident) => incident.operational_state === 'resolved'),
+    unknown_status_items: [
+      ...aeAlerts.filter((alert) => alert.operational_state === 'unknown'),
+      ...aeIncidents.filter((incident) => incident.operational_state === 'unknown'),
+    ],
+  };
+}
+
 function coerceChatTimestamp(value) {
   if (!value) {
     return null;
@@ -284,6 +471,9 @@ function buildStableSystemPrompt(aiName) {
     'Do not expose dropout model internals to the patient side.',
     'Use retrieved CTCAE and protocol excerpts as the only cited source material for clinical or protocol claims.',
     'If protocol excerpts are missing, say protocol grounding was not retrieved.',
+    'Before describing an emergency or adverse event as current, active, unresolved, or ongoing, check the injected EMERGENCY / AE OPERATIONAL STATUS section. Treat status values such as read, resolved, closed, documented, or threadClosed as historical/resolved unless a newer active alert or incident says otherwise.',
+    'If an unread raw alert is listed there as operational_state "resolved" because it is covered by a resolved incident, do not call it active. Mention it only as stale or historical operational data if relevant.',
+    'Treat vital sign records as measurements, not as resolved/unresolved cases by themselves. If abnormal vitals are historical and no linked active alert or incident remains open, say that clearly.',
     '',
     '=== SAFETY & RULES ===',
     SAFETY_INSTRUCTIONS,
@@ -300,6 +490,11 @@ function buildPatientContextText({
   incidents,
   protocol,
 }) {
+  const emergencyAeResolutionStatus = buildEmergencyAeResolutionStatus({
+    alerts,
+    incidents,
+  });
+
   return [
     '=== PATIENT PROFILE ===',
     serializeForPrompt(profile),
@@ -309,6 +504,8 @@ function buildPatientContextText({
     serializeForPrompt(vitals),
     '=== APPOINTMENTS ===',
     serializeForPrompt(appointments),
+    '=== EMERGENCY / AE OPERATIONAL STATUS (CHECK BEFORE SAYING CURRENT/ONGOING) ===',
+    serializeForPrompt(emergencyAeResolutionStatus),
     '=== ALERT HISTORY ===',
     serializeForPrompt(alerts),
     '=== EPRO SUBMISSIONS ===',
