@@ -202,12 +202,14 @@ function buildNoRetrievalResult({
   userText,
   routeReason,
   retrievalCache,
+  audienceRole = 'crc',
 }) {
   return {
     prompt: buildGuidancePromptNoRetrieval({
       workspaceContext,
       patientContext,
       userText,
+      audienceRole,
     }),
     routeDecision: 'skip',
     routeReason,
@@ -234,6 +236,7 @@ export async function routeGuidanceRequest({
   currentTurnIndex = 0,
   lastRetrievalTurnIndex = 0,
   onStageChange = null,
+  audienceRole = 'crc',
 }) {
   const normalizedUserText = normalizeText(userText);
   const hasProtocolScope = Boolean(normalizeText(protocolId) || normalizeText(protocolName));
@@ -246,6 +249,7 @@ export async function routeGuidanceRequest({
       userText: normalizedUserText,
       routeReason: hardSkipReason,
       retrievalCache,
+      audienceRole,
     });
   }
 
@@ -272,6 +276,7 @@ export async function routeGuidanceRequest({
         userText: normalizedUserText,
         routeReason: 'retrieval_unavailable',
         retrievalCache,
+        audienceRole,
       });
     }
 
@@ -283,6 +288,7 @@ export async function routeGuidanceRequest({
         ctcaeChunks,
         protocolChunks,
         userText: normalizedUserText,
+        audienceRole,
       }),
       routeDecision: 'retrieve',
       routeReason: hardRetrieveDecision.reason,
@@ -329,6 +335,7 @@ export async function routeGuidanceRequest({
         ctcaeChunks,
         protocolChunks,
         userText: normalizedUserText,
+        audienceRole,
       }),
       routeDecision: 'reuse_cache',
       routeReason: 'follow_up',
@@ -360,6 +367,7 @@ export async function routeGuidanceRequest({
       userText: normalizedUserText,
       routeReason: classifierDecision.reason_code,
       retrievalCache,
+      audienceRole,
     });
   }
 
@@ -394,6 +402,7 @@ export async function routeGuidanceRequest({
         ctcaeChunks,
         protocolChunks,
         userText: normalizedUserText,
+        audienceRole,
       }),
       routeDecision: 'reuse_cache',
       routeReason: classifierDecision.reason_code,
@@ -428,6 +437,7 @@ export async function routeGuidanceRequest({
       userText: normalizedUserText,
       routeReason: 'retrieval_unavailable',
       retrievalCache,
+      audienceRole,
     });
   }
 
@@ -439,6 +449,7 @@ export async function routeGuidanceRequest({
       ctcaeChunks,
       protocolChunks,
       userText: normalizedUserText,
+      audienceRole,
     }),
     routeDecision: 'retrieve',
     routeReason: classifierDecision.reason_code,

@@ -197,7 +197,8 @@ function findResolvedIncidentCoveringAlert(alert = {}, incidents = []) {
   }) || null;
 }
 
-function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [] }) {
+function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [], audienceRole = 'crc' }) {
+  const isPatientAudience = audienceRole === 'patient';
   const aeIncidents = (Array.isArray(incidents) ? incidents : []).map((incident) => {
     const operationalState = getIncidentOperationalState(incident);
     return {
@@ -210,10 +211,14 @@ function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [] }) {
       operational_state: operationalState,
       is_current_active: operationalState === 'active',
       resolved_at: incident.resolved_at || incident.resolvedAt || null,
-      resolved_by: incident.resolved_by_name || incident.resolvedByName || incident.resolved_by || null,
       last_event_at: getMostRelevantTimestamp(incident, ['updated_at', 'last_event_at', 'created_at']),
-      linked_alert_paths: incident.linked_alert_paths || [],
-      linked_report_count: Array.isArray(incident.linked_reports) ? incident.linked_reports.length : 0,
+      ...(isPatientAudience
+        ? {}
+        : {
+            resolved_by: incident.resolved_by_name || incident.resolvedByName || incident.resolved_by || null,
+            linked_alert_paths: incident.linked_alert_paths || [],
+            linked_report_count: Array.isArray(incident.linked_reports) ? incident.linked_reports.length : 0,
+          }),
     };
   });
 
@@ -225,14 +230,12 @@ function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [] }) {
       const operationalState = resolvedIncident ? 'resolved' : rawOperationalState;
       return {
         id: alert.id || null,
-        path: getAlertDocumentPath(alert) || null,
         type: alert.type || null,
         reason: alert.reason || alert.symptom_title || alert.event_title || null,
         raw_status: alert.status || null,
         operational_state: operationalState,
         is_current_active: operationalState === 'active',
         resolved_at: alert.resolvedAt || alert.resolved_at || null,
-        resolved_by_incident_id: resolvedIncident?.id || null,
         operational_state_reason: resolvedIncident
           ? 'The alert is covered by a linked or event-matched resolved incident, so it is treated as historical even if the raw alert status is still unread.'
           : null,
@@ -240,6 +243,12 @@ function buildEmergencyAeResolutionStatus({ alerts = [], incidents = [] }) {
         last_event_at: getMostRelevantTimestamp(alert, ['timestamp', 'updated_at', 'created_at']),
         last_sender: alert.lastSender || alert.senderRole || null,
         latest_message: alert.message || null,
+        ...(isPatientAudience
+          ? {}
+          : {
+              path: getAlertDocumentPath(alert) || null,
+              resolved_by_incident_id: resolvedIncident?.id || null,
+            }),
       };
     });
 
@@ -460,7 +469,26 @@ function buildTraceRef(summary = {}) {
   };
 }
 
-function buildStableSystemPrompt(aiName) {
+function buildStableSystemPrompt(aiName, role = 'crc') {
+  if (role === 'patient') {
+    return [
+      `You are ${aiName}.`,
+      'Role: patient-facing TrialLight safety assistant.',
+      'The current user is the patient. Speak directly to the patient in clear, calm language.',
+      'Use the directly injected patient context as the live source of truth.',
+      'You may explain whether the patient currently has active AE/emergency items, and which safety events appear documented or resolved.',
+      'Do not expose CRC-only or internal operational details, including internal prediction scores, prioritization labels, staff workflow recommendations, CRC ownership or routing, staff resolver identity, linked record paths, patient-id lists, report-linkage details, source-system metadata, rule snapshots, internal notes, or explanation-signal details.',
+      'Do not present yourself as a diagnosis service or autonomous emergency care. TrialLight chat is a support and documentation layer and does not replace direct emergency escalation.',
+      'Before describing an emergency or adverse event as current, active, unresolved, or ongoing, check the injected EMERGENCY / AE OPERATIONAL STATUS section. operational_state is the source of truth.',
+      'If an unread raw alert is listed there as operational_state "resolved" because it is covered by a resolved incident, do not call it active. Explain it as a historical documented/resolved event if relevant.',
+      'Treat vital sign records as measurements, not as resolved/unresolved cases by themselves. A vital value is only a current active AE/emergency if a linked active alert or incident remains unresolved.',
+      'If the patient describes severe or worsening symptoms, advise them to use the study emergency number or local emergency services immediately.',
+      '',
+      '=== SAFETY & RULES ===',
+      SAFETY_INSTRUCTIONS,
+    ].join('\n');
+  }
+
   return [
     `You are ${aiName}.`,
     'Role: CRC Copilot for the CRC workspace.',
@@ -489,11 +517,41 @@ function buildPatientContextText({
   eproEntries,
   incidents,
   protocol,
+  audienceRole = 'crc',
 }) {
+  const isPatientAudience = audienceRole === 'patient';
   const emergencyAeResolutionStatus = buildEmergencyAeResolutionStatus({
     alerts,
     incidents,
+    audienceRole,
   });
+  const promptAlerts = isPatientAudience
+    ? (Array.isArray(alerts) ? alerts : []).map((alert) => ({
+        id: alert.id || null,
+        type: alert.type || null,
+        reason: alert.reason || null,
+        message: alert.message || null,
+        status: alert.status || null,
+        timestamp: alert.timestamp || null,
+        threadClosed: Boolean(alert.threadClosed),
+        resolvedAt: alert.resolvedAt || alert.resolved_at || null,
+        lastSender: alert.lastSender || alert.senderRole || null,
+        source_incident_id: alert.source_incident_id || null,
+      }))
+    : alerts;
+  const promptIncidents = isPatientAudience
+    ? (Array.isArray(incidents) ? incidents : []).map((incident) => ({
+        id: incident.id || null,
+        event_key: incident.event_key || null,
+        event_title: incident.event_title || incident.reason || null,
+        incident_type: incident.incident_type || null,
+        severity: incident.severity || null,
+        status: incident.status || null,
+        created_at: incident.created_at || null,
+        updated_at: incident.updated_at || null,
+        resolved_at: incident.resolved_at || incident.resolvedAt || null,
+      }))
+    : incidents;
 
   return [
     '=== PATIENT PROFILE ===',
@@ -507,11 +565,11 @@ function buildPatientContextText({
     '=== EMERGENCY / AE OPERATIONAL STATUS (CHECK BEFORE SAYING CURRENT/ONGOING) ===',
     serializeForPrompt(emergencyAeResolutionStatus),
     '=== ALERT HISTORY ===',
-    serializeForPrompt(alerts),
+    serializeForPrompt(promptAlerts),
     '=== EPRO SUBMISSIONS ===',
     serializeForPrompt(eproEntries),
     '=== INCIDENT RECORDS ===',
-    serializeForPrompt(incidents),
+    serializeForPrompt(promptIncidents),
     '=== ACTIVE PROTOCOL ===',
     serializeForPrompt(protocol),
   ].join('\n\n');
@@ -711,20 +769,22 @@ export default function GeminiChatbot({
 
   const initializeGuidance = useCallback(async () => {
     try {
-      if (role !== 'crc') {
-      throw new Error('Adverse Event Guidance in the CRC website is restricted to CRC users.');
+      if (!['crc', 'patient'].includes(role)) {
+        throw new Error('Adverse Event Guidance is restricted to TrialLight CRC or patient users.');
       }
 
-      systemPromptRef.current = buildStableSystemPrompt(currentAiName);
+      systemPromptRef.current = buildStableSystemPrompt(currentAiName, role);
       chatSessionRef.current = true;
       if (!chatSessionIdRef.current) {
-        chatSessionIdRef.current = `crc-guidance-${userId || 'unknown'}-${Date.now()}`;
+        chatSessionIdRef.current = `${role}-guidance-${userId || 'unknown'}-${Date.now()}`;
       }
 
       if (messages.length === 0) {
         await saveMessage(
           'model',
-          `**${currentAiName} ready.**\nRunning through ${SIDE_EFFECT_GUIDANCE_PROVIDER} with ${SIDE_EFFECT_GUIDANCE_MODEL}. I can use routed retrieval with CTCAE and protocol grounding when needed.`
+          role === 'patient'
+            ? `**${currentAiName} ready.**\nI can help explain your TrialLight safety status using the current patient-facing record.`
+            : `**${currentAiName} ready.**\nRunning through ${SIDE_EFFECT_GUIDANCE_PROVIDER} with ${SIDE_EFFECT_GUIDANCE_MODEL}. I can use routed retrieval with CTCAE and protocol grounding when needed.`
         );
       }
     } catch (error) {
@@ -968,6 +1028,7 @@ export default function GeminiChatbot({
           eproEntries: patientEproEntries,
           incidents: patientIncidents,
           protocol,
+          audienceRole: role,
         }),
       };
     }
@@ -1044,6 +1105,7 @@ export default function GeminiChatbot({
         eproEntries,
         incidents,
         protocol,
+        audienceRole: role,
       }),
     };
   };
@@ -1078,7 +1140,7 @@ export default function GeminiChatbot({
 
       const routedGuidance = await routeGuidanceRequest({
         userText,
-        workspaceContext: workspaceContextText,
+        workspaceContext: role === 'crc' ? workspaceContextText : '',
         patientContext: patientContext.promptText,
         patientId: patientContext.patientId,
         protocolId: patientContext.protocolId,
@@ -1088,6 +1150,7 @@ export default function GeminiChatbot({
         retrievalCache: lastRetrievalRef.current,
         currentTurnIndex: turnSequenceRef.current,
         lastRetrievalTurnIndex: lastRetrievalTurnIndexRef.current,
+        audienceRole: role,
         onStageChange: (stage) => {
           setThinkingLabel(buildThinkingLabel(stage));
         },
@@ -1116,7 +1179,7 @@ export default function GeminiChatbot({
 
       const sharedTracePayload = {
         sessionId:
-          chatSessionIdRef.current || `crc-guidance-${userId || 'unknown'}-${Date.now()}`,
+          chatSessionIdRef.current || `${role}-guidance-${userId || 'unknown'}-${Date.now()}`,
         systemPrompt: systemPromptRef.current,
         messages: conversation,
         originalUserText: userText,
@@ -1132,7 +1195,7 @@ export default function GeminiChatbot({
         subjectId: patientContext.subjectId,
         protocolId: patientContext.protocolId,
         protocolName: patientContext.protocolName,
-        crcDisplayName: userNickname || '',
+        crcDisplayName: role === 'crc' ? userNickname || '' : '',
       };
 
       const startTraceState = () => {

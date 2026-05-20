@@ -119,14 +119,20 @@ export function buildGuidancePromptNoRetrieval({
   workspaceContext,
   patientContext,
   userText,
+  audienceRole = 'crc',
 }) {
+  const isPatientAudience = audienceRole === 'patient';
   return [
-    workspaceContext ? `=== CRC WORKSPACE CONTEXT ===\n${workspaceContext}` : '',
-    patientContext ? `=== COMPLETE PATIENT CONTEXT ===\n${patientContext}` : '',
+    workspaceContext && !isPatientAudience ? `=== CRC WORKSPACE CONTEXT ===\n${workspaceContext}` : '',
+    patientContext
+      ? `${isPatientAudience ? '=== PATIENT-FACING CONTEXT ===' : '=== COMPLETE PATIENT CONTEXT ==='}\n${patientContext}`
+      : '',
     [
       '=== ANSWER MODE ===',
       'No CTCAE or Protocol excerpts were retrieved for this turn.',
-      'Answer only from the directly injected CRC workspace context, patient context, and the existing conversation.',
+      isPatientAudience
+        ? 'Answer only from the directly injected patient-facing context and the existing conversation.'
+        : 'Answer only from the directly injected CRC workspace context, patient context, and the existing conversation.',
       'Do not claim CTCAE or Protocol rules, grades, page numbers, or citations in this reply.',
       'Do not make new medical or protocol judgments that require document grounding.',
     ].join('\n'),
@@ -142,10 +148,14 @@ export function buildGuidancePromptWithRetrieval({
   ctcaeChunks = [],
   protocolChunks = [],
   userText,
+  audienceRole = 'crc',
 }) {
+  const isPatientAudience = audienceRole === 'patient';
   return [
-    workspaceContext ? `=== CRC WORKSPACE CONTEXT ===\n${workspaceContext}` : '',
-    patientContext ? `=== COMPLETE PATIENT CONTEXT ===\n${patientContext}` : '',
+    workspaceContext && !isPatientAudience ? `=== CRC WORKSPACE CONTEXT ===\n${workspaceContext}` : '',
+    patientContext
+      ? `${isPatientAudience ? '=== PATIENT-FACING CONTEXT ===' : '=== COMPLETE PATIENT CONTEXT ==='}\n${patientContext}`
+      : '',
     `=== CTCAE RETRIEVED EXCERPTS ===\n${
       ctcaeChunks.length
         ? ctcaeChunks.map((entry) => `${renderChunkLabel(entry, 'CTCAE')}\n${entry.content}`).join('\n\n---\n\n')
