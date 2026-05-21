@@ -208,7 +208,7 @@ export default function PatientEditMenu({
               <option value="">Unassigned</option>
               {(crcUsers || []).map((crc) => (
                 <option key={crc.id} value={crc.id}>
-                  {crc.nickname || crc.email || crc.id}
+                  {crc.resolvedName || crc.nickname || crc.email || crc.id}
                 </option>
               ))}
             </select>

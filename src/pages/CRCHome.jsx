@@ -127,6 +127,45 @@ function isHospitalEmailAddress(value = '') {
     .endsWith('@hospital.com');
 }
 
+function normalizeDisplayValue(value = '') {
+  return String(value || '').trim();
+}
+
+function isUsableCrcDisplayName(value = '', crcId = '') {
+  const normalizedValue = normalizeDisplayValue(value);
+  if (!normalizedValue) return false;
+  if (normalizedValue.toLowerCase() === 'unassigned') return false;
+  if (normalizedValue === crcId) return false;
+  return true;
+}
+
+function resolveBestCrcDisplayName(crcId, weightedCandidates = []) {
+  const candidateScores = new Map();
+
+  weightedCandidates.forEach(({ value, weight = 1 }) => {
+    const normalizedValue = normalizeDisplayValue(value);
+    if (!isUsableCrcDisplayName(normalizedValue, crcId)) {
+      return;
+    }
+    candidateScores.set(normalizedValue, (candidateScores.get(normalizedValue) || 0) + weight);
+  });
+
+  if (!candidateScores.size) {
+    return '';
+  }
+
+  return [...candidateScores.entries()]
+    .sort((left, right) => {
+      if (right[1] !== left[1]) {
+        return right[1] - left[1];
+      }
+      if (right[0].length !== left[0].length) {
+        return right[0].length - left[0].length;
+      }
+      return left[0].localeCompare(right[0]);
+    })[0][0];
+}
+
 const HOME_SECTIONS = {
   today: {
     label: 'Today',
@@ -1210,7 +1249,7 @@ export default function CRCHome({ user, onLogout }) {
     setSuccessMsg('');
     setSubjectIdError('');
     try {
-      const assignedCrc = crcUsers.find((entry) => entry.id === tempPrimaryCrcId);
+      const assignedCrc = resolvedCrcUsers.find((entry) => entry.id === tempPrimaryCrcId);
       const assignedProtocol = protocolTemplates.find((entry) => entry.id === tempProtocolId) || null;
       const assignedDropoutTrialId = String(assignedProtocol?.dropout_trial_id || '').trim();
       const assignedDropoutTrialStatus = String(assignedProtocol?.dropout_trial_status || '').trim() || 'not_configured';
@@ -1259,7 +1298,7 @@ export default function CRCHome({ user, onLogout }) {
       await updateDoc(doc(db, 'users', selPatient.id), {
         email: tempEmail,
         primary_crc_id: tempPrimaryCrcId || null,
-        primary_crc_name: assignedCrc?.nickname || assignedCrc?.email || null,
+        primary_crc_name: assignedCrc?.resolvedName || assignedCrc?.nickname || assignedCrc?.email || null,
         primary_crc_phone: tempPrimaryCrcPhone || null,
         study_emergency_phone: tempStudyEmergencyPhone || null,
         protocolId: assignedProtocol?.id || null,
@@ -1474,6 +1513,45 @@ export default function CRCHome({ user, onLogout }) {
   const coordinationVitalsPreview = useMemo(() => pVitals, [pVitals]);
   const coordinationAppointmentsPreview = useMemo(() => pAppts, [pAppts]);
   const currentCrcDisplayName = crcName || user.email || 'CRC';
+  const resolvedCrcUsers = useMemo(() => {
+    return [...(crcUsers || [])]
+      .map((entry) => {
+        const patientNameCandidates = patients
+          .filter((patient) => (patient.primary_crc_id || patient.primaryCrcId || '') === entry.id)
+          .map((patient) => ({
+            value: patient.primary_crc_name || patient.primaryCrcName || '',
+            weight: 4,
+          }));
+        const incidentNameCandidates = incidents
+          .filter((incident) => (incident.primary_crc_id || incident.primaryCrcId || '') === entry.id)
+          .map((incident) => ({
+            value: incident.primary_crc_name || incident.primaryCrcName || '',
+            weight: 2,
+          }));
+        const resolvedName =
+          resolveBestCrcDisplayName(entry.id, [
+            { value: entry.nickname, weight: 100 },
+            { value: entry.displayName, weight: 100 },
+            { value: entry.display_name, weight: 100 },
+            { value: entry.name, weight: 100 },
+            ...(entry.id === user.uid ? [{ value: currentCrcDisplayName, weight: 80 }] : []),
+            ...patientNameCandidates,
+            ...incidentNameCandidates,
+          ]) ||
+          normalizeDisplayValue(entry.email) ||
+          entry.id;
+
+        return {
+          ...entry,
+          resolvedName,
+        };
+      })
+      .sort((left, right) => {
+        const leftLabel = String(left.resolvedName || left.nickname || left.email || left.id || '').toLowerCase();
+        const rightLabel = String(right.resolvedName || right.nickname || right.email || right.id || '').toLowerCase();
+        return leftLabel.localeCompare(rightLabel);
+      });
+  }, [crcUsers, currentCrcDisplayName, incidents, patients, user.uid]);
 
   const patientRosterRows = useMemo(() => {
     const incidentCounts = new Map();
@@ -2480,7 +2558,7 @@ export default function CRCHome({ user, onLogout }) {
                                   subjectId={tempSubjectId}
                                   setSubjectId={setTempSubjectId}
                                   subjectIdError={subjectIdError}
-                                  crcUsers={crcUsers}
+                                  crcUsers={resolvedCrcUsers}
                                   inheritedVitals={inheritedVitalsPreview}
                                   dropoutOptions={dropoutTestingSubjects}
                                   onSave={handleSaveInfo}
