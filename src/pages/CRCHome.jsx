@@ -17,10 +17,10 @@ import GeminiChatbot from '../components/GeminiChatbot';
 import LiveChatWidget from '../components/LiveChatWidget';
 import IncidentDetailModal from '../components/IncidentDetailModal';
 import PatientConversationTimeline from '../components/PatientConversationTimeline';
+import PatientDirectMessagePanel from '../components/PatientDirectMessagePanel';
 import ProtocolManager from '../components/ProtocolManager';
 import PatientList from '../components/PatientList';
 import PatientEditMenu from '../components/PatientEditMenu';
-import PatientNotesPanel from '../components/PatientNotesPanel';
 import EproReviewWorkspace from '../components/EproReviewWorkspace';
 import DropoutRiskPanel from '../components/DropoutRiskPanel';
 import SafetyInboxPanel from '../components/SafetyInboxPanel';
@@ -75,7 +75,7 @@ const MAX_GLOBAL_ALERT_LIMIT = 500;
 const MAX_GLOBAL_EPRO_LIMIT = 500;
 const MAX_GLOBAL_INCIDENT_LIMIT = 500;
 const DEFAULT_WINDOW_PAGE_SIZE = 30;
-const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'notes', 'coordination'];
+const PATIENT_WORKSPACE_TABS = ['overview', 'vitals', 'safety', 'epro', 'patient_chat', 'coordination'];
 const GUIDANCE_PANE_STORAGE_KEY = 'crc-adverse-event-guidance-left-pane-width';
 const DEFAULT_GUIDANCE_LEFT_PANE_WIDTH = 56;
 const MIN_GUIDANCE_LEFT_PANE_WIDTH = 32;
@@ -2292,6 +2292,8 @@ export default function CRCHome({ user, onLogout }) {
                                 ? 'Study Coordination'
                                 : tabId === 'epro'
                                   ? 'ePRO'
+                                  : tabId === 'patient_chat'
+                                    ? 'Patient Chat'
                                   : tabId.charAt(0).toUpperCase() + tabId.slice(1)}
                             </button>
                           ))}
@@ -2507,10 +2509,11 @@ export default function CRCHome({ user, onLogout }) {
                             </div>
                           ) : null}
 
-                          {activePatientTab === 'notes' ? (
-                            <PatientNotesPanel
-                              patientId={selPatient.id}
-                              currentUser={{ uid: user.uid, name: currentCrcDisplayName }}
+                          {activePatientTab === 'patient_chat' ? (
+                            <PatientDirectMessagePanel
+                              patient={selPatient}
+                              crcName={currentCrcDisplayName}
+                              alerts={pAlerts}
                             />
                           ) : null}
 

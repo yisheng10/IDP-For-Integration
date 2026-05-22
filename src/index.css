@@ -4592,6 +4592,139 @@ body {
   flex-wrap: wrap;
 }
 
+.patient-chat__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 14px 16px;
+  border: 1px solid #dbe7f3;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.patient-chat__summaryCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.patient-chat__summaryCopy strong {
+  color: #16324f;
+  font-size: 16px;
+}
+
+.patient-chat__summaryMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+  color: #60748a;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.patient-chat__summaryMeta strong {
+  color: #173b5a;
+  font-size: 14px;
+}
+
+.patient-chat__stream {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 440px;
+  margin-top: 18px;
+  padding-right: 6px;
+  overflow-y: auto;
+}
+
+.patient-chat__message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(78%, 760px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #d7e5f4;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.patient-chat__message--patient {
+  align-self: flex-start;
+  background: #f8fbff;
+}
+
+.patient-chat__message--crc {
+  align-self: flex-end;
+  background: linear-gradient(180deg, #1c78bc 0%, #0f609b 100%);
+  border-color: #0f609b;
+}
+
+.patient-chat__messageMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #5f7488;
+}
+
+.patient-chat__messageMeta strong {
+  color: #13324c;
+  font-size: 13px;
+}
+
+.patient-chat__message--crc .patient-chat__messageMeta,
+.patient-chat__message--crc .patient-chat__messageMeta strong,
+.patient-chat__message--crc .patient-chat__messageBody {
+  color: #ffffff;
+}
+
+.patient-chat__messageBody {
+  color: #18354f;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.patient-chat__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.patient-chat__composerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.patient-chat__error {
+  margin-top: 12px;
+  color: #b42318;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .patient-chat__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-chat__summaryMeta {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .patient-chat__message {
+    max-width: 100%;
+  }
+}
+
 .patient-tasks__composerGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(150px, 0.7fr) minmax(190px, 0.95fr) auto;
