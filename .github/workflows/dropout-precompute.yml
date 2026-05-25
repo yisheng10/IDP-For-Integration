@@ -37,7 +37,7 @@ jobs:
       DROPOUT_REPO_PAT: ${{ secrets.DROPOUT_REPO_PAT }}
       DROPOUT_LIVE_DEBUG: "1"
       TRIALLIGHT_SUBJECT_CONTEXT_REGISTRY_PATH: deploy_assets/data/triallight_subject_context_registry_v35subjectid.csv
-      DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_candidate_024
+      DROPOUT_CHECKPOINTS_DIR: deploy_assets/checkpoints_live_v2
       DROPOUT_LIVE_HISTORY_CONTEXT_DAYS: "30"
       DROPOUT_LIVE_STALENESS_CAP_DAYS: "30"
       DROPOUT_PROGRESS_EVERY: "5"
@@ -66,7 +66,7 @@ jobs:
         with:
           repository: yisheng10/Patient-Dropout-Prediction
           token: ${{ secrets.DROPOUT_REPO_PAT }}
-          ref: codex/candidate-024-disengagement-safe
+          ref: codex/candidate-024-disengagement-hardening
           path: Patient-Dropout-Prediction
 
       - name: Validate required secrets
@@ -115,8 +115,8 @@ jobs:
           required_files=(
             "requirements.txt"
             "src/publish_dropout_snapshots.py"
-            "deploy_assets/checkpoints_candidate_024/model_stage_3_29_single.pth"
-            "deploy_assets/checkpoints_candidate_024/artifacts_stage_3_29_single.pkl"
+            "deploy_assets/checkpoints_live_v2/model_stage_3_29_single.pth"
+            "deploy_assets/checkpoints_live_v2/artifacts_stage_3_29_single.pkl"
           )
 
           for target in "${required_files[@]}"; do
@@ -126,8 +126,8 @@ jobs:
             fi
           done
 
-          if [ ! -d "deploy_assets/checkpoints_candidate_024" ]; then
-            echo "Missing required directory: deploy_assets/checkpoints_candidate_024"
+          if [ ! -d "deploy_assets/checkpoints_live_v2" ]; then
+            echo "Missing required directory: deploy_assets/checkpoints_live_v2"
             exit 1
           fi
 

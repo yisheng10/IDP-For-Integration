@@ -352,7 +352,10 @@ export function buildChallengerCrossCheckItems(summary, drivers = [], whyFlagged
       return true;
     }
     return !whyFlaggedText || !(
-      (lower.includes('engagement timing') && whyFlaggedText.includes('engagement activity')) ||
+      (lower.includes('engagement timing') && (
+        whyFlaggedText.includes('engagement activity') ||
+        whyFlaggedText.includes('temporal focus highlighted recent engagement history')
+      )) ||
       (lower.includes('inactivity') && whyFlaggedText.includes('no recent patient activity')) ||
       (lower.includes('fresh vitals') && whyFlaggedText.includes('no fresh vitals')) ||
       (lower.includes('crc follow-up') && whyFlaggedText.includes('crc follow-up'))

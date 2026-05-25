@@ -159,7 +159,9 @@ describe('dropout case and explainability labels', () => {
         'Recent engagement timing around day 8 is one of the strongest local signals in the current patient window.',
         'The challenger is also checking whether operational follow-up friction is contributing to the risk picture because the CRC follow-up loop is still open.',
       ],
-      ['Recent engagement activity around day 8 was highlighted as a strong disengagement signal.']
+      [
+        'The Transformer temporal focus highlighted recent engagement history around day 8; this attention marker is not by itself a negative disengagement signal.',
+      ]
     );
 
     expect(rows.some((entry) => entry.toLowerCase().includes('operational follow-up friction'))).toBe(true);
