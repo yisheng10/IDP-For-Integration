@@ -64,6 +64,7 @@ import { purgePatientRecord } from '../services/patientAdminService';
 import { getSignedUrl } from '../services/storageService';
 import {
   buildFallbackMonitoredVitals,
+  coerceVitalTemplates,
   describeInheritedVitals,
   subscribeToTrialTemplates,
 } from '../services/trialTemplateService';
@@ -105,6 +106,68 @@ function buildDefaultDropoutTrialSupportStatus(trialId = '') {
     metadata: null,
     source: 'none',
   };
+}
+
+function hasVitalValue(value) {
+  return value !== null && value !== undefined && String(value).trim() !== '';
+}
+
+function toVitalSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function toVitalCamel(value) {
+  const slug = toVitalSlug(value);
+  return slug.replace(/-([a-z0-9])/g, (_, nextChar) => nextChar.toUpperCase());
+}
+
+function getVitalCandidateKeys(template = {}) {
+  return [
+    template.storage_key,
+    template.key,
+    template.label,
+    toVitalSlug(template.storage_key || template.key || template.label),
+    toVitalCamel(template.storage_key || template.key || template.label),
+  ].filter(Boolean);
+}
+
+function getRecordValueByTemplate(record = {}, template = {}) {
+  for (const key of getVitalCandidateKeys(template)) {
+    if (Object.prototype.hasOwnProperty.call(record, key) && hasVitalValue(record[key])) {
+      return record[key];
+    }
+  }
+  return null;
+}
+
+function formatVitalTemplateLabel(template = {}) {
+  return String(template.label || template.key || template.storage_key || 'Vital').trim();
+}
+
+function formatVitalTemplateValue(record = {}, template = {}) {
+  if (template.input_type === 'blood_pressure') {
+    const systolicKey = template.systolic_key || 'bpSys';
+    const diastolicKey = template.diastolic_key || 'bpDia';
+    const systolic = record[systolicKey];
+    const diastolic = record[diastolicKey];
+    return hasVitalValue(systolic) || hasVitalValue(diastolic)
+      ? `${hasVitalValue(systolic) ? systolic : '-'}/${hasVitalValue(diastolic) ? diastolic : '-'}`
+      : '-';
+  }
+
+  const value = getRecordValueByTemplate(record, template);
+  if (!hasVitalValue(value)) return '-';
+  return `${value}${template.unit ? ` ${template.unit}` : ''}`;
+}
+
+function buildVitalSummary(record = {}, templates = []) {
+  return templates
+    .map((template) => `${formatVitalTemplateLabel(template)} ${formatVitalTemplateValue(record, template)}`)
+    .join(' • ');
 }
 
 function clampGuidancePaneWidth(nextWidth, containerWidth = 0) {
@@ -1510,6 +1573,10 @@ export default function CRCHome({ user, onLogout }) {
     [editingProtocolTemplate]
   );
   const selectedProtocolName = editingProtocolTemplate?.name || selPatient?.protocolName || 'Not assigned';
+  const selectedPatientVitalTemplates = useMemo(
+    () => coerceVitalTemplates(selectedProtocolTemplate?.vital_templates, selPatient?.monitoredVitals),
+    [selectedProtocolTemplate, selPatient?.monitoredVitals]
+  );
   const coordinationVitalsPreview = useMemo(() => pVitals, [pVitals]);
   const coordinationAppointmentsPreview = useMemo(() => pAppts, [pAppts]);
   const currentCrcDisplayName = crcName || user.email || 'CRC';
@@ -2337,9 +2404,7 @@ export default function CRCHome({ user, onLogout }) {
                                     {coordinationVitalsPreview.slice(0, 4).map((record) => (
                                       <div key={record.id} className="patient-overview__vitalsMiniRow">
                                         <span>{new Date(record.timestamp).toLocaleString()}</span>
-                                        <strong>
-                                          BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'} • SpO2 {record.spo2 ? `${record.spo2}%` : '-'} • Temp {record.temperature ? `${record.temperature} C` : '-'}
-                                        </strong>
+                                        <strong>{buildVitalSummary(record, selectedPatientVitalTemplates)}</strong>
                                       </div>
                                     ))}
                                   </div>
@@ -2412,11 +2477,16 @@ export default function CRCHome({ user, onLogout }) {
                               {coordinationVitalsPreview.length ? (
                                 <div className="patient-overview__vitalsTable">
                                   {coordinationVitalsPreview.map((record) => (
-                                    <div key={record.id} className="patient-overview__vitalsRow">
-                                      <div>{new Date(record.timestamp).toLocaleString()}</div>
-                                      <div>BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'}</div>
-                                      <div>SpO2 {record.spo2 ? `${record.spo2}%` : '-'}</div>
-                                      <div>Temp {record.temperature ? `${record.temperature} C` : '-'}</div>
+                                    <div key={record.id} className="patient-overview__vitalsRow patient-overview__vitalsRow--dynamic">
+                                      <div className="patient-overview__vitalsTimestamp">{new Date(record.timestamp).toLocaleString()}</div>
+                                      <div className="patient-overview__vitalsValues">
+                                        {selectedPatientVitalTemplates.map((template) => (
+                                          <div key={template.key || template.storage_key || template.label} className="patient-overview__vitalsValue">
+                                            <span>{formatVitalTemplateLabel(template)}</span>
+                                            <strong>{formatVitalTemplateValue(record, template)}</strong>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -2622,11 +2692,16 @@ export default function CRCHome({ user, onLogout }) {
                                   {coordinationVitalsPreview.length ? (
                                     <div className="patient-overview__vitalsTable patient-overview__vitalsTable--scrollable">
                                       {coordinationVitalsPreview.map((record) => (
-                                        <div key={record.id} className="patient-overview__vitalsRow">
-                                          <div>{new Date(record.timestamp).toLocaleString()}</div>
-                                          <div>BP {record.bpSys ? `${record.bpSys}/${record.bpDia}` : '-'}</div>
-                                          <div>SpO2 {record.spo2 ? `${record.spo2}%` : '-'}</div>
-                                          <div>Temp {record.temperature ? `${record.temperature} C` : '-'}</div>
+                                        <div key={record.id} className="patient-overview__vitalsRow patient-overview__vitalsRow--dynamic">
+                                          <div className="patient-overview__vitalsTimestamp">{new Date(record.timestamp).toLocaleString()}</div>
+                                          <div className="patient-overview__vitalsValues">
+                                            {selectedPatientVitalTemplates.map((template) => (
+                                              <div key={template.key || template.storage_key || template.label} className="patient-overview__vitalsValue">
+                                                <span>{formatVitalTemplateLabel(template)}</span>
+                                                <strong>{formatVitalTemplateValue(record, template)}</strong>
+                                              </div>
+                                            ))}
+                                          </div>
                                         </div>
                                       ))}
                                     </div>

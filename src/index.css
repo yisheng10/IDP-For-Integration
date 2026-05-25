@@ -4009,6 +4009,43 @@ body {
   font-size: 13px;
 }
 
+.patient-overview__vitalsRow--dynamic {
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.patient-overview__vitalsTimestamp {
+  color: #234762;
+  line-height: 1.45;
+}
+
+.patient-overview__vitalsValues {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 14px;
+  min-width: 0;
+}
+
+.patient-overview__vitalsValue {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.patient-overview__vitalsValue span {
+  color: #64788b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.patient-overview__vitalsValue strong {
+  color: #14324a;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .patient-coordination-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
@@ -6358,6 +6395,10 @@ body {
 
 .patient-workspace--full .patient-overview__vitalsRow {
   grid-template-columns: minmax(180px, 1.05fr) repeat(3, minmax(110px, 0.7fr));
+}
+
+.patient-workspace--full .patient-overview__vitalsRow--dynamic {
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
 }
 
 .patient-workspace--full .patient-config__footer {
