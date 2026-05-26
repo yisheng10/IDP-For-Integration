@@ -1025,6 +1025,9 @@ function HighlightSummaryCard({
 }
 
 function addDaysToDate(value, days) {
+  if (value == null || value === '') {
+    return null;
+  }
   const nextValue = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
   if (Number.isNaN(nextValue.getTime())) {
     return null;
@@ -1034,7 +1037,7 @@ function addDaysToDate(value, days) {
   return cloned;
 }
 
-function buildInterventionTimelineStages(caseEntry = {}) {
+export function buildInterventionTimelineStages(caseEntry = {}) {
   const actionCode = String(caseEntry?.action_taken_code || caseEntry?.action_taken || '').trim().toLowerCase();
   const manualResult = String(caseEntry?.contact_result_status || caseEntry?.manual_result || '').trim().toLowerCase();
   const proxyStatus = getDropoutInterventionProxyStatus(caseEntry);

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 let buildChallengerCrossCheckItems;
+let buildInterventionTimelineStages;
 let buildRecentPublishTrendData;
 let formatInterventionCloseReasonLabel;
 let formatInterventionHistoryEntry;
@@ -19,6 +20,7 @@ beforeAll(async () => {
 
   const module = await import('../DropoutRiskPanel.jsx');
   buildChallengerCrossCheckItems = module.buildChallengerCrossCheckItems;
+  buildInterventionTimelineStages = module.buildInterventionTimelineStages;
   buildRecentPublishTrendData = module.buildRecentPublishTrendData;
   formatInterventionCloseReasonLabel = module.formatInterventionCloseReasonLabel;
   formatInterventionHistoryEntry = module.formatInterventionHistoryEntry;
@@ -177,6 +179,13 @@ describe('dropout case and explainability labels', () => {
     expect(label).toContain('Closed');
     expect(label).toContain('Re-engagement observed');
     expect(label).toContain('Closed automatically after re-engagement was observed');
+  });
+
+  it('does not invent a 1970 auto-evaluation timestamp when no case dates exist', () => {
+    const autoStage = buildInterventionTimelineStages({}).find((stage) => stage.key === 'auto');
+
+    expect(autoStage.timestamp).toBeNull();
+    expect(autoStage.caption).toBe('');
   });
 
   it('drops repetitive challenger timing lines when the primary explanation already says the same thing', () => {
