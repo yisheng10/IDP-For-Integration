@@ -17,10 +17,8 @@ on:
         default: false
         type: boolean
   schedule:
-    # 06:00 Asia/Kuala_Lumpur = 22:00 UTC on the previous day.
-    - cron: "0 22 * * *"
-    # 18:00 Asia/Kuala_Lumpur = 10:00 UTC on the same day.
-    - cron: "0 10 * * *"
+    # 19:00 Asia/Kuala_Lumpur = 11:00 UTC on the same day.
+    - cron: "0 11 * * *"
 
 jobs:
   publish-dropout-snapshots:
