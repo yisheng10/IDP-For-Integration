@@ -126,7 +126,7 @@ describe('buildRecentPublishTrendData', () => {
     expect(result.trendDirection).toBe('mixed / volatile');
   });
 
-  it('filters stale floor-collapsed legacy publishes and anchors the true previous publish', () => {
+  it('filters stale floor-collapsed legacy publishes while keeping nonzero legacy history', () => {
     const currentEntry = {
       ...buildPublishEntry(9, 0.266, 'low'),
       model_version: 'model_stage_3_29_single.pth',
@@ -136,6 +136,7 @@ describe('buildRecentPublishTrendData', () => {
     const staleHistoryRows = [
       buildPublishEntry(8, 0.000001, 'low'),
       buildPublishEntry(7, 0.000001, 'low'),
+      buildPublishEntry(6, 0.266, 'low'),
       buildPublishEntry(6, 0.000001, 'low'),
     ];
 
@@ -147,9 +148,10 @@ describe('buildRecentPublishTrendData', () => {
       },
     });
 
-    expect(result.chronologicalRows).toHaveLength(2);
-    expect(result.chronologicalRows[0].dropout_probability).toBe(0.594);
-    expect(result.chronologicalRows[1]).toBe(currentEntry);
+    expect(result.chronologicalRows).toHaveLength(3);
+    expect(result.chronologicalRows[0].dropout_probability).toBe(0.266);
+    expect(result.chronologicalRows[1].dropout_probability).toBe(0.594);
+    expect(result.chronologicalRows[2]).toBe(currentEntry);
     expect(result.latestDelta).toBeCloseTo(-0.328, 5);
   });
 });

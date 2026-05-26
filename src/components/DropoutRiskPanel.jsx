@@ -827,22 +827,20 @@ function getRuntimeCheckpointProfile(entry = {}) {
   return String(diagnostics.checkpoints_dir_basename || entry?.checkpoints_dir_basename || '').trim().toLowerCase();
 }
 
-function getRuntimeModelProfile(entry = {}) {
-  const checkpointProfile = getRuntimeCheckpointProfile(entry);
-  const modelVersion = String(entry?.model_version || '').trim().toLowerCase();
-  return checkpointProfile || modelVersion ? `${modelVersion}|${checkpointProfile}` : '';
-}
-
 function shouldKeepTrendHistoryRow(entry = {}, currentEntry = null) {
   if (entry?.isSyntheticPreviousPublish) return true;
-  const currentProfile = getRuntimeModelProfile(currentEntry);
-  const entryProfile = getRuntimeModelProfile(entry);
-  if (currentProfile && entryProfile && currentProfile !== entryProfile) {
+  const currentModelVersion = String(currentEntry?.model_version || '').trim().toLowerCase();
+  const entryModelVersion = String(entry?.model_version || '').trim().toLowerCase();
+  if (currentModelVersion && entryModelVersion && currentModelVersion !== entryModelVersion) {
     return false;
   }
 
   const currentCheckpointProfile = getRuntimeCheckpointProfile(currentEntry);
   const entryCheckpointProfile = getRuntimeCheckpointProfile(entry);
+  if (currentCheckpointProfile && entryCheckpointProfile && currentCheckpointProfile !== entryCheckpointProfile) {
+    return false;
+  }
+
   const probability = getProbabilityNumber(entry?.dropout_probability);
   const isLikelyLegacyFloorPublish =
     currentCheckpointProfile &&
@@ -1571,10 +1569,10 @@ function buildDetailedExplainabilitySections({
     ({ className }) => (
       <div className={className}>
         <StatusSummarySection
-          title="Model agreement"
+          title="Model-line agreement"
           status={explainabilityModelAgreement.status}
           summary={explainabilityModelAgreement.summary}
-          emptyLabel="Model agreement: not published in this workflow scope"
+          emptyLabel="Model-line agreement: not published in this workflow scope"
         />
       </div>
     ),
@@ -2155,15 +2153,18 @@ export default function DropoutRiskPanel({
   const explainabilityModelAgreement = useMemo(() => {
     const payload = activeExplainabilityPayload?.model_agreement;
     if (payload && typeof payload === 'object') {
+      const rawSummary = String(payload.summary || '').trim();
       return {
         status: payload.status || 'unavailable',
-        summary: String(payload.summary || '').trim(),
+        summary: rawSummary
+          ? `Model-line audit, same for all patients in this deployment: ${rawSummary}`
+          : '',
       };
     }
     return {
       status: activeExplainabilityPayload ? 'not_published_in_current_workflow_scope' : 'unavailable',
       summary: activeExplainabilityPayload
-        ? 'Model agreement is not published in this workflow scope.'
+        ? 'Model-line agreement is not published in this workflow scope.'
         : '',
     };
   }, [activeExplainabilityPayload, activeExplainabilityPayload?.model_agreement]);
