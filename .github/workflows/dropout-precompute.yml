@@ -16,6 +16,10 @@ on:
         required: false
         default: false
         type: boolean
+      backfill_day_indices:
+        description: "Optional comma-separated live day indices to backfill as Firestore history only, for example 1,2,3,4,5,6"
+        required: false
+        type: string
   schedule:
     # 19:00 Asia/Kuala_Lumpur = 11:00 UTC on the same day.
     - cron: "0 11 * * *"
@@ -167,6 +171,7 @@ jobs:
           LIMIT_PATIENTS="${{ github.event.inputs.limit_patients || '' }}"
           FIREBASE_UIDS="${{ github.event.inputs.firebase_uids || '' }}"
           SKIP_SYNC="${{ github.event.inputs.skip_testing_subject_sync || 'false' }}"
+          BACKFILL_DAY_INDICES="${{ github.event.inputs.backfill_day_indices || '' }}"
           args=(--source-mode live)
 
           if [ -n "$LIMIT_PATIENTS" ]; then
@@ -179,6 +184,10 @@ jobs:
 
           if [ "$SKIP_SYNC" = "true" ]; then
             args+=(--skip-testing-subject-sync)
+          fi
+
+          if [ -n "$BACKFILL_DAY_INDICES" ]; then
+            args+=(--backfill-day-indices "$BACKFILL_DAY_INDICES")
           fi
 
           python "./src/publish_dropout_snapshots.py" "${args[@]}"
