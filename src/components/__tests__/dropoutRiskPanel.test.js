@@ -123,6 +123,33 @@ describe('buildRecentPublishTrendData', () => {
 
     expect(result.trendDirection).toBe('mixed / volatile');
   });
+
+  it('filters stale floor-collapsed legacy publishes and anchors the true previous publish', () => {
+    const currentEntry = {
+      ...buildPublishEntry(9, 0.266, 'low'),
+      model_version: 'model_stage_3_29_single.pth',
+      subject_id: 'TL-S1',
+      model_runtime_diagnostics: { checkpoints_dir_basename: 'checkpoints_live_v2' },
+    };
+    const staleHistoryRows = [
+      buildPublishEntry(8, 0.000001, 'low'),
+      buildPublishEntry(7, 0.000001, 'low'),
+      buildPublishEntry(6, 0.000001, 'low'),
+    ];
+
+    const result = buildRecentPublishTrendData(staleHistoryRows, currentEntry, {
+      previousPublish: {
+        previous_published_at: buildPublishEntry(8, 0.594, 'medium').published_at,
+        previous_dropout_probability: 0.594,
+        previous_risk_bucket: 'medium',
+      },
+    });
+
+    expect(result.chronologicalRows).toHaveLength(2);
+    expect(result.chronologicalRows[0].dropout_probability).toBe(0.594);
+    expect(result.chronologicalRows[1]).toBe(currentEntry);
+    expect(result.latestDelta).toBeCloseTo(-0.328, 5);
+  });
 });
 
 describe('dropout case and explainability labels', () => {

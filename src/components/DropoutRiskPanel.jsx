@@ -820,14 +820,71 @@ function buildPublishIdentityKey(entry = {}) {
   ].join('|');
 }
 
-export function buildRecentPublishTrendData(rows = [], currentEntry = null) {
+function getRuntimeCheckpointProfile(entry = {}) {
+  const diagnostics = entry?.model_runtime_diagnostics && typeof entry.model_runtime_diagnostics === 'object'
+    ? entry.model_runtime_diagnostics
+    : {};
+  return String(diagnostics.checkpoints_dir_basename || entry?.checkpoints_dir_basename || '').trim().toLowerCase();
+}
+
+function getRuntimeModelProfile(entry = {}) {
+  const checkpointProfile = getRuntimeCheckpointProfile(entry);
+  const modelVersion = String(entry?.model_version || '').trim().toLowerCase();
+  return checkpointProfile || modelVersion ? `${modelVersion}|${checkpointProfile}` : '';
+}
+
+function shouldKeepTrendHistoryRow(entry = {}, currentEntry = null) {
+  if (entry?.isSyntheticPreviousPublish) return true;
+  const currentProfile = getRuntimeModelProfile(currentEntry);
+  const entryProfile = getRuntimeModelProfile(entry);
+  if (currentProfile && entryProfile && currentProfile !== entryProfile) {
+    return false;
+  }
+
+  const currentCheckpointProfile = getRuntimeCheckpointProfile(currentEntry);
+  const entryCheckpointProfile = getRuntimeCheckpointProfile(entry);
+  const probability = getProbabilityNumber(entry?.dropout_probability);
+  const isLikelyLegacyFloorPublish =
+    currentCheckpointProfile &&
+    !entryCheckpointProfile &&
+    probability != null &&
+    probability <= 0.00001;
+
+  return !isLikelyLegacyFloorPublish;
+}
+
+function buildPreviousPublishAnchor(previousPublish = null, currentEntry = null) {
+  if (!previousPublish || typeof previousPublish !== 'object') return null;
+  const publishedAt = previousPublish.published_at || previousPublish.previous_published_at || '';
+  const probability = getProbabilityNumber(
+    previousPublish.dropout_probability ?? previousPublish.previous_dropout_probability
+  );
+  if (!publishedAt || probability == null) return null;
+  return {
+    id: 'explainability-previous-publish',
+    published_at: publishedAt,
+    dropout_probability: probability,
+    risk_bucket: previousPublish.risk_bucket || previousPublish.previous_risk_bucket || '',
+    recommended_action: currentEntry?.recommended_action || '',
+    model_version: currentEntry?.model_version || previousPublish.model_version || '',
+    subject_id: currentEntry?.subject_id || currentEntry?.subjectId || previousPublish.subject_id || '',
+    model_runtime_diagnostics: currentEntry?.model_runtime_diagnostics || {},
+    isSyntheticPreviousPublish: true,
+  };
+}
+
+export function buildRecentPublishTrendData(rows = [], currentEntry = null, options = {}) {
   const historyRows = Array.isArray(rows) ? rows : [];
+  const previousAnchor = buildPreviousPublishAnchor(options?.previousPublish, currentEntry);
   const currentIdentityKey = currentEntry ? buildPublishIdentityKey(currentEntry) : '';
   const dedupedHistoryRows = [];
   const seenHistoryKeys = new Set();
-  [...historyRows]
+  [...historyRows, previousAnchor].filter(Boolean)
     .sort((left, right) => new Date(right.published_at || 0).getTime() - new Date(left.published_at || 0).getTime())
     .forEach((entry) => {
+      if (!shouldKeepTrendHistoryRow(entry, currentEntry)) {
+        return;
+      }
       const identityKey = buildPublishIdentityKey(entry);
       if (!identityKey || identityKey === currentIdentityKey || seenHistoryKeys.has(identityKey)) {
         return;
@@ -1549,8 +1606,8 @@ function buildDetailedExplainabilitySections({
   ];
 }
 
-function RecentPublishTrendSection({ rows, currentEntry, sectionRef = null }) {
-  const trendData = buildRecentPublishTrendData(rows, currentEntry);
+function RecentPublishTrendSection({ rows, currentEntry, previousPublish = null, sectionRef = null }) {
+  const trendData = buildRecentPublishTrendData(rows, currentEntry, { previousPublish });
   const { chronologicalRows, trendDirection, latestDelta, netDelta } = trendData;
 
   if (!currentEntry) {
@@ -1832,10 +1889,6 @@ export default function DropoutRiskPanel({
     () => visibleRows.find((entry) => entry.userId === selectedUserId) || visibleRows[0] || filteredRows[0] || null,
     [filteredRows, selectedUserId, visibleRows]
   );
-  const activeTrendData = useMemo(
-    () => buildRecentPublishTrendData(recentPublishHistory, activeEntry),
-    [activeEntry, recentPublishHistory]
-  );
 
   useEffect(() => {
     const queueNode = queuePanelRef.current;
@@ -1968,6 +2021,22 @@ export default function DropoutRiskPanel({
     if (activeExplainabilityUserId !== activeEntry.userId) return null;
     return activeExplainability;
   }, [activeEntry?.userId, activeExplainability, activeExplainabilityReady, activeExplainabilityUserId]);
+  const activePreviousPublish = useMemo(() => {
+    if (!activeExplainabilityPayload?.previous_published_at) return null;
+    return {
+      previous_published_at: activeExplainabilityPayload.previous_published_at,
+      previous_dropout_probability: activeExplainabilityPayload.previous_dropout_probability,
+      previous_risk_bucket: activeExplainabilityPayload.previous_risk_bucket,
+    };
+  }, [
+    activeExplainabilityPayload?.previous_dropout_probability,
+    activeExplainabilityPayload?.previous_published_at,
+    activeExplainabilityPayload?.previous_risk_bucket,
+  ]);
+  const activeTrendData = useMemo(
+    () => buildRecentPublishTrendData(recentPublishHistory, activeEntry, { previousPublish: activePreviousPublish }),
+    [activeEntry, activePreviousPublish, recentPublishHistory]
+  );
   const activeInterventionCase = useMemo(
     () => findActiveDropoutInterventionCase(recentInterventionCases),
     [recentInterventionCases]
@@ -2312,6 +2381,10 @@ export default function DropoutRiskPanel({
     activeExplainabilityPayload?.risk_bucket || activeEntry?.risk_bucket,
     activeExplainabilityPayload?.disengagement_probability ?? activeEntry?.dropout_probability
   );
+  const explainabilityRiskDelta = getProbabilityDelta(
+    activeExplainabilityPayload?.disengagement_probability ?? activeEntry?.dropout_probability,
+    activeExplainabilityPayload?.previous_dropout_probability
+  );
   const riskChangeHighlightSummary = explainabilityRiskChangeSummary
     ? `${previousExplainabilityRiskLabel} → ${currentExplainabilityRiskLabel}`
     : activeExplainabilityReady
@@ -2319,7 +2392,7 @@ export default function DropoutRiskPanel({
       : 'Loading explainability summary...';
   const riskChangeHighlightItems = explainabilityRiskChangeSummary
     ? [
-        formatTrendDeltaLabel(activeTrendData?.latestDelta ?? null),
+        formatTrendDeltaLabel(explainabilityRiskDelta),
         `Previous: ${formatDateTimeValue(activeExplainabilityPayload?.previous_published_at, 'No prior publish')}`,
       ]
     : [];
@@ -2526,6 +2599,7 @@ export default function DropoutRiskPanel({
                 <RecentPublishTrendSection
                   rows={recentPublishHistory}
                   currentEntry={activeEntry}
+                  previousPublish={activePreviousPublish}
                   sectionRef={trendSectionRef}
                 />
 
