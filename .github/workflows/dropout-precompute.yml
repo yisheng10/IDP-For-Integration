@@ -21,8 +21,8 @@ on:
         required: false
         type: string
   schedule:
-    # 19:00 Asia/Kuala_Lumpur = 11:00 UTC on the same day.
-    - cron: "0 11 * * *"
+    # Run slightly before 19:00 Asia/Kuala_Lumpur to avoid GitHub's top-of-hour schedule congestion.
+    - cron: "55 10 * * *"
 
 jobs:
   publish-dropout-snapshots:
