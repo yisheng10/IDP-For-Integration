@@ -1,0 +1,643 @@
+combo_id,case_id,scenario_id,turn_index,question_type,risk_level,route_decision,route_reason,final_answer,grounding_score,safety_score,actionability_score,clarity_score,overall_pass_fail,reviewer_notes
+siliconflow-router__siliconflow-guidance,rag-v2-001,rag-v2-scenario-001,1,greeting_or_smalltalk,low,skip,assistant_help,"Good morning! I’m **Side Effect Guidance**, your CRC Copilot here in the workspace. I’m designed to help you with two main types of tasks:
+
+- **Single‑patient questions** – When you have a patient selected, I can assess symptoms or vitals against the CTCAE guidelines and protocol, classify risk, and provide management advice that’s grounded in the study documents.
+- **Workspace‑wide safety or operations questions** – Even without a specific patient, I can help you think through CRC workflows, safety processes, or general study‑related questions.
+
+I always rely on the CTCAE and protocol excerpts that are available in the workspace. If those documents aren’t loaded for a particular question, I’ll let you know and won’t make up medical or protocol claims.
+
+What would you like to explore first?",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-002,rag-v2-scenario-002,1,product_or_workflow_help,low,skip,ui_help,"You can adjust the patient table columns by clicking the **table settings icon** located above the patient list, right next to the search box. This icon typically opens a menu where you can select which columns to show or hide.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-003,rag-v2-scenario-003,1,greeting_or_smalltalk,low,skip,ui_help,"Welcome to the CRC workspace! Here’s a quick tour of what you’re seeing right now on your dashboard home screen:
+
+- **Assistant Panel** – That’s me, your CRC Copilot. You can ask me workspace‑wide questions (like this one) or, once you select a patient, I can help with safety checks, protocol guidance, and CTCAE‑based triage.
+- **Patient Search Box** – Use this to find a specific patient by name, ID, or other identifiers. Selecting a patient will load their context so I can give you patient‑specific support.
+- **Task Panel** – This shows your pending tasks, reminders, or action items. You can manage your daily workflow from here.
+- **Help Menu** – Access documentation, FAQs, or additional resources about the workspace and tools.
+
+To get started, I suggest:
+1. **Search for a patient** you’re currently working with. That will activate the full Copilot features.
+2. **Check your Task Panel** to see what needs attention today.
+3. **Ask me anything** – for example, “Summarize today’s safety alerts” or “Show me open queries for patient X.”
+
+If you have a specific task in mind, just let me know and I’ll guide you step by step.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-004,rag-v2-scenario-004,1,product_or_workflow_help,low,skip,ui_help,"To pin the task panel so it stays visible while you work, simply click the **pin icon** located in the header of the task panel. Once pinned, the panel will remain open and accessible as you navigate other areas of the CRC workspace.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-005,rag-v2-scenario-005,1,greeting_or_smalltalk,low,skip,ui_help,"Good morning! Based on the current CRC dashboard home screen, here are the sections you can see:
+
+- **Patient List** – a roster of patients under your coordination.
+- **Task Queue** – pending tasks that require your attention.
+- **Messages** – communications related to your studies or team.
+- **Help Links** – quick access to support resources or documentation.
+
+These are the main areas visible right now. Let me know if you need help navigating any of them.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-006,rag-v2-scenario-006,1,product_or_workflow_help,low,skip,ui_help,The search box is located at the top of the patient list area on your CRC dashboard. You can use it to find a patient by typing their name or ID directly into that field.,,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-007,rag-v2-scenario-007,1,greeting_or_smalltalk,low,skip,assistant_help,"Hello! I'm **Side Effect Guidance**, your CRC Copilot. I'm here to help you stay organized and on top of your study tasks right from the dashboard.
+
+Here are some of the workspace-level things I can assist with:
+
+- **Safety alert triage** – I can help you review and prioritize incoming safety alerts or flagged events across your studies.
+- **Adverse event tracking** – I can summarize, sort, and help you manage AE logs and follow-up actions.
+- **Protocol task management** – I can remind you of upcoming protocol‑required assessments, visits, or documentation deadlines.
+- **Patient status overviews** – When you select a patient, I can give you a quick snapshot of their current status, recent vitals, and any open safety items.
+- **Workspace-wide summaries** – If you need a high‑level view of safety trends or pending tasks across all patients, I can pull that together for you.
+- **Monitoring visit prep** – I can help you gather the information you need for monitor visits or audits.
+
+Since no patient is currently selected, I can’t dive into individual charts right now, but I’m ready whenever you are. Just let me know what you’d like to organize or review!",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-008,rag-v2-scenario-008,1,product_or_workflow_help,low,skip,ui_help,"To switch the patient list from compact view to comfortable view, look for the **display‑density menu** near the table controls on the patient list screen. Click it, then select **Comfortable** from the available options. This will adjust the row spacing and layout to a more relaxed, easier‑to‑read view.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-009,rag-v2-scenario-009,1,greeting_or_smalltalk,low,skip,greeting,Good morning! I'm here and ready to assist you in the CRC workspace. Let me know if you need anything.,,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-010,rag-v2-scenario-010,1,product_or_workflow_help,low,skip,assistant_help,You can open the help menu by clicking the **help icon** located in the top navigation bar of the CRC dashboard. That menu includes keyboard shortcuts and other assistance options.,,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-011,rag-v2-scenario-011,1,direct_ctcae_lookup,low,retrieve,protocol_rule,"Based on the CTCAE v5.0 term **Unequal limb length**, a measured discrepancy of **3 cm** falls squarely into **Grade 2** [CTCAE Page 102].
+
+Here’s the breakdown:
+
+- **Grade 1** is defined as a mild discrepancy **<2 cm** – your patient’s 3 cm exceeds this threshold.
+- **Grade 2** is defined as a moderate discrepancy of **2–5 cm**, where a shoe lift is indicated and the condition may limit instrumental activities of daily living (ADL). Even though your patient currently reports no functional limitations, the objective measurement alone places the event in this grade.
+- **Grade 3** would require a severe discrepancy **>5 cm** and/or limitation of self-care ADL, which is not the case here.
+
+**Documentation note:** When entering this into the EDC, you can confidently assign **Grade 2**. If the patient later develops functional limitations or requires a shoe lift, the grade remains Grade 2 as long as the discrepancy stays within the 2–5 cm range and does not progress to >5 cm or self-care limitation.
+
+[RISK: MEDIUM]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-012,rag-v2-scenario-012,1,direct_protocol_lookup,medium,retrieve,protocol_rule,"The suggested guidance for insulin dose titration is located in **Appendix II** of the protocol.
+
+According to the protocol's table of contents, Appendix II is titled ""Suggested Guidance for Insulin Dose Titration"" [Protocol Page 11]. The detailed titration tables for basal (Lantus®/Mylan’s insulin glargine) and mealtime (insulin lispro) insulin adjustments begin on [Protocol Page 84].",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-013,rag-v2-scenario-013,1,direct_ctcae_protocol_lookup,medium,retrieve,protocol_rule,"Based on the CTCAE v5.0, the grading for **Anal ulcer** is as follows (CTCAE [Page 25]):
+
+- **Grade 1:** Asymptomatic; clinical or diagnostic observations only; intervention not indicated.
+- **Grade 2:** Symptomatic; altered GI function.
+- **Grade 3:** Severely altered GI function; TPN indicated; elective invasive intervention indicated.
+- **Grade 4:** Life-threatening consequences; urgent operative intervention indicated.
+- **Grade 5:** Death.
+
+The patient’s diary entry (“sore near anus, painful when sitting”) describes a symptomatic lesion, which aligns with **Grade 2** severity.
+
+Regarding documentation, the protocol explicitly states that the patient diary should be reviewed at each trial visit for adverse events, and patients are instructed to record AEs in the diary in a timely manner (Protocol [Page 56]). The diary itself includes a section for “Details of untoward experiences (AEs)” (Protocol [Page 86]). Therefore, this anal ulcer must be recorded in the patient diary as an adverse event.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-014,rag-v2-scenario-014,1,direct_citation_request,medium,retrieve,protocol_rule,"For your audit preparation, here are the exact source citations you requested:
+
+**Protocol – MMRM ANCOVA Model for Secondary Efficacy Analyses**  
+The description of the MMRM ANCOVA model used for secondary efficacy endpoints (fasting plasma glucose, SMBG values, daily insulin doses, etc.) is found in the **Insulin Glargine MYL-1501D-3003 Final Protocol V2.0**, **Page 68**. The text states that sequences will be compared using the MMRM ANCOVA model similar to the primary HbA1c analysis, with fixed effects for region, sequence group, visit, and sequence group‑by‑visit interaction, and baseline value as a covariate. [Protocol Page 68]
+
+**CTCAE v5.0 – Gastritis Grade Definition**  
+CTCAE v5.0 does not contain a dedicated term for “gastritis.” In practice, gastritis is captured under the general term **“Gastrointestinal disorders – Other, specify”** located on **CTCAE Page 43**. The grading criteria for this term are:
+
+- **Grade 1:** Asymptomatic or mild symptoms; clinical or diagnostic observations only; intervention not indicated.
+- **Grade 2:** Moderate; minimal, local or noninvasive intervention indicated; limiting age‑appropriate instrumental ADL.
+- **Grade 3:** Severe or medically significant but not immediately life‑threatening; hospitalization or prolongation of existing hospitalization indicated; limiting self‑care ADL.
+- **Grade 4:** Life‑threatening consequences; urgent intervention indicated.
+- **Grade 5:** Death.
+
+[CTCAE Page 43]
+
+If your CRF requires a specific term, you would document the event as “Gastrointestinal disorders – Other, specify: Gastritis” and apply the grading above.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-015,rag-v2-scenario-015,1,direct_ctcae_lookup,low,retrieve,protocol_rule,"Based on the CTCAE v5.0 term **Lymphocyte count increased** [Page 88], a lymphocyte count of 15,000/mm³ falls into the following grade:
+
+- **Grade 2**: Defined as >4,000/mm³ – 20,000/mm³ [Page 88].
+
+Your patient’s value of 15,000/mm³ is within this range, so the adverse event is classified as **Grade 2 (Moderate)**. No symptoms are reported, but the grading is based solely on the laboratory finding.
+
+[RISK: MEDIUM]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-016,rag-v2-scenario-016,1,direct_protocol_lookup,medium,retrieve,protocol_rule,"Yes, you can re-dispense the returned insulin pen to the same patient under the conditions described in the protocol.
+
+According to the protocol, returned medications may be re-dispensed to the same patient if **both** of the following are met [Protocol Page 33]:
+
+- The medication was stored according to the manufacturer’s specifications.
+- The medication will not cross its expiry date before the next scheduled dispensing visit.
+
+In this case, the insulin pen (Lot# INS-8823, Exp: 2025-12-01) was verified to have been refrigerated at 2–8°C per label, and the expiry date is six months away. As long as the next visit falls before December 1, 2025, re-dispensing is permitted per the protocol.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-017,rag-v2-scenario-017,1,direct_ctcae_protocol_lookup,medium,retrieve,protocol_rule,"## CTCAE v5.0 Grading for Alcohol Intolerance
+
+The CTCAE v5.0 defines **Alcohol intolerance** (SOC: Metabolism and nutrition disorders) with the following grades [CTCAE Page 91]:
+
+- **Grade 1:** Not defined (no criteria listed).
+- **Grade 2:** Present (the condition is simply present).
+- **Grade 3:** Severe symptoms; limiting self‑care ADL.
+- **Grade 4:** Life‑threatening consequences; urgent intervention indicated.
+- **Grade 5:** Death.
+
+The definition describes an increase in sensitivity to the adverse effects of alcohol, which can include nasal congestion, skin flushes, heart dysrhythmias, nausea, vomiting, indigestion, and headaches.
+
+Based on the information you provided for PT‑301 – alcohol intolerance after a small amount of alcohol, with no mention of severe symptoms or functional limitation – the event would currently meet **Grade 2** (Present) criteria.
+
+---
+
+## Study Population Criteria
+
+The protocol excerpts retrieved for this session do not include the inclusion/exclusion criteria or the study population description. To confirm the exact eligibility requirements for the Insulin Glargine MYL‑1501D‑3003 trial, please refer to the full protocol document (sections on inclusion/exclusion criteria and study population). The available excerpts cover adverse event evaluation, diary instructions, and document history, but not the population criteria.
+
+---
+
+[RISK: MEDIUM]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-018,rag-v2-scenario-018,1,direct_citation_request,medium,retrieve,protocol_rule,"## CTCAE v5.0 Grading for Adrenal Insufficiency
+
+Adrenal insufficiency is **not listed as a distinct term** in CTCAE v5.0. When an adverse event does not have its own dedicated term, it is graded under the appropriate System Organ Class (SOC) “Other, specify” category. For adrenal insufficiency, the correct SOC is **Endocrine disorders**, so the applicable grading criteria are those for **Endocrine disorders – Other, specify** (CTCAE Page 17):
+
+- **Grade 1:** Asymptomatic or mild symptoms; clinical or diagnostic observations only; intervention not indicated.
+- **Grade 2:** Moderate; minimal, local or noninvasive intervention indicated; limiting age‑appropriate instrumental ADL.
+- **Grade 3:** Severe or medically significant but not immediately life‑threatening; hospitalization or prolongation of existing hospitalization indicated; limiting self‑care ADL.
+- **Grade 4:** Life‑threatening consequences; urgent intervention indicated.
+- **Grade 5:** Death.
+
+If you need to grade a specific case of suspected adrenal insufficiency (e.g., low cortisol with severe hypoglycemia requiring assistance), you would apply these criteria to the clinical presentation.
+
+---
+
+## Protocol Page for Hypoglycemic Episode Summarization
+
+The Insulin Glargine MYL‑1501D‑3003 Final Protocol V2.0 addresses hypoglycemia in **Section 7.5.6**. According to the Table of Contents, that section begins on **Page 48** (Protocol Page 9). This section is the primary location where the protocol defines how hypoglycemic episodes are managed, recorded, and likely summarized for reporting.
+
+Additionally, the patient diary (Appendix IV, Page 86) instructs patients to record “Details of hypoglycemic events,” but the formal summary methodology would be found in Section 7.5.6. For your DSMB safety report, you can reference **Protocol Page 48** as the source for hypoglycemia episode summarization.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-019,rag-v2-scenario-019,1,direct_ctcae_lookup,low,retrieve,protocol_rule,"Based on the CTCAE v5.0 criteria for **Photosensitivity** (Skin and subcutaneous tissue disorders), the grading is as follows [CTCAE Page 145]:
+
+- **Grade 1:** Painless erythema covering less than 10% BSA.
+- **Grade 2:** Tender erythema covering 10–30% BSA.
+- **Grade 3:** Erythema covering more than 30% BSA **and** blistering; oral corticosteroid therapy indicated; pain control indicated (e.g., narcotics or NSAIDs).
+- **Grade 4:** Life-threatening consequences; urgent intervention indicated.
+- **Grade 5:** Death.
+
+For your patient, the reported symptom is **tender erythema covering approximately 15% BSA**. This aligns precisely with the Grade 2 definition: tender erythema within the 10–30% BSA range [CTCAE Page 145]. Therefore, this adverse event would be classified as **Grade 2 Photosensitivity**.
+
+[RISK: MEDIUM]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-020,rag-v2-scenario-020,1,direct_protocol_lookup,medium,skip,ui_help,"I’m unable to provide the exact medical history documentation requirements for the MYL-1501D-3003 randomization visit because no protocol excerpts were retrieved for this turn. Without direct access to the protocol text, I cannot specify which items must be recorded or in what format.
+
+To ensure nothing is missed, I recommend:
+- Reviewing the study protocol’s “Randomization Visit” or “Medical History” section directly.
+- Consulting the study’s operations manual, annotated case report form (CRF) guidelines, or your site’s study coordinator.
+- Reaching out to the sponsor’s clinical research associate (CRA) or medical monitor for confirmation.
+
+As a general note (not protocol-specific), medical history documentation at randomization often includes a comprehensive review of past and current medical conditions, surgical history, allergies, and relevant family history. For this patient (DM-2045), the known penicillin allergy should certainly be documented, but the protocol may have additional requirements (e.g., specific diabetes-related complications, autoimmune conditions, or exclusionary criteria). Please verify against the official protocol.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-021,rag-v2-scenario-021,1,direct_ctcae_protocol_lookup,medium,retrieve,protocol_rule,"Based on the patient's report of moderate discomfort in the prostate area that limits daily activities, this adverse event aligns with **Grade 2** on the CTCAE scale.
+
+### CTCAE Grading for Prostatic Pain
+- **Grade 1:** Mild pain [CTCAE Page 127]
+- **Grade 2:** Moderate pain; limiting instrumental ADL [CTCAE Page 127] ← *This matches the patient's description.*
+- **Grade 3:** Severe pain; limiting self care ADL [CTCAE Page 127]
+- **Grade 4:** Not defined
+- **Grade 5:** Not defined
+
+**Risk Classification:** [RISK: MEDIUM] (Grade 2)
+
+### Should it be recorded in the patient diary?
+Yes. The protocol instructs that patients are educated on what constitutes an adverse event and are instructed to record AEs in the trial diary in a timely manner [Protocol Page 56]. Additionally, the diary should be reviewed at each visit for adverse events. Since this is a newly reported AE, ensure it is documented in the patient's diary and captured on the appropriate CRF page.
+
+**Next Steps:**
+- Document the AE as ""Prostatic pain"" with Grade 2 severity in the AE log.
+- Confirm that the patient has recorded this event in their trial diary; if not, remind them to do so.
+- Follow up per protocol until resolution or stabilization [Protocol Page 60].",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-022,rag-v2-scenario-022,1,direct_citation_request,high,retrieve,protocol_rule,"The CTCAE grade that explicitly indicates the need for TPN in malabsorption is **Grade 3**, defined as “Inability to aliment adequately; TPN indicated” [CTCAE Page 36]. This matches Subject 312’s current presentation.
+
+Regarding the treatment period for the MYL-1501D-3003 protocol: the protocol excerpts provided do not contain the duration of the treatment period (e.g., the length of the main study phase). The retrieved pages cover SAE reporting timelines (from consent through the last study visit) [Protocol Page 3], severity grading, and follow-up requirements, but not the overall treatment schedule. For the exact treatment period, please refer to the full protocol synopsis or the Schedule of Activities, which were not included in the retrieved grounding.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-023,rag-v2-scenario-023,1,direct_ctcae_lookup,low,retrieve,protocol_rule,"Based on the CTCAE v5.0 term **Intraoperative cardiac injury** (SOC: Injury, poisoning and procedural complications), the grade for an injury that required primary repair is:
+
+**Grade 3** – Primary repair of injured organ/structure indicated [CTCAE Page 75].
+
+No lower grades (1 or 2) are defined for this specific term. Since the surgeon performed a primary repair of the injured cardiac structure during the mitral valve procedure, this aligns exactly with the Grade 3 description. The event is considered severe but not immediately life‑threatening, as no urgent intervention or life‑threatening consequences were documented.
+
+[RISK: HIGH]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-024,rag-v2-scenario-024,1,direct_protocol_lookup,medium,retrieve,protocol_rule,The abbreviation **ITT** stands for **Intention to Treat** (Protocol [Page 13]).,,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-025,rag-v2-scenario-025,1,direct_ctcae_protocol_lookup,medium,retrieve,protocol_rule,"Based on the patient’s report of complete loss of voice (unable to speak) with otherwise stable vitals, this event is classified as **HIGH risk** due to its CTCAE severity.
+
+### CTCAE Grade
+The symptom matches the CTCAE term **Aphonia** (CTCAE [Page 104]).  
+- **Grade 3** is defined as “Voicelessness; unable to speak.”  
+- There is no Grade 1, 2, or 4 for this term; the definition explicitly places complete inability to speak at Grade 3.  
+
+Thus, the event is **Grade 3 (Severe)** per CTCAE v5.0.
+
+### Is This an SAE per Protocol?
+Yes, this event should be treated as a **Serious Adverse Event (SAE)**.  
+The protocol defines an SAE as any event that is, among other criteria, **medically significant** or **significantly disabling/incapacitating** (Protocol [Page 6]).  
+Complete aphonia (Grade 3) renders the patient unable to communicate verbally, which constitutes a medically significant and potentially disabling condition. Therefore, it meets the protocol’s SAE definition.  
+
+### Required Actions
+- **Immediate reporting:** The Investigator must complete the SAE reporting form and email/fax it to the Pharmacovigilance department within **24 hours** of learning of the event (Protocol [Page 6]).  
+- **Clinical escalation:** Because this is a HIGH-risk Grade 3 event, the patient should be instructed to use the **direct study emergency contact number** or local emergency services immediately for further evaluation. Do not rely solely on chat for escalation.  
+- **Documentation:** Record the event in the patient’s trial diary and CRF, including onset, description, and any actions taken (Protocol [Page 61]).  
+
+**Note:** While the patient’s vitals are stable, aphonia can stem from serious causes (e.g., recurrent laryngeal nerve palsy, CTCAE [Page 111]) and warrants urgent medical assessment.
+
+[RISK: HIGH]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-026,rag-v2-scenario-026,1,direct_citation_request,high,retrieve,protocol_rule,"The CTCAE grade for suicidal ideation with a specific plan but no serious intent to die is **Grade 3**. This is defined on **CTCAE Page 117** as: “Specific plan to commit suicide without serious intent to die which may not require hospitalization.”
+
+The symptoms of hypoglycemia are listed on **Protocol Page 50**. They include palpitations, sweating, hunger, nervousness, shakiness, perspiration, dizziness or light-headedness, sleepiness, confusion, difficulty speaking, and feeling anxious or weak.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-027,rag-v2-scenario-027,1,direct_ctcae_lookup,low,retrieve,protocol_rule,"Based on the provided CTCAE v5.0 criteria, a resting oxygen saturation of 85% corresponds to **Grade 3 Hypoxia**.
+
+**Explanation:**
+- CTCAE defines Grade 3 Hypoxia as “Decreased oxygen saturation at rest (e.g., pulse oximeter <88% or PaO2 <=55 mm Hg)” [CTCAE Page 134].  
+- The patient’s reading of 85% while resting, without supplemental oxygen, meets this definition exactly.  
+- Grade 3 is classified as a severe or medically significant event, which falls under the **HIGH** risk category.
+
+**Immediate Action Required:**
+This is a potentially life-threatening situation. Please instruct the patient to seek emergency medical attention immediately—use the direct study emergency number or local emergency services (e.g., 911) without delay. Do not rely solely on this chat for escalation.
+
+[RISK: HIGH]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-028,rag-v2-scenario-028,1,direct_protocol_lookup,medium,retrieve,protocol_rule,"According to the Type 1 Diabetes Mellitus protocol, the causality category **“Unlikely”** is defined as follows:
+
+> A causal relationship cannot be ruled out, but the time to drug intake makes a relationship improbable (though not impossible), or the disease or other drugs provide plausible explanations.
+
+In other words, the event is probably not caused by the study drug, but there remains a remote possibility. The protocol also notes that when an event is assessed as unlikely (or unrelated), an alternative suspected etiology (e.g., concomitant medications, intercurrent condition) should preferably be documented wherever applicable [Protocol Page 59].
+
+This definition confirms that if the investigator suspects the elevated liver enzyme is not related to the study drug and there is a plausible alternative explanation (or an improbable temporal relationship), “Unlikely” is the appropriate causality assignment.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-029,rag-v2-scenario-029,1,direct_ctcae_protocol_lookup,medium,retrieve,protocol_rule,"### CTCAE Grade for Gait Disturbance
+
+Based on the patient’s reported limping and difficulty walking, the symptom aligns with **Grade 1 (Mild)** on the CTCAE scale for gait disturbance.  
+- **Grade 1 definition:** “Mild change in gait (e.g., wide-based, limping or hobbling)” [CTCAE Page 45].  
+- There is no indication that an assistive device is needed or that instrumental activities of daily living (ADL) are limited, which would be required for Grade 2.  
+
+If the limping begins to interfere with daily tasks (e.g., shopping, housework) or an assistive device becomes necessary, the grade would escalate to **Grade 2** [CTCAE Page 45].  
+
+**Risk Classification:** [RISK: LOW]
+
+---
+
+### Protocol Exclusion for Insulin Resistance
+
+Yes, the protocol **excludes patients with moderate insulin resistance**.  
+- The exclusion criterion defines moderate insulin resistance as **requiring insulin (Basal + Prandial) of ≥ 1.5 U/kg/day** [Protocol Page 15].  
+- The patient’s current total daily insulin dose is **1.6 U/kg/day**, which exceeds this threshold.  
+
+This criterion was applied at screening; however, the patient is now at Week 12 and the dose has risen to a level that would have been exclusionary. This finding may represent a clinically significant change (e.g., worsening insulin resistance or hyperglycemia) and should be evaluated as a potential adverse event or protocol deviation. The investigator should review the patient’s glucose control and consider dose adjustments per protocol guidance [Protocol Page 34].",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-030,rag-v2-scenario-030,1,direct_citation_request,high,retrieve,protocol_rule,"**CTCAE Grade for Gallbladder Perforation**  
+According to the CTCAE v5.0, gallbladder perforation is classified as **Grade 4** – *Life-threatening consequences; urgent intervention indicated* [CTCAE Page 49]. No lower grades (1–3) are defined for this term. This aligns with the patient’s imaging findings and severe abdominal pain, making this a serious adverse event that requires immediate action.
+
+**Protocol Page Describing the Treatment Switch Schedule**  
+The protocol’s treatment sequence schedule is outlined in the sample size and randomization section. Patients are randomized to one of two sequence groups:  
+- **Mylan sequence group:** Mylan’s insulin glargine → switch to Lantus® → switch back to Mylan’s insulin glargine  
+- **Lantus sequence group:** Lantus® → Lantus® → Lantus®  
+
+This is described on **Protocol Page 64**. The schedule dictates when a switch between insulin products occurs, but it does not directly address switching due to an adverse event.
+
+**Guidance on Switching Insulin Due to This AE**  
+The decision to switch or discontinue insulin should be based on the protocol’s adverse event management rules. **Protocol Page 57** (Table 7) lists possible actions for an AE, including *treatment interrupted*, *treatment withdrawn*, or *dose reduced*. Given the life‑threatening nature of a gallbladder perforation (Grade 4), urgent intervention is indicated, and the investigator should consider interrupting or permanently discontinuing the study drug as part of the patient’s emergency care. The treatment switch schedule on Page 64 is a planned crossover, not an AE‑driven switch; therefore, the immediate priority is safety and protocol‑defined AE actions, not the randomization sequence.
+
+**Risk Classification**  
+[RISK: HIGH] – Grade 4 event with life‑threatening consequences. The patient must be managed emergently; use the direct study emergency number or local emergency services immediately.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-031,rag-v2-scenario-031,1,current_patient_status,low,skip,workspace_summary,"Here's a quick status update for Maria Gonzalez (PT-2024-0331):
+
+- **Treatment:** Completed Cycle 2 of Carboplatin + Pemetrexed on 2025-03-25. Next visit (Cycle 3 Day 1) is scheduled for 2025-04-10.
+- **Vitals (latest):** BP 128/82, HR 72, Temp 98.6°F, SpO2 98% – all within normal limits.
+- **Labs:** CBC within normal limits as of 2025-03-28.
+- **Performance Status:** ECOG 1.
+- **Upcoming Imaging:** CT scan in 4 weeks.
+- **Alerts:** Patient missed a scheduled phone call follow-up on 2025-04-01. No active adverse events are currently recorded.
+- **Allergies:** None known.
+
+Overall, Maria is stable with no immediate safety concerns based on the available vitals and labs. The missed follow-up call may warrant a re-contact attempt.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-032,rag-v2-scenario-032,1,current_patient_ctcae_assessment,high,retrieve,protocol_rule,"Based on the CTCAE v5.0 excerpts and the reported cause of death, here is the guidance for recording James Carter’s adverse event.
+
+### CTCAE Term and Grade Selection
+- **CTCAE Term:** Disease progression  
+- **Grade:** 5 (Death)  
+
+**Rationale:**  
+The CTCAE term “Disease progression” is defined exclusively as Grade 5 – Death, when the death is due to disease progression and cannot be attributed to another CTCAE term associated with Grade 5 [CTCAE Page 44]. The hospice report indicates death resulted from progression of liver metastases leading to hepatic failure, which directly aligns with this definition. The navigational note on the same page clarifies that if death were due to a specific adverse event (e.g., cardiac arrest), you would grade under that AE; however, here the underlying cause is the malignancy itself, making “Disease progression” the correct term.
+
+### Risk Classification
+This event is a Grade 5 (Death) event, which falls under the highest risk category.
+
+[RISK: HIGH]
+
+**Note:** Since the patient is already deceased, no immediate safety actions are required. Please complete the adverse event form with the term “Disease progression” and Grade 5.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-033,rag-v2-scenario-033,1,current_patient_emergency_protocol,high,retrieve,protocol_rule,"Hello, CRC. Here is the guidance for Patient 204 based on the ePRO alert and your query.
+
+---
+
+### 1. CTCAE Grading for Anal Stenosis (as requested)
+The CTCAE v5.0 defines **Anal stenosis** as a narrowing of the anal canal lumen. The grades are [CTCAE Page 25]:
+
+- **Grade 1** – Asymptomatic; clinical or diagnostic observations only; intervention not indicated.
+- **Grade 2** – Symptomatic; altered GI function.
+- **Grade 3** – Symptomatic and severely altered GI function; non‑emergent operative intervention indicated; TPN or hospitalization indicated.
+- **Grade 4** – Life‑threatening consequences; urgent operative intervention indicated.
+- **Grade 5** – Death.
+
+**Important:** Patient 204 does not have a prior diagnosis of anal stenosis. The current complaint is severe anal pain (8/10, difficulty sitting). The more directly applicable CTCAE term is **Anal pain** [CTCAE Page 25]:
+
+- **Grade 1** – Mild pain.
+- **Grade 2** – Moderate pain; limiting instrumental ADL.
+- **Grade 3** – Severe pain; limiting self‑care ADL.
+
+Given the pain score of 8/10 and the inability to sit comfortably (limiting self‑care ADL), this meets **Grade 3 (Severe)** for anal pain. If further work‑up reveals a structural narrowing, the anal stenosis grading would then apply.
+
+---
+
+### 2. Glucocorticoid Injection – Protocol Prohibition
+The protocol explicitly states that **glucocorticoid therapy (oral, intravenous, inhaled, or other routes that produce systemic effects) is prohibited** during the study [Protocol Page 34]. A steroid injection for anal inflammation, even if administered locally, can produce systemic effects and therefore falls under this restriction. **You cannot administer a glucocorticoid injection per protocol.** Any alternative local treatment would need to be discussed with the medical monitor and must not have systemic glucocorticoid activity.
+
+---
+
+### 3. Immediate Safety Actions – Hypoglycemia
+The SMBG reading of **58 mg/dL** is below the protocol‑defined threshold of 70 mg/dL (3.9 mmol/L) [Protocol Page 34]. The patient also reports lightheadedness, which is a symptom of hypoglycemia. The protocol instructs that the Investigator or designee should be contacted, and the insulin dose may need adjustment. **Treat the hypoglycemia now** according to your site’s standard hypoglycemia protocol (e.g., 15 g fast‑acting carbohydrate, recheck in 15 minutes). Notify the Investigator immediately.
+
+---
+
+### 4. Overall Risk Classification
+- **Anal pain:** Grade 3 (severe, limiting self‑care ADL) [CTCAE Page 25].
+- **Hypoglycemia:** 58 mg/dL with symptoms – a potentially dangerous metabolic event requiring urgent intervention.
+- **Combined picture:** Severe pain plus symptomatic hypoglycemia places the patient at high risk for deterioration.
+
+**[RISK: HIGH]**
+
+**Please ensure the patient receives immediate medical attention for the hypoglycemia and severe pain. Use the study emergency contact or local emergency services if the patient’s condition worsens.**",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-034,rag-v2-scenario-034,1,current_patient_status,low,skip,workspace_summary,"The last HbA1c result for Patient 205 was **7.2%**, collected during the visit on **2025-03-28**. This is the most recent lab value available in the workspace. The next visit is scheduled for 2025-04-15, so you can confirm this result ahead of that appointment.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-035,rag-v2-scenario-035,1,current_patient_ctcae_assessment,medium,retrieve,medical_assessment,"Based on the provided CTCAE v5.0 criteria for **Rash maculo-papular** [CTCAE Page 146], the findings for John Thompson align with **Grade 2**.
+
+**Grading rationale:**
+- **Body surface area (BSA):** The rash covers approximately 25% BSA, which falls within the 10–30% range specified for Grade 2.
+- **Symptoms:** The patient reports significant itching (pruritus), which is explicitly included as a possible symptom in the Grade 2 definition.
+- **Functional impact:** The patient describes difficulty with instrumental activities of daily living (iADL), specifically buttoning a shirt. Grade 2 is defined as “limiting instrumental ADL” when BSA is 10–30%.
+
+Because the BSA is not >30% and there is no limitation in self-care ADL (e.g., bathing, toileting), the criteria for Grade 3 are not met. No life-threatening features are present.
+
+**Risk classification:** Grade 2 corresponds to a moderate severity, so the appropriate tag is **[RISK: MEDIUM]**.
+
+No protocol-specific management excerpts were retrieved for this query. As a CRC, please ensure this adverse event is documented and reported according to the T1DM-202 protocol requirements.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-036,rag-v2-scenario-036,1,current_patient_emergency_protocol,high,retrieve,protocol_rule,"### CTCAE Grade for Jejunal Fistula
+
+Based on the provided CTCAE v5.0 criteria, Sarah Miller’s jejunal fistula is **Grade 3** (Severe).  
+
+- The definition of jejunal fistula is an abnormal communication between the jejunum and another organ or anatomic site [CTCAE Page 35].  
+- Grade 3 is specifically defined as “Invasive intervention indicated” [CTCAE Page 35].  
+- The patient is symptomatic (abdominal pain, fever) and a surgery consult recommends invasive repair, which directly matches the Grade 3 descriptor.  
+
+Because Grade 3 is a severe, non-life-threatening event that requires medical intervention, this SAE must be documented accordingly.
+
+**Risk Classification:** [RISK: HIGH]  
+*Note: Although not immediately life-threatening, Grade 3 events are considered high risk in the CRC workspace due to the need for urgent clinical action. The patient’s fever (101.2°F) and tachycardia (HR 110) further support close monitoring. Ensure the study emergency number is readily available and that the surgical team is aware of the patient’s trial participation.*
+
+---
+
+### Insulin Management While NPO for Surgery
+
+The protocol does not contain a dedicated NPO (nothing by mouth) insulin management algorithm. However, the existing titration guidance and safety principles allow a reasoned approach:
+
+1. **Mealtime Insulin (Lispro):**  
+   - The protocol states that mealtime insulin dose should be guided by the expected carbohydrate content of the next meal and post-prandial glucose levels [Protocol Page 84].  
+   - Since the patient will not be eating, **mealtime insulin should be withheld** to prevent hypoglycemia. This aligns with the protocol’s logic that mealtime insulin is tied to food intake.  
+
+2. **Basal Insulin (Glargine):**  
+   - Basal insulin is titrated based on fasting (pre-breakfast) capillary blood glucose values [Protocol Page 84].  
+   - Even while NPO, the patient’s fasting glucose can be monitored, and the basal dose can be adjusted according to the titration table, but with heightened caution because the patient is not eating.  
+   - The protocol advises that any increase in total daily insulin dose of >6 units during a titration step should be performed with caution [Protocol Page 34].  
+   - Typically, in NPO surgical patients, basal insulin is often continued at a reduced dose (e.g., 50–75% of usual) to cover basal metabolic needs, but the exact adjustment should be made by the investigator or an endocrinologist based on frequent glucose monitoring.  
+
+3. **Documentation and Protocol Compliance:**  
+   - Any change in trial dosing outside of protocol-stipulated dose adjustments (such as holding mealtime insulin or altering basal insulin due to NPO status) may be considered an adverse event if it leads to clinical consequences [Protocol Page 64].  
+   - The CRC should document the rationale for insulin adjustments clearly in the source notes and ensure the investigator reviews and approves the plan.  
+
+**Practical Steps for the CRC:**  
+- Confirm with the surgical team the expected duration of NPO.  
+- Order hourly point-of-care glucose checks.  
+- Hold lispro.  
+- Consult the investigator regarding the glargine dose; a common approach is to give 50% of the usual basal dose and titrate based on glucose trends.  
+- Document the deviation from the standard titration schedule as a protocol deviation, noting it was medically necessary for patient safety.  
+
+If you need further protocol-specific clarification, the investigator should contact the medical monitor.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-037,rag-v2-scenario-037,1,current_patient_status,low,retrieve,medical_assessment,"Here’s a quick summary of John Smith’s latest vitals:
+
+- **Blood Pressure:** 120/80 mmHg  
+- **Heart Rate:** 72 bpm  
+- **Temperature:** 98.6°F  
+- **Oxygen Saturation (SpO₂):** 98%  
+
+All vitals are within normal limits, and there are no active alerts or incidents for this patient.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-038,rag-v2-scenario-038,1,current_patient_ctcae_assessment,medium,retrieve,protocol_rule,"Based on the CTCAE v5.0 definition for **Ureteric anastomotic leak** [Page 81], the grading is as follows:
+
+- **Grade 1:** Asymptomatic diagnostic finding; intervention not indicated.
+- **Grade 2:** Symptomatic; medical intervention indicated.
+- **Grade 3:** Severe symptoms; invasive intervention indicated.
+- **Grade 4:** Life-threatening consequences; urgent operative intervention indicated.
+- **Grade 5:** Death.
+
+Your patient, Maria Garcia, is presenting with **mild flank pain and decreased urine output**—these are symptoms—and the suspected leak **requires medical intervention**. This aligns precisely with **Grade 2** [Page 81].
+
+**Risk Classification:**  
+[RISK: MEDIUM] — Grade 2 events are moderate in severity and require medical management, but are not immediately life-threatening.
+
+**Next Steps:**  
+- Ensure the patient is evaluated promptly per your site’s standard procedures for a suspected anastomotic leak.  
+- Medical intervention (e.g., imaging, laboratory workup, possible drainage or stenting) should be initiated as indicated.  
+- Monitor for any worsening of symptoms (e.g., increasing pain, fever, hemodynamic instability) that could escalate the grade to 3 or 4.  
+- Document the event and grade in the study records, and notify the PI/sponsor as required by the protocol.  
+
+Since no protocol-specific excerpts were retrieved, I cannot provide protocol-directed management steps. Please refer to protocol XYZ-456 for any study-specific reporting or intervention requirements.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-039,rag-v2-scenario-039,1,current_patient_emergency_protocol,high,retrieve,protocol_rule,"## DLCO Decrease Grading
+
+Jane’s carbon monoxide diffusing capacity (DLCO) dropped by **7 units** from her baseline of 25 to 18 ml/min/mm Hg. She remains asymptomatic with no pulmonary symptoms.
+
+According to CTCAE v5.0, the term **Carbon monoxide diffusing capacity decreased** is graded for follow‑up as follows [CTCAE Page 85]:
+
+- **Grade 2** applies to an asymptomatic decrease of **>5 – 8 units** below the baseline value, when no intervention is indicated.  
+  Jane’s 7‑unit drop falls squarely into this range.  
+  Therefore, the DLCO decrease is **Grade 2** (moderate).
+
+There is no indication of Grade 3 because she lacks pulmonary symptoms (e.g., hypoxia or dyspnea) and the drop is not >8 units.
+
+---
+
+## Protocol Requirements for Pregnancy
+
+The protocol (Insulin Glargine MYL‑1501D‑3003) is explicit about pregnancy:
+
+- **Immediate discontinuation of trial treatment** is required for any woman who becomes pregnant during the trial [Protocol Page 62].  
+- Pregnancy is listed as a **withdrawal criterion**; the patient should be discontinued from treatment, and an early discontinuation visit should be performed as soon as possible [Protocol Page 37, Page 62].  
+- The pregnancy must be **reported within 24 hours** via the pregnancy report form to Mylan Global Product Safety and Risk Management [Protocol Page 62].  
+- The Investigator must follow the pregnancy **every 3 months** until delivery or termination and inform the sponsor of the outcome [Protocol Page 63].  
+- **Pregnancy itself is not considered an adverse event (AE) or serious adverse event (SAE)**. However, any pregnancy complication or elective termination for medical reasons would be recorded as an AE/SAE. A spontaneous abortion is always an SAE and must be reported within 24 hours [Protocol Page 63].
+
+---
+
+## What You Should Do Now
+
+1. **Discontinue Jane from trial treatment immediately** per protocol.  
+2. **Schedule the early discontinuation visit** and perform all required assessments.  
+3. **Submit the pregnancy report form within 24 hours** to the sponsor.  
+4. **Grade the DLCO decrease as a Grade 2 AE** (CTCAE term: Carbon monoxide diffusing capacity decreased) and document it accordingly.  
+5. **Do not grade the pregnancy itself as an AE**; simply follow the protocol’s pregnancy reporting and follow‑up procedures.  
+6. Ensure Jane is counselled on the importance of follow‑up and that she understands she will be contacted every 3 months.
+
+---
+
+[RISK: MEDIUM]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-040,rag-v2-scenario-040,1,current_patient_status,medium,skip,workspace_summary,"John Smith's next scheduled visit is **Week 12, on April 15, 2025**.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-041,rag-v2-scenario-041,1,current_patient_ctcae_assessment,medium,retrieve,protocol_rule,"Based on the CTCAE v5.0 definition for **Cardiac troponin I increased** [CTCAE Page 86], the patient’s lab value of 0.15 ng/mL falls into **Grade 1**:
+
+- **Grade 1** is defined as levels above the upper limit of normal (ULN) and below the level of myocardial infarction as defined by the manufacturer. Here, the ULN is <0.04 ng/mL and the MI threshold is >0.5 ng/mL, so 0.15 ng/mL meets that criterion exactly.  
+- **Grade 3** would apply only if the troponin I were consistent with myocardial infarction (i.e., >0.5 ng/mL), which is not the case.
+
+The patient is currently asymptomatic, and no other cardiac symptoms are reported. The CTCAE navigational note [Page 86] advises to also consider cardiac disorders such as heart failure or myocardial infarction if a same-grade event occurs, but at this time there is no indication of those.
+
+**Risk Classification:** [RISK: LOW]  
+This is a mild, asymptomatic laboratory finding with no immediate intervention indicated per CTCAE grading. Continue to monitor per protocol and report any new symptoms.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-042,rag-v2-scenario-042,1,current_patient_emergency_protocol,high,retrieve,protocol_rule,"## Emergency Assessment for Jane Smith (MRN 67890)
+
+### CTCAE Grade: **Grade 3 (Severe)** – [RISK: HIGH]
+
+Based on the provided CTCAE v5.0 criteria, your patient’s presentation aligns with **Grade 3 Stridor**:
+
+- **Stridor (Page 140):** Grade 3 is defined as *“Respiratory distress limiting self care ADL; medical intervention indicated.”*  
+  Jane reports she cannot perform her usual daily activities (self-care ADL limited), has audible stridor, and is in respiratory distress. Her O₂ saturation of 88% on room air and respiratory rate of 32 further confirm significant respiratory compromise.
+
+- While Grade 4 (life-threatening airway compromise) could be imminent, the current description most precisely matches Grade 3 because urgent intubation/tracheotomy has not yet been performed. However, the low SpO₂ (<92%) and high respiratory rate place her at immediate risk of deterioration.
+
+**Immediate Action Required:**  
+This is a **HIGH risk** situation. **Do not rely on this chat as the primary escalation path.**  
+- Call the **direct study emergency number** provided in your site’s protocol materials **now**.  
+- If you cannot reach the study physician immediately, activate local emergency medical services (e.g., 911) without delay.  
+- Instruct the patient (or a family member) to call emergency services if she is alone.
+
+---
+
+### Protocol Question: 8-Point SMBG Profile & Insulin Dose Recording
+
+**No, the protocol does not require you to record insulin doses today under these circumstances.**
+
+- The protocol states that insulin doses should be documented on days when an 8-point SMBG profile is performed (Protocol Page 39, Page 86).  
+- However, **patient safety always overrides protocol procedures.** Jane is in acute respiratory distress and cannot perform self-care, let alone a full 8-point SMBG profile. Attempting to collect these data would be inappropriate and potentially harmful.
+
+**What you should do instead:**
+1. **Prioritize emergency medical intervention** as above.
+2. **Document this event as a serious adverse event (AE)** in the patient’s diary and eCRF, per protocol AE reporting guidelines (Protocol Page 56). Note the inability to perform the scheduled SMBG profile due to the AE.
+3. **Record the missed assessments as a protocol deviation** with the reason clearly stated (acute Grade 3 respiratory AE requiring emergency care).
+4. Once the patient is stabilized, coordinate with the investigator to determine if the 8-point profile can be rescheduled or if the data will be considered missing.
+
+---
+
+### Summary
+- **CTCAE Grade:** 3 (Stridor, Page 140)  
+- **Risk Classification:** [RISK: HIGH]  
+- **Immediate Step:** Activate emergency medical services now.  
+- **Protocol Compliance:** Do not attempt the SMBG profile or insulin dose recording; document the AE and deviation later.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-043,rag-v2-scenario-043,1,current_patient_status,low,retrieve,medical_assessment,"Based on the current workspace data for **John Doe (PT-102)**:
+
+- **Vitals**: BP 120/80, HR 72, SpO2 98% – all within normal limits.
+- **Alerts**: No active alerts.
+- **Last ePRO**: Submitted 2 hours ago with no issues reported.
+
+There are **no critical alerts** for this patient at this time. The overall clinical picture appears stable.
+
+[RISK: LOW]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-044,rag-v2-scenario-044,1,current_patient_ctcae_assessment,medium,retrieve,protocol_rule,"Based on the CTCAE v5.0 definition for **Ileal stenosis** [CTCAE Page 34], the appropriate grade for this patient is **Grade 2**.
+
+**Reasoning:**
+- **Grade 1** requires the patient to be asymptomatic, with only clinical or diagnostic observations (e.g., imaging findings) and no intervention indicated. Jane Smith is symptomatic (intermittent crampy abdominal pain, alternating constipation/diarrhea), so Grade 1 does not apply.
+- **Grade 2** is defined as “Symptomatic; altered GI function” [CTCAE Page 34]. The patient’s symptoms (pain, bowel habit changes) clearly indicate altered GI function. She is able to eat and drink, has no fever, no vomiting, and no hospitalization or intervention is required, which aligns with a moderate, non-severe presentation.
+- **Grade 3** would require severely altered GI function, tube feeding, hospitalization, or elective operative intervention — none of which are present.
+- Higher grades (4–5) are not applicable.
+
+**Risk Classification:** [RISK: MEDIUM] (Grade 2 adverse event)
+
+**Next Steps for CRC:**
+- Document the Grade 2 ileal stenosis in the adverse event log.
+- Report to the Principal Investigator per your site’s standard operating procedures. Since no protocol-specific guidance was retrieved, follow the general AE reporting timelines defined in Protocol ABC-456.
+- Monitor for any worsening (e.g., inability to eat, severe pain, signs of obstruction) that could escalate the grade to 3 or higher.
+
+If you need to review the exact CTCAE wording, I can provide the shortest necessary phrase.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-045,rag-v2-scenario-045,1,current_patient_emergency_protocol,high,retrieve,protocol_rule,"## CTCAE Grade for Nail Loss Affecting Buttoning Shirts
+
+The reported nail loss is a nail change, but the CTCAE term **Nail changes** (Page 144) only defines Grade 1 (“Present”) and does not capture functional impact. Because the symptom limits instrumental activities of daily living (difficulty buttoning shirts), it aligns with the **General disorders and administration site conditions – Other, specify** term (Page 47).  
+
+- **Grade 2** is defined as: *Moderate; minimal, local or noninvasive intervention indicated; limiting age-appropriate instrumental ADL* [CTCAE Page 47].  
+
+Therefore, the appropriate CTCAE grade is **Grade 2** (moderate).  
+
+[RISK: MEDIUM]
+
+---
+
+## Required Switches in the Switching Arm
+
+Per the protocol, the repeated‑switch arm must include **at least four treatment periods**, which is achieved by **three (3) switches** (or transitions) between the reference and test products [Protocol Page 22].  
+
+Your patient, John Doe, is in the switching arm and has completed 2 switches so far. One additional switch is required to meet the protocol definition.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-046,rag-v2-scenario-011,2,cache_follow_up,low,retrieve,protocol_rule,"Based on the updated measurement, the limb length discrepancy of **1.5 cm** now falls into **Grade 1** according to the CTCAE v5.0 term *Unequal limb length* [CTCAE Page 102].
+
+- **Grade 1** is defined as a mild discrepancy of **<2 cm**. The patient’s current 1.5 cm meets this criterion.
+- The patient is asymptomatic, which is consistent with Grade 1, where no intervention is indicated and there is no functional limitation.
+
+**Documentation note:** You can update the adverse event grade to **Grade 1** in the EDC. Since the discrepancy is now mild and asymptomatic, no further action is required beyond routine monitoring.
+
+[RISK: LOW]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-047,rag-v2-scenario-017,2,cache_follow_up,medium,retrieve,protocol_rule,"Based on the protocol excerpts provided, here’s my assessment for PT‑301’s alcohol intolerance event.
+
+---
+
+## Is This an Adverse Event?
+
+Yes, this should be recorded as an adverse event (AE). The protocol states:
+
+> “Any clinically relevant observations made by the Investigator during the visit will also be considered AEs.” [Protocol Page 56]
+
+Alcohol intolerance is a new symptom that was not present before, and it is clinically relevant. Therefore, it meets the definition of an AE and must be documented.
+
+---
+
+## Grading the Severity
+
+The protocol specifies that AEs should be graded using **NCI‑CTCAE Version 4.03** [Protocol Page 56]. The CTCAE excerpts retrieved for this session do not include a specific grading for “alcohol intolerance.” When an AE is not listed in the CTCAE, the protocol instructs you to use the following severity table [Protocol Page 56]:
+
+| Grade | Description |
+|-------|-------------|
+| 1 – MILD | Does not interfere with patient’s usual function |
+| 2 – MODERATE | Interferes to some extent with patient’s usual function |
+| 3 – SEVERE | Interferes significantly with patient’s usual function |
+| 4 – LIFE‑THREATENING | Risk of death at time of event |
+| 5 – DEATH | Death related to AE |
+
+The information you provided does not mention whether the alcohol intolerance interfered with PT‑301’s usual activities. To assign the correct grade, I need to know:
+
+- Did the symptoms (e.g., flushing, nausea, headache) limit his daily activities in any way?
+- If not, the event would be **Grade 1 (Mild)**.
+- If they caused some interference, it would be **Grade 2 (Moderate)**.
+
+Please clarify the functional impact so I can confirm the grade.
+
+---
+
+## Reporting and Follow‑up
+
+- Record the AE in the patient’s trial diary and on the appropriate CRF page [Protocol Page 56, 60].
+- Follow the event to resolution or stability, and document the outcome [Protocol Page 60].
+- This event does **not** appear to meet seriousness criteria (no hospitalization, life‑threatening risk, etc.), so it is **not an SAE** and does not require immediate sponsor notification [Protocol Page 56, 60].
+
+---
+
+## Study Population Criteria
+
+The protocol excerpts retrieved do not contain the inclusion/exclusion criteria or study population description. I cannot confirm whether alcohol intolerance would affect eligibility or require any protocol‑specified action beyond standard AE reporting. Please refer to the full protocol for those details.
+
+---
+
+[RISK: MEDIUM]",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-048,rag-v2-scenario-023,2,cache_follow_up,low,retrieve,protocol_rule,"Here is the exact CTCAE v5.0 wording for the grade you need to log, taken directly from the term **Intraoperative cardiac injury**:
+
+**Grade 3:** “Primary repair of injured organ/structure indicated” [CTCAE Page 75].
+
+The overall term definition is: “A finding of damage to the heart during a surgical procedure.” [CTCAE Page 75].",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-049,rag-v2-scenario-029,2,cache_follow_up,low,retrieve,protocol_rule,"### Gait Disturbance CTCAE Grade
+
+You previously assigned **Grade 1 (Mild)** for the patient’s gait problem.  
+- The patient reported limping and difficulty walking, which matches the Grade 1 definition: “Mild change in gait (e.g., wide-based, limping or hobbling)” [CTCAE Page 45].  
+- There is no indication that an assistive device is needed or that instrumental activities of daily living are limited, so it remains Grade 1.  
+
+---
+
+### Protocol Eligibility with Current Insulin Dose
+
+The protocol’s exclusion criterion for moderate insulin resistance (insulin ≥ 1.5 U/kg/day) was applied at screening [Protocol Page 15]. The patient is already enrolled and at Week 12, so the criterion does not automatically render him ineligible now. However, his current total daily insulin dose of **1.6 U/kg/day** exceeds that threshold.  
+
+This finding should be treated as a **clinically significant change** (potential worsening of insulin resistance or hyperglycemia) and evaluated as a possible adverse event or protocol deviation. The investigator should review the patient’s glucose control and consider dose adjustments according to the protocol’s titration guidance [Protocol Page 34].  
+
+If the dose escalation reflects a new medical condition that would have excluded the patient at screening, the investigator must decide whether continued participation is appropriate and document the rationale.",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-050,rag-v2-scenario-038,2,cache_follow_up,low,retrieve,protocol_rule,"No, that is not correct. Based on the CTCAE v5.0 definition for **Ureteric anastomotic leak** [Page 81], the appropriate grade for Maria Garcia’s presentation is **Grade 2**, not Grade 3.
+
+Here’s the breakdown:
+
+- **Grade 1:** Asymptomatic diagnostic finding; intervention not indicated.
+- **Grade 2:** Symptomatic; medical intervention indicated.
+- **Grade 3:** Severe symptoms; invasive intervention indicated.
+
+Maria is symptomatic (mild flank pain, decreased urine output) and the suspected leak requires medical intervention. This fits Grade 2 exactly [Page 81]. Grade 3 would require *severe* symptoms and an *invasive* intervention, which is not the case here.
+
+**Risk Classification:**  
+[RISK: MEDIUM] — Grade 2 events are moderate and require medical management but are not immediately life-threatening.
+
+Please ensure the event is graded as Grade 2 in the study records. If her symptoms worsen (e.g., increasing pain, fever, hemodynamic instability), re-evaluate for possible escalation to Grade 3 or higher. No protocol-specific excerpts were retrieved, so refer to protocol XYZ-456 for any study-specific reporting or management steps.",,,,,,

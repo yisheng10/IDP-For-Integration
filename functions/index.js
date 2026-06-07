@@ -1,503 +1,364 @@
 import admin from 'firebase-admin';
-import { createClient } from '@supabase/supabase-js';
-import { setGlobalOptions } from 'firebase-functions/v2/options';
-import { HttpsError, onRequest } from 'firebase-functions/v2/https';
+import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
+import webpush from 'web-push';
+import {
+  classifyGuidanceRoute,
+  classifyGuidanceRouteHttp,
+  deleteGuidanceDocumentChunks,
+  deleteGuidanceDocumentChunksHttp,
+  ingestGuidanceDocument,
+  processPendingProtocolGuidanceIndex,
+  retrieveGuidanceContext,
+  retrieveGuidanceContextHttp,
+  sideEffectGuidanceChat,
+  sideEffectGuidanceChatHttp,
+  sideEffectGuidanceTraceHttp,
+  sideEffectGuidanceTraceStreamHttp,
+  suggestAppointmentDate,
+  suggestAppointmentDateHttp,
+} from './guidanceRuntime.js';
+import {
+  fetchCrcUrgentIncidentSummary,
+  purgePatientRecord,
+  sendCrcPatientDirectMessage,
+} from './crcAdminRuntime.js';
+import {
+  configureProtocolDropoutTrial,
+  ensureDropoutTrialRegistryTrial,
+  refreshConfiguredDropoutTrialRegistry,
+} from './dropoutRegistryRuntime.js';
+import {
+  finalizeUploadedProtocolTemplate,
+  reconcileProtocolDropoutTrialBinding,
+} from './protocolStaticContextRuntime.js';
+import { createLiveKitCallTokenHttp } from './livekitRuntime.js';
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-setGlobalOptions({
-  region: 'us-central1',
-  maxInstances: 10,
-});
+const db = admin.firestore();
 
-const DEFAULT_GUIDANCE_MODEL = 'Qwen/Qwen3.5-27B';
-const DEFAULT_EMBEDDING_MODEL = 'Qwen/Qwen3-Embedding-8B';
-const DEFAULT_SILICONFLOW_BASE_URL = 'https://api.siliconflow.cn/v1';
-const DEFAULT_GUIDANCE_TIMEOUT_MS = 120000;
-const DEFAULT_EMBEDDING_TIMEOUT_MS = 20000;
-const DEFAULT_EMBEDDING_DIMENSIONS = 4096;
-const DEFAULT_CTCAE_DOCUMENT_ID = 'ctcae-v5.0';
+const WEB_PUSH_PUBLIC_KEY = process.env.WEB_PUSH_PUBLIC_KEY || '';
+const WEB_PUSH_PRIVATE_KEY = process.env.WEB_PUSH_PRIVATE_KEY || '';
+const WEB_PUSH_CONTACT_EMAIL = process.env.WEB_PUSH_CONTACT_EMAIL || '';
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const INCOMING_CALL_CATEGORY_ID = 'incoming-call';
 
-function normalizeText(value = '') {
-  return String(value || '').trim();
+if (WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY && WEB_PUSH_CONTACT_EMAIL) {
+  webpush.setVapidDetails(
+    `mailto:${WEB_PUSH_CONTACT_EMAIL}`,
+    WEB_PUSH_PUBLIC_KEY,
+    WEB_PUSH_PRIVATE_KEY
+  );
 }
 
-function readNumberEnv(name, fallback) {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function requireEnv(name) {
-  const value = normalizeText(process.env[name]);
-  if (!value) {
-    throw new HttpsError('failed-precondition', `${name} is not configured on the server.`);
-  }
-  return value;
-}
-
-function requireHeaderSafeEnv(name) {
-  const value = requireEnv(name);
-  for (let index = 0; index < value.length; index += 1) {
-    if (value.charCodeAt(index) > 255) {
-      throw new HttpsError(
-        'failed-precondition',
-        `${name} contains non-ASCII characters. Check the configured API key.`
-      );
-    }
-  }
-  return value;
-}
-
-function buildAbortSignal(timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return {
-    signal: controller.signal,
-    clear: () => clearTimeout(timer),
-  };
-}
-
-function getSiliconFlowBaseUrl() {
+function isActionableIncident(incident) {
+  if (!incident) return false;
+  if (incident.status === 'resolved') return false;
   return (
-    normalizeText(process.env.SILICONFLOW_BASE_URL) || DEFAULT_SILICONFLOW_BASE_URL
-  ).replace(/\/+$/, '');
+    incident.severity === 'serious' ||
+    incident.immediate_help_requested === true ||
+    incident.urgency === 'urgent'
+  );
 }
 
-function getGuidanceModel() {
-  return normalizeText(process.env.SILICONFLOW_SIDE_EFFECT_GUIDANCE_MODEL) || DEFAULT_GUIDANCE_MODEL;
+function buildSignature(incidentId, incident) {
+  return `${incidentId}:${incident.updated_at || incident.created_at || 'unknown'}:${incident.status || 'open'}`;
 }
 
-function getEmbeddingModel() {
-  return normalizeText(process.env.SILICONFLOW_EMBEDDING_MODEL) || DEFAULT_EMBEDDING_MODEL;
-}
-
-function parseHttpJsonBody(req) {
-  if (req.body == null) return {};
-  if (typeof req.body === 'string') {
-    try {
-      return JSON.parse(req.body);
-    } catch {
-      throw new HttpsError('invalid-argument', 'Request body must be valid JSON.');
-    }
-  }
-  if (typeof req.body === 'object') return req.body;
-  throw new HttpsError('invalid-argument', 'Request body must be valid JSON.');
-}
-
-function decodeJwtPayloadUnsafe(idToken = '') {
-  const payloadPart = String(idToken || '').split('.')[1] || '';
-  if (!payloadPart) return null;
-
-  try {
-    return JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function isFunctionsEmulatorRuntime() {
-  return String(process.env.FUNCTIONS_EMULATOR || '').toLowerCase() === 'true';
-}
-
-function httpsErrorToStatusCode(code = 'internal') {
-  switch (String(code || '').toLowerCase()) {
-    case 'invalid-argument':
-      return 400;
-    case 'unauthenticated':
-      return 401;
-    case 'permission-denied':
-      return 403;
-    case 'not-found':
-      return 404;
-    case 'resource-exhausted':
-      return 429;
-    case 'failed-precondition':
-      return 412;
-    case 'unavailable':
-      return 503;
-    case 'deadline-exceeded':
-      return 504;
-    default:
-      return 500;
-  }
-}
-
-function toCallableModelError(error, action = 'AI request') {
-  if (error instanceof HttpsError) return error;
-
-  const message = normalizeText(error?.message || error || '');
-  const lowerMessage = message.toLowerCase();
-  const status = Number(error?.status || error?.httpStatus) || 0;
-
-  if (
-    lowerMessage.includes('api key') ||
-    lowerMessage.includes('permission denied') ||
-    lowerMessage.includes('model not found') ||
-    lowerMessage.includes('unsupported model')
-  ) {
-    return new HttpsError('failed-precondition', `${action} failed: ${message}`);
-  }
-
-  if (status === 429 || lowerMessage.includes('quota') || lowerMessage.includes('rate limit')) {
-    return new HttpsError('resource-exhausted', `${action} failed: ${message}`);
-  }
-
-  if (status === 408 || lowerMessage.includes('timed out') || lowerMessage.includes('timeout')) {
-    return new HttpsError('deadline-exceeded', `${action} timed out: ${message}`);
-  }
-
-  if (status >= 500 || lowerMessage.includes('service unavailable')) {
-    return new HttpsError('unavailable', `${action} failed: ${message}`);
-  }
-
-  return new HttpsError('internal', `${action} failed: ${message || 'Unknown provider error.'}`);
-}
-
-function sendHttpJsonError(res, error, action = 'Request') {
-  const normalizedError = error instanceof HttpsError ? error : toCallableModelError(error, action);
-  res.status(httpsErrorToStatusCode(normalizedError.code)).json({
-    error: {
-      status: normalizedError.code,
-      message: normalizedError.message,
+async function markPushAttempt(ref, signature, count) {
+  await ref.set(
+    {
+      notification_state: {
+        last_push_signature: signature,
+        last_push_attempt_at: new Date().toISOString(),
+        last_push_recipient_count: count,
+      },
     },
-  });
+    { merge: true }
+  );
 }
 
-async function assertAuthenticatedHttpRequest(req) {
-  const authorizationHeader = normalizeText(req.get('authorization'));
-  if (!authorizationHeader.toLowerCase().startsWith('bearer ')) {
-    throw new HttpsError('unauthenticated', 'Sign in before using guidance services.');
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
   }
-
-  const idToken = authorizationHeader.slice(7).trim();
-  if (!idToken) {
-    throw new HttpsError('unauthenticated', 'Sign in before using guidance services.');
-  }
-
-  try {
-    if (isFunctionsEmulatorRuntime()) {
-      const decodedToken = decodeJwtPayloadUnsafe(idToken);
-      const uid = normalizeText(decodedToken?.user_id || decodedToken?.sub || decodedToken?.uid);
-      if (uid) {
-        return { uid, token: decodedToken };
-      }
-    }
-
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    return { uid: decodedToken.uid, token: decodedToken };
-  } catch {
-    throw new HttpsError('unauthenticated', 'Sign in before using guidance services.');
-  }
+  return chunks;
 }
 
-async function handleAuthedJsonRequest(req, res, handler, action = 'Request') {
-  if (req.method !== 'POST') {
-    res.status(405).json({
-      error: {
-        status: 'method-not-allowed',
-        message: 'Only POST requests are supported.',
-      },
-    });
-    return;
-  }
-
-  try {
-    await assertAuthenticatedHttpRequest(req);
-    const payload = parseHttpJsonBody(req);
-    const result = await handler(payload);
-    res.status(200).json({ result });
-  } catch (error) {
-    console.error(`${action} failed:`, error);
-    sendHttpJsonError(res, error, action);
-  }
+function buildIncomingCallSignature(activeCall) {
+  return `${activeCall?.callId || 'unknown'}:${activeCall?.callerId || 'unknown'}:${activeCall?.callType || 'audio'}`;
 }
 
-function buildChatMessages({ systemPrompt = '', messages = [], userMessage = '' }) {
-  const chatMessages = [];
-  const safeSystemPrompt = normalizeText(systemPrompt);
-  if (safeSystemPrompt) {
-    chatMessages.push({ role: 'system', content: safeSystemPrompt });
-  }
+async function sendExpoPushMessages(messages) {
+  if (!messages.length) return [];
 
-  for (const message of Array.isArray(messages) ? messages.slice(-12) : []) {
-    const content = normalizeText(message?.content || message?.text);
-    if (!content) continue;
-    chatMessages.push({
-      role: message.role === 'assistant' || message.role === 'model' ? 'assistant' : 'user',
-      content,
-    });
-  }
-
-  const safeUserMessage = normalizeText(userMessage);
-  if (safeUserMessage) {
-    chatMessages.push({ role: 'user', content: safeUserMessage });
-  }
-
-  return chatMessages;
-}
-
-function extractChatText(content) {
-  if (typeof content === 'string') return content.trim();
-  if (!Array.isArray(content)) return normalizeText(content);
-  return content
-    .map((part) => {
-      if (typeof part === 'string') return part;
-      if (part?.type === 'text') return String(part.text || '');
-      return '';
-    })
-    .join('\n')
-    .trim();
-}
-
-function normalizeOpenAiUsage(usage) {
-  if (!usage || typeof usage !== 'object') return null;
-  return {
-    promptTokenCount: Number(usage.prompt_tokens) || 0,
-    candidatesTokenCount: Number(usage.completion_tokens) || 0,
-    totalTokenCount: Number(usage.total_tokens) || 0,
-  };
-}
-
-async function requestSiliconFlowChat(payload = {}) {
-  const timeoutMs = readNumberEnv('SILICONFLOW_SIDE_EFFECT_GUIDANCE_TIMEOUT_MS', DEFAULT_GUIDANCE_TIMEOUT_MS);
-  const timeout = buildAbortSignal(timeoutMs);
-  const model = getGuidanceModel();
-  const messages = buildChatMessages(payload);
-
-  if (!messages.length) {
-    throw new HttpsError('invalid-argument', 'userMessage is required.');
-  }
-
-  const body = {
-    model,
-    messages,
-    temperature: Number.isFinite(Number(payload.temperature)) ? Number(payload.temperature) : 0.35,
-    top_p: Number.isFinite(Number(payload.topP)) ? Number(payload.topP) : 0.9,
-  };
-
-  if (payload.responseFormat === 'json') {
-    body.response_format = { type: 'json_object' };
-  }
-
-  try {
-    const response = await fetch(`${getSiliconFlowBaseUrl()}/chat/completions`, {
+  const responses = [];
+  for (const chunk of chunkArray(messages, 100)) {
+    const response = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${requireHeaderSafeEnv('SILICONFLOW_API_KEY')}`,
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
-      signal: timeout.signal,
+      body: JSON.stringify(chunk),
     });
 
-    const responseText = await response.text();
-    let parsed = null;
-    try {
-      parsed = responseText ? JSON.parse(responseText) : null;
-    } catch {
-      parsed = null;
-    }
-
+    const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      const errorMessage =
-        parsed?.error?.message ||
-        parsed?.message ||
-        responseText ||
-        `${response.status} ${response.statusText}`;
-      const error = new Error(`SiliconFlow request failed: ${errorMessage}`);
-      error.status = response.status;
-      throw error;
+      throw new Error(payload?.errors?.[0]?.message || `Expo push failed with status ${response.status}.`);
     }
-
-    const text = extractChatText(parsed?.choices?.[0]?.message?.content);
-    if (!text) {
-      throw new Error('SiliconFlow returned an empty response.');
-    }
-
-    return {
-      text,
-      provider: 'siliconflow',
-      model,
-      usage: normalizeOpenAiUsage(parsed?.usage),
-    };
-  } catch (error) {
-    if (error?.name === 'AbortError') {
-      const timeoutError = new Error(
-        `SiliconFlow request timed out after ${timeoutMs}ms for model "${model}".`
-      );
-      timeoutError.status = 408;
-      throw timeoutError;
-    }
-    throw error;
-  } finally {
-    timeout.clear();
+    responses.push(payload);
   }
+
+  return responses;
 }
 
-async function requestSiliconFlowEmbedding(inputText) {
-  const input = normalizeText(inputText);
-  if (!input) return [];
+async function getPatientExpoPushTokens(userId) {
+  const tokenSnapshot = await db
+    .collection('users')
+    .doc(userId)
+    .collection('expo_push_tokens')
+    .get();
 
-  const timeoutMs = readNumberEnv('SILICONFLOW_EMBEDDING_TIMEOUT_MS', DEFAULT_EMBEDDING_TIMEOUT_MS);
-  const dimensions = readNumberEnv('SILICONFLOW_EMBEDDING_DIMENSIONS', DEFAULT_EMBEDDING_DIMENSIONS);
-  const model = getEmbeddingModel();
-  const timeout = buildAbortSignal(timeoutMs);
+  return tokenSnapshot.docs
+    .map((tokenDoc) => String(tokenDoc.get('token') || '').trim())
+    .filter((token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['));
+}
 
-  try {
-    const response = await fetch(`${getSiliconFlowBaseUrl()}/embeddings`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${requireHeaderSafeEnv('SILICONFLOW_API_KEY')}`,
-        'Content-Type': 'application/json',
+export const sendIncomingCallPushNotification = onDocumentWritten(
+  'users/{userId}/active_call/current',
+  async (event) => {
+    const afterSnapshot = event.data.after;
+    if (!afterSnapshot.exists) {
+      return;
+    }
+
+    const activeCall = afterSnapshot.data() || {};
+    if (activeCall.type !== 'offer' || !activeCall.callId || !activeCall.callerId) {
+      return;
+    }
+
+    const signature = buildIncomingCallSignature(activeCall);
+    if (activeCall.notification_state?.last_push_signature === signature) {
+      return;
+    }
+
+    const tokens = await getPatientExpoPushTokens(event.params.userId);
+
+    if (!tokens.length) {
+      await afterSnapshot.ref.set(
+        {
+          notification_state: {
+            last_push_signature: signature,
+            last_push_attempt_at: new Date().toISOString(),
+            last_push_recipient_count: 0,
+          },
+        },
+        { merge: true }
+      );
+      return;
+    }
+
+    const callerName = String(activeCall.callerName || 'TrialLight CRC').trim();
+    const isVideo = activeCall.callType === 'video';
+    const messages = tokens.map((token) => ({
+      to: token,
+      sound: 'default',
+      priority: 'high',
+      channelId: 'incoming-calls',
+      categoryId: INCOMING_CALL_CATEGORY_ID,
+      title: isVideo ? 'Incoming TrialLight video call' : 'Incoming TrialLight call',
+      body: `${callerName} is calling you.`,
+      data: {
+        type: 'incoming-call',
+        callId: activeCall.callId,
+        callerId: activeCall.callerId,
+        callerName,
+        callType: activeCall.callType || 'audio',
+        signalingMode: activeCall.signalingMode || 'livekit',
+        livekitRoomName: activeCall.livekitRoomName || null,
       },
-      body: JSON.stringify({
-        model,
-        input: [input],
-        encoding_format: 'float',
-        dimensions,
-      }),
-      signal: timeout.signal,
+    }));
+
+    try {
+      await sendExpoPushMessages(messages);
+      await afterSnapshot.ref.set(
+        {
+          notification_state: {
+            last_push_signature: signature,
+            last_push_attempt_at: new Date().toISOString(),
+            last_push_recipient_count: messages.length,
+          },
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('Incoming call push delivery failed:', error);
+      await afterSnapshot.ref.set(
+        {
+          notification_state: {
+            last_push_signature: signature,
+            last_push_attempt_at: new Date().toISOString(),
+            last_push_recipient_count: 0,
+            last_push_error: error?.message || 'Expo push delivery failed.',
+          },
+        },
+        { merge: true }
+      );
+    }
+  }
+);
+
+export const sendPatientMessagePushNotification = onDocumentCreated(
+  'users/{userId}/alerts/{alertId}/messages/{messageId}',
+  async (event) => {
+    const message = event.data?.data() || {};
+    if (String(message.sender || '').trim().toLowerCase() !== 'crc') {
+      return;
+    }
+
+    const messageText = String(message.text || '').trim();
+    if (!messageText) {
+      return;
+    }
+
+    const tokens = await getPatientExpoPushTokens(event.params.userId);
+    if (!tokens.length) {
+      return;
+    }
+
+    const senderName = String(message.senderName || 'CRC').trim();
+    const body = messageText.length > 160 ? `${messageText.slice(0, 157)}...` : messageText;
+    const messages = tokens.map((token) => ({
+      to: token,
+      sound: 'default',
+      priority: 'high',
+      channelId: 'default',
+      title: senderName,
+      body,
+      data: {
+        type: 'crc-message',
+        alertId: event.params.alertId,
+        messageId: event.params.messageId,
+        senderName,
+      },
+    }));
+
+    try {
+      await sendExpoPushMessages(messages);
+    } catch (error) {
+      console.error('Patient message push delivery failed:', error);
+    }
+  }
+);
+
+export const sendIncidentPushNotifications = onDocumentWritten(
+  'incident_records/{incidentId}',
+  async (event) => {
+    const afterSnapshot = event.data.after;
+
+    if (!afterSnapshot.exists) {
+      return;
+    }
+
+    const incident = afterSnapshot.data();
+    const incidentId = event.params.incidentId;
+
+    if (!WEB_PUSH_PUBLIC_KEY || !WEB_PUSH_PRIVATE_KEY || !WEB_PUSH_CONTACT_EMAIL) {
+      console.warn('Web push environment variables are missing. Skipping push dispatch.');
+      return;
+    }
+
+    if (!incident.primary_crc_id || !isActionableIncident(incident)) {
+      return;
+    }
+
+    const signature = buildSignature(incidentId, incident);
+    if (incident.notification_state?.last_push_signature === signature) {
+      return;
+    }
+
+    const subscriptionSnapshot = await db
+      .collection('users')
+      .doc(incident.primary_crc_id)
+      .collection('web_push_subscriptions')
+      .get();
+
+    if (subscriptionSnapshot.empty) {
+      await markPushAttempt(afterSnapshot.ref, signature, 0);
+      return;
+    }
+
+    const payload = JSON.stringify({
+      title: `TrialLight: ${incident.event_title || 'CRC incident'}`,
+      body: `${incident.severity || 'serious'} incident for ${(incident.linked_patients || [])
+        .map((entry) => entry.patient_name)
+        .join(', ')}`,
+      data: {
+        incidentId,
+        url: `/home?incident=${incidentId}`,
+      },
     });
 
-    const responseText = await response.text();
-    let parsed = null;
-    try {
-      parsed = responseText ? JSON.parse(responseText) : null;
-    } catch {
-      parsed = null;
-    }
+    const invalidSubscriptions = [];
 
-    if (!response.ok) {
-      const errorMessage =
-        parsed?.error?.message ||
-        parsed?.message ||
-        responseText ||
-        `${response.status} ${response.statusText}`;
-      const error = new Error(`SiliconFlow embeddings request failed: ${errorMessage}`);
-      error.status = response.status;
-      throw error;
-    }
+    await Promise.all(
+      subscriptionSnapshot.docs.map(async (subscriptionDoc) => {
+        const subscription = {
+          endpoint: subscriptionDoc.get('endpoint'),
+          keys: subscriptionDoc.get('keys') || {},
+        };
 
-    const embedding = parsed?.data?.[0]?.embedding;
-    if (!Array.isArray(embedding)) {
-      throw new Error('SiliconFlow embeddings request returned an invalid response payload.');
-    }
-    return embedding;
-  } catch (error) {
-    if (error?.name === 'AbortError') {
-      const timeoutError = new Error(
-        `SiliconFlow embeddings request timed out after ${timeoutMs}ms for model "${model}".`
-      );
-      timeoutError.status = 408;
-      throw timeoutError;
-    }
-    throw error;
-  } finally {
-    timeout.clear();
+        try {
+          await webpush.sendNotification(subscription, payload);
+        } catch (error) {
+          const statusCode = error.statusCode || error.status;
+          if (statusCode === 404 || statusCode === 410) {
+            invalidSubscriptions.push(subscriptionDoc.ref);
+          } else {
+            console.error(`Push delivery failed for ${subscriptionDoc.id}:`, error.message || error);
+          }
+        }
+      })
+    );
+
+    await Promise.all(invalidSubscriptions.map((ref) => ref.delete()));
+    await markPushAttempt(afterSnapshot.ref, signature, subscriptionSnapshot.size - invalidSubscriptions.length);
   }
-}
-
-function getSupabaseClient() {
-  const url = requireEnv('SUPABASE_URL');
-  const key = normalizeText(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
-  if (!key) {
-    throw new HttpsError('failed-precondition', 'SUPABASE_SERVICE_ROLE_KEY is not configured on the server.');
-  }
-  return createClient(url, key);
-}
-
-function normalizeGuidanceRows(rows = [], sourceTypeFallback = null) {
-  return rows.map((entry) => {
-    const metadata = entry?.metadata && typeof entry.metadata === 'object' ? entry.metadata : {};
-    return {
-      ...entry,
-      source_type: entry.source_type || sourceTypeFallback || metadata.source_type || null,
-      protocol_id: entry.protocol_id || metadata.protocol_id || null,
-      protocol_name: entry.protocol_name || metadata.protocol_name || null,
-      title: entry.title || metadata.title || null,
-      page: entry.page || metadata.page || 'Unknown',
-      metadata,
-    };
-  });
-}
-
-async function queryGuidanceChunks(queryEmbedding, {
-  sourceTypes,
-  protocolId,
-  protocolName,
-  documentId,
-  matchCount,
-}) {
-  if (!queryEmbedding?.length || !matchCount) return [];
-
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc('match_guidance_documents', {
-    query_embedding: queryEmbedding,
-    _match_count: Math.max(1, Number(matchCount) || 1),
-    _source_types: sourceTypes,
-    _protocol_id: protocolId || null,
-    _protocol_name: protocolName || null,
-    _document_id: documentId || null,
-  });
-
-  if (error) {
-    throw new HttpsError('internal', `Guidance retrieval failed: ${error.message}`);
-  }
-
-  return normalizeGuidanceRows(data || [], Array.isArray(sourceTypes) ? sourceTypes[0] : null);
-}
-
-async function runSideEffectGuidanceChat(payload = {}) {
-  try {
-    return await requestSiliconFlowChat(payload);
-  } catch (error) {
-    throw toCallableModelError(error, 'Guidance generation');
-  }
-}
-
-async function runRetrieveGuidanceContext(payload = {}) {
-  const queryText = normalizeText(payload.queryText);
-  if (!queryText) {
-    return { ctcaeChunks: [], protocolChunks: [] };
-  }
-
-  const ctcaeMatchCount = Math.max(0, Number(payload.ctcaeMatchCount ?? 4) || 0);
-  const protocolMatchCount = Math.max(0, Number(payload.protocolMatchCount ?? 0) || 0);
-  const protocolId = normalizeText(payload.protocolId) || null;
-  const protocolName = normalizeText(payload.protocolName) || null;
-  const queryEmbedding = await requestSiliconFlowEmbedding(queryText);
-
-  const [ctcaeChunks, protocolChunks] = await Promise.all([
-    ctcaeMatchCount > 0
-      ? queryGuidanceChunks(queryEmbedding, {
-          sourceTypes: ['ctcae'],
-          protocolId: null,
-          protocolName: null,
-          documentId: DEFAULT_CTCAE_DOCUMENT_ID,
-          matchCount: ctcaeMatchCount,
-        })
-      : Promise.resolve([]),
-    protocolMatchCount > 0
-      ? queryGuidanceChunks(queryEmbedding, {
-          sourceTypes: ['protocol'],
-          protocolId,
-          protocolName,
-          matchCount: protocolMatchCount,
-        })
-      : Promise.resolve([]),
-  ]);
-
-  return { ctcaeChunks, protocolChunks };
-}
-
-export const sideEffectGuidanceChatHttp = onRequest(
-  { invoker: 'public', cors: true, timeoutSeconds: 180, memory: '512MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runSideEffectGuidanceChat, 'Guidance generation')
 );
 
-export const retrieveGuidanceContextHttp = onRequest(
-  { invoker: 'public', cors: true, timeoutSeconds: 120, memory: '512MiB' },
-  async (req, res) => handleAuthedJsonRequest(req, res, runRetrieveGuidanceContext, 'Guidance retrieval')
-);
+export {
+  configureProtocolDropoutTrial,
+  ensureDropoutTrialRegistryTrial,
+  fetchCrcUrgentIncidentSummary,
+  finalizeUploadedProtocolTemplate,
+  purgePatientRecord,
+  reconcileProtocolDropoutTrialBinding,
+  refreshConfiguredDropoutTrialRegistry,
+  sendCrcPatientDirectMessage,
+  sideEffectGuidanceChat,
+  sideEffectGuidanceChatHttp,
+  sideEffectGuidanceTraceHttp,
+  sideEffectGuidanceTraceStreamHttp,
+  classifyGuidanceRoute,
+  classifyGuidanceRouteHttp,
+  createLiveKitCallTokenHttp,
+  retrieveGuidanceContext,
+  retrieveGuidanceContextHttp,
+  ingestGuidanceDocument,
+  deleteGuidanceDocumentChunks,
+  deleteGuidanceDocumentChunksHttp,
+  processPendingProtocolGuidanceIndex,
+  suggestAppointmentDate,
+  suggestAppointmentDateHttp,
+};
+
+export {
+  runClassifyGuidanceRoute,
+  runRetrieveGuidanceContext,
+  runSideEffectGuidanceChat,
+} from './guidanceRuntime.js';

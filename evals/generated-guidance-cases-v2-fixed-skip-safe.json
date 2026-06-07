@@ -1,0 +1,2900 @@
+{
+  "caseset_id": "crc-guidance-rag-v2-type1diabetes",
+  "description": "Generated CRC guidance RAG v2 cases with hidden CTCAE/protocol chunk-index gold vectors.",
+  "version": 2,
+  "source_protocol": {
+    "requested_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_document_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_storage_path": "protocol-templates/1nS5U2FqTAVM10xSkzaq/1778572263748-Protocol-Type-1-Diabetes-Mellitus.pdf",
+    "protocol_chunk_pool_size": 193,
+    "ctcae_chunk_pool_size": 837
+  },
+  "generation": {
+    "created_at": "2026-06-04T12:28:57.546Z",
+    "seed": 20260605,
+    "requested_count": 50,
+    "generated_count": 50,
+    "dropped_count": 0,
+    "dropped_cases": [],
+    "generator_profile": "siliconflow-case-generator",
+    "generator_provider": "siliconflow",
+    "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "per_case_timeout_ms": 180000,
+    "batch_size": 2,
+    "batch_timeout_ms": null,
+    "stream": true,
+    "ctcae_chunks_per_case": 1,
+    "protocol_chunks_per_case": 1,
+    "skip_safe_patch": {
+      "created_at": "2026-06-04T12:33:41.084Z",
+      "source_file": "evals/generated-guidance-cases-v2-fixed.json",
+      "replaced_case_ids": [
+        "rag-v2-001",
+        "rag-v2-002",
+        "rag-v2-003",
+        "rag-v2-004",
+        "rag-v2-005",
+        "rag-v2-006",
+        "rag-v2-007",
+        "rag-v2-008",
+        "rag-v2-009",
+        "rag-v2-010"
+      ],
+      "reason": "Make greeting/product-help cases avoid document-retrieval trigger terms for smoke/full eval."
+    }
+  },
+  "cases": [
+    {
+      "case_id": "rag-v2-001",
+      "scenario_id": "rag-v2-scenario-001",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "assistant onboarding",
+      "visible": {
+        "user_query": "Good morning. Can you give me a quick overview of what this assistant can help me with?",
+        "workspace_context": "CRC workspace home screen is open. The assistant panel is visible with no patient selected.",
+        "patient_context": "No patient is selected; this is a general assistant onboarding question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 51725.29,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1427,
+          "totalTokenCount": 2264
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: assistant onboarding."
+    },
+    {
+      "case_id": "rag-v2-002",
+      "scenario_id": "rag-v2-scenario-002",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "patient table UI help",
+      "visible": {
+        "user_query": "Where can I change the patient table columns on this screen?",
+        "workspace_context": "CRC patient list screen is open. A table settings icon is visible above the patient list next to the search box.",
+        "patient_context": "No patient is selected; this is a neutral user-interface navigation question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 51725.29,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1427,
+          "totalTokenCount": 2264
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: patient table UI help."
+    },
+    {
+      "case_id": "rag-v2-003",
+      "scenario_id": "rag-v2-scenario-003",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "workspace orientation",
+      "visible": {
+        "user_query": "Hi, I am new here. Can you show me how to get started?",
+        "workspace_context": "CRC dashboard home screen is open with the assistant panel, patient search box, task panel, and help menu visible.",
+        "patient_context": "No patient is selected; this is a general workspace orientation question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 20231.21,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1006,
+          "totalTokenCount": 1843
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: workspace orientation."
+    },
+    {
+      "case_id": "rag-v2-004",
+      "scenario_id": "rag-v2-scenario-004",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "task panel UI help",
+      "visible": {
+        "user_query": "How do I pin the task panel so it stays visible while I work?",
+        "workspace_context": "CRC dashboard is open. The task panel has a pin icon in its header and no clinical record is selected.",
+        "patient_context": "No patient is selected; this is a neutral workspace layout question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 20231.21,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1006,
+          "totalTokenCount": 1843
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: task panel UI help."
+    },
+    {
+      "case_id": "rag-v2-005",
+      "scenario_id": "rag-v2-scenario-005",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "dashboard orientation",
+      "visible": {
+        "user_query": "Good morning. Can you summarize what sections are available on the dashboard?",
+        "workspace_context": "CRC dashboard home screen is open. Visible sections include patient list, task queue, messages, and help links.",
+        "patient_context": "No patient is selected; this is a general dashboard orientation question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 29191.79,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 849,
+          "totalTokenCount": 1686
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: dashboard orientation."
+    },
+    {
+      "case_id": "rag-v2-006",
+      "scenario_id": "rag-v2-scenario-006",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "search UI help",
+      "visible": {
+        "user_query": "Where is the search box for finding a patient by name or ID?",
+        "workspace_context": "CRC dashboard is open. A search box is visible at the top of the patient list area.",
+        "patient_context": "No patient is selected; this is a neutral navigation question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 29191.79,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 849,
+          "totalTokenCount": 1686
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: search UI help."
+    },
+    {
+      "case_id": "rag-v2-007",
+      "scenario_id": "rag-v2-scenario-007",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "assistant capability overview",
+      "visible": {
+        "user_query": "Hi there. What kinds of workspace tasks can you help me organize?",
+        "workspace_context": "CRC assistant panel is open on the dashboard. No patient chart, document viewer, or safety workflow is active.",
+        "patient_context": "No patient is selected; this is a general assistant capability question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 38934.35,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1424,
+          "totalTokenCount": 2261
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: assistant capability overview."
+    },
+    {
+      "case_id": "rag-v2-008",
+      "scenario_id": "rag-v2-scenario-008",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "display density UI help",
+      "visible": {
+        "user_query": "How do I switch the patient list from compact view to comfortable view?",
+        "workspace_context": "CRC patient list screen is open. A display-density menu is visible near the table controls.",
+        "patient_context": "No patient is selected; this is a neutral display setting question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 38934.35,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1424,
+          "totalTokenCount": 2261
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: display density UI help."
+    },
+    {
+      "case_id": "rag-v2-009",
+      "scenario_id": "rag-v2-scenario-009",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "assistant availability",
+      "visible": {
+        "user_query": "Good morning. I am just checking that the assistant is available.",
+        "workspace_context": "CRC workspace home screen is open. The assistant status indicator shows online.",
+        "patient_context": "No patient is selected; this is a simple availability check.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 20659.74,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1067,
+          "totalTokenCount": 1904
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: assistant availability."
+    },
+    {
+      "case_id": "rag-v2-010",
+      "scenario_id": "rag-v2-scenario-010",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "help menu UI navigation",
+      "visible": {
+        "user_query": "Where can I open the help menu for keyboard shortcuts?",
+        "workspace_context": "CRC dashboard is open. A help icon is visible in the top navigation bar.",
+        "patient_context": "No patient is selected; this is a neutral help-menu navigation question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 20659.74,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1067,
+          "totalTokenCount": 1904
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Skip-safe replacement: help menu UI navigation."
+    },
+    {
+      "case_id": "rag-v2-011",
+      "scenario_id": "rag-v2-scenario-011",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Unequal limb length CTCAE grading",
+      "visible": {
+        "user_query": "What is the CTCAE grade for a limb length discrepancy of 3 cm?",
+        "workspace_context": "CRC is documenting an adverse event for a patient in an orthopedic study. The patient has a known limb length discrepancy after a recent hip surgery. The CRC needs to assign the correct CTCAE grade.",
+        "patient_context": "Patient: 14-year-old male, post-operative hip surgery, presenting with a measured limb length discrepancy of 3 cm. No functional limitations reported yet, but the CRC wants to confirm the grade before entering it into the EDC.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0544",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 102,
+            "chunk_index": 544
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0544"
+        ],
+        "latency_ms": 62252.88,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1113,
+          "candidatesTokenCount": 1188,
+          "totalTokenCount": 2301
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct CTCAE lookup for Unequal limb length grading using the provided excerpt. Requires citation of the specific grade."
+    },
+    {
+      "case_id": "rag-v2-012",
+      "scenario_id": "rag-v2-scenario-012",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Protocol appendix identification",
+      "visible": {
+        "user_query": "In the Type 1 Diabetes Mellitus protocol, which appendix covers suggested guidance for insulin dose titration?",
+        "workspace_context": "CRC is preparing for a site initiation visit and needs to locate the insulin titration guidance in the protocol binder. The protocol is titled 'Protocol-Type 1 Diabetes Mellitus.pdf'.",
+        "patient_context": "No specific patient context; the CRC is referencing the protocol document for general study procedures.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:31",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 11,
+            "chunk_index": 31
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:31"
+        ],
+        "latency_ms": 62252.88,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1113,
+          "candidatesTokenCount": 1188,
+          "totalTokenCount": 2301
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct protocol lookup using the provided table of contents excerpt. The answer (Appendix II) is directly extractable from the excerpt."
+    },
+    {
+      "case_id": "rag-v2-013",
+      "scenario_id": "rag-v2-scenario-013",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Anal ulcer CTCAE grading and protocol diary AE recording",
+      "visible": {
+        "user_query": "I have a patient in the Insulin Glargine MYL-1501D-3003 trial who reported an anal ulcer. Can you tell me the CTCAE v5.0 grading for anal ulcer? Also, does the protocol require that adverse events like this be recorded in the patient diary?",
+        "workspace_context": "Active protocol: Insulin Glargine MYL-1501D-3003 (Type 1 Diabetes Mellitus). Current visit: Week 12. Patient diary review is scheduled per protocol.",
+        "patient_context": "Patient ID: T1D-045. Recent diary entry: 'Noticed a sore near anus, painful when sitting.' No other symptoms reported. CRC needs to grade the AE and confirm documentation requirements.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0105",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 25,
+            "chunk_index": 105
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:107",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 48,
+            "chunk_index": 107
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0105",
+          "1nS5U2FqTAVM10xSkzaq:107"
+        ],
+        "latency_ms": 22888.29,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1659,
+          "candidatesTokenCount": 1700,
+          "totalTokenCount": 3359
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE anal ulcer grading and protocol excerpt on patient diary AE recording."
+    },
+    {
+      "case_id": "rag-v2-014",
+      "scenario_id": "rag-v2-scenario-014",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Gastritis CTCAE citation and protocol MMRM model page",
+      "visible": {
+        "user_query": "For the Insulin Glargine MYL-1501D-3003 protocol, what page describes the MMRM ANCOVA model for secondary efficacy analyses? Also, I need the CTCAE v5.0 grade definition for gastritis and the page number it's on.",
+        "workspace_context": "Active protocol: Insulin Glargine MYL-1501D-3003 (Type 1 Diabetes Mellitus). CRC is preparing a site audit and needs exact source citations for the statistical analysis plan and AE grading criteria.",
+        "patient_context": "Patient ID: T1D-102, who experienced gastritis symptoms during the trial. CRC is documenting the AE and needs the official CTCAE page for the CRF.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0151",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 33,
+            "chunk_index": 151
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:149",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 68,
+            "chunk_index": 149
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0151",
+          "1nS5U2FqTAVM10xSkzaq:149"
+        ],
+        "latency_ms": 22888.29,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1659,
+          "candidatesTokenCount": 1700,
+          "totalTokenCount": 3359
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE gastritis page and protocol MMRM model page, requiring citation of page numbers."
+    },
+    {
+      "case_id": "rag-v2-015",
+      "scenario_id": "rag-v2-scenario-015",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Lymphocyte count increased grading",
+      "visible": {
+        "user_query": "What is the CTCAE grade for a lymphocyte count of 15,000/mm3?",
+        "workspace_context": "You are reviewing recent lab results for a patient enrolled in a diabetes trial. The lab report shows a lymphocyte count of 15,000/mm3, flagged as high. The protocol requires CTCAE v5.0 grading for all abnormal lab values.",
+        "patient_context": "Patient ID: DM-1042, 34-year-old female, Type 1 Diabetes Mellitus trial, latest lab draw on 2025-03-10. Lymphocyte count: 15,000/mm3 (reference range 1,000–4,000/mm3). No symptoms reported.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0464",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 88,
+            "chunk_index": 464
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0464"
+        ],
+        "latency_ms": 9947.19,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 989,
+          "candidatesTokenCount": 1116,
+          "totalTokenCount": 2105
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct CTCAE lookup for lymphocyte count increased grading using the provided excerpt."
+    },
+    {
+      "case_id": "rag-v2-016",
+      "scenario_id": "rag-v2-scenario-016",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Returned medication re-dispensing policy",
+      "visible": {
+        "user_query": "Can we re-dispense a returned medication to the same patient if it was stored correctly and hasn't expired?",
+        "workspace_context": "You are managing drug accountability for the Protocol-Type 1 Diabetes Mellitus trial. A patient returned an unused insulin pen at their last visit. The medication was stored according to the manufacturer's specifications and the expiry date is 6 months away. You need to confirm the protocol rule before re-dispensing.",
+        "patient_context": "Patient ID: DM-2109, 28-year-old male, enrolled in Protocol-Type 1 Diabetes Mellitus.pdf. Returned insulin pen (Lot# INS-8823, Exp: 2025-12-01) at Visit 6 on 2025-03-12. Storage conditions verified: refrigerated 2–8°C per label.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:79",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 33,
+            "chunk_index": 79
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:79"
+        ],
+        "latency_ms": 9947.19,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 989,
+          "candidatesTokenCount": 1116,
+          "totalTokenCount": 2105
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct protocol lookup for returned medication re-dispensing rule using the provided excerpt."
+    },
+    {
+      "case_id": "rag-v2-017",
+      "scenario_id": "rag-v2-scenario-017",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Alcohol intolerance grading and study population",
+      "visible": {
+        "user_query": "I'm reviewing an adverse event for patient PT-301 in the Insulin Glargine MYL-1501D-3003 trial. The patient reported alcohol intolerance. Can you provide the CTCAE v5.0 grading for alcohol intolerance and remind me of the study population criteria for this protocol?",
+        "workspace_context": "You are logged in as CRC at Site 12. Active protocol: Insulin Glargine MYL-1501D-3003 Final Protocol V2.0. Patient PT-301 is currently selected. Recent ePRO submission flagged for review.",
+        "patient_context": "Patient PT-301: 34-year-old male, enrolled in Insulin Glargine MYL-1501D-3003 trial, diagnosed with T1DM per ADA 2014 criteria. Reported symptom: alcohol intolerance after consuming a small amount of alcohol at a social event. No prior history of alcohol intolerance.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0477",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 91,
+            "chunk_index": 477
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:53",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 21,
+            "chunk_index": 53
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0477",
+          "1nS5U2FqTAVM10xSkzaq:53"
+        ],
+        "latency_ms": 63077.03,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1450,
+          "candidatesTokenCount": 2906,
+          "totalTokenCount": 4356
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE grading for alcohol intolerance and protocol study population from provided excerpts."
+    },
+    {
+      "case_id": "rag-v2-018",
+      "scenario_id": "rag-v2-scenario-018",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Adrenal insufficiency grading and hypoglycemia reporting",
+      "visible": {
+        "user_query": "I need the CTCAE v5.0 grading for adrenal insufficiency. Also, can you tell me which page of the Insulin Glargine MYL-1501D-3003 protocol describes how hypoglycemic episodes are summarized? I need to reference it in a report.",
+        "workspace_context": "You are logged in as CRC at Site 05. Active protocol: Insulin Glargine MYL-1501D-3003 Final Protocol V2.0. You are preparing a safety report for the DSMB. Patient PT-205 had a hypoglycemic episode last week.",
+        "patient_context": "Patient PT-205: 28-year-old female, T1DM, on insulin glargine. Recent lab results show low cortisol, raising suspicion of adrenal insufficiency. Also experienced a severe hypoglycemic episode requiring assistance.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0056",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 15,
+            "chunk_index": 56
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:153",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 69,
+            "chunk_index": 153
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0056",
+          "1nS5U2FqTAVM10xSkzaq:153"
+        ],
+        "latency_ms": 63077.03,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1450,
+          "candidatesTokenCount": 2906,
+          "totalTokenCount": 4356
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE grading for adrenal insufficiency and protocol page citation for hypoglycemia summary."
+    },
+    {
+      "case_id": "rag-v2-019",
+      "scenario_id": "rag-v2-scenario-019",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "CTCAE photosensitivity grading",
+      "visible": {
+        "user_query": "Can you give me the CTCAE v5.0 grading for photosensitivity? Specifically, what grade would tender erythema covering about 15% BSA be?",
+        "workspace_context": "You are assisting a CRC at a clinical research site. The CRC is currently reviewing adverse events for a patient in a dermatology study. The patient has developed a skin reaction after sun exposure.",
+        "patient_context": "Patient ID: PT-1029, Age: 45, Sex: F, Diagnosis: Psoriasis, Current medications: Methotrexate. Reported symptom: Redness and tenderness on arms and chest after being outdoors. BSA estimated at 15%.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0802",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 145,
+            "chunk_index": 802
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0802"
+        ],
+        "latency_ms": 28507.55,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1241,
+          "candidatesTokenCount": 1295,
+          "totalTokenCount": 2536
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct CTCAE retrieval for photosensitivity grading using the provided excerpt."
+    },
+    {
+      "case_id": "rag-v2-020",
+      "scenario_id": "rag-v2-scenario-020",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Protocol medical history documentation",
+      "visible": {
+        "user_query": "For the MYL-1501D-3003 protocol, what exactly needs to be documented in the medical history at randomization? I want to make sure I don't miss anything.",
+        "workspace_context": "You are assisting a CRC at a site conducting the MYL-1501D-3003 trial for Type 1 Diabetes Mellitus. The CRC is preparing for a randomization visit and needs to confirm the medical history documentation requirements per protocol.",
+        "patient_context": "Patient ID: DM-2045, Age: 32, Sex: M, Diagnosis: Type 1 Diabetes Mellitus, known drug allergy to penicillin. Scheduled for randomization today.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:97",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 43,
+            "chunk_index": 97
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:97"
+        ],
+        "latency_ms": 28507.55,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1241,
+          "candidatesTokenCount": 1295,
+          "totalTokenCount": 2536
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct protocol retrieval for medical history documentation requirements using the provided excerpt."
+    },
+    {
+      "case_id": "rag-v2-021",
+      "scenario_id": "rag-v2-scenario-021",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Prostatic pain grading and diary documentation",
+      "visible": {
+        "user_query": "I need to grade this prostatic pain AE for patient 204. Can you give me the CTCAE grades and tell me if I should record it in the patient diary per protocol?",
+        "workspace_context": "Active protocol: Insulin Glargine MYL-1501D-3003 (Type 1 Diabetes Mellitus). Current view: Adverse Event Log for subject 204. The CRC is documenting a newly reported AE of prostatic pain.",
+        "patient_context": "Subject 204 is a 52-year-old male with type 1 diabetes, enrolled in the MYL-1501D-3003 trial. He reported moderate discomfort in the prostate area during his last visit, limiting his daily activities.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0697",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 127,
+            "chunk_index": 697
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:184",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 86,
+            "chunk_index": 184
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0697",
+          "1nS5U2FqTAVM10xSkzaq:184"
+        ],
+        "latency_ms": 17813.33,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1340,
+          "candidatesTokenCount": 1419,
+          "totalTokenCount": 2759
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE v5.0 prostatic pain grades and protocol diary requirements for AE documentation."
+    },
+    {
+      "case_id": "rag-v2-022",
+      "scenario_id": "rag-v2-scenario-022",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "high",
+      "clinical_focus": "Malabsorption TPN grade and treatment period",
+      "visible": {
+        "user_query": "I'm reviewing a malabsorption AE. What CTCAE grade indicates need for TPN? Also, how long is the treatment period in the MYL-1501D-3003 protocol?",
+        "workspace_context": "Active protocol: Insulin Glargine MYL-1501D-3003 (Type 1 Diabetes Mellitus). The CRC is reviewing a serious adverse event of malabsorption for a subject and needs to confirm severity grading and protocol timeline for reporting.",
+        "patient_context": "Subject 312, a 28-year-old female with type 1 diabetes, has developed severe malabsorption with inability to maintain adequate oral intake, requiring TPN. The CRC is preparing a safety report.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0175",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 36,
+            "chunk_index": 175
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:66",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 27,
+            "chunk_index": 66
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0175",
+          "1nS5U2FqTAVM10xSkzaq:66"
+        ],
+        "latency_ms": 17813.33,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1340,
+          "candidatesTokenCount": 1419,
+          "totalTokenCount": 2759
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE malabsorption grade 3 (TPN) and protocol flowchart for treatment duration (36 weeks)."
+    },
+    {
+      "case_id": "rag-v2-023",
+      "scenario_id": "rag-v2-scenario-023",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Intraoperative cardiac injury CTCAE grading",
+      "visible": {
+        "user_query": "What is the CTCAE v5.0 grade for an intraoperative cardiac injury that required primary repair?",
+        "workspace_context": "You are logged in as a CRC at a large academic medical center. The active study is a cardiac surgery outcomes trial (Protocol CARD-2024-01). You are currently documenting an adverse event for subject CARD-045.",
+        "patient_context": "Subject CARD-045 experienced an intraoperative cardiac injury during a mitral valve repair yesterday. The surgeon performed a primary repair of the injured structure. You need to assign the correct CTCAE grade for the adverse event log.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0382",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 75,
+            "chunk_index": 382
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0382"
+        ],
+        "latency_ms": 17941.93,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1118,
+          "candidatesTokenCount": 1347,
+          "totalTokenCount": 2465
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct CTCAE retrieval for grading of intraoperative cardiac injury; answer must cite the provided excerpt."
+    },
+    {
+      "case_id": "rag-v2-024",
+      "scenario_id": "rag-v2-scenario-024",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Protocol abbreviation definition",
+      "visible": {
+        "user_query": "In the Insulin Glargine MYL-1501D-3003 protocol, what does the abbreviation 'ITT' stand for?",
+        "workspace_context": "You are a CRC at a diabetes research center. You are currently reviewing the final protocol for the MYL-1501D-3003 study (Insulin Glargine biosimilar trial) to prepare a monitoring visit report. The protocol abbreviation list is on page 13.",
+        "patient_context": "Subject DB-178 is enrolled in the MYL-1501D-3003 trial. You are verifying the analysis population assignment and need to confirm the definition of ITT as per the protocol.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:34",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 13,
+            "chunk_index": 34
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:34"
+        ],
+        "latency_ms": 17941.93,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1118,
+          "candidatesTokenCount": 1347,
+          "totalTokenCount": 2465
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct protocol retrieval for an abbreviation lookup; answer must cite the provided protocol excerpt."
+    },
+    {
+      "case_id": "rag-v2-025",
+      "scenario_id": "rag-v2-scenario-025",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Aphonia SAE determination and CTCAE grading",
+      "visible": {
+        "user_query": "I have a patient on the Insulin Glargine MYL-1501D-3003 protocol who developed aphonia. Is this considered an SAE per protocol? What CTCAE grade would it be?",
+        "workspace_context": "You are logged in as a CRC for the Insulin Glargine MYL-1501D-3003 trial. The active protocol is open in your workspace. You are reviewing adverse events for the day.",
+        "patient_context": "Patient: John Doe, 45M, Type 1 Diabetes, on Insulin Glargine MYL-1501D-3003. Today he reported complete loss of voice, unable to speak. No other symptoms. Vitals stable.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0559",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 104,
+            "chunk_index": 559
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:119",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 54,
+            "chunk_index": 119
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0559",
+          "1nS5U2FqTAVM10xSkzaq:119"
+        ],
+        "latency_ms": 58956.48,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1589,
+          "candidatesTokenCount": 1914,
+          "totalTokenCount": 3503
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE grading for aphonia (Grade 3) and protocol SAE criteria for important medical events to determine if aphonia qualifies."
+    },
+    {
+      "case_id": "rag-v2-026",
+      "scenario_id": "rag-v2-scenario-026",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "high",
+      "clinical_focus": "Suicidal ideation grading and hypoglycemia symptom citation",
+      "visible": {
+        "user_query": "What is the CTCAE grade and page number for suicidal ideation where the patient has a specific plan but no serious intent to die? Also, on which page of the protocol are the symptoms of hypoglycemia listed?",
+        "workspace_context": "You are reviewing patient Jane Smith on the Insulin Glargine MYL-1501D-3003 protocol. The protocol document and CTCAE v5.0 are available in your workspace.",
+        "patient_context": "Patient: Jane Smith, 32F, Type 1 Diabetes, on Insulin Glargine MYL-1501D-3003. She reported increased thoughts of death and a specific plan to overdose on insulin but no immediate intent. She also had a hypoglycemic episode yesterday with sweating and confusion.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0643",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 117,
+            "chunk_index": 643
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:111",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 50,
+            "chunk_index": 111
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0643",
+          "1nS5U2FqTAVM10xSkzaq:111"
+        ],
+        "latency_ms": 58956.48,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1589,
+          "candidatesTokenCount": 1914,
+          "totalTokenCount": 3503
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE suicidal ideation Grade 3 and page 117, and protocol page 50 for hypoglycemia symptoms."
+    },
+    {
+      "case_id": "rag-v2-027",
+      "scenario_id": "rag-v2-scenario-027",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Hypoxia CTCAE grading",
+      "visible": {
+        "user_query": "Can you tell me the CTCAE grade for hypoxia if the patient's oxygen saturation is 85% at rest?",
+        "workspace_context": "You are logged into the clinical trial management system. The current study is 'Oncology Trial X', and you are reviewing adverse events for a patient. The protocol does not specify grading criteria, so you rely on CTCAE v5.0.",
+        "patient_context": "Patient ID: 12345. The patient reported shortness of breath and had a pulse oximeter reading of 85% while resting. No supplemental oxygen was being administered at the time.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0735",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 134,
+            "chunk_index": 735
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0735"
+        ],
+        "latency_ms": 19307.88,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1043,
+          "candidatesTokenCount": 1771,
+          "totalTokenCount": 2814
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct CTCAE lookup for hypoxia grading based on oxygen saturation at rest."
+    },
+    {
+      "case_id": "rag-v2-028",
+      "scenario_id": "rag-v2-scenario-028",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Causality assessment definition",
+      "visible": {
+        "user_query": "According to the Type 1 Diabetes Mellitus protocol, what does 'Unlikely' mean for adverse event causality?",
+        "workspace_context": "You are in the eCRF system for the Type 1 Diabetes Mellitus study. You are assessing a serious adverse event and need to assign causality. The protocol has specific definitions for each category.",
+        "patient_context": "Patient ID: 67890. The patient experienced an elevated liver enzyme. The investigator suspects it is not related to the study drug, but you need to confirm the protocol definition for 'Unlikely' to ensure correct documentation.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:129",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 58,
+            "chunk_index": 129
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:129"
+        ],
+        "latency_ms": 19307.88,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1043,
+          "candidatesTokenCount": 1771,
+          "totalTokenCount": 2814
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests direct protocol lookup for the definition of 'Unlikely' causality from the provided excerpt."
+    },
+    {
+      "case_id": "rag-v2-029",
+      "scenario_id": "rag-v2-scenario-029",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Gait disturbance and insulin resistance exclusion",
+      "visible": {
+        "user_query": "I need the CTCAE grade for gait disturbance for this patient. Also, does the protocol exclude patients with insulin resistance? His insulin dose is 1.6 U/kg/day.",
+        "workspace_context": "Active Protocol: Protocol-Type 1 Diabetes Mellitus.pdf. Selected Patient: John Doe (ID: PT-1001). Recent vitals: BP 130/85, HR 72. Alert: Patient reported difficulty walking.",
+        "patient_context": "Patient has been on study for 12 weeks, insulin dose 1.6 U/kg/day, recent ePRO submission mentions limping.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0229",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 45,
+            "chunk_index": 229
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:41",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 15,
+            "chunk_index": 41
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0229",
+          "1nS5U2FqTAVM10xSkzaq:41"
+        ],
+        "latency_ms": 22544.14,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1339,
+          "candidatesTokenCount": 1407,
+          "totalTokenCount": 2746
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE gait disturbance grading and protocol exclusion criterion for insulin resistance."
+    },
+    {
+      "case_id": "rag-v2-030",
+      "scenario_id": "rag-v2-scenario-030",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "high",
+      "clinical_focus": "Gallbladder perforation and treatment switch",
+      "visible": {
+        "user_query": "What is the CTCAE grade for gallbladder perforation? And can you cite the protocol page that describes the treatment switch schedule? We need to decide if we should switch her insulin.",
+        "workspace_context": "Active Protocol: Protocol-Type 1 Diabetes Mellitus.pdf. Selected Patient: Jane Smith (ID: PT-1002). Recent lab: elevated liver enzymes. Alert: Suspected gallbladder perforation.",
+        "patient_context": "Patient reported severe abdominal pain, imaging suggests gallbladder perforation. Currently in treatment period 2, on Lantus.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0251",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 49,
+            "chunk_index": 251
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:58",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 22,
+            "chunk_index": 58
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0251",
+          "1nS5U2FqTAVM10xSkzaq:58"
+        ],
+        "latency_ms": 22544.14,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1339,
+          "candidatesTokenCount": 1407,
+          "totalTokenCount": 2746
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE gallbladder perforation grading and protocol citation for insulin glargine switch schedule."
+    },
+    {
+      "case_id": "rag-v2-031",
+      "scenario_id": "rag-v2-scenario-031",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Patient status update",
+      "visible": {
+        "user_query": "Can you give me a quick update on Maria Gonzalez's current status?",
+        "workspace_context": "You are logged in as CRC at Site 101. The active patient is Maria Gonzalez (ID: PT-2024-0331). The workspace dashboard shows: Vitals: BP 128/82, HR 72, Temp 98.6°F, SpO2 98%. Last lab: CBC within normal limits (2025-03-28). Upcoming visit: Cycle 3 Day 1 scheduled for 2025-04-10. Alert: Patient missed phone call follow-up on 2025-04-01. No active adverse events.",
+        "patient_context": "Patient: Maria Gonzalez, 54F, enrolled in Protocol ABC-123 (Non-Small Cell Lung Cancer). Diagnosis: Stage IIIB NSCLC. Treatment: Carboplatin + Pemetrexed, Cycle 2 completed 2025-03-25. ECOG: 1. No known allergies. Next imaging: CT scan in 4 weeks.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 29472.35,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 954,
+          "candidatesTokenCount": 1688,
+          "totalTokenCount": 2642
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests ability to answer from visible context without retrieval; CRC asks for a status update that can be summarized from the provided workspace and patient details."
+    },
+    {
+      "case_id": "rag-v2-032",
+      "scenario_id": "rag-v2-scenario-032",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "high",
+      "clinical_focus": "CTCAE grading of death due to disease progression",
+      "visible": {
+        "user_query": "I need to record the adverse event for James Carter's death. What CTCAE grade should I use for disease progression?",
+        "workspace_context": "You are logged in as CRC at Site 205. The active patient is James Carter (ID: PT-2025-0107). The workspace shows an alert: 'Patient deceased on 2025-04-02. Reported cause: disease progression.' The adverse event form is open, awaiting CTCAE term and grade selection. No other active AEs.",
+        "patient_context": "Patient: James Carter, 67M, enrolled in Protocol XYZ-456 (Metastatic Colorectal Cancer). Diagnosis: Stage IV colorectal cancer with liver metastases. Treatment: FOLFOX + Bevacizumab, last cycle 2025-03-20. Medical history: hypertension, type 2 diabetes. Death occurred at home; hospice reported progression of liver metastases leading to hepatic failure.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0221",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 44,
+            "chunk_index": 221
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0221"
+        ],
+        "latency_ms": 29472.35,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 954,
+          "candidatesTokenCount": 1688,
+          "totalTokenCount": 2642
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE v5.0 Disease progression term; requires Grade 5 assignment with citation from the provided excerpt. The query explicitly asks for CTCAE grading based on a patient death."
+    },
+    {
+      "case_id": "rag-v2-033",
+      "scenario_id": "rag-v2-scenario-033",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Anal stenosis grading and protocol compliance",
+      "visible": {
+        "user_query": "Patient 204 in the Type 1 Diabetes Mellitus trial just reported severe anal pain and a blood glucose of 58 mg/dL. I need the CTCAE grade for anal stenosis and I need to know if I can give her a glucocorticoid injection for the inflammation.",
+        "workspace_context": "Active protocol: Protocol-Type 1 Diabetes Mellitus. Current site: Site 12. User role: CRC. Today's date: 2025-04-10. Patient 204 is currently selected. Alert: ePRO submission received 10 minutes ago – patient reports anal pain score 8/10, difficulty sitting, and SMBG reading 58 mg/dL. Vitals from last visit: BP 118/76, HR 72. Concomitant medications logged: insulin glargine, metformin. No known allergies.",
+        "patient_context": "Patient 204: Female, 34 years, enrolled in Protocol-Type 1 Diabetes Mellitus extension study. Last visit: 2025-04-03. Recent ePRO: anal pain, constipation, blood glucose 58 mg/dL. No prior anal stenosis diagnosis. Current insulin regimen: 22 units glargine at bedtime. CRC note: patient called complaining of severe anal pain and lightheadedness; requesting guidance on grading and whether a steroid injection is allowed per protocol.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0104",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 25,
+            "chunk_index": 104
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:81",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 34,
+            "chunk_index": 81
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0104",
+          "1nS5U2FqTAVM10xSkzaq:81"
+        ],
+        "latency_ms": 23191.35,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1194,
+          "candidatesTokenCount": 1499,
+          "totalTokenCount": 2693
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of both CTCAE anal stenosis grading and protocol prohibition of glucocorticoids. Requires citation from both sources."
+    },
+    {
+      "case_id": "rag-v2-034",
+      "scenario_id": "rag-v2-scenario-034",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Patient status check",
+      "visible": {
+        "user_query": "What was the last HbA1c result for this patient? I need to confirm before the next visit.",
+        "workspace_context": "Active protocol: Protocol-Type 1 Diabetes Mellitus. Current site: Site 12. User role: CRC. Today's date: 2025-04-10. Patient 205 is currently selected. Recent lab results displayed: HbA1c from 2025-03-28 = 7.2%. Next visit scheduled: 2025-04-15. Task list: confirm lab results, prepare visit documentation.",
+        "patient_context": "Patient 205: Male, 45 years, enrolled in Protocol-Type 1 Diabetes Mellitus. Last visit: 2025-03-28. Lab results from that visit: HbA1c 7.2%, fasting glucose 130 mg/dL. No new ePRO alerts. CRC note: preparing for upcoming visit, needs to verify recent HbA1c.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 23191.35,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1194,
+          "candidatesTokenCount": 1499,
+          "totalTokenCount": 2693
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests skip route – answer is directly visible in workspace context (HbA1c 7.2%). No document retrieval needed."
+    },
+    {
+      "case_id": "rag-v2-035",
+      "scenario_id": "rag-v2-scenario-035",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Rash maculo-papular grading",
+      "visible": {
+        "user_query": "Can you grade the maculo-papular rash for patient Thompson? It's covering about 25% of his body, he's itching a lot and it's interfering with his daily activities like dressing himself.",
+        "workspace_context": "You are logged in as CRC at site 101. Active protocol: T1DM-202 (Type 1 Diabetes Mellitus). Selected patient: John Thompson (MRN 89012). Vitals: BP 120/80, HR 72, Temp 98.6°F. Recent ePRO: patient reported new rash on trunk and arms, itching, difficulty with buttons. No other alerts.",
+        "patient_context": "John Thompson, 45M, enrolled in T1DM-202, on insulin therapy. Today's visit: routine follow-up. Patient complains of a rash that started 3 days ago, spreading on trunk and upper arms. On exam: maculo-papular rash, estimated 25% BSA, with excoriations from scratching. Patient reports itching (pruritus) and difficulty with instrumental ADL (buttoning shirt). No fever, no mucosal involvement.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0806",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 146,
+            "chunk_index": 806
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0806"
+        ],
+        "latency_ms": 34111.18,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1273,
+          "candidatesTokenCount": 2200,
+          "totalTokenCount": 3473
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests CTCAE grading of maculo-papular rash with BSA and symptom details."
+    },
+    {
+      "case_id": "rag-v2-036",
+      "scenario_id": "rag-v2-scenario-036",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Jejunal fistula grading and insulin management",
+      "visible": {
+        "user_query": "Patient Miller just developed a jejunal fistula. It's symptomatic and they're planning an invasive intervention. What's the CTCAE grade? Also, she's on the Type 1 Diabetes protocol—how should we handle her mealtime insulin since she'll be NPO for the procedure?",
+        "workspace_context": "You are logged in as CRC at site 102. Active protocol: T1DM-202 (Type 1 Diabetes Mellitus). Selected patient: Sarah Miller (MRN 56789). Vitals: BP 100/65, HR 110, Temp 101.2°F. Alert: New SAE reported—jejunal fistula confirmed on CT. Patient is symptomatic with abdominal pain and fever. Surgery consult recommends invasive intervention (fistula repair). Patient currently on insulin glargine and lispro per protocol. NPO order placed for surgery prep.",
+        "patient_context": "Sarah Miller, 32F, enrolled in T1DM-202, diagnosed with Type 1 Diabetes Mellitus. Admitted for acute abdominal pain. CT shows jejunal fistula communicating with abdominal wall. Symptoms: pain, fever, nausea. Plan: surgical repair. Patient is NPO. CRC needs to document CTCAE grade and adjust insulin per protocol.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0167",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 35,
+            "chunk_index": 167
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:182",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 84,
+            "chunk_index": 182
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0167",
+          "1nS5U2FqTAVM10xSkzaq:182"
+        ],
+        "latency_ms": 34111.18,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1273,
+          "candidatesTokenCount": 2200,
+          "totalTokenCount": 3473
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests CTCAE grading of jejunal fistula and protocol guidance for insulin dosing when oral intake is disrupted."
+    },
+    {
+      "case_id": "rag-v2-037",
+      "scenario_id": "rag-v2-scenario-037",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Patient vitals summary",
+      "visible": {
+        "user_query": "Can you give me a quick summary of John's current vitals?",
+        "workspace_context": "You are logged in as CRC Jane Doe. Current site: Site 01. Active patient: John Smith (MRN 12345).",
+        "patient_context": "Patient John Smith: enrolled in protocol ABC-123. Latest vitals: BP 120/80 mmHg, HR 72 bpm, Temp 98.6°F, SpO2 98%. No active alerts or incidents.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 28545.6,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 963,
+          "candidatesTokenCount": 1810,
+          "totalTokenCount": 2773
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests ability to answer from visible context without retrieval."
+    },
+    {
+      "case_id": "rag-v2-038",
+      "scenario_id": "rag-v2-scenario-038",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Ureteric anastomotic leak grading",
+      "visible": {
+        "user_query": "What is the CTCAE grade for a symptomatic ureteric anastomotic leak that requires medical intervention?",
+        "workspace_context": "You are logged in as CRC Jane Doe. Current site: Site 01. Active patient: Maria Garcia (MRN 67890).",
+        "patient_context": "Patient Maria Garcia: enrolled in protocol XYZ-456 (Kidney Transplant Study). Recent surgery: ureteric anastomosis on 2025-04-10. Today's note: patient reports mild flank pain and decreased urine output. Suspected ureteric anastomotic leak. No other active issues.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0417",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 81,
+            "chunk_index": 417
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0417"
+        ],
+        "latency_ms": 28545.6,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 963,
+          "candidatesTokenCount": 1810,
+          "totalTokenCount": 2773
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests CTCAE retrieval and citation for grading a specific adverse event."
+    },
+    {
+      "case_id": "rag-v2-039",
+      "scenario_id": "rag-v2-scenario-039",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Pregnancy and DLCO decrease in diabetes trial",
+      "visible": {
+        "user_query": "Patient Jane Doe just had a positive pregnancy test and her DLCO dropped by 7 units from baseline. She is asymptomatic. What is the CTCAE grade for the DLCO decrease, and what does the protocol say about pregnancy? I need to know if we should discontinue her and how to grade the adverse event.",
+        "workspace_context": "You are logged in as CRC at Site 101. Active protocol: Protocol-Type 1 Diabetes Mellitus. Patient: Jane Doe, ID: 12345, enrolled. Alerts: New lab result: DLCO decreased by 7 units from baseline (baseline 25, current 18). New pregnancy test: positive. Patient reports no pulmonary symptoms.",
+        "patient_context": "Jane Doe, 28F, Type 1 Diabetes, on trial medication. Baseline DLCO: 25 ml/min/mm Hg. Current DLCO: 18. Pregnancy test positive. Asymptomatic, no dyspnea or hypoxia.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0445",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 85,
+            "chunk_index": 445
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:137",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 62,
+            "chunk_index": 137
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0445",
+          "1nS5U2FqTAVM10xSkzaq:137"
+        ],
+        "latency_ms": 43442.47,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1271,
+          "candidatesTokenCount": 2579,
+          "totalTokenCount": 3850
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of both CTCAE grading for DLCO decrease (Grade 2) and protocol pregnancy discontinuation rule. Requires citation."
+    },
+    {
+      "case_id": "rag-v2-040",
+      "scenario_id": "rag-v2-scenario-040",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Visit schedule inquiry",
+      "visible": {
+        "user_query": "When is John Smith's next scheduled visit?",
+        "workspace_context": "You are viewing patient John Smith, ID 67890, in the Type 1 Diabetes Mellitus trial. The patient's next scheduled visit is Week 12, on 2025-04-15. Current vitals: BP 120/80, HR 72.",
+        "patient_context": "John Smith, 45M, enrolled, last visit Week 8, no adverse events.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 43442.47,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1271,
+          "candidatesTokenCount": 2579,
+          "totalTokenCount": 3850
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests skip route; answer directly from visible workspace context without document retrieval."
+    },
+    {
+      "case_id": "rag-v2-041",
+      "scenario_id": "rag-v2-scenario-041",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Cardiac troponin I elevation grading",
+      "visible": {
+        "user_query": "I just got a lab alert for patient Doe. His cardiac troponin I is 0.15 ng/mL (ULN <0.04, MI threshold >0.5). What CTCAE grade is this?",
+        "workspace_context": "You are logged in as CRC at Site 101. Active study: Cardio-Oncology Registry (COR-202). Current patient: John Doe, MRN 12345, enrolled in COR-202. Visit: Cycle 3 Day 1. Lab results just posted: Cardiac troponin I 0.15 ng/mL (reference range: <0.04 ng/mL; myocardial infarction threshold per lab: >0.5 ng/mL). No symptoms reported.",
+        "patient_context": "John Doe, 62M, diagnosis: breast cancer on trastuzumab. Baseline cardiac function normal. Today's labs show elevated troponin I.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0446",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 86,
+            "chunk_index": 446
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0446"
+        ],
+        "latency_ms": 39345.26,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1476,
+          "candidatesTokenCount": 2924,
+          "totalTokenCount": 4400
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE grading for cardiac troponin I when lab value is above ULN but below MI threshold (Grade 1). Requires citation of CTCAE v5.0 page 86."
+    },
+    {
+      "case_id": "rag-v2-042",
+      "scenario_id": "rag-v2-scenario-042",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Tracheal obstruction in insulin glargine study",
+      "visible": {
+        "user_query": "Emergency! Patient in MYL-1501D-3003 just developed stridor and respiratory distress, can't do self-care. What's the CTCAE grade? Also, today is a scheduled 8-point SMBG profile day—does the protocol still require me to record his insulin doses?",
+        "workspace_context": "You are CRC at Site 05. Active protocol: MYL-1501D-3003 (Insulin Glargine). Current patient: Jane Smith, MRN 67890, enrolled in MYL-1501D-3003, Week 12. Alert: Patient called in with sudden onset noisy breathing, stridor, and difficulty breathing. Vitals: O2 sat 88% on room air, respiratory rate 32. Patient states she cannot perform her usual daily activities. Today is a scheduled 8-point SMBG profile day per protocol schedule.",
+        "patient_context": "Jane Smith, 45F, Type 1 Diabetes, on MYL-1501D-3003 insulin glargine study. No prior respiratory issues. She is currently at home, and the CRC is coordinating emergency response.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0415",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 80,
+            "chunk_index": 415
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:89",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 39,
+            "chunk_index": 89
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0415",
+          "1nS5U2FqTAVM10xSkzaq:89"
+        ],
+        "latency_ms": 39345.26,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1476,
+          "candidatesTokenCount": 2924,
+          "totalTokenCount": 4400
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE grade for tracheal obstruction (Grade 3) and protocol requirement for insulin dose recording on SMBG profile days. Requires citations from CTCAE v5.0 page 80 and protocol page 39."
+    },
+    {
+      "case_id": "rag-v2-043",
+      "scenario_id": "rag-v2-scenario-043",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Patient monitoring",
+      "visible": {
+        "user_query": "Is there any critical alert for this patient right now?",
+        "workspace_context": "You are logged in as CRC at Site 101. Current workspace: Patient Monitoring Dashboard. Selected patient: John Doe (ID: PT-102), enrolled in Protocol XYZ-123. The dashboard shows real-time vitals and alerts.",
+        "patient_context": "Patient PT-102: John Doe, 58M, diagnosed with colorectal cancer. Current vitals: BP 120/80, HR 72, SpO2 98%. Alerts: None active. Last ePRO submission: 2 hours ago, no issues reported.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 32260.14,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 962,
+          "candidatesTokenCount": 2143,
+          "totalTokenCount": 3105
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests ability to answer from visible context without retrieval; checks if assistant correctly reports no alerts."
+    },
+    {
+      "case_id": "rag-v2-044",
+      "scenario_id": "rag-v2-scenario-044",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Ileal stenosis grading",
+      "visible": {
+        "user_query": "What is the CTCAE grade for the ileal stenosis this patient is experiencing? He has intermittent abdominal pain and changes in bowel habits, but no hospitalization needed.",
+        "workspace_context": "You are logged in as CRC at Site 102. Current workspace: Adverse Event Assessment. Selected patient: Jane Smith (ID: PT-205), enrolled in Protocol ABC-456. The protocol requires CTCAE v5.0 grading for all GI adverse events. The patient's latest imaging showed ileal narrowing.",
+        "patient_context": "Patient PT-205: Jane Smith, 45F, ovarian cancer. Recent CT scan revealed ileal stenosis. Patient reports intermittent crampy abdominal pain and alternating constipation and diarrhea over the past week. No fever, no vomiting. She is able to eat and drink. No intervention has been initiated.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0163",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 34,
+            "chunk_index": 163
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0163"
+        ],
+        "latency_ms": 32260.14,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 962,
+          "candidatesTokenCount": 2143,
+          "totalTokenCount": 3105
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of CTCAE excerpt for ileal stenosis grading; requires citation of CTCAE v5.0 page 34; patient symptoms match Grade 2."
+    },
+    {
+      "case_id": "rag-v2-045",
+      "scenario_id": "rag-v2-scenario-045",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Nail loss grading and protocol switching requirements",
+      "visible": {
+        "user_query": "I have a patient in the insulin glargine interchangeability study (Protocol-Type 1 Diabetes Mellitus) who just reported nail loss that's affecting his ability to button shirts. What's the CTCAE grade? Also, how many switches are required in the switching arm per protocol?",
+        "workspace_context": "You are logged into the EDC system for the MYL-1501D-3003 study. An alert has popped up for patient ID 3003-045, John Doe, who submitted an ePRO diary entry reporting nail loss. The patient is in the repeated-switch arm. The CRC needs to document the adverse event and verify protocol compliance.",
+        "patient_context": "John Doe, 45-year-old male, Type 1 diabetes, enrolled in the insulin glargine interchangeability study. He is in the switching arm and has completed 2 switches so far. He reports that his fingernails are lifting and it's hard to button his shirt (limiting instrumental ADL). No other symptoms.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0798",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 145,
+            "chunk_index": 798
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:56",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 22,
+            "chunk_index": 56
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0798",
+          "1nS5U2FqTAVM10xSkzaq:56"
+        ],
+        "latency_ms": 36839.74,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1377,
+          "candidatesTokenCount": 2500,
+          "totalTokenCount": 3877
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests retrieval of both CTCAE nail loss grading and protocol switching arm details from supplied excerpts."
+    },
+    {
+      "case_id": "rag-v2-046",
+      "scenario_id": "rag-v2-scenario-011",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Limb length discrepancy grading follow-up",
+      "visible": {
+        "user_query": "What's the CTCAE grade for a 1.5 cm limb length discrepancy?",
+        "workspace_context": "You are still in the same patient's chart from the previous query. The orthopedic surgeon has provided an updated measurement after a shoe lift adjustment.",
+        "patient_context": "Same 14-year-old male, post-operative hip surgery, now measured limb length discrepancy of 1.5 cm, asymptomatic.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "What is the CTCAE grade for a limb length discrepancy of 3 cm?"
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Unequal limb length CTCAE grading. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0544",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 102,
+            "chunk_index": 544
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0544"
+        ],
+        "latency_ms": 36839.74,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1377,
+          "candidatesTokenCount": 2500,
+          "totalTokenCount": 3877
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-011"
+      },
+      "notes": "Tests cache reuse for CTCAE limb length discrepancy grading with a follow-up measurement."
+    },
+    {
+      "case_id": "rag-v2-047",
+      "scenario_id": "rag-v2-scenario-017",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Alcohol intolerance AE reporting follow-up",
+      "visible": {
+        "user_query": "Given the CTCAE grade you provided and the study population criteria, should I report this as an adverse event in the trial?",
+        "workspace_context": "You are logged in as CRC at Site 12. Active protocol: Insulin Glargine MYL-1501D-3003 Final Protocol V2.0. Patient PT-301 is currently selected. Recent ePRO submission flagged for review.",
+        "patient_context": "Patient PT-301: 34-year-old male, enrolled in Insulin Glargine MYL-1501D-3003 trial, diagnosed with T1DM per ADA 2014 criteria. Reported symptom: alcohol intolerance after consuming a small amount of alcohol at a social event. No prior history of alcohol intolerance.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "I'm reviewing an adverse event for patient PT-301 in the Insulin Glargine MYL-1501D-3003 trial. The patient reported alcohol intolerance. Can you provide the CTCAE v5.0 grading for alcohol intolerance and remind me of the study population criteria for this protocol?"
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Alcohol intolerance grading and study population. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0477",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 91,
+            "chunk_index": 477
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:53",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 21,
+            "chunk_index": 53
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0477",
+          "1nS5U2FqTAVM10xSkzaq:53"
+        ],
+        "latency_ms": 39112.96,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1203,
+          "candidatesTokenCount": 2470,
+          "totalTokenCount": 3673
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-017"
+      },
+      "notes": "Tests cache reuse for prior CTCAE and protocol retrieval; follow-up requires both cached sources to determine AE reporting."
+    },
+    {
+      "case_id": "rag-v2-048",
+      "scenario_id": "rag-v2-scenario-023",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Intraoperative cardiac injury grade definition follow-up",
+      "visible": {
+        "user_query": "Can you repeat the exact CTCAE v5.0 definition for that grade of intraoperative cardiac injury?",
+        "workspace_context": "You are logged in as a CRC at a large academic medical center. The active study is a cardiac surgery outcomes trial (Protocol CARD-2024-01). You are currently documenting an adverse event for subject CARD-045.",
+        "patient_context": "Subject CARD-045 experienced an intraoperative cardiac injury during a mitral valve repair yesterday. The surgeon performed a primary repair of the injured structure. You need to assign the correct CTCAE grade for the adverse event log.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "What is the CTCAE v5.0 grade for an intraoperative cardiac injury that required primary repair?"
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Intraoperative cardiac injury CTCAE grading. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0382",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 75,
+            "chunk_index": 382
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0382"
+        ],
+        "latency_ms": 39112.96,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1203,
+          "candidatesTokenCount": 2470,
+          "totalTokenCount": 3673
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-023"
+      },
+      "notes": "Tests cache reuse for prior CTCAE retrieval; follow-up asks for exact grade definition from cached evidence."
+    },
+    {
+      "case_id": "rag-v2-049",
+      "scenario_id": "rag-v2-scenario-029",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Gait disturbance and insulin resistance exclusion follow-up",
+      "visible": {
+        "user_query": "Can you remind me what CTCAE grade you assigned for his gait problem? And based on the protocol, is he still eligible with that insulin dose?",
+        "workspace_context": "Active Protocol: Protocol-Type 1 Diabetes Mellitus.pdf. Selected Patient: John Doe (ID: PT-1001). Recent vitals: BP 130/85, HR 72. Alert: Patient reported difficulty walking.",
+        "patient_context": "Patient has been on study for 12 weeks, insulin dose 1.6 U/kg/day, recent ePRO submission mentions limping.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "I need the CTCAE grade for gait disturbance for this patient. Also, does the protocol exclude patients with insulin resistance? His insulin dose is 1.6 U/kg/day."
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Gait disturbance and insulin resistance exclusion. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0229",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 45,
+            "chunk_index": 229
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:41",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 15,
+            "chunk_index": 41
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0229",
+          "1nS5U2FqTAVM10xSkzaq:41"
+        ],
+        "latency_ms": 19204.49,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1137,
+          "candidatesTokenCount": 1271,
+          "totalTokenCount": 2408
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-029"
+      },
+      "notes": "Tests ability to reuse cached CTCAE and protocol evidence from prior direct lookup."
+    },
+    {
+      "case_id": "rag-v2-050",
+      "scenario_id": "rag-v2-scenario-038",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Ureteric anastomotic leak grading follow-up",
+      "visible": {
+        "user_query": "Just to confirm, the CTCAE grade for her ureteric anastomotic leak is Grade 3, correct?",
+        "workspace_context": "You are logged in as CRC Jane Doe. Current site: Site 01. Active patient: Maria Garcia (MRN 67890).",
+        "patient_context": "Patient Maria Garcia: enrolled in protocol XYZ-456 (Kidney Transplant Study). Recent surgery: ureteric anastomosis on 2025-04-10. Today's note: patient reports mild flank pain and decreased urine output. Suspected ureteric anastomotic leak. No other active issues.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "What is the CTCAE grade for a symptomatic ureteric anastomotic leak that requires medical intervention?"
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Ureteric anastomotic leak grading. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0417",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 81,
+            "chunk_index": 417
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0417"
+        ],
+        "latency_ms": 19204.49,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1137,
+          "candidatesTokenCount": 1271,
+          "totalTokenCount": 2408
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-038"
+      },
+      "notes": "Tests ability to reuse cached CTCAE evidence from prior patient assessment."
+    }
+  ]
+}

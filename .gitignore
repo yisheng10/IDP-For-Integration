@@ -1,51 +1,93 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
-node_modules/
-
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Logs
+logs/
 *.log
-expo-web*.log
-qa-run*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# macOS
-.DS_Store
-*.pem
+# General build outputs
+dist/
+dist-ssr/
+coverage/
+.cache/
+*.local
 
-# local env files
+# Environment and secrets
 .env
 .env.*
-.env*.local
 !.env.example
+Supabase and Firebase accesses credentials.txt
+.supabase-cli-config/
+.firebase-tools-config/
+supabase/.temp/
+service-account/
 
-# typescript
-*.tsbuildinfo
+# Firebase local config
+.firebase/
+.firebaserc
 
-app-example
-eas.json.backup
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Nested repositories / metadata
+**/.git
+
+# Root workspace artifacts
+repomix-output.xml
 qa/
+.playwright-cli/
 
-# generated native folders
-/ios
-/android
+# Node.js dependencies
+node_modules/
+
+# Expo / React Native app
+MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/.expo/
+MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/node_modules/
+MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/expo-env.d.ts
+MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/eas.json.backup
+MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/RAG_Embedding/node_modules/
+
+# ePRO service
+li qiu's part questionnaire ePRO/node_modules/
+li qiu's part questionnaire ePRO/frontend-epro/node_modules/
+li qiu's part questionnaire ePRO/frontend-epro/dist/
+
+# Local eval outputs
+functions/output/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.venv312/
+.venv-dropout312/
+venv/
+env/
+
+# Dropout prediction artifacts
+Patient-Dropout-Prediction/env/
+Patient-Dropout-Prediction/.venv312/
+Patient-Dropout-Prediction/cache/
+Patient-Dropout-Prediction/checkpoints/
+Patient-Dropout-Prediction/runs/
+Patient-Dropout-Prediction/auto_run_bias-13/
+Patient-Dropout-Prediction/data/
+MyClinicalApp_AndroidAPK_5Jan2026_2138.zip
+newest-crc-web/
+Patient-Dropout-Prediction/没有用了的/
+
+secrets/

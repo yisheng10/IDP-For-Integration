@@ -1,0 +1,71 @@
+{
+  "metrics": {
+    "total_cases": 50,
+    "success_cases": 49,
+    "success_rate": 98,
+    "route_match_count": 42,
+    "route_match_rate": 84,
+    "source_vector_match_count": 45,
+    "source_vector_match_rate": 90,
+    "citation_returned_count": 33,
+    "citation_returned_rate": 66,
+    "citation_required_count": 35,
+    "combined_gold_chunk_recall": 49,
+    "top_k_gold_hit_count": 20,
+    "top_k_gold_hit_rate": 57.1,
+    "avg_latency_sec": 43,
+    "p95_latency_sec": 99
+  },
+  "distributions": {
+    "question_type": {
+      "greeting_or_smalltalk": 5,
+      "product_or_workflow_help": 5,
+      "direct_ctcae_lookup": 5,
+      "direct_protocol_lookup": 5,
+      "direct_ctcae_protocol_lookup": 5,
+      "direct_citation_request": 5,
+      "current_patient_status": 5,
+      "current_patient_ctcae_assessment": 5,
+      "current_patient_emergency_protocol": 5,
+      "cache_follow_up": 5
+    },
+    "risk_level": {
+      "low": 26,
+      "medium": 17,
+      "high": 7
+    },
+    "actual_route": {
+      "skip": 12,
+      "retrieve": 38
+    },
+    "status": {
+      "success": 49,
+      "error": 1
+    }
+  },
+  "summary": {
+    "combo_id": "siliconflow-router__siliconflow-guidance",
+    "total_cases": 50,
+    "success_rate": 0.98,
+    "error_rate": 0.02,
+    "route_accuracy": 0.84,
+    "skip_accuracy": 0.8,
+    "ctcae_selection_accuracy": 0.9,
+    "protocol_selection_accuracy": 1,
+    "avg_latency_ms": 42968.03199999999,
+    "p95_latency_ms": 99030.38,
+    "avg_tokens": 2851.24,
+    "avg_cost": 0,
+    "citation_rate": 0.66,
+    "classifier_invocation_rate": 0.22,
+    "classifier_invoked_case_count": 11,
+    "high_risk_case_count": 7,
+    "high_risk_case_success_rate": 0.8571428571428571,
+    "v2_case_count": 50,
+    "source_vector_accuracy": 0.9,
+    "ctcae_chunk_recall": 0.8333333333333334,
+    "protocol_chunk_recall": 0.4090909090909091,
+    "combined_gold_chunk_recall": 0.7,
+    "top_k_gold_hit_rate": 0.5714285714285714
+  }
+}
