@@ -1,0 +1,13 @@
+combo_id,case_id,scenario_id,turn_index,question_type,risk_level,route_decision,route_reason,final_answer,grounding_score,safety_score,actionability_score,clarity_score,overall_pass_fail,reviewer_notes
+siliconflow-router__siliconflow-guidance,rag-v2-001,rag-v2-scenario-001,1,greeting_or_smalltalk,low,skip,assistant_help,"Good morning! I’m your **CRC Copilot**, built to support you right here in the CRC workspace. Here’s a quick overview of what I can help with:
+
+- **Adverse Event Triage** – When you have a patient’s symptoms or vitals, I can classify the severity using CTCAE criteria (Grades 1–5) and provide risk tags (HIGH, MEDIUM, LOW) with clear, cited guidance.
+- **Protocol & CTCAE Lookups** – I can pull relevant excerpts from your study protocol and CTCAE documents to answer questions about grading, management steps, or safety reporting requirements.
+- **Workspace Summaries** – I can give you a high‑level view of safety signals, open incidents, or trends across all patients in the workspace (when you ask for it).
+- **Patient‑Specific Support** – With a patient selected, I can review their latest vitals, lab results, and reported symptoms to help you assess and document adverse events.
+- **Safety Escalation** – For high‑risk findings, I’ll remind you to use the study’s emergency contact or local emergency services immediately.
+
+I always cite the source material I use, and I’ll let you know if I don’t have the necessary protocol or CTCAE context for a particular question. 
+
+How can I assist you today?",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-002,rag-v2-scenario-002,1,product_or_workflow_help,low,skip,ui_help,"You can customize the patient table columns by clicking the **table settings icon** located above the patient list, right next to the search box. That icon lets you choose which columns appear and adjust the table layout.",,,,,,

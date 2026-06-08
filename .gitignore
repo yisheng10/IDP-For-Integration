@@ -46,6 +46,7 @@ Thumbs.db
 # Root workspace artifacts
 repomix-output.xml
 qa/
+.playwright-cli/
 
 # Node.js dependencies
 node_modules/
@@ -61,6 +62,9 @@ MyClinicalApp_AndroidAPK_5Jan2026_2138/MyClinicalApp2/RAG_Embedding/node_modules
 li qiu's part questionnaire ePRO/node_modules/
 li qiu's part questionnaire ePRO/frontend-epro/node_modules/
 li qiu's part questionnaire ePRO/frontend-epro/dist/
+
+# Local eval outputs
+functions/output/
 
 # Python
 __pycache__/

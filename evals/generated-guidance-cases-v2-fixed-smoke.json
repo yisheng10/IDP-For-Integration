@@ -1,0 +1,114 @@
+{
+  "caseset_id": "crc-guidance-rag-v2-type1diabetes",
+  "description": "Generated CRC guidance RAG v2 cases with hidden CTCAE/protocol chunk-index gold vectors.",
+  "version": 2,
+  "source_protocol": {
+    "requested_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_document_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_storage_path": "protocol-templates/1nS5U2FqTAVM10xSkzaq/1778572263748-Protocol-Type-1-Diabetes-Mellitus.pdf",
+    "protocol_chunk_pool_size": 193,
+    "ctcae_chunk_pool_size": 837
+  },
+  "generation": {
+    "created_at": "2026-06-04T12:01:15.977Z",
+    "seed": 20260605,
+    "requested_count": 2,
+    "generated_count": 2,
+    "dropped_count": 0,
+    "dropped_cases": [],
+    "generator_profile": "siliconflow-case-generator",
+    "generator_provider": "siliconflow",
+    "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "per_case_timeout_ms": 180000,
+    "batch_size": 2,
+    "batch_timeout_ms": null,
+    "stream": true,
+    "ctcae_chunks_per_case": 1,
+    "protocol_chunks_per_case": 1
+  },
+  "cases": [
+    {
+      "case_id": "rag-v2-001",
+      "scenario_id": "rag-v2-scenario-001",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "general interaction",
+      "visible": {
+        "user_query": "Good morning! Just logged in for the day. Anything I should know before I start reviewing my patients?",
+        "workspace_context": "CRC dashboard view: list of active studies (ONC-2024-001, ONC-2024-002), today's scheduled visits (3 patients), and a notification badge indicating 2 unread site messages. The CRC is assigned to the oncology team.",
+        "patient_context": "No specific patient selected; the CRC is on the main dashboard.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 29515.99,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 891,
+          "totalTokenCount": 1728
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests that a simple greeting with a request for general orientation does not trigger document retrieval."
+    },
+    {
+      "case_id": "rag-v2-002",
+      "scenario_id": "rag-v2-scenario-002",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "workspace navigation",
+      "visible": {
+        "user_query": "I'm on the patient chart for subject 204. How do I record a new concomitant medication? I don't see a button for it.",
+        "workspace_context": "CRC is viewing the electronic health record interface for subject 204, enrolled in protocol ONC-2024-001. The left sidebar shows sections: Demographics, Visits, Labs, Adverse Events, Concomitant Medications (grayed out), and Study Documents. The Concomitant Medications section is present but appears inactive.",
+        "patient_context": "Subject 204: 67-year-old male, diagnosed with metastatic colorectal cancer, currently on cycle 3 of study treatment. Last visit was yesterday; no new adverse events reported.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 29515.99,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 891,
+          "totalTokenCount": 1728
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests that a workflow help question about a specific interface element is answered from visible context without triggering retrieval."
+    }
+  ]
+}

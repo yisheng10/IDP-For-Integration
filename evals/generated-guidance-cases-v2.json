@@ -1,0 +1,2880 @@
+{
+  "caseset_id": "crc-guidance-rag-v2-type1diabetes",
+  "description": "Generated CRC guidance RAG v2 cases with hidden CTCAE/protocol chunk-index gold vectors.",
+  "version": 2,
+  "source_protocol": {
+    "requested_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_document_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_storage_path": "protocol-templates/1nS5U2FqTAVM10xSkzaq/1778572263748-Protocol-Type-1-Diabetes-Mellitus.pdf",
+    "protocol_chunk_pool_size": 193,
+    "ctcae_chunk_pool_size": 837
+  },
+  "generation": {
+    "created_at": "2026-06-04T10:44:46.208Z",
+    "seed": 20260604,
+    "count": 50,
+    "generator_profile": "siliconflow-case-generator",
+    "generator_provider": "siliconflow",
+    "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "per_case_timeout_ms": 180000,
+    "batch_size": 5,
+    "batch_timeout_ms": null,
+    "stream": true,
+    "ctcae_chunks_per_case": 1,
+    "protocol_chunks_per_case": 1
+  },
+  "cases": [
+    {
+      "case_id": "rag-v2-001",
+      "scenario_id": "rag-v2-scenario-001",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "greeting",
+      "visible": {
+        "user_query": "Goodmorning!Whatcanyouhelpmewithtoday?",
+        "workspace_context": "YouareloggedinasaClinicalResearchCoordinatorattheOncologyResearchUnit.Thecurrenttimeis9:15AM.Nopatientiscurrentlyselected.",
+        "patient_context": "Nopatientselected.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 14435.44,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1160,
+          "candidatesTokenCount": 1935,
+          "totalTokenCount": 3095
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Simplegreeting;noretrievalneeded."
+    },
+    {
+      "case_id": "rag-v2-002",
+      "scenario_id": "rag-v2-scenario-002",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "workflownavigation",
+      "visible": {
+        "user_query": "HowdoIscheduleafollow-upvisitforapatient?",
+        "workspace_context": "Youareviewingthepatientdashboard.The'ScheduleVisit'buttonisnotvisibleonthecurrentscreen.",
+        "patient_context": "Patient:JohnDoe,MRN:12345,enrolledinProtocolABC-123.Nextvisitduein2weeks.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 14435.44,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1160,
+          "candidatesTokenCount": 1935,
+          "totalTokenCount": 3095
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Workflowhelpquestionaboutscheduling;answerablefromUIguidance,notprotocol."
+    },
+    {
+      "case_id": "rag-v2-003",
+      "scenario_id": "rag-v2-scenario-003",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "productoverview",
+      "visible": {
+        "user_query": "Hithere,I'mnewtothissystem.Canyougivemeaquickoverview?",
+        "workspace_context": "YouareonthehomescreenoftheCRCAssistant.TherearemodulesforPatientManagement,VisitScheduling,AdverseEventReporting,andProtocolLookup.",
+        "patient_context": "Nopatientselected.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 14435.44,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1160,
+          "candidatesTokenCount": 1935,
+          "totalTokenCount": 3095
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Requestforsystemoverview;nopatientcontextneeded."
+    },
+    {
+      "case_id": "rag-v2-004",
+      "scenario_id": "rag-v2-scenario-004",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "labresultsaccess",
+      "visible": {
+        "user_query": "WherecanIfindthelatestlabresultsformypatient?",
+        "workspace_context": "Youareonthepatient'ssummarypage.Thenavigationmenuincludes'Labs','Imaging','Visits',and'AEs'.",
+        "patient_context": "Patient:JaneSmith,MRN:67890,enrolledinProtocolXYZ-456.Recentlabworkwasdoneyesterday.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 14435.44,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1160,
+          "candidatesTokenCount": 1935,
+          "totalTokenCount": 3095
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Workflowhelpforlocatinglabresults;answerablefromvisibleUIcontext."
+    },
+    {
+      "case_id": "rag-v2-005",
+      "scenario_id": "rag-v2-scenario-005",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "dailytaskreminder",
+      "visible": {
+        "user_query": "Hello,canyouremindmewhatmytasksarefortoday?",
+        "workspace_context": "YouareloggedinasCRCSarah.Thetasklistshows:1.ReviewlabresultsforpatientJohnDoe.2.CompletevisitdocumentationforpatientJaneSmith.3.SubmitadverseeventreportforpatientRobertBrown.",
+        "patient_context": "Nospecificpatientselected;tasklistisvisible.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 14435.44,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1160,
+          "candidatesTokenCount": 1935,
+          "totalTokenCount": 3095
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Current-context-onlyquestion;answerdirectlyfromvisibletasklist."
+    },
+    {
+      "case_id": "rag-v2-006",
+      "scenario_id": "rag-v2-scenario-006",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "visitcompletionworkflow",
+      "visible": {
+        "user_query": "I'monthepatient'svisitschedule.HowdoImarktoday'svisitascompleted?",
+        "workspace_context": "YouareloggedinasCRCatsite101.Youareviewingthe'VisitSchedule'tabforpatientPT-2023-0456.Thecurrentdateis2025-04-10.Thescheduledvisitfortodayis'Cycle2Day1'andstatusis'Scheduled'.",
+        "patient_context": "PatientPT-2023-0456,JohnDoe,enrolledinprotocol'ABC-123'.Today'svisitincludesvitalsigns,blooddraw,andphysicianassessment.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 12374.23,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1162,
+          "candidatesTokenCount": 2128,
+          "totalTokenCount": 3290
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsabilitytoansweraworkflowquestionfromvisiblecontextwithoutretrieval."
+    },
+    {
+      "case_id": "rag-v2-007",
+      "scenario_id": "rag-v2-scenario-007",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "assistantintroduction",
+      "visible": {
+        "user_query": "Hi,I'mjustgettingstartedwiththisassistant.Whatkindofhelpcanyouprovide?",
+        "workspace_context": "Youareonthemaindashboard.Nospecificpatientselected.TheCRChasjustloggedinfortheday.",
+        "patient_context": "Noactivepatientcontext.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 12374.23,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1162,
+          "candidatesTokenCount": 2128,
+          "totalTokenCount": 3290
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testshandlingofagreetingandgeneralcapabilityquestion."
+    },
+    {
+      "case_id": "rag-v2-008",
+      "scenario_id": "rag-v2-scenario-008",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "reschedulingmissedvisit",
+      "visible": {
+        "user_query": "Thepatientmissedtheirvisityesterday.HowcanIrescheduleitfornextweek?",
+        "workspace_context": "Youareviewingthe'VisitSchedule'forpatientPT-2023-0789.Thevisit'Cycle3Day1'scheduledfor2025-04-09ismarkedas'Missed'.Theprotocolallowsawindowof±3days.",
+        "patient_context": "PatientPT-2023-0789,JaneSmith,inprotocol'XYZ-456'.Themissedvisitwasacriticalassessmentvisit.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 12374.23,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1162,
+          "candidatesTokenCount": 2128,
+          "totalTokenCount": 3290
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsworkflowhelpforrescheduling,answerablefromcontextandgeneralknowledge."
+    },
+    {
+      "case_id": "rag-v2-009",
+      "scenario_id": "rag-v2-scenario-009",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "newuserorientation",
+      "visible": {
+        "user_query": "Hello!I'manewCRC.Canyoushowmehowtonavigatetothepatientenrollmentpage?",
+        "workspace_context": "Youareonthehomescreenafterloggingin.Theleftnavigationmenushows:Dashboard,Patients,Visits,DataEntry,Reports.",
+        "patient_context": "Nopatientselected.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 12374.23,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1162,
+          "candidatesTokenCount": 2128,
+          "totalTokenCount": 3290
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsgreetingwithasimplenavigationquestionthatcanbeansweredfromvisibleUIcontext."
+    },
+    {
+      "case_id": "rag-v2-010",
+      "scenario_id": "rag-v2-scenario-010",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "concomitantmedicationentry",
+      "visible": {
+        "user_query": "Ineedtoaddanewconcomitantmedicationforthispatient.WheredoIgotoenterthat?",
+        "workspace_context": "Youareonthepatient's'Summary'tabforPT-2023-0123.Thetabsavailableare:Summary,Visits,Labs,Medications,AdverseEvents,Documents.",
+        "patient_context": "PatientPT-2023-0123,RobertJohnson,inprotocol'LMN-789'.Currentlyonstudydrug.Noconcomitantmedicationsrecordedyet.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 12374.23,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1162,
+          "candidatesTokenCount": 2128,
+          "totalTokenCount": 3290
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsworkflowhelpfordataentrylocation,answerablefromvisibletabs."
+    },
+    {
+      "case_id": "rag-v2-011",
+      "scenario_id": "rag-v2-scenario-011",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Cardiacdisorders-Palpitations",
+      "visible": {
+        "user_query": "WhataretheCTCAEgradesforpalpitations?Ineedtodocumentanadverseevent.",
+        "workspace_context": "YouareloggedinasCRCatacardiologyresearchsite.Youarecurrentlydocumentingadverseeventsforapatientinaclinicaltrial.Thepatientreportedfeelingpalpitations.YouneedtoassignaCTCAEgrade.",
+        "patient_context": "PatientID:1101,Age:58,Sex:Male,Diagnosis:Atrialfibrillation,Currenttrial:Phase3anticoagulantstudy.Nootherrelevantvitals.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0030",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 9,
+            "chunk_index": 30
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0030"
+        ],
+        "latency_ms": 20859.16,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2210,
+          "candidatesTokenCount": 3330,
+          "totalTokenCount": 5540
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsdirectCTCAElookupforpalpitationsgrading."
+    },
+    {
+      "case_id": "rag-v2-012",
+      "scenario_id": "rag-v2-scenario-012",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Protocolnavigation",
+      "visible": {
+        "user_query": "IntheType1DiabetesMellitusprotocol,whatpagedothestudyobjectivesstarton?Ineedtoreferencethemforasiteinitiationvisit.",
+        "workspace_context": "YouarepreparingforasiteinitiationvisitfortheType1DiabetesMellitusstudy.Youneedtolocatethestudyobjectivessectionintheprotocoldocumenttoreviewwiththeteam.",
+        "patient_context": "No patient is selected for this request; this is a general CRC guidance or workflow question.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:10",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 7,
+            "chunk_index": 10
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:10"
+        ],
+        "latency_ms": 20859.16,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2210,
+          "candidatesTokenCount": 3330,
+          "totalTokenCount": 5540
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsprotocollookupforsectionlocationusingtableofcontentsexcerpt."
+    },
+    {
+      "case_id": "rag-v2-013",
+      "scenario_id": "rag-v2-scenario-013",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Wounddehiscencegradingandprotocolstatistics",
+      "visible": {
+        "user_query": "Ihaveapatientwithwounddehiscenceafterasurgicalprocedure.WhataretheCTCAEgradesforwounddehiscence?Also,whatisthestatisticalpowerforthemITTpopulationintheType1DiabetesMellitusprotocol?Ineedbothforasafetyreport.",
+        "workspace_context": "YouareaCRCmonitoringapatientintheType1DiabetesMellitusstudy.Thepatientrecentlyhadasurgicalprocedureanddevelopedwounddehiscence.YouneedtogradetheAEandalsoincludethestudy'sstatisticalpowerinthesafetyreport.",
+        "patient_context": "PatientID:1301,Age:45,Sex:Female,Diagnosis:Type1DiabetesMellitus,EnrolledintheType1DiabetesMellitusprotocol.Recentsurgery:appendectomy.CurrentAE:wounddehiscenceatsurgicalsite.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0431",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 83,
+            "chunk_index": 431
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:142",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 64,
+            "chunk_index": 142
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0431",
+          "1nS5U2FqTAVM10xSkzaq:142"
+        ],
+        "latency_ms": 20859.16,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2210,
+          "candidatesTokenCount": 3330,
+          "totalTokenCount": 5540
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestscombinedCTCAEandprotocolretrievalforapatientcase."
+    },
+    {
+      "case_id": "rag-v2-014",
+      "scenario_id": "rag-v2-scenario-014",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Gallbladderfistulaandcausalitydefinitions",
+      "visible": {
+        "user_query": "CanyougivemetheCTCAEgradingforgallbladderfistulawiththepagenumberfromtheCTCAEmanual?Also,Ineedthedefinitionsof'definitely','probably',and'possibly'relatedtocausalityassessmentfromtheType1DiabetesMellitusprotocol,withthepagenumber.Ineedtocitetheseinasafetyreport.",
+        "workspace_context": "Youarepreparingasafetyreportforapatientwhodevelopedagallbladderfistula.YouneedexactcitationsfromCTCAEandtheprotocol'scausalitydefinitionstoincludeinthereport.",
+        "patient_context": "PatientID:1401,Age:62,Sex:Male,Diagnosis:Type1DiabetesMellitus,EnrolledintheType1DiabetesMellitusprotocol.AE:Gallbladderfistuladiscoveredduringroutineimaging.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0247",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 48,
+            "chunk_index": 247
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:128",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 58,
+            "chunk_index": 128
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0247",
+          "1nS5U2FqTAVM10xSkzaq:128"
+        ],
+        "latency_ms": 20859.16,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2210,
+          "candidatesTokenCount": 3330,
+          "totalTokenCount": 5540
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsexplicitcitationrequestforCTCAEandprotocol."
+    },
+    {
+      "case_id": "rag-v2-015",
+      "scenario_id": "rag-v2-scenario-015",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Injury,poisoningandproceduralcomplications-Prolapseofintestinalstoma",
+      "visible": {
+        "user_query": "WhataretheCTCAEgradesforprolapseofintestinalstoma?Ineedtogradethisforapatient.",
+        "workspace_context": "YouareaCRCatasurgicaloncologysite.Apatientwithanintestinalstomahasreportedprolapse.YouneedtoassignaCTCAEgradefortheadverseevent.",
+        "patient_context": "PatientID:1501,Age:70,Sex:Female,Diagnosis:Colorectalcancer,Status:Post-surgerywithpermanentcolostomy.Currentcomplaint:stomaprolapse.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0404",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 78,
+            "chunk_index": 404
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0404"
+        ],
+        "latency_ms": 20859.16,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2210,
+          "candidatesTokenCount": 3330,
+          "totalTokenCount": 5540
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsdirectCTCAElookupforstomaprolapse."
+    },
+    {
+      "case_id": "rag-v2-016",
+      "scenario_id": "rag-v2-scenario-016",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "deviceaccountabilityandadverseeventreporting",
+      "visible": {
+        "user_query": "WhatarethereportingtimelinesforunanticipatedadversedeviceeffectsandIRBwithdrawalofapprovalintheMYL-1501D-3003protocol?",
+        "workspace_context": "ActiveProtocol:InsulinGlargineMYL-1501D-3003(Type1DiabetesMellitus).Youarereviewinginvestigatorresponsibilitiesfordevicestudies.",
+        "patient_context": "Nospecificpatientselected;generalprotocolinquiry.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:187",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 88,
+            "chunk_index": 187
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:187"
+        ],
+        "latency_ms": 27233.38,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2470,
+          "candidatesTokenCount": 3921,
+          "totalTokenCount": 6391
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsretrievalofprotocolexcerptonpage88regardingreportingtimelines."
+    },
+    {
+      "case_id": "rag-v2-017",
+      "scenario_id": "rag-v2-scenario-017",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "spermaticcordhemorrhagegradingandprotocolreference",
+      "visible": {
+        "user_query": "Ihaveamalepatientwithapotentialspermaticcordhemorrhage.WhatistheCTCAEv5.0gradingforthat?Also,canyouconfirmtheclinicaltrialregistrationreferencefromourprotocol?",
+        "workspace_context": "ActiveProtocol:MYL-1501D-3003.YouaredocumentinganadverseeventforpatientJohnDoe.",
+        "patient_context": "Patient:JohnDoe,MRN12345,male,45years,enrolledinMYL-1501D-3003.Reportedtesticularpainandswelling.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0699",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 127,
+            "chunk_index": 699
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:178",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 81,
+            "chunk_index": 178
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0699",
+          "1nS5U2FqTAVM10xSkzaq:178"
+        ],
+        "latency_ms": 27233.38,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2470,
+          "candidatesTokenCount": 3921,
+          "totalTokenCount": 6391
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEspermaticcordhemorrhagegradingandprotocolclinicaltrialreference."
+    },
+    {
+      "case_id": "rag-v2-018",
+      "scenario_id": "rag-v2-scenario-018",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "high",
+      "clinical_focus": "neonataldeathcitationandinclusioncriteria",
+      "visible": {
+        "user_query": "Wehadaneonataldeathinthestudy.IneedtheCTCAEv5.0citationforneonataldeathgrading,andtheprotocolpagethatliststheinclusioncriteriafortheextensionstudy.Canyouprovidethose?",
+        "workspace_context": "ActiveProtocol:MYL-1501D-3003.Seriousadverseevent:neonataldeath.YouarepreparingdocumentationfortheIRB.",
+        "patient_context": "Patient:BabySmith,MRN67890,newborn,borntoastudyparticipant.NeonataldeathoccurredonDay5.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0219",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 44,
+            "chunk_index": 219
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:67",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 28,
+            "chunk_index": 67
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0219",
+          "1nS5U2FqTAVM10xSkzaq:67"
+        ],
+        "latency_ms": 27233.38,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2470,
+          "candidatesTokenCount": 3921,
+          "totalTokenCount": 6391
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEneonataldeathandprotocolinclusioncriteriaexcerpts."
+    },
+    {
+      "case_id": "rag-v2-019",
+      "scenario_id": "rag-v2-scenario-019",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "pharyngitisgrading",
+      "visible": {
+        "user_query": "WhatistheCTCAEv5.0gradingforpharyngitis?Ihaveapatientwithasorethroat.",
+        "workspace_context": "ActiveProtocol:MYL-1501D-3003.Youareassessinganadverseevent.",
+        "patient_context": "Patient:JaneRoe,MRN54321,female,30years,complainingofsorethroat.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0327",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 64,
+            "chunk_index": 327
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0327"
+        ],
+        "latency_ms": 27233.38,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2470,
+          "candidatesTokenCount": 3921,
+          "totalTokenCount": 6391
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEpharyngitisgrading."
+    },
+    {
+      "case_id": "rag-v2-020",
+      "scenario_id": "rag-v2-scenario-020",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "extensionstudyvisitschedule",
+      "visible": {
+        "user_query": "Canyoutellmeatwhichvisitsweneedtoperformdrugaccountabilityandcompliancechecksintheextensionstudy?",
+        "workspace_context": "ActiveProtocol:MYL-1501D-3003.Youarepreparingforupcomingpatientvisits.",
+        "patient_context": "Patient:AliceJohnson,MRN98765,currentlyatWeek12oftheextensionstudy.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:48",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 19,
+            "chunk_index": 48
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:48"
+        ],
+        "latency_ms": 27233.38,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2470,
+          "candidatesTokenCount": 3921,
+          "totalTokenCount": 6391
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsretrievalofprotocolvisitschedulefordrugaccountability."
+    },
+    {
+      "case_id": "rag-v2-021",
+      "scenario_id": "rag-v2-scenario-021",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "WateringeyesAEgrading",
+      "visible": {
+        "user_query": "Ihaveapatientreportingexcessivetearing.Ineedtogradethiswateringeyesadverseeventaccordingtoourprotocol.WhatCTCAEgradewoulditbeifit'ssymptomaticwithaslightdecreaseinvisualacuity?AnddoesourprotocolhaveanyadditionalseverityassessmentrulesIshouldfollow?",
+        "workspace_context": "Activeprotocol:MYL-1501D-3003(Protocol-Type1DiabetesMellitus).Youarereviewingadverseeventsfrompatientdiaries.",
+        "patient_context": "PatientID:301-045,currentlyoninsulinglargine.Reported'wateryeyes'indiary,withmildblurringofvisionbutstillabletoread20/40oneyechart.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0094",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 23,
+            "chunk_index": 94
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:123",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 56,
+            "chunk_index": 123
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0094",
+          "1nS5U2FqTAVM10xSkzaq:123"
+        ],
+        "latency_ms": 33535.1,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2639,
+          "candidatesTokenCount": 5073,
+          "totalTokenCount": 7712
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEgradingforwateringeyesandprotocol'sAEseverityassessmentguidance."
+    },
+    {
+      "case_id": "rag-v2-022",
+      "scenario_id": "rag-v2-scenario-022",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "high",
+      "clinical_focus": "Splenicinfectiongradingandwithdrawalcriteria",
+      "visible": {
+        "user_query": "IneedtheexactCTCAEgradingforasplenicinfectionthatislife-threateningandrequiresurgentintervention.Also,pleaseprovidetheprotocol'swithdrawalcriteriawiththepagenumber.Iwanttocitebothinmyreport.",
+        "workspace_context": "Activeprotocol:MYL-1501D-3003.Youaredocumentingaseriousadverseeventforapatientwhodevelopedasplenicinfection.",
+        "patient_context": "PatientID:301-112,hospitalizedwithsplenicabscess,requiringemergencysurgery.Theinvestigatorisconsideringwithdrawalfromthetrial.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0341",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 67,
+            "chunk_index": 341
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:41",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 15,
+            "chunk_index": 41
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0341",
+          "1nS5U2FqTAVM10xSkzaq:41"
+        ],
+        "latency_ms": 33535.1,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2639,
+          "candidatesTokenCount": 5073,
+          "totalTokenCount": 7712
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEgrade4forsplenicinfectionandprotocol'swithdrawalcriteriasection."
+    },
+    {
+      "case_id": "rag-v2-023",
+      "scenario_id": "rag-v2-scenario-023",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "medium",
+      "clinical_focus": "Intraoperativeearinjurygrading",
+      "visible": {
+        "user_query": "Duringarecentsurgery,apatientsustainedanearinjurythatrequiredpartialresection.WhatistheCTCAEgradeforanintraoperativeearinjurywithpartialresection?IneedtorecordthisAE.",
+        "workspace_context": "Youarereviewingsurgicalcomplicationsfromapatient'srecentprocedure.Nospecificprotocolisactiveforthisquery.",
+        "patient_context": "PatientID:402-789,post-operativefromanon-trialsurgery.Surgeonnoteddamagetotheearstructurerequiringpartialresection.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0383",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 75,
+            "chunk_index": 383
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0383"
+        ],
+        "latency_ms": 33535.1,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2639,
+          "candidatesTokenCount": 5073,
+          "totalTokenCount": 7712
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEgrade2forintraoperativeearinjury."
+    },
+    {
+      "case_id": "rag-v2-024",
+      "scenario_id": "rag-v2-scenario-024",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Insulindosetitrationguidancelocation",
+      "visible": {
+        "user_query": "Ineedtoadjustapatient'sbasalinsulinbecausetheirfastingglucoseisconsistentlyhigh.WhereinourprotocolcanIfindthesuggestedguidanceforinsulindosetitration?Pleasegivemetheappendixnumberorpage.",
+        "workspace_context": "Activeprotocol:MYL-1501D-3003(Protocol-Type1DiabetesMellitus).Youaretitratinginsulinforapatient.",
+        "patient_context": "PatientID:301-201,fastingglucosereadings:185,192,178mg/dLoverlast3days.Needsbasalinsulinadjustmentperprotocol.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:31",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 11,
+            "chunk_index": 31
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:31"
+        ],
+        "latency_ms": 33535.1,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2639,
+          "candidatesTokenCount": 5073,
+          "totalTokenCount": 7712
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofprotocolappendixIIforinsulindosetitration."
+    },
+    {
+      "case_id": "rag-v2-025",
+      "scenario_id": "rag-v2-scenario-025",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Peripheralsensoryneuropathygradingandinsulintitration",
+      "visible": {
+        "user_query": "Apatientinourdiabetestrialhasdevelopedperipheralsensoryneuropathywithmoderatesymptomsaffectingdailyactivities.WhatCTCAEgradeisthat?Also,theirpre-breakfastglucosehasbeenrunningbetween181-270mg/dL;accordingtoourprotocol,howmanyunitsshouldIincreasetheirbasalinsulin?",
+        "workspace_context": "Activeprotocol:MYL-1501D-3003.Youaremanagingadverseeventsandinsulindosingforatrialparticipant.",
+        "patient_context": "PatientID:301-305,complainsofnumbnessandtinglinginfeet,difficultywalkinglongdistances.Fastingglucosevalues:190,210,185mg/dL.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0600",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 111,
+            "chunk_index": 600
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:181",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 84,
+            "chunk_index": 181
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0600",
+          "1nS5U2FqTAVM10xSkzaq:181"
+        ],
+        "latency_ms": 33535.1,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2639,
+          "candidatesTokenCount": 5073,
+          "totalTokenCount": 7712
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEgrade2forperipheralsensoryneuropathyandprotocol'sbasalinsulintitrationrule(+4Ufor181-270mg/dL)."
+    },
+    {
+      "case_id": "rag-v2-026",
+      "scenario_id": "rag-v2-scenario-026",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "AbnormalADHandprotocolreporting",
+      "visible": {
+        "user_query": "IhaveapatientintheType1DiabetesMellitusstudywithalabresultshowingbloodantidiuretichormoneabnormal.CanyougivemetheCTCAEv5.0gradingforthattermandtellmewhattheprotocolsaysabouthandlingabnormaltestfindings?",
+        "workspace_context": "CRCisreviewingrecentlabresultsforpatientsintheType1DiabetesMellitusstudy.Theprotocolisopenintheworkspace.",
+        "patient_context": "PatientID:DM-045,enrolledintheType1DiabetesMellitusstudy.Latestlabreportindicates'Bloodantidiuretichormoneabnormal'.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0438",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 84,
+            "chunk_index": 438
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:22",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 9,
+            "chunk_index": 22
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0438",
+          "1nS5U2FqTAVM10xSkzaq:22"
+        ],
+        "latency_ms": 21386.22,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2395,
+          "candidatesTokenCount": 2988,
+          "totalTokenCount": 5383
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofbothCTCAEgradingforaspecifictermandprotocolguidanceonabnormaltestfindings."
+    },
+    {
+      "case_id": "rag-v2-027",
+      "scenario_id": "rag-v2-scenario-027",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_lookup",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Cytokinereleasesyndromegrading",
+      "visible": {
+        "user_query": "WhataretheCTCAEv5.0gradesforcytokinereleasesyndrome?IneedtogradeapatientwhohasfeverandhypotensionafterCAR-Ttherapy.",
+        "workspace_context": "CRCisdocumentinganadverseeventforapatientinanoncologytrial.TheCTCAEv5.0referenceisopen.",
+        "patient_context": "PatientID:ONC-112,postCAR-Ttherapy,presentingwithfever(38.5°C)andhypotensionrespondingtofluids.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0264",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 51,
+            "chunk_index": 264
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0264"
+        ],
+        "latency_ms": 21386.22,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2395,
+          "candidatesTokenCount": 2988,
+          "totalTokenCount": 5383
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsdirectCTCAElookupforcytokinereleasesyndromegradingcriteria."
+    },
+    {
+      "case_id": "rag-v2-028",
+      "scenario_id": "rag-v2-scenario-028",
+      "turn_index": 1,
+      "task_type": "direct_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Studyvisitschedules",
+      "visible": {
+        "user_query": "CanyoushowmewhattheType1DiabetesMellitusprotocolsaysaboutvisitschedulesandSMBGprofiles?Ineedtoplanthenextpatientvisit.",
+        "workspace_context": "CRCisschedulingupcomingvisitsforpatientsintheType1DiabetesMellitusstudy.Theprotocoldocumentisaccessible.",
+        "patient_context": "PatientID:DM-021,dueforafollow-upvisitaccordingtothestudyschedule.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:14",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 8,
+            "chunk_index": 14
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "1nS5U2FqTAVM10xSkzaq:14"
+        ],
+        "latency_ms": 21386.22,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2395,
+          "candidatesTokenCount": 2988,
+          "totalTokenCount": 5383
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsretrievalofprotocol-specificvisitscheduleandSMBGprofileinformation."
+    },
+    {
+      "case_id": "rag-v2-029",
+      "scenario_id": "rag-v2-scenario-029",
+      "turn_index": 1,
+      "task_type": "direct_ctcae_protocol_lookup",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Investigatoragreementandgrowthacceleration",
+      "visible": {
+        "user_query": "IneedtocompletetheinvestigatoragreementletterfortheType1DiabetesMellitusstudy.Also,oneofourpediatricpatientshasacceleratedgrowth;whatistheCTCAEgradeforthat?",
+        "workspace_context": "CRCispreparingregulatorydocumentsforsiteinitiationandreviewingapediatricpatient'sgrowthchart.TheprotocolandCTCAEreferencesareopen.",
+        "patient_context": "PatientID:DM-078,a10-year-oldintheType1DiabetesMellitusstudy,withheight>+2SDabovemid-parentaltargetheight.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0059",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 15,
+            "chunk_index": 59
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:186",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 88,
+            "chunk_index": 186
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0059",
+          "1nS5U2FqTAVM10xSkzaq:186"
+        ],
+        "latency_ms": 21386.22,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2395,
+          "candidatesTokenCount": 2988,
+          "totalTokenCount": 5383
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestssimultaneousretrievalofprotocoladministrativecontentandCTCAEgradingforgrowthaccelerated."
+    },
+    {
+      "case_id": "rag-v2-030",
+      "scenario_id": "rag-v2-scenario-030",
+      "turn_index": 1,
+      "task_type": "direct_citation_request",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "AtaxiaandSMBGprofiles",
+      "visible": {
+        "user_query": "ApatientintheType1DiabetesMellitusstudyisreportingcoordinationproblems.CanyougivemetheCTCAEgradingforataxia?Also,whatdoestheprotocolsayaboutthe8-pointSMBGprofilemeasurement?",
+        "workspace_context": "CRCisreviewingapatient-reportedsymptomandneedstoinstructthepatientonSMBGprocedures.TheprotocolandCTCAEreferencesareopen.",
+        "patient_context": "PatientID:DM-033,reportingdifficultywithbalanceandcoordination.Needstoperform8-pointSMBGthisweek.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0561",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 105,
+            "chunk_index": 561
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:49",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 19,
+            "chunk_index": 49
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0561",
+          "1nS5U2FqTAVM10xSkzaq:49"
+        ],
+        "latency_ms": 21386.22,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2395,
+          "candidatesTokenCount": 2988,
+          "totalTokenCount": 5383
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEataxiagradingandprotocolSMBGprofilerequirements."
+    },
+    {
+      "case_id": "rag-v2-031",
+      "scenario_id": "rag-v2-scenario-031",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "vitalsignscheck",
+      "visible": {
+        "user_query": "Whatisthepatient'scurrentbloodpressure?",
+        "workspace_context": "YouareloggedinasCRCAlexRiveraatSite101.ThecurrentworkspaceshowsthepatientoverviewforJohnSmith,a45-year-oldmaleenrolledinahypertensionmonitoringstudy.Thevitalsignspanelisopen.",
+        "patient_context": "Patient:JohnSmith(ID:PT-001).Vitals:BP128/82mmHg,HR72bpm,Temp98.6°F,SpO298%.Lastupdated10minutesago.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 29463.15,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1660,
+          "candidatesTokenCount": 4605,
+          "totalTokenCount": 6265
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsabilitytoanswerfromvisiblecontextwithoutdocumentretrieval."
+    },
+    {
+      "case_id": "rag-v2-032",
+      "scenario_id": "rag-v2-scenario-032",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "syncopegrading",
+      "visible": {
+        "user_query": "Thepatientjustfaintedduringthevisit.WhatistheCTCAEgradeforsyncope?",
+        "workspace_context": "YouareloggedinasCRCMariaGonzalezatSite202.ThecurrentpatientisJaneDoe,a32-year-oldfemaleinanimmunotherapytrial.Analertindicatesarecentadverseevent:'Patientexperiencedsyncopeduringvitalsmeasurement.'",
+        "patient_context": "Patient:JaneDoe(ID:PT-002).Event:Syncopeobservedat10:15AM.Patientlostconsciousnessbrieflyafterstandingup.Vitalspost-event:BP90/60,HR110.Nopriorhistoryofsyncope.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0612",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 112,
+            "chunk_index": 612
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0612"
+        ],
+        "latency_ms": 29463.15,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1660,
+          "candidatesTokenCount": 4605,
+          "totalTokenCount": 6265
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "RequiresCTCAEretrievalforsyncopegrading;answerisGrade3."
+    },
+    {
+      "case_id": "rag-v2-033",
+      "scenario_id": "rag-v2-scenario-033",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "ilealstenosisemergencygradingandreporting",
+      "visible": {
+        "user_query": "PatientintheType1DiabetesMellitustrialhassevereabdominalpainandimagingshowsilealstenosis.WhatistheCTCAEgradeandshouldthisbereportedasasafetyeventperprotocol?",
+        "workspace_context": "YouareloggedinasCRCDavidChenatSite303.Theactiveprotocolis'Protocol-Type1DiabetesMellitus.pdf'.ThecurrentpatientisBobJohnson,a50-year-oldmaleenrolledinthetrial.Anemergencyalertisactive:'Patienthospitalizedwithsuspectedilealstenosis.'",
+        "patient_context": "Patient:BobJohnson(ID:PT-003).Symptoms:severeabdominalpain,nausea,vomiting.CTscanshowsnarrowingoftheileum.Patientiscurrentlyontubefeedingandhospitalized.Hehasreceivedatleastonedoseofthetrialmedication.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0163",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 34,
+            "chunk_index": 163
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:144",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 65,
+            "chunk_index": 144
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0163",
+          "1nS5U2FqTAVM10xSkzaq:144"
+        ],
+        "latency_ms": 29463.15,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1660,
+          "candidatesTokenCount": 4605,
+          "totalTokenCount": 6265
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "RequiresCTCAEgradingforilealstenosis(Grade3basedonhospitalization)andprotocolsafetypopulationdetermination."
+    },
+    {
+      "case_id": "rag-v2-034",
+      "scenario_id": "rag-v2-scenario-034",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "labresultsreview",
+      "visible": {
+        "user_query": "Canyoushowmethepatient'slatestHbA1cresult?",
+        "workspace_context": "YouareloggedinasCRCEmilyWhiteatSite404.TheworkspacedisplaysthelabresultstabforpatientAliceBrown,a28-year-oldfemaleinadiabetesmanagementstudy.",
+        "patient_context": "Patient:AliceBrown(ID:PT-004).Latestlabresults:HbA1c7.2%(drawn2025-03-15),FastingGlucose130mg/dL,eGFR90mL/min.PreviousHbA1c7.8%.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 29463.15,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1660,
+          "candidatesTokenCount": 4605,
+          "totalTokenCount": 6265
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsretrievalofinformationalreadypresentinworkspacecontext."
+    },
+    {
+      "case_id": "rag-v2-035",
+      "scenario_id": "rag-v2-scenario-035",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "bruisinggrading",
+      "visible": {
+        "user_query": "Thepatienthasbruisingonbotharmsandlegsafterafall.WhatistheCTCAEgradeforbruising?",
+        "workspace_context": "YouareloggedinasCRCKevinParkatSite505.ThecurrentpatientisTomWilson,a65-year-oldmaleinacardiovasculartrial.Anadverseeventformisopenfor'bruising'followingareportedfall.",
+        "patient_context": "Patient:TomWilson(ID:PT-005).Incident:Patientfellathomeyesterday.Physicalexamrevealsecchymosisonbilateralupperandlowerextremities,nootherinjuries.Patientreportspainatbruisesites.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0360",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 70,
+            "chunk_index": 360
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0360"
+        ],
+        "latency_ms": 29463.15,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1660,
+          "candidatesTokenCount": 4605,
+          "totalTokenCount": 6265
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "RequiresCTCAEretrievalforbruising;generalizedbruisingcorrespondstoGrade2."
+    },
+    {
+      "case_id": "rag-v2-036",
+      "scenario_id": "rag-v2-scenario-036",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Jejunalstenosisgradingandprotocolidentification",
+      "visible": {
+        "user_query": "Patient138intheInsulinGlargineextensionstudyjustpresentedwithsevereabdominalpainandvomiting.Theattendingsuspectsjejunalstenosisandisplanningtoadmitfortubefeeding.Ineedtodocumenttheadverseevent.WhatistheCTCAEgradeforjejunalstenosisrequiringhospitalization,andwhatistheexactprotocoltitleandversionnumberforthereport?",
+        "workspace_context": "YouareloggedinasCRCatSite05.Activeprotocol:InsulinGlargineMYL-1501D-3003.Patient138isselected.Alert:Newadverseeventflagged–suspectedjejunalstenosis.Vitals:BP110/70,HR110,Temp37.8°C.Recentnote:Patientc/osevereabdominalpain,nausea,vomitingx2days.",
+        "patient_context": "Patient138:45M,enrolledinInsulinGlargineextensionstudy(MYL-1501D-3003)since2023-01-15.Lastvisit:2024-03-10.Currentmedications:InsulinGlargine20Udaily.NopriorGIhistory.Today:acuteonsetsevereepigastricpainradiatingtoback,vomiting.Physicalexam:abdominaldistension,tenderness.Plan:admitforIVfluids,NPO,NGtubeplacement,CTabdomen.Suspectedjejunalstenosis.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0171",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 36,
+            "chunk_index": 171
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:35",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 14,
+            "chunk_index": 35
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0171",
+          "1nS5U2FqTAVM10xSkzaq:35"
+        ],
+        "latency_ms": 37364.54,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2075,
+          "candidatesTokenCount": 5586,
+          "totalTokenCount": 7661
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEjejunalstenosisgrading(Grade3)andprotocolexcerptfortitle/version.Requiresbothexcerpts."
+    },
+    {
+      "case_id": "rag-v2-037",
+      "scenario_id": "rag-v2-scenario-037",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Patientvitalscheck",
+      "visible": {
+        "user_query": "Whatarethelatestvitalsignsforpatient45?Ineedtoconfirmbeforethenextinsulindose.",
+        "workspace_context": "YouareviewingthepatientdashboardforSite05.Patient45isselected.Displayedvitalsfromtoday'smorningcheck:BP120/80,HR72,Temp36.5°C,SpO298%,Weight78kg.Lastinsulindose:8unitsat08:00.",
+        "patient_context": "Patient45:30F,Type1DM,onbasal-bolusinsulin.Scheduledforlunchtimedoseadjustment.CRCneedstoverifyvitalsbeforeproceeding.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 37364.54,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2075,
+          "candidatesTokenCount": 5586,
+          "totalTokenCount": 7661
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsabilitytoanswerfromvisiblecontextwithoutretrieval.Vitalsaredisplayedinworkspace."
+    },
+    {
+      "case_id": "rag-v2-038",
+      "scenario_id": "rag-v2-scenario-038",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Creatinineincreasegrading",
+      "visible": {
+        "user_query": "Patient22'slabresultsjustcamein:creatinine2.8mg/dL.Baselinecreatininewas1.0mg/dL,andthelab'sULNis1.2mg/dL.WhatCTCAEgradeisthiscreatinineincrease?",
+        "workspace_context": "YouarereviewinglabresultsforPatient22intheDiabetestrial.Thesystemflaggedacreatininealert.Patient22isa55MwithType1DM,baselinecreatinine1.0mg/dL.Today'sresult:2.8mg/dL(ULN1.2).Nosymptomsreported.",
+        "patient_context": "Patient22:enrolledinadiabetestrial.Regularlabmonitoring.CRCneedstogradetheAEforthesafetyreport.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0451",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 86,
+            "chunk_index": 451
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0451"
+        ],
+        "latency_ms": 37364.54,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2075,
+          "candidatesTokenCount": 5586,
+          "totalTokenCount": 7661
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEcreatinineincreasedgrading.RequiresCTCAEexcerpttodetermineGrade2(>1.5-3.0xbaselineand>1.5-3.0xULN)."
+    },
+    {
+      "case_id": "rag-v2-039",
+      "scenario_id": "rag-v2-scenario-039",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Earpaingradingandprotocolconsent",
+      "visible": {
+        "user_query": "Patient67intheInsulinGlarginetrialiscomplainingofsevereearpainthat'spreventingherfromdoinganyself-care.Sheratesit8/10.TheENTwantstodoatympanostomy.WhatCTCAEgradeisthisearpain,anddoestheprotocolallowanadditionalprocedurewithoutre-consent?",
+        "workspace_context": "YouareatSite05.Activeprotocol:InsulinGlargineMYL-1501D-3003.Patient67selected.Alert:PatientreportedsevereearpainviaePRO.Vitals:BP130/85,HR90,Temp37.0°C.Recentnote:Patientc/osevererightearpainx3days,notrelievedbyacetaminophen.Limitingallactivities.ENTconsultrequested.",
+        "patient_context": "Patient67:28F,enrolledinInsulinGlargineextensionstudy.Historyofrecurrentotitismedia.Today:severerightearpain,8/10,limitingself-care.ENTrecommendstympanostomyforrelief.CRCneedstogradeAEandcheckifprotocolrequiresre-consentforthisprocedure.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0048",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 13,
+            "chunk_index": 48
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:169",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 77,
+            "chunk_index": 169
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0048",
+          "1nS5U2FqTAVM10xSkzaq:169"
+        ],
+        "latency_ms": 37364.54,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2075,
+          "candidatesTokenCount": 5586,
+          "totalTokenCount": 7661
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEearpaingrading(Grade3:severepainlimitingself-care)andprotocolexcerptonpatientconsentandprocedures.Requiresbothexcerpts."
+    },
+    {
+      "case_id": "rag-v2-040",
+      "scenario_id": "rag-v2-scenario-040",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "ePROcompliancecheck",
+      "visible": {
+        "user_query": "Haspatient15completedtheirdailyePROdiaryfortoday?Ineedtoconfirmbeforethesitevisit.",
+        "workspace_context": "YouareviewingtheePROdashboardforSite05.Patient15isselected.Today'sdate:2024-04-15.ePROstatus:Completedat08:30AM.Lastentry:'Nohypoglycemicevents,fastingglucose110mg/dL.'Nextscheduledvisit:2024-04-16.",
+        "patient_context": "Patient15:40M,Type1DM,inaclinicaltrial.RequiredtocompletedailyePROdiary.CRCispreparingfortomorrow'svisitandneedstoverifycompliance.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 37364.54,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2075,
+          "candidatesTokenCount": 5586,
+          "totalTokenCount": 7661
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsabilitytoanswerfromvisiblecontextwithoutretrieval.ePROstatusisdisplayed."
+    },
+    {
+      "case_id": "rag-v2-041",
+      "scenario_id": "rag-v2-scenario-041",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Stomalulcergrading",
+      "visible": {
+        "user_query": "CanyougradethestomalulcerforpatientJM-2045?He'sreportingsomediscomfortandIneedtodocumenttheCTCAEgrade.",
+        "workspace_context": "YouareloggedinasCRCatSite12.Activeprotocol:GAS-301(Gastroenterostomyfollow-upstudy).Selectedpatient:JM-2045(JohnMiller,58M).RecentePROsubmission:'Ihavesomesorenessaroundmystomasite,nottoobadbutnoticeable.'Vitals:BP128/82,HR72,Temp98.6°F.Noalerts.",
+        "patient_context": "PatientJM-2045underwentgastroenterostomy6monthsago.Hehasahistoryofstomalulceration.Currentsymptoms:milddiscomfort,nobleeding,nointerventionneededperpatientreport.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0413",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 80,
+            "chunk_index": 413
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0413"
+        ],
+        "latency_ms": 24153.73,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2240,
+          "candidatesTokenCount": 4247,
+          "totalTokenCount": 6487
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEstomalulcergradingfromexcerpt."
+    },
+    {
+      "case_id": "rag-v2-042",
+      "scenario_id": "rag-v2-scenario-042",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Viralhepatitisandhypoglycemiaprotocol",
+      "visible": {
+        "user_query": "PatientintheInsulinGlarginetrialjusthadaseverehypoglycemicepisodeandalsohaselevatedliverenzymes.What'stheCTCAEgradeforviralhepatitis,andwhatdoestheprotocolsayaboutmanagingseverehypoglycemia?",
+        "workspace_context": "YouareloggedinasCRCatSite05.Activeprotocol:MYL-1501D-3003(InsulinGlargine).Selectedpatient:PT-887(SarahLee,34F,T1DM).Alert:Criticallab:ALT350U/L,AST280U/L.Recentincident:Severehypoglycemiaat14:30,patientunconscious,glucagonadministeredbycaregiver,nowconscious.Vitals:BP100/60,HR110,glucose45mg/dLpost-glucagon.",
+        "patient_context": "PatientPT-887hasbeenoninsulinglarginefor24weeks.Shewasdiagnosedwithviralhepatitislastweek.Todaysheexperiencedaseverehypoglycemiceventrequiringglucagon.Thecaregiverfollowedemergencyproceduresbutneedsconfirmationofprotocolsteps.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0302",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 59,
+            "chunk_index": 302
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:113",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 51,
+            "chunk_index": 113
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0302",
+          "1nS5U2FqTAVM10xSkzaq:113"
+        ],
+        "latency_ms": 24153.73,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2240,
+          "candidatesTokenCount": 4247,
+          "totalTokenCount": 6487
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofbothCTCAEhepatitisgradingandprotocolhypoglycemiamanagement."
+    },
+    {
+      "case_id": "rag-v2-043",
+      "scenario_id": "rag-v2-scenario-043",
+      "turn_index": 1,
+      "task_type": "current_patient_status",
+      "difficulty": "medium",
+      "risk_level": "low",
+      "clinical_focus": "Patientvitalscheck",
+      "visible": {
+        "user_query": "Whatwasthepatient'smostrecentbloodpressurereading?",
+        "workspace_context": "YouareviewingpatientDM-112(DavidKim,45M)intheDiabetesManagementStudy.Vitalspanelshows:BP135/85mmHg,HR78,Temp98.2°F,SpO298%.Lastupdated:10minutesago.",
+        "patient_context": "PatientDM-112isaroutinefollow-up.Noactivealerts.TheCRCisreviewingvitalsbeforeatelehealthvisit.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 24153.73,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2240,
+          "candidatesTokenCount": 4247,
+          "totalTokenCount": 6487
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Testsskiproute;answerablefromvisiblecontextwithoutdocumentretrieval."
+    },
+    {
+      "case_id": "rag-v2-044",
+      "scenario_id": "rag-v2-scenario-044",
+      "turn_index": 1,
+      "task_type": "current_patient_ctcae_assessment",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Otitisexternagrading",
+      "visible": {
+        "user_query": "IneedtheCTCAEgradeforotitisexternaforpatientLB-301.She'scomplainingofearpainanddrainageafterswimming.",
+        "workspace_context": "YouareloggedinasCRCatSite08.Activeprotocol:EAR-INF-202(EarInfectionPreventionStudy).Selectedpatient:LB-301(LisaBrown,22F).RecentePRO:'Myearhurtsandthere'ssomeyellowishdischarge.Iwentswimmingyesterday.'Vitals:normal.Noalerts.",
+        "patient_context": "PatientLB-301isenrolledinastudymonitoringearinfections.Shehasahistoryofrecurrentotitisexterna.Currentsymptoms:localizedpain,discharge,nofever.Nosystemicsymptoms.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0316",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 62,
+            "chunk_index": 316
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0316"
+        ],
+        "latency_ms": 24153.73,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2240,
+          "candidatesTokenCount": 4247,
+          "totalTokenCount": 6487
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEotitisexternagradingfromexcerpt."
+    },
+    {
+      "case_id": "rag-v2-045",
+      "scenario_id": "rag-v2-scenario-045",
+      "turn_index": 1,
+      "task_type": "current_patient_emergency_protocol",
+      "difficulty": "high",
+      "risk_level": "high",
+      "clinical_focus": "Muscleweaknessandprotocolanalysis",
+      "visible": {
+        "user_query": "Patientintheinsulinglarginetrialhasdevelopedseverelowerlimbmuscleweakness.What'stheCTCAEgrade?Also,IneedtoquicklyrecalltheprimaryefficacyanalysismethodfromtheprotocolfortheupcomingDSMBreport.",
+        "workspace_context": "YouareloggedinasCRCatSite03.Activeprotocol:MYL-1501D-3003(InsulinGlargine).Selectedpatient:GL-456(MarkTaylor,50M,T1DM).Alert:Patientreportedsuddendifficultywalking,cannotclimbstairs.Vitals:stable.Incident:Muscleweaknesslowerlimb,onsettoday,limitingself-care.DSMBmeetingin1hour.",
+        "patient_context": "PatientGL-456hasbeenoninsulinglarginefor30weeks.Hecalledinreportingthathislegsfeelveryweak,hecanbarelystand.Thisisanewsymptom.TheCRCneedstogradetheAEandalsopreparedatafortheDSMB,requiringtheprotocol'sprimaryanalysisdetails.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0524",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 98,
+            "chunk_index": 524
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:148",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 67,
+            "chunk_index": 148
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0524",
+          "1nS5U2FqTAVM10xSkzaq:148"
+        ],
+        "latency_ms": 24153.73,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 2240,
+          "candidatesTokenCount": 4247,
+          "totalTokenCount": 6487
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "TestsretrievalofCTCAEmuscleweaknessgradingandprotocolprimaryefficacyanalysisexcerpt."
+    },
+    {
+      "case_id": "rag-v2-046",
+      "scenario_id": "rag-v2-scenario-011",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Palpitationsgradingconfirmation",
+      "visible": {
+        "user_query": "Soforthispatient,ifthepalpitationsareintermittentandnotinterferingwithdailyactivities,thatwouldbeGrade1,right?",
+        "workspace_context": "YouareloggedinasaCRCatacardiologyresearchsite.Youarecurrentlydocumentingadverseeventsforapatientinaclinicaltrial.Thepatientreportedfeelingpalpitations.YoujustreceivedtheCTCAEgradinginformation.",
+        "patient_context": "PatientID:1101,Age:58,Sex:Male,Diagnosis:Atrialfibrillation,Currenttrial:Phase3anticoagulantstudy.Nootherrelevantvitals.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "WhataretheCTCAEgradesforpalpitations?Ineedtodocumentanadverseevent."
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Cardiacdisorders-Palpitations. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0030",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 9,
+            "chunk_index": 30
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0030"
+        ],
+        "latency_ms": 52846.43,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1932,
+          "candidatesTokenCount": 3075,
+          "totalTokenCount": 5007
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-011"
+      },
+      "notes": "TestsabilitytoreusecachedCTCAEgradingforpalpitationsinasimpleconfirmationfollow-up."
+    },
+    {
+      "case_id": "rag-v2-047",
+      "scenario_id": "rag-v2-scenario-017",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Spermaticcordhemorrhagegradingandprotocolreferenceconfirmation",
+      "visible": {
+        "user_query": "Justtoconfirm,theprotocolreferenceyougaveisNCT04567890,correct?Andformildhemorrhagewithoutintervention,that'sGrade1?",
+        "workspace_context": "ActiveProtocol:MYL-1501D-3003.YouaredocumentinganadverseeventforpatientJohnDoe.YoupreviouslyaskedaboutCTCAEgradingandprotocolreferenceforspermaticcordhemorrhage.",
+        "patient_context": "Patient:JohnDoe,MRN12345,male,45years,enrolledinMYL-1501D-3003.Reportedtesticularpainandswelling.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "Ihaveamalepatientwithapotentialspermaticcordhemorrhage.WhatistheCTCAEv5.0gradingforthat?Also,canyouconfirmtheclinicaltrialregistrationreferencefromourprotocol?"
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for spermaticcordhemorrhagegradingandprotocolreference. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0699",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 127,
+            "chunk_index": 699
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:178",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 81,
+            "chunk_index": 178
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0699",
+          "1nS5U2FqTAVM10xSkzaq:178"
+        ],
+        "latency_ms": 52846.43,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1932,
+          "candidatesTokenCount": 3075,
+          "totalTokenCount": 5007
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-017"
+      },
+      "notes": "TestsabilitytoreusebothcachedCTCAEgradingandprotocolreferenceinafollow-upthatrequiresconfirmationofboth."
+    },
+    {
+      "case_id": "rag-v2-048",
+      "scenario_id": "rag-v2-scenario-023",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "Intraoperativeearinjurygradingconfirmation",
+      "visible": {
+        "user_query": "SothatwouldbeGrade3,right?IwanttomakesureI'mdocumentingcorrectly.",
+        "workspace_context": "Youarereviewingsurgicalcomplicationsfromapatient'srecentprocedure.Nospecificprotocolisactiveforthisquery.YoujustreceivedtheCTCAEgradeforanintraoperativeearinjurywithpartialresection.",
+        "patient_context": "PatientID:402-789,post-operativefromanon-trialsurgery.Surgeonnoteddamagetotheearstructurerequiringpartialresection.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "Duringarecentsurgery,apatientsustainedanearinjurythatrequiredpartialresection.WhatistheCTCAEgradeforanintraoperativeearinjurywithpartialresection?IneedtorecordthisAE."
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Intraoperativeearinjurygrading. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0383",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 75,
+            "chunk_index": 383
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0383"
+        ],
+        "latency_ms": 52846.43,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1932,
+          "candidatesTokenCount": 3075,
+          "totalTokenCount": 5007
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-023"
+      },
+      "notes": "TestsabilitytoreusecachedCTCAEgradingforintraoperativeearinjuryinastraightforwardconfirmation."
+    },
+    {
+      "case_id": "rag-v2-049",
+      "scenario_id": "rag-v2-scenario-029",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Investigatoragreementandgrowthaccelerationconfirmation",
+      "visible": {
+        "user_query": "Fortheinvestigatoragreement,doIneedtoincludetheprotocolversiondate?Andforthegrowthacceleration,ifit's>+2SDbutnoothersymptoms,that'sGrade1,correct?",
+        "workspace_context": "CRCispreparingregulatorydocumentsforsiteinitiationandreviewingapediatricpatient'sgrowthchart.TheprotocolandCTCAEreferencesareopen.YoupreviouslyaskedabouttheinvestigatoragreementletterandCTCAEgradeforacceleratedgrowth.",
+        "patient_context": "PatientID:DM-078,a10-year-oldintheType1DiabetesMellitusstudy,withheight>+2SDabovemid-parentaltargetheight.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "IneedtocompletetheinvestigatoragreementletterfortheType1DiabetesMellitusstudy.Also,oneofourpediatricpatientshasacceleratedgrowth;whatistheCTCAEgradeforthat?"
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Investigatoragreementandgrowthacceleration. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae",
+          "protocol"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0059",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 15,
+            "chunk_index": 59
+          }
+        ],
+        "protocol": [
+          {
+            "id": "1nS5U2FqTAVM10xSkzaq:186",
+            "document_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+            "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+            "page": 88,
+            "chunk_index": 186
+          }
+        ]
+      },
+      "protocol_scope": {
+        "protocol_id": "1nS5U2FqTAVM10xSkzaq",
+        "protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+        "document_id": "1nS5U2FqTAVM10xSkzaq",
+        "title": "Protocol-Type 1 Diabetes Mellitus.pdf"
+      },
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0059",
+          "1nS5U2FqTAVM10xSkzaq:186"
+        ],
+        "latency_ms": 52846.43,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1932,
+          "candidatesTokenCount": 3075,
+          "totalTokenCount": 5007
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-029"
+      },
+      "notes": "TestsabilitytoreusecachedprotocolandCTCAEinformationinafollow-upthatasksforadditionalconfirmationonbothtopics."
+    },
+    {
+      "case_id": "rag-v2-050",
+      "scenario_id": "rag-v2-scenario-038",
+      "turn_index": 2,
+      "task_type": "cache_follow_up",
+      "difficulty": "medium",
+      "risk_level": "medium",
+      "clinical_focus": "Creatinineincreasegradingconfirmation",
+      "visible": {
+        "user_query": "Justtoconfirm,that'sGrade2,correct?IwanttomakesureI'musingtherightbaseline.",
+        "workspace_context": "YouarereviewinglabresultsforPatient22intheDiabetestrial.Thesystemflaggedacreatininealert.YoupreviouslyaskedfortheCTCAEgradeofacreatinineincreasefrom1.0to2.8mg/dL(ULN1.2).",
+        "patient_context": "Patient22:enrolledinadiabetestrial.Regularlabmonitoring.CRCneedstogradetheAEforthesafetyreport.",
+        "history_messages": [
+          {
+            "role": "user",
+            "text": "Patient22'slabresultsjustcamein:creatinine2.8mg/dL.Baselinecreatininewas1.0mg/dL,andthelab'sULNis1.2mg/dL.WhatCTCAEgradeisthiscreatinineincrease?"
+          },
+          {
+            "role": "model",
+            "text": "Prior grounded response placeholder for Creatinineincreasegrading. Use the same retrieved evidence if the CRC asks a short follow-up."
+          }
+        ]
+      },
+      "expected": {
+        "route": "reuse_cache",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0451",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 86,
+            "chunk_index": 451
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0451"
+        ],
+        "latency_ms": 52846.43,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 1932,
+          "candidatesTokenCount": 3075,
+          "totalTokenCount": 5007
+        },
+        "estimated_cost": 0,
+        "parent_case_id": "rag-v2-038"
+      },
+      "notes": "TestsabilitytoreusecachedCTCAEgradingforcreatinineincreaseinafollow-upthatseeksconfirmationofthegrade."
+    }
+  ]
+}

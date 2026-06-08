@@ -356,3 +356,9 @@ export {
   suggestAppointmentDate,
   suggestAppointmentDateHttp,
 };
+
+export {
+  runClassifyGuidanceRoute,
+  runRetrieveGuidanceContext,
+  runSideEffectGuidanceChat,
+} from './guidanceRuntime.js';

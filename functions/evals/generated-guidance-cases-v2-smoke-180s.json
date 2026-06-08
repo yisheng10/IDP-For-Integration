@@ -1,0 +1,68 @@
+{
+  "caseset_id": "crc-guidance-rag-v2-type1diabetes",
+  "description": "Generated CRC guidance RAG v2 cases with hidden CTCAE/protocol chunk-index gold vectors.",
+  "version": 2,
+  "source_protocol": {
+    "requested_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_document_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_storage_path": "protocol-templates/1nS5U2FqTAVM10xSkzaq/1778572263748-Protocol-Type-1-Diabetes-Mellitus.pdf",
+    "protocol_chunk_pool_size": 193,
+    "ctcae_chunk_pool_size": 837
+  },
+  "generation": {
+    "created_at": "2026-06-04T09:35:26.724Z",
+    "seed": 1,
+    "count": 1,
+    "generator_profile": "siliconflow-case-generator",
+    "generator_provider": "siliconflow",
+    "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "per_case_timeout_ms": 180000,
+    "ctcae_chunks_per_case": 1,
+    "protocol_chunks_per_case": 1
+  },
+  "cases": [
+    {
+      "case_id": "rag-v2-001",
+      "scenario_id": "rag-v2-scenario-001",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "vitals entry workflow",
+      "visible": {
+        "user_query": "I need to enter vitals for my current patient. Where do I go to do that?",
+        "workspace_context": "You are logged in as CRC Jane Doe. The current screen is the patient list. You have a patient selected: John Smith (MRN 12345). The system has a navigation menu with options: Dashboard, Patients, Visits, ePRO, Reports.",
+        "patient_context": "Selected patient: John Smith, 65M, enrolled in protocol ABC-123. Last visit: 2025-03-15.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 71537.42,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 638,
+          "candidatesTokenCount": 774,
+          "totalTokenCount": 1412
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Tests greeting and simple workflow guidance without document retrieval. The assistant should direct the CRC to the Visits section based on visible context."
+    }
+  ]
+}

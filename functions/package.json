@@ -7,6 +7,9 @@
     "node": "20"
   },
   "scripts": {
+    "eval:guidance": "node scripts/run-guidance-eval.mjs",
+    "eval:guidance:summary": "node scripts/summarize-guidance-evals.mjs",
+    "eval:guidance:generate-cases": "node scripts/generate-guidance-cases-v2.mjs",
     "migrate:firestore": "node ./scripts/migrate-firestore-operational-data.mjs",
     "backfill:patient-auth-reset": "node ./scripts/backfill-patient-auth-reset.mjs",
     "backfill:patient-static-context": "node ./scripts/backfill-patient-static-context.mjs",

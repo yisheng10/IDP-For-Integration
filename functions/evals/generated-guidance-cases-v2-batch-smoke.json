@@ -1,0 +1,111 @@
+{
+  "caseset_id": "crc-guidance-rag-v2-type1diabetes",
+  "description": "Generated CRC guidance RAG v2 cases with hidden CTCAE/protocol chunk-index gold vectors.",
+  "version": 2,
+  "source_protocol": {
+    "requested_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_document_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_storage_path": "protocol-templates/1nS5U2FqTAVM10xSkzaq/1778572263748-Protocol-Type-1-Diabetes-Mellitus.pdf",
+    "protocol_chunk_pool_size": 193,
+    "ctcae_chunk_pool_size": 837
+  },
+  "generation": {
+    "created_at": "2026-06-04T09:53:55.590Z",
+    "seed": 11,
+    "count": 2,
+    "generator_profile": "siliconflow-case-generator",
+    "generator_provider": "siliconflow",
+    "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "per_case_timeout_ms": 180000,
+    "batch_size": 2,
+    "batch_timeout_ms": null,
+    "stream": true,
+    "ctcae_chunks_per_case": 1,
+    "protocol_chunks_per_case": 1
+  },
+  "cases": [
+    {
+      "case_id": "rag-v2-001",
+      "scenario_id": "rag-v2-scenario-001",
+      "turn_index": 1,
+      "task_type": "greeting_or_smalltalk",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "greeting",
+      "visible": {
+        "user_query": "Goodmorning!Justloggedinfortheday.AnythingIshouldbeawareof?",
+        "workspace_context": "CRCisloggedintotheclinicaltrialmanagementsystem.Currentview:dashboard.Noactivealerts.Systemtime:08:32AM.Lastsync:2hoursago.",
+        "patient_context": "Currentlyselectedpatient:JohnDoe(ID:PT-10042),enrolledinprotocolXYZ-123.Nextscheduledvisit:tomorrow.NorecentePROsubmissionsorflaggedevents.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 36745.2,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1053,
+          "totalTokenCount": 1890
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Teststhattheassistantcanrespondtoacasualgreetingandstatuscheckwithouttriggeringdocumentretrieval."
+    },
+    {
+      "case_id": "rag-v2-002",
+      "scenario_id": "rag-v2-scenario-002",
+      "turn_index": 1,
+      "task_type": "product_or_workflow_help",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "workflownavigation",
+      "visible": {
+        "user_query": "I'monthepatient'svisitschedule.HowdoImarkVisit3ascomplete?Idon'tseea'Complete'button.",
+        "workspace_context": "CRCisviewingthevisitscheduleforpatientJaneSmith(ID:PT-20089)inprotocolABC-456.ThescheduleshowsVisit1(completed),Visit2(completed),Visit3(duetoday,status:'Pending').Theinterfacehasatopmenuwith'Actions'dropdown,butnodirect'Complete'buttononthevisitrow.",
+        "patient_context": "JaneSmith,62F,enrolledinprotocolABC-456(PhaseIIdiabetesstudy).Lastvitals:BP128/82,HR72.Noadverseeventsreported.Visit3includeslabdrawandphysicalexam.",
+        "history_messages": []
+      },
+      "expected": {
+        "route": "skip",
+        "source_types": [],
+        "requires_citation": false
+      },
+      "gold": {
+        "ctcae": [],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [],
+        "latency_ms": 36745.2,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 837,
+          "candidatesTokenCount": 1053,
+          "totalTokenCount": 1890
+        },
+        "estimated_cost": 0,
+        "parent_case_id": null
+      },
+      "notes": "Teststhattheassistantcanprovideworkflowguidance(e.g.,usingtheActionsmenu)basedonvisibleUIcontextwithoutneedingdocumentretrieval."
+    }
+  ]
+}

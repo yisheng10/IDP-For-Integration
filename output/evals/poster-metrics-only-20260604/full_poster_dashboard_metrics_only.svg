@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="850" height="1000" viewBox="0 0 850 1000">
+<style>
+.metricOnlyTitle{font:800 31px Arial,sans-serif;fill:#0f172a}
+.metricOnlyLabel{font:700 19px Arial,sans-serif;fill:#475569}
+.metricOnlyValue{font:800 33px Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="850" height="1000" rx="46" fill="#f8fafc"/>
+<rect x="34" y="34" width="782" height="920" rx="34" fill="#ffffff" opacity="0.86" stroke="#d8dee9"/>
+<text x="425" y="82" text-anchor="middle" class="metricOnlyTitle">End2End Router-based RAG</text>
+<text x="425" y="122" text-anchor="middle" class="metricOnlyTitle">Performance Evaluation Summary</text>
+
+<g transform="translate(150,230)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#2563eb" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="452.39 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">50</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Case Number</text>
+</g>
+<g transform="translate(425,230)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#16a34a" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="452.39 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">100%</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Success</text>
+</g>
+<g transform="translate(700,230)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#7c3aed" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="416.2 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">92%</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Route Match</text>
+</g>
+<g transform="translate(150,515)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#0891b2" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="434.29 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">96%</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Source Vector</text>
+</g>
+<g transform="translate(425,515)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#e76f51" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="390.41 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">86.3%</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Gold Recall</text>
+</g>
+<g transform="translate(700,515)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#f59e0b" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="336.13 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">74.3%</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Top-k Gold Hit</text>
+</g>
+<g transform="translate(150,800)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#2563eb" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="389.06 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">86%</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Citation Coverage</text>
+</g>
+<g transform="translate(425,800)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#0f766e" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="443.34 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">98%</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">Answer Success</text>
+</g>
+<g transform="translate(700,800)">
+  <circle cx="0" cy="0" r="72" fill="#ffffff" stroke="#d8dee9" stroke-width="20"/>
+  <circle cx="0" cy="0" r="72" fill="none" stroke="#dc2626" stroke-width="20" stroke-linecap="round"
+    stroke-dasharray="319.33 452.39" transform="rotate(-90)"/>
+  <circle cx="0" cy="0" r="48" fill="#ffffff"/>
+  <text x="0" y="8" text-anchor="middle" class="metricOnlyValue">28.8s</text>
+  <text x="0" y="116" text-anchor="middle" class="metricOnlyLabel">P95 Latency</text>
+</g>
+</svg>

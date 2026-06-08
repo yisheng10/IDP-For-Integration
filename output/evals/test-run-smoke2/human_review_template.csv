@@ -1,0 +1,18 @@
+combo_id,case_id,scenario_id,turn_index,question_type,risk_level,route_decision,route_reason,final_answer,grounding_score,safety_score,actionability_score,clarity_score,overall_pass_fail,reviewer_notes
+siliconflow-router__siliconflow-guidance,rag-v2-001,rag-v2-scenario-001,1,greeting_or_smalltalk,low,skip,assistant_help,"Good morning! I'm **Side Effect Guidance**, your Clinical Triage Assistant here in the CRC workspace. I can help you with:
+
+- **Symptom assessment** – when you select a patient and provide their reported symptoms or vitals, I can classify the risk level and explain the severity based on CTCAE guidelines.
+- **Protocol guidance** – I can reference the study protocol to help you determine required actions, such as dose modifications or reporting requirements.
+- **Workspace-wide safety questions** – I can answer general operational or safety-related queries that don't require a specific patient context.
+
+Right now, no patient is selected, so I'm ready to assist with any workspace-level questions you might have. Just let me know what you need!",,,,,,
+siliconflow-router__siliconflow-guidance,rag-v2-002,rag-v2-scenario-002,1,product_or_workflow_help,low,skip,ui_help,"On the current patient dashboard screen, the **Schedule Visit** button is not visible. This may be due to the specific view you’re in or a role-based restriction.
+
+To schedule a follow-up visit for John Doe (MRN 12345, Protocol ABC-123, next visit due in 2 weeks):
+
+1. **Navigate to the Visits/Appointments section** – Look for a tab or menu item labeled “Visits,” “Appointments,” or “Study Calendar” within the patient’s record. The scheduling function is often located there rather than on the main dashboard.
+2. **Check for a dedicated “Schedule” action** – Once in the correct section, there should be an option to add or schedule a new visit. If it’s still not visible, you may need to select a specific protocol visit window first.
+3. **Verify your permissions** – If the button remains absent, confirm with your site administrator that your CRC role has scheduling privileges for this protocol.
+4. **Use protocol-specific tools** – Some studies require visits to be scheduled via an external electronic data capture (EDC) system or a separate scheduling module. Refer to Protocol ABC-123’s study manual or contact the study coordinator support line for site-specific instructions.
+
+If you’re still unable to locate the scheduling feature, please reach out to your local IT support or the study’s help desk for further assistance.",,,,,,

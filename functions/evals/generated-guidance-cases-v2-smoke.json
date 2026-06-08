@@ -1,0 +1,79 @@
+{
+  "caseset_id": "crc-guidance-rag-v2-type1diabetes",
+  "description": "Generated CRC guidance RAG v2 cases with hidden CTCAE/protocol chunk-index gold vectors.",
+  "version": 2,
+  "source_protocol": {
+    "requested_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_document_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_id": "1nS5U2FqTAVM10xSkzaq",
+    "matched_protocol_name": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_title": "Protocol-Type 1 Diabetes Mellitus.pdf",
+    "matched_storage_path": "protocol-templates/1nS5U2FqTAVM10xSkzaq/1778572263748-Protocol-Type-1-Diabetes-Mellitus.pdf",
+    "protocol_chunk_pool_size": 193,
+    "ctcae_chunk_pool_size": 837
+  },
+  "generation": {
+    "created_at": "2026-06-04T09:11:44.545Z",
+    "seed": 1,
+    "count": 1,
+    "generator_profile": "siliconflow-case-generator",
+    "generator_provider": "siliconflow",
+    "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "per_case_timeout_ms": 90000,
+    "ctcae_chunks_per_case": 1,
+    "protocol_chunks_per_case": 1
+  },
+  "cases": [
+    {
+      "case_id": "rag-v2-001",
+      "scenario_id": "rag-v2-scenario-001",
+      "task_type": "ctcae_only_grading",
+      "difficulty": "low",
+      "risk_level": "low",
+      "clinical_focus": "muscle weakness trunk grading",
+      "visible": {
+        "user_query": "I need to grade the muscle weakness trunk AE for patient PT-301. The patient reports feeling weak in the trunk muscles, and on physical exam, the weakness is clearly evident. It's limiting their ability to do instrumental activities of daily living like housework and shopping. What CTCAE grade should I assign?",
+        "workspace_context": "You are a Clinical Research Coordinator at a site conducting an oncology trial. You are reviewing adverse events for a patient currently on study. The trial uses CTCAE v5.0 for AE grading. The patient's AE log shows a new entry: 'Muscle weakness trunk' with onset date today. You need to determine the correct grade based on the patient's reported symptoms and physical exam findings.",
+        "patient_context": "Patient PT-301 is a 58-year-old female with metastatic breast cancer, enrolled in a phase II trial. She has no prior history of muscle weakness. Today she reports a 2-week history of progressive weakness in her trunk muscles. On exam, there is observable weakness when she tries to sit up from a lying position. She states she can still perform basic self-care (bathing, dressing) but has difficulty with heavier household chores and grocery shopping."
+      },
+      "expected": {
+        "route": "retrieve",
+        "source_types": [
+          "ctcae"
+        ],
+        "requires_citation": true
+      },
+      "gold": {
+        "ctcae": [
+          {
+            "id": "ctcae-v5.0:0525",
+            "document_id": "ctcae-v5.0",
+            "protocol_id": null,
+            "protocol_name": null,
+            "title": "CTCAE v5.0",
+            "page": 98,
+            "chunk_index": 525
+          }
+        ],
+        "protocol": []
+      },
+      "protocol_scope": null,
+      "generation": {
+        "source_chunk_ids": [
+          "ctcae-v5.0:0525"
+        ],
+        "latency_ms": 45703.42,
+        "generator_profile": "siliconflow-case-generator",
+        "generator_provider": "siliconflow",
+        "generator_model": "deepseek-ai/DeepSeek-V4-Pro",
+        "usage": {
+          "promptTokenCount": 507,
+          "candidatesTokenCount": 723,
+          "totalTokenCount": 1230
+        },
+        "estimated_cost": 0
+      },
+      "notes": "Tests straightforward application of CTCAE v5.0 muscle weakness trunk grading: symptomatic, evident on exam, limiting instrumental ADL → Grade 2."
+    }
+  ]
+}

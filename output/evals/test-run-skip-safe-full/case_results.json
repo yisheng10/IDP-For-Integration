@@ -1,0 +1,4325 @@
+[
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-001",
+    "scenario_id": "rag-v2-scenario-001",
+    "turn_index": 1,
+    "question_type": "greeting_or_smalltalk",
+    "risk_level": "low",
+    "user_query": "Good morning. Can you give me a quick overview of what this assistant can help me with?",
+    "clinical_focus": "assistant onboarding",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "assistant_help",
+    "routing_stage": "hard_skip",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Good morning! I’m **Side Effect Guidance**, your CRC Copilot here in the workspace. I’m designed to help you with two main types of tasks:\n\n- **Single‑patient questions** – When you have a patient selected, I can assess symptoms or vitals against the CTCAE guidelines and protocol, classify risk, and provide management advice that’s grounded in the study documents.\n- **Workspace‑wide safety or operations questions** – Even without a specific patient, I can help you think through CRC workflows, safety processes, or general study‑related questions.\n\nI always rely on the CTCAE and protocol excerpts that are available in the workspace. If those documents aren’t loaded for a particular question, I’ll let you know and won’t make up medical or protocol claims.\n\nWhat would you like to explore first?",
+    "returned_citations": [],
+    "router_latency_ms": 0.62,
+    "answer_latency_ms": 23746.06,
+    "total_latency_ms": 23746.68,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 877,
+        "candidatesTokenCount": 303,
+        "totalTokenCount": 1180
+      },
+      "totalTokenCount": 1180
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: assistant onboarding."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-002",
+    "scenario_id": "rag-v2-scenario-002",
+    "turn_index": 1,
+    "question_type": "product_or_workflow_help",
+    "risk_level": "low",
+    "user_query": "Where can I change the patient table columns on this screen?",
+    "clinical_focus": "patient table UI help",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "ui_help",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "You can adjust the patient table columns by clicking the **table settings icon** located above the patient list, right next to the search box. This icon typically opens a menu where you can select which columns to show or hide.",
+    "returned_citations": [],
+    "router_latency_ms": 12497.14,
+    "answer_latency_ms": 5815.94,
+    "total_latency_ms": 18313.08,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 371,
+        "candidatesTokenCount": 183,
+        "totalTokenCount": 554
+      },
+      "answer": {
+        "promptTokenCount": 855,
+        "candidatesTokenCount": 118,
+        "totalTokenCount": 973
+      },
+      "totalTokenCount": 1527
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: patient table UI help."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-003",
+    "scenario_id": "rag-v2-scenario-003",
+    "turn_index": 1,
+    "question_type": "greeting_or_smalltalk",
+    "risk_level": "low",
+    "user_query": "Hi, I am new here. Can you show me how to get started?",
+    "clinical_focus": "workspace orientation",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "ui_help",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Welcome to the CRC workspace! Here’s a quick tour of what you’re seeing right now on your dashboard home screen:\n\n- **Assistant Panel** – That’s me, your CRC Copilot. You can ask me workspace‑wide questions (like this one) or, once you select a patient, I can help with safety checks, protocol guidance, and CTCAE‑based triage.\n- **Patient Search Box** – Use this to find a specific patient by name, ID, or other identifiers. Selecting a patient will load their context so I can give you patient‑specific support.\n- **Task Panel** – This shows your pending tasks, reminders, or action items. You can manage your daily workflow from here.\n- **Help Menu** – Access documentation, FAQs, or additional resources about the workspace and tools.\n\nTo get started, I suggest:\n1. **Search for a patient** you’re currently working with. That will activate the full Copilot features.\n2. **Check your Task Panel** to see what needs attention today.\n3. **Ask me anything** – for example, “Summarize today’s safety alerts” or “Show me open queries for patient X.”\n\nIf you have a specific task in mind, just let me know and I’ll guide you step by step.",
+    "returned_citations": [],
+    "router_latency_ms": 31675.66,
+    "answer_latency_ms": 19245.04,
+    "total_latency_ms": 50920.71,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 375,
+        "candidatesTokenCount": 240,
+        "totalTokenCount": 615
+      },
+      "answer": {
+        "promptTokenCount": 857,
+        "candidatesTokenCount": 385,
+        "totalTokenCount": 1242
+      },
+      "totalTokenCount": 1857
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: workspace orientation."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-004",
+    "scenario_id": "rag-v2-scenario-004",
+    "turn_index": 1,
+    "question_type": "product_or_workflow_help",
+    "risk_level": "low",
+    "user_query": "How do I pin the task panel so it stays visible while I work?",
+    "clinical_focus": "task panel UI help",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "ui_help",
+    "routing_stage": "hard_skip",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "To pin the task panel so it stays visible while you work, simply click the **pin icon** located in the header of the task panel. Once pinned, the panel will remain open and accessible as you navigate other areas of the CRC workspace.",
+    "returned_citations": [],
+    "router_latency_ms": 0.08,
+    "answer_latency_ms": 76155.84,
+    "total_latency_ms": 76155.92,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 855,
+        "candidatesTokenCount": 214,
+        "totalTokenCount": 1069
+      },
+      "totalTokenCount": 1069
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: task panel UI help."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-005",
+    "scenario_id": "rag-v2-scenario-005",
+    "turn_index": 1,
+    "question_type": "greeting_or_smalltalk",
+    "risk_level": "low",
+    "user_query": "Good morning. Can you summarize what sections are available on the dashboard?",
+    "clinical_focus": "dashboard orientation",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "ui_help",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Good morning! Based on the current CRC dashboard home screen, here are the sections you can see:\n\n- **Patient List** – a roster of patients under your coordination.\n- **Task Queue** – pending tasks that require your attention.\n- **Messages** – communications related to your studies or team.\n- **Help Links** – quick access to support resources or documentation.\n\nThese are the main areas visible right now. Let me know if you need help navigating any of them.",
+    "returned_citations": [],
+    "router_latency_ms": 10633.84,
+    "answer_latency_ms": 8178.22,
+    "total_latency_ms": 18812.06,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 373,
+        "candidatesTokenCount": 225,
+        "totalTokenCount": 598
+      },
+      "answer": {
+        "promptTokenCount": 854,
+        "candidatesTokenCount": 195,
+        "totalTokenCount": 1049
+      },
+      "totalTokenCount": 1647
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: dashboard orientation."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-006",
+    "scenario_id": "rag-v2-scenario-006",
+    "turn_index": 1,
+    "question_type": "product_or_workflow_help",
+    "risk_level": "low",
+    "user_query": "Where is the search box for finding a patient by name or ID?",
+    "clinical_focus": "search UI help",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "ui_help",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "The search box is located at the top of the patient list area on your CRC dashboard. You can use it to find a patient by typing their name or ID directly into that field.",
+    "returned_citations": [],
+    "router_latency_ms": 58733.02,
+    "answer_latency_ms": 8108.27,
+    "total_latency_ms": 66841.29,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 373,
+        "candidatesTokenCount": 141,
+        "totalTokenCount": 514
+      },
+      "answer": {
+        "promptTokenCount": 850,
+        "candidatesTokenCount": 134,
+        "totalTokenCount": 984
+      },
+      "totalTokenCount": 1498
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: search UI help."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-007",
+    "scenario_id": "rag-v2-scenario-007",
+    "turn_index": 1,
+    "question_type": "greeting_or_smalltalk",
+    "risk_level": "low",
+    "user_query": "Hi there. What kinds of workspace tasks can you help me organize?",
+    "clinical_focus": "assistant capability overview",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "assistant_help",
+    "routing_stage": "hard_skip",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Hello! I'm **Side Effect Guidance**, your CRC Copilot. I'm here to help you stay organized and on top of your study tasks right from the dashboard.\n\nHere are some of the workspace-level things I can assist with:\n\n- **Safety alert triage** – I can help you review and prioritize incoming safety alerts or flagged events across your studies.\n- **Adverse event tracking** – I can summarize, sort, and help you manage AE logs and follow-up actions.\n- **Protocol task management** – I can remind you of upcoming protocol‑required assessments, visits, or documentation deadlines.\n- **Patient status overviews** – When you select a patient, I can give you a quick snapshot of their current status, recent vitals, and any open safety items.\n- **Workspace-wide summaries** – If you need a high‑level view of safety trends or pending tasks across all patients, I can pull that together for you.\n- **Monitoring visit prep** – I can help you gather the information you need for monitor visits or audits.\n\nSince no patient is currently selected, I can’t dive into individual charts right now, but I’m ready whenever you are. Just let me know what you’d like to organize or review!",
+    "returned_citations": [],
+    "router_latency_ms": 0.08,
+    "answer_latency_ms": 31640.27,
+    "total_latency_ms": 31640.35,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 877,
+        "candidatesTokenCount": 671,
+        "totalTokenCount": 1548
+      },
+      "totalTokenCount": 1548
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: assistant capability overview."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-008",
+    "scenario_id": "rag-v2-scenario-008",
+    "turn_index": 1,
+    "question_type": "product_or_workflow_help",
+    "risk_level": "low",
+    "user_query": "How do I switch the patient list from compact view to comfortable view?",
+    "clinical_focus": "display density UI help",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "ui_help",
+    "routing_stage": "hard_skip",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "To switch the patient list from compact view to comfortable view, look for the **display‑density menu** near the table controls on the patient list screen. Click it, then select **Comfortable** from the available options. This will adjust the row spacing and layout to a more relaxed, easier‑to‑read view.",
+    "returned_citations": [],
+    "router_latency_ms": 0.04,
+    "answer_latency_ms": 21305.74,
+    "total_latency_ms": 21305.78,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 850,
+        "candidatesTokenCount": 214,
+        "totalTokenCount": 1064
+      },
+      "totalTokenCount": 1064
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: display density UI help."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-009",
+    "scenario_id": "rag-v2-scenario-009",
+    "turn_index": 1,
+    "question_type": "greeting_or_smalltalk",
+    "risk_level": "low",
+    "user_query": "Good morning. I am just checking that the assistant is available.",
+    "clinical_focus": "assistant availability",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "greeting",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Good morning! I'm here and ready to assist you in the CRC workspace. Let me know if you need anything.",
+    "returned_citations": [],
+    "router_latency_ms": 18310.72,
+    "answer_latency_ms": 13912.26,
+    "total_latency_ms": 32222.98,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 372,
+        "candidatesTokenCount": 128,
+        "totalTokenCount": 500
+      },
+      "answer": {
+        "promptTokenCount": 848,
+        "candidatesTokenCount": 110,
+        "totalTokenCount": 958
+      },
+      "totalTokenCount": 1458
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: assistant availability."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-010",
+    "scenario_id": "rag-v2-scenario-010",
+    "turn_index": 1,
+    "question_type": "product_or_workflow_help",
+    "risk_level": "low",
+    "user_query": "Where can I open the help menu for keyboard shortcuts?",
+    "clinical_focus": "help menu UI navigation",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "assistant_help",
+    "routing_stage": "hard_skip",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "You can open the help menu by clicking the **help icon** located in the top navigation bar of the CRC dashboard. That menu includes keyboard shortcuts and other assistance options.",
+    "returned_citations": [],
+    "router_latency_ms": 0.11,
+    "answer_latency_ms": 6882.1,
+    "total_latency_ms": 6882.21,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 869,
+        "candidatesTokenCount": 132,
+        "totalTokenCount": 1001
+      },
+      "totalTokenCount": 1001
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Skip-safe replacement: help menu UI navigation."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-011",
+    "scenario_id": "rag-v2-scenario-011",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_lookup",
+    "risk_level": "low",
+    "user_query": "What is the CTCAE grade for a limb length discrepancy of 3 cm?",
+    "clinical_focus": "Unequal limb length CTCAE grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0544",
+      "ctcae-v5.0:0223",
+      "ctcae-v5.0:0545",
+      "ctcae-v5.0:0535",
+      "ctcae-v5.0:0524"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      223,
+      524,
+      535,
+      544,
+      545
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      544
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0544"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 term **Unequal limb length**, a measured discrepancy of **3 cm** falls squarely into **Grade 2** [CTCAE Page 102].\n\nHere’s the breakdown:\n\n- **Grade 1** is defined as a mild discrepancy **<2 cm** – your patient’s 3 cm exceeds this threshold.\n- **Grade 2** is defined as a moderate discrepancy of **2–5 cm**, where a shoe lift is indicated and the condition may limit instrumental activities of daily living (ADL). Even though your patient currently reports no functional limitations, the objective measurement alone places the event in this grade.\n- **Grade 3** would require a severe discrepancy **>5 cm** and/or limitation of self-care ADL, which is not the case here.\n\n**Documentation note:** When entering this into the EDC, you can confidently assign **Grade 2**. If the patient later develops functional limitations or requires a shoe lift, the grade remains Grade 2 as long as the discrepancy stays within the 2–5 cm range and does not progress to >5 cm or self-care limitation.\n\n[RISK: MEDIUM]",
+    "returned_citations": [
+      "[CTCAE Page 102]"
+    ],
+    "router_latency_ms": 3085.68,
+    "answer_latency_ms": 31204.86,
+    "total_latency_ms": 34290.54,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1577,
+        "candidatesTokenCount": 980,
+        "totalTokenCount": 2557
+      },
+      "totalTokenCount": 2557
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct CTCAE lookup for Unequal limb length grading using the provided excerpt. Requires citation of the specific grade."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-012",
+    "scenario_id": "rag-v2-scenario-012",
+    "turn_index": 1,
+    "question_type": "direct_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "In the Type 1 Diabetes Mellitus protocol, which appendix covers suggested guidance for insulin dose titration?",
+    "clinical_focus": "Protocol appendix identification",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:179",
+      "1nS5U2FqTAVM10xSkzaq:181",
+      "1nS5U2FqTAVM10xSkzaq:31",
+      "1nS5U2FqTAVM10xSkzaq:81",
+      "1nS5U2FqTAVM10xSkzaq:190"
+    ],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [
+      31,
+      81,
+      179,
+      181,
+      190
+    ],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [
+      31
+    ],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:31"
+    ],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "The suggested guidance for insulin dose titration is located in **Appendix II** of the protocol.\n\nAccording to the protocol's table of contents, Appendix II is titled \"Suggested Guidance for Insulin Dose Titration\" [Protocol Page 11]. The detailed titration tables for basal (Lantus®/Mylan’s insulin glargine) and mealtime (insulin lispro) insulin adjustments begin on [Protocol Page 84].",
+    "returned_citations": [
+      "[Protocol Page 11]",
+      "[Protocol Page 84]"
+    ],
+    "router_latency_ms": 862.1,
+    "answer_latency_ms": 9783.57,
+    "total_latency_ms": 10645.67,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1986,
+        "candidatesTokenCount": 201,
+        "totalTokenCount": 2187
+      },
+      "totalTokenCount": 2187
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct protocol lookup using the provided table of contents excerpt. The answer (Appendix II) is directly extractable from the excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-013",
+    "scenario_id": "rag-v2-scenario-013",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "I have a patient in the Insulin Glargine MYL-1501D-3003 trial who reported an anal ulcer. Can you tell me the CTCAE v5.0 grading for anal ulcer? Also, does the protocol require that adverse events like this be recorded in the patient diary?",
+    "clinical_focus": "Anal ulcer CTCAE grading and protocol diary AE recording",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0105",
+      "ctcae-v5.0:0101",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0200",
+      "ctcae-v5.0:0217",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:184",
+      "1nS5U2FqTAVM10xSkzaq:99",
+      "1nS5U2FqTAVM10xSkzaq:132",
+      "1nS5U2FqTAVM10xSkzaq:2"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      101,
+      105,
+      200,
+      217,
+      242
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      2,
+      99,
+      123,
+      132,
+      184
+    ],
+    "gold_ctcae_chunk_indexes": [
+      105
+    ],
+    "gold_protocol_chunk_indexes": [
+      107
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0105"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:107"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "Based on the CTCAE v5.0, the grading for **Anal ulcer** is as follows (CTCAE [Page 25]):\n\n- **Grade 1:** Asymptomatic; clinical or diagnostic observations only; intervention not indicated.\n- **Grade 2:** Symptomatic; altered GI function.\n- **Grade 3:** Severely altered GI function; TPN indicated; elective invasive intervention indicated.\n- **Grade 4:** Life-threatening consequences; urgent operative intervention indicated.\n- **Grade 5:** Death.\n\nThe patient’s diary entry (“sore near anus, painful when sitting”) describes a symptomatic lesion, which aligns with **Grade 2** severity.\n\nRegarding documentation, the protocol explicitly states that the patient diary should be reviewed at each trial visit for adverse events, and patients are instructed to record AEs in the diary in a timely manner (Protocol [Page 56]). The diary itself includes a section for “Details of untoward experiences (AEs)” (Protocol [Page 86]). Therefore, this anal ulcer must be recorded in the patient diary as an adverse event.",
+    "returned_citations": [
+      "[Page 25]",
+      "[Page 56]",
+      "[Page 86]",
+      "CTCAE [Page 25]",
+      "Protocol [Page 56]",
+      "Protocol [Page 86]"
+    ],
+    "router_latency_ms": 1034.87,
+    "answer_latency_ms": 22685.7,
+    "total_latency_ms": 23720.57,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2896,
+        "candidatesTokenCount": 688,
+        "totalTokenCount": 3584
+      },
+      "totalTokenCount": 3584
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE anal ulcer grading and protocol excerpt on patient diary AE recording."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-014",
+    "scenario_id": "rag-v2-scenario-014",
+    "turn_index": 1,
+    "question_type": "direct_citation_request",
+    "risk_level": "medium",
+    "user_query": "For the Insulin Glargine MYL-1501D-3003 protocol, what page describes the MMRM ANCOVA model for secondary efficacy analyses? Also, I need the CTCAE v5.0 grade definition for gastritis and the page number it's on.",
+    "clinical_focus": "Gastritis CTCAE citation and protocol MMRM model page",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0217",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0501",
+      "ctcae-v5.0:0069",
+      "1nS5U2FqTAVM10xSkzaq:149",
+      "1nS5U2FqTAVM10xSkzaq:25",
+      "1nS5U2FqTAVM10xSkzaq:9",
+      "1nS5U2FqTAVM10xSkzaq:6",
+      "1nS5U2FqTAVM10xSkzaq:151"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      69,
+      217,
+      242,
+      475,
+      501
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      6,
+      9,
+      25,
+      149,
+      151
+    ],
+    "gold_ctcae_chunk_indexes": [
+      151
+    ],
+    "gold_protocol_chunk_indexes": [
+      149
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0151"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:149"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 0,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "For your audit preparation, here are the exact source citations you requested:\n\n**Protocol – MMRM ANCOVA Model for Secondary Efficacy Analyses**  \nThe description of the MMRM ANCOVA model used for secondary efficacy endpoints (fasting plasma glucose, SMBG values, daily insulin doses, etc.) is found in the **Insulin Glargine MYL-1501D-3003 Final Protocol V2.0**, **Page 68**. The text states that sequences will be compared using the MMRM ANCOVA model similar to the primary HbA1c analysis, with fixed effects for region, sequence group, visit, and sequence group‑by‑visit interaction, and baseline value as a covariate. [Protocol Page 68]\n\n**CTCAE v5.0 – Gastritis Grade Definition**  \nCTCAE v5.0 does not contain a dedicated term for “gastritis.” In practice, gastritis is captured under the general term **“Gastrointestinal disorders – Other, specify”** located on **CTCAE Page 43**. The grading criteria for this term are:\n\n- **Grade 1:** Asymptomatic or mild symptoms; clinical or diagnostic observations only; intervention not indicated.\n- **Grade 2:** Moderate; minimal, local or noninvasive intervention indicated; limiting age‑appropriate instrumental ADL.\n- **Grade 3:** Severe or medically significant but not immediately life‑threatening; hospitalization or prolongation of existing hospitalization indicated; limiting self‑care ADL.\n- **Grade 4:** Life‑threatening consequences; urgent intervention indicated.\n- **Grade 5:** Death.\n\n[CTCAE Page 43]\n\nIf your CRF requires a specific term, you would document the event as “Gastrointestinal disorders – Other, specify: Gastritis” and apply the grading above.",
+    "returned_citations": [
+      "[Protocol Page 68]",
+      "[CTCAE Page 43]"
+    ],
+    "router_latency_ms": 2914,
+    "answer_latency_ms": 31513.42,
+    "total_latency_ms": 34427.43,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2559,
+        "candidatesTokenCount": 873,
+        "totalTokenCount": 3432
+      },
+      "totalTokenCount": 3432
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE gastritis page and protocol MMRM model page, requiring citation of page numbers."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-015",
+    "scenario_id": "rag-v2-scenario-015",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_lookup",
+    "risk_level": "low",
+    "user_query": "What is the CTCAE grade for a lymphocyte count of 15,000/mm3?",
+    "clinical_focus": "Lymphocyte count increased grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0463",
+      "ctcae-v5.0:0464",
+      "ctcae-v5.0:0474",
+      "ctcae-v5.0:0465",
+      "ctcae-v5.0:0012"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      12,
+      463,
+      464,
+      465,
+      474
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      464
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0464"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 term **Lymphocyte count increased** [Page 88], a lymphocyte count of 15,000/mm³ falls into the following grade:\n\n- **Grade 2**: Defined as >4,000/mm³ – 20,000/mm³ [Page 88].\n\nYour patient’s value of 15,000/mm³ is within this range, so the adverse event is classified as **Grade 2 (Moderate)**. No symptoms are reported, but the grading is based solely on the laboratory finding.\n\n[RISK: MEDIUM]",
+    "returned_citations": [
+      "[Page 88]"
+    ],
+    "router_latency_ms": 706.97,
+    "answer_latency_ms": 18330.65,
+    "total_latency_ms": 19037.62,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1715,
+        "candidatesTokenCount": 337,
+        "totalTokenCount": 2052
+      },
+      "totalTokenCount": 2052
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct CTCAE lookup for lymphocyte count increased grading using the provided excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-016",
+    "scenario_id": "rag-v2-scenario-016",
+    "turn_index": 1,
+    "question_type": "direct_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "Can we re-dispense a returned medication to the same patient if it was stored correctly and hasn't expired?",
+    "clinical_focus": "Returned medication re-dispensing policy",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "classifier_retrieve",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:79",
+      "1nS5U2FqTAVM10xSkzaq:78",
+      "1nS5U2FqTAVM10xSkzaq:13",
+      "1nS5U2FqTAVM10xSkzaq:87",
+      "1nS5U2FqTAVM10xSkzaq:75"
+    ],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [
+      13,
+      75,
+      78,
+      79,
+      87
+    ],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [
+      79
+    ],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:79"
+    ],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Yes, you can re-dispense the returned insulin pen to the same patient under the conditions described in the protocol.\n\nAccording to the protocol, returned medications may be re-dispensed to the same patient if **both** of the following are met [Protocol Page 33]:\n\n- The medication was stored according to the manufacturer’s specifications.\n- The medication will not cross its expiry date before the next scheduled dispensing visit.\n\nIn this case, the insulin pen (Lot# INS-8823, Exp: 2025-12-01) was verified to have been refrigerated at 2–8°C per label, and the expiry date is six months away. As long as the next visit falls before December 1, 2025, re-dispensing is permitted per the protocol.",
+    "returned_citations": [
+      "[Protocol Page 33]"
+    ],
+    "router_latency_ms": 29027.87,
+    "answer_latency_ms": 16080.25,
+    "total_latency_ms": 45108.13,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 382,
+        "candidatesTokenCount": 318,
+        "totalTokenCount": 700
+      },
+      "answer": {
+        "promptTokenCount": 1567,
+        "candidatesTokenCount": 407,
+        "totalTokenCount": 1974
+      },
+      "totalTokenCount": 2674
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct protocol lookup for returned medication re-dispensing rule using the provided excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-017",
+    "scenario_id": "rag-v2-scenario-017",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "I'm reviewing an adverse event for patient PT-301 in the Insulin Glargine MYL-1501D-3003 trial. The patient reported alcohol intolerance. Can you provide the CTCAE v5.0 grading for alcohol intolerance and remind me of the study population criteria for this protocol?",
+    "clinical_focus": "Alcohol intolerance grading and study population",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0477",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0481",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0501",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:9",
+      "1nS5U2FqTAVM10xSkzaq:2",
+      "1nS5U2FqTAVM10xSkzaq:19",
+      "1nS5U2FqTAVM10xSkzaq:184"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      242,
+      475,
+      477,
+      481,
+      501
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      2,
+      9,
+      19,
+      123,
+      184
+    ],
+    "gold_ctcae_chunk_indexes": [
+      477
+    ],
+    "gold_protocol_chunk_indexes": [
+      53
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0477"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:53"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "## CTCAE v5.0 Grading for Alcohol Intolerance\n\nThe CTCAE v5.0 defines **Alcohol intolerance** (SOC: Metabolism and nutrition disorders) with the following grades [CTCAE Page 91]:\n\n- **Grade 1:** Not defined (no criteria listed).\n- **Grade 2:** Present (the condition is simply present).\n- **Grade 3:** Severe symptoms; limiting self‑care ADL.\n- **Grade 4:** Life‑threatening consequences; urgent intervention indicated.\n- **Grade 5:** Death.\n\nThe definition describes an increase in sensitivity to the adverse effects of alcohol, which can include nasal congestion, skin flushes, heart dysrhythmias, nausea, vomiting, indigestion, and headaches.\n\nBased on the information you provided for PT‑301 – alcohol intolerance after a small amount of alcohol, with no mention of severe symptoms or functional limitation – the event would currently meet **Grade 2** (Present) criteria.\n\n---\n\n## Study Population Criteria\n\nThe protocol excerpts retrieved for this session do not include the inclusion/exclusion criteria or the study population description. To confirm the exact eligibility requirements for the Insulin Glargine MYL‑1501D‑3003 trial, please refer to the full protocol document (sections on inclusion/exclusion criteria and study population). The available excerpts cover adverse event evaluation, diary instructions, and document history, but not the population criteria.\n\n---\n\n[RISK: MEDIUM]",
+    "returned_citations": [
+      "[CTCAE Page 91]"
+    ],
+    "router_latency_ms": 970.62,
+    "answer_latency_ms": 42461.47,
+    "total_latency_ms": 43432.09,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2653,
+        "candidatesTokenCount": 1232,
+        "totalTokenCount": 3885
+      },
+      "totalTokenCount": 3885
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE grading for alcohol intolerance and protocol study population from provided excerpts."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-018",
+    "scenario_id": "rag-v2-scenario-018",
+    "turn_index": 1,
+    "question_type": "direct_citation_request",
+    "risk_level": "medium",
+    "user_query": "I need the CTCAE v5.0 grading for adrenal insufficiency. Also, can you tell me which page of the Insulin Glargine MYL-1501D-3003 protocol describes how hypoglycemic episodes are summarized? I need to reference it in a report.",
+    "clinical_focus": "Adrenal insufficiency grading and hypoglycemia reporting",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0069",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0501",
+      "ctcae-v5.0:0481",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:9",
+      "1nS5U2FqTAVM10xSkzaq:184",
+      "1nS5U2FqTAVM10xSkzaq:2",
+      "1nS5U2FqTAVM10xSkzaq:19"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      69,
+      242,
+      475,
+      481,
+      501
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      2,
+      9,
+      19,
+      123,
+      184
+    ],
+    "gold_ctcae_chunk_indexes": [
+      56
+    ],
+    "gold_protocol_chunk_indexes": [
+      153
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0056"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:153"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 0,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0,
+    "gold_chunk_vector_match": false,
+    "final_answer": "## CTCAE v5.0 Grading for Adrenal Insufficiency\n\nAdrenal insufficiency is **not listed as a distinct term** in CTCAE v5.0. When an adverse event does not have its own dedicated term, it is graded under the appropriate System Organ Class (SOC) “Other, specify” category. For adrenal insufficiency, the correct SOC is **Endocrine disorders**, so the applicable grading criteria are those for **Endocrine disorders – Other, specify** (CTCAE Page 17):\n\n- **Grade 1:** Asymptomatic or mild symptoms; clinical or diagnostic observations only; intervention not indicated.\n- **Grade 2:** Moderate; minimal, local or noninvasive intervention indicated; limiting age‑appropriate instrumental ADL.\n- **Grade 3:** Severe or medically significant but not immediately life‑threatening; hospitalization or prolongation of existing hospitalization indicated; limiting self‑care ADL.\n- **Grade 4:** Life‑threatening consequences; urgent intervention indicated.\n- **Grade 5:** Death.\n\nIf you need to grade a specific case of suspected adrenal insufficiency (e.g., low cortisol with severe hypoglycemia requiring assistance), you would apply these criteria to the clinical presentation.\n\n---\n\n## Protocol Page for Hypoglycemic Episode Summarization\n\nThe Insulin Glargine MYL‑1501D‑3003 Final Protocol V2.0 addresses hypoglycemia in **Section 7.5.6**. According to the Table of Contents, that section begins on **Page 48** (Protocol Page 9). This section is the primary location where the protocol defines how hypoglycemic episodes are managed, recorded, and likely summarized for reporting.\n\nAdditionally, the patient diary (Appendix IV, Page 86) instructs patients to record “Details of hypoglycemic events,” but the formal summary methodology would be found in Section 7.5.6. For your DSMB safety report, you can reference **Protocol Page 48** as the source for hypoglycemia episode summarization.",
+    "returned_citations": [],
+    "router_latency_ms": 5591.43,
+    "answer_latency_ms": 36466.88,
+    "total_latency_ms": 42058.31,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2651,
+        "candidatesTokenCount": 1266,
+        "totalTokenCount": 3917
+      },
+      "totalTokenCount": 3917
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE grading for adrenal insufficiency and protocol page citation for hypoglycemia summary."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-019",
+    "scenario_id": "rag-v2-scenario-019",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_lookup",
+    "risk_level": "low",
+    "user_query": "Can you give me the CTCAE v5.0 grading for photosensitivity? Specifically, what grade would tender erythema covering about 15% BSA be?",
+    "clinical_focus": "CTCAE photosensitivity grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0802",
+      "ctcae-v5.0:0785",
+      "ctcae-v5.0:0818",
+      "ctcae-v5.0:0800",
+      "ctcae-v5.0:0783"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      783,
+      785,
+      800,
+      802,
+      818
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      802
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0802"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 criteria for **Photosensitivity** (Skin and subcutaneous tissue disorders), the grading is as follows [CTCAE Page 145]:\n\n- **Grade 1:** Painless erythema covering less than 10% BSA.\n- **Grade 2:** Tender erythema covering 10–30% BSA.\n- **Grade 3:** Erythema covering more than 30% BSA **and** blistering; oral corticosteroid therapy indicated; pain control indicated (e.g., narcotics or NSAIDs).\n- **Grade 4:** Life-threatening consequences; urgent intervention indicated.\n- **Grade 5:** Death.\n\nFor your patient, the reported symptom is **tender erythema covering approximately 15% BSA**. This aligns precisely with the Grade 2 definition: tender erythema within the 10–30% BSA range [CTCAE Page 145]. Therefore, this adverse event would be classified as **Grade 2 Photosensitivity**.\n\n[RISK: MEDIUM]",
+    "returned_citations": [
+      "[CTCAE Page 145]"
+    ],
+    "router_latency_ms": 698.92,
+    "answer_latency_ms": 23656.77,
+    "total_latency_ms": 24355.7,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1623,
+        "candidatesTokenCount": 489,
+        "totalTokenCount": 2112
+      },
+      "totalTokenCount": 2112
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct CTCAE retrieval for photosensitivity grading using the provided excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-020",
+    "scenario_id": "rag-v2-scenario-020",
+    "turn_index": 1,
+    "question_type": "direct_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "For the MYL-1501D-3003 protocol, what exactly needs to be documented in the medical history at randomization? I want to make sure I don't miss anything.",
+    "clinical_focus": "Protocol medical history documentation",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "skip",
+    "route_reason": "ui_help",
+    "routing_stage": "hard_skip",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [
+      97
+    ],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:97"
+    ],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": false,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0,
+    "gold_chunk_vector_match": false,
+    "final_answer": "I’m unable to provide the exact medical history documentation requirements for the MYL-1501D-3003 randomization visit because no protocol excerpts were retrieved for this turn. Without direct access to the protocol text, I cannot specify which items must be recorded or in what format.\n\nTo ensure nothing is missed, I recommend:\n- Reviewing the study protocol’s “Randomization Visit” or “Medical History” section directly.\n- Consulting the study’s operations manual, annotated case report form (CRF) guidelines, or your site’s study coordinator.\n- Reaching out to the sponsor’s clinical research associate (CRA) or medical monitor for confirmation.\n\nAs a general note (not protocol-specific), medical history documentation at randomization often includes a comprehensive review of past and current medical conditions, surgical history, allergies, and relevant family history. For this patient (DM-2045), the known penicillin allergy should certainly be documented, but the protocol may have additional requirements (e.g., specific diabetes-related complications, autoimmune conditions, or exclusionary criteria). Please verify against the official protocol.",
+    "returned_citations": [],
+    "router_latency_ms": 0.09,
+    "answer_latency_ms": 23006.14,
+    "total_latency_ms": 23006.24,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 927,
+        "candidatesTokenCount": 632,
+        "totalTokenCount": 1559
+      },
+      "totalTokenCount": 1559
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct protocol retrieval for medical history documentation requirements using the provided excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-021",
+    "scenario_id": "rag-v2-scenario-021",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "I need to grade this prostatic pain AE for patient 204. Can you give me the CTCAE grades and tell me if I should record it in the patient diary per protocol?",
+    "clinical_focus": "Prostatic pain grading and diary documentation",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0697",
+      "ctcae-v5.0:0692",
+      "ctcae-v5.0:0695",
+      "ctcae-v5.0:0696",
+      "ctcae-v5.0:0330",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:124",
+      "1nS5U2FqTAVM10xSkzaq:132",
+      "1nS5U2FqTAVM10xSkzaq:133",
+      "1nS5U2FqTAVM10xSkzaq:122"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      330,
+      692,
+      695,
+      696,
+      697
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      122,
+      123,
+      124,
+      132,
+      133
+    ],
+    "gold_ctcae_chunk_indexes": [
+      697
+    ],
+    "gold_protocol_chunk_indexes": [
+      184
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0697"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:184"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "Based on the patient's report of moderate discomfort in the prostate area that limits daily activities, this adverse event aligns with **Grade 2** on the CTCAE scale.\n\n### CTCAE Grading for Prostatic Pain\n- **Grade 1:** Mild pain [CTCAE Page 127]\n- **Grade 2:** Moderate pain; limiting instrumental ADL [CTCAE Page 127] ← *This matches the patient's description.*\n- **Grade 3:** Severe pain; limiting self care ADL [CTCAE Page 127]\n- **Grade 4:** Not defined\n- **Grade 5:** Not defined\n\n**Risk Classification:** [RISK: MEDIUM] (Grade 2)\n\n### Should it be recorded in the patient diary?\nYes. The protocol instructs that patients are educated on what constitutes an adverse event and are instructed to record AEs in the trial diary in a timely manner [Protocol Page 56]. Additionally, the diary should be reviewed at each visit for adverse events. Since this is a newly reported AE, ensure it is documented in the patient's diary and captured on the appropriate CRF page.\n\n**Next Steps:**\n- Document the AE as \"Prostatic pain\" with Grade 2 severity in the AE log.\n- Confirm that the patient has recorded this event in their trial diary; if not, remind them to do so.\n- Follow up per protocol until resolution or stabilization [Protocol Page 60].",
+    "returned_citations": [
+      "[CTCAE Page 127]",
+      "[Protocol Page 56]",
+      "[Protocol Page 60]"
+    ],
+    "router_latency_ms": 528.71,
+    "answer_latency_ms": 23712.6,
+    "total_latency_ms": 24241.31,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2633,
+        "candidatesTokenCount": 536,
+        "totalTokenCount": 3169
+      },
+      "totalTokenCount": 3169
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE v5.0 prostatic pain grades and protocol diary requirements for AE documentation."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-022",
+    "scenario_id": "rag-v2-scenario-022",
+    "turn_index": 1,
+    "question_type": "direct_citation_request",
+    "risk_level": "high",
+    "user_query": "I'm reviewing a malabsorption AE. What CTCAE grade indicates need for TPN? Also, how long is the treatment period in the MYL-1501D-3003 protocol?",
+    "clinical_focus": "Malabsorption TPN grade and treatment period",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0175",
+      "ctcae-v5.0:0501",
+      "ctcae-v5.0:0217",
+      "ctcae-v5.0:0473",
+      "ctcae-v5.0:0479",
+      "1nS5U2FqTAVM10xSkzaq:9",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:132",
+      "1nS5U2FqTAVM10xSkzaq:2",
+      "1nS5U2FqTAVM10xSkzaq:41"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      175,
+      217,
+      473,
+      479,
+      501
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      2,
+      9,
+      41,
+      123,
+      132
+    ],
+    "gold_ctcae_chunk_indexes": [
+      175
+    ],
+    "gold_protocol_chunk_indexes": [
+      66
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0175"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:66"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "The CTCAE grade that explicitly indicates the need for TPN in malabsorption is **Grade 3**, defined as “Inability to aliment adequately; TPN indicated” [CTCAE Page 36]. This matches Subject 312’s current presentation.\n\nRegarding the treatment period for the MYL-1501D-3003 protocol: the protocol excerpts provided do not contain the duration of the treatment period (e.g., the length of the main study phase). The retrieved pages cover SAE reporting timelines (from consent through the last study visit) [Protocol Page 3], severity grading, and follow-up requirements, but not the overall treatment schedule. For the exact treatment period, please refer to the full protocol synopsis or the Schedule of Activities, which were not included in the retrieved grounding.",
+    "returned_citations": [
+      "[CTCAE Page 36]",
+      "[Protocol Page 3]"
+    ],
+    "router_latency_ms": 1210.05,
+    "answer_latency_ms": 13953.52,
+    "total_latency_ms": 15163.57,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2770,
+        "candidatesTokenCount": 748,
+        "totalTokenCount": 3518
+      },
+      "totalTokenCount": 3518
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE malabsorption grade 3 (TPN) and protocol flowchart for treatment duration (36 weeks)."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-023",
+    "scenario_id": "rag-v2-scenario-023",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_lookup",
+    "risk_level": "low",
+    "user_query": "What is the CTCAE v5.0 grade for an intraoperative cardiac injury that required primary repair?",
+    "clinical_focus": "Intraoperative cardiac injury CTCAE grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0382",
+      "ctcae-v5.0:0397",
+      "ctcae-v5.0:0380",
+      "ctcae-v5.0:0046",
+      "ctcae-v5.0:0394"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      46,
+      380,
+      382,
+      394,
+      397
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      382
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0382"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 term **Intraoperative cardiac injury** (SOC: Injury, poisoning and procedural complications), the grade for an injury that required primary repair is:\n\n**Grade 3** – Primary repair of injured organ/structure indicated [CTCAE Page 75].\n\nNo lower grades (1 or 2) are defined for this specific term. Since the surgeon performed a primary repair of the injured cardiac structure during the mitral valve procedure, this aligns exactly with the Grade 3 description. The event is considered severe but not immediately life‑threatening, as no urgent intervention or life‑threatening consequences were documented.\n\n[RISK: HIGH]",
+    "returned_citations": [
+      "[CTCAE Page 75]"
+    ],
+    "router_latency_ms": 577.77,
+    "answer_latency_ms": 20147.06,
+    "total_latency_ms": 20724.83,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1525,
+        "candidatesTokenCount": 740,
+        "totalTokenCount": 2265
+      },
+      "totalTokenCount": 2265
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct CTCAE retrieval for grading of intraoperative cardiac injury; answer must cite the provided excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-024",
+    "scenario_id": "rag-v2-scenario-024",
+    "turn_index": 1,
+    "question_type": "direct_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "In the Insulin Glargine MYL-1501D-3003 protocol, what does the abbreviation 'ITT' stand for?",
+    "clinical_focus": "Protocol abbreviation definition",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": false,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:143",
+      "1nS5U2FqTAVM10xSkzaq:34",
+      "1nS5U2FqTAVM10xSkzaq:9",
+      "1nS5U2FqTAVM10xSkzaq:6",
+      "1nS5U2FqTAVM10xSkzaq:190"
+    ],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [
+      6,
+      9,
+      34,
+      143,
+      190
+    ],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [
+      34
+    ],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:34"
+    ],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "The abbreviation **ITT** stands for **Intention to Treat** (Protocol [Page 13]).",
+    "returned_citations": [
+      "[Page 13]",
+      "Protocol [Page 13]"
+    ],
+    "router_latency_ms": 628.13,
+    "answer_latency_ms": 11434.33,
+    "total_latency_ms": 12062.45,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1979,
+        "candidatesTokenCount": 169,
+        "totalTokenCount": 2148
+      },
+      "totalTokenCount": 2148
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct protocol retrieval for an abbreviation lookup; answer must cite the provided protocol excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-025",
+    "scenario_id": "rag-v2-scenario-025",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "I have a patient on the Insulin Glargine MYL-1501D-3003 protocol who developed aphonia. Is this considered an SAE per protocol? What CTCAE grade would it be?",
+    "clinical_focus": "Aphonia SAE determination and CTCAE grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0559",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0734",
+      "ctcae-v5.0:0605",
+      "ctcae-v5.0:0777",
+      "1nS5U2FqTAVM10xSkzaq:2",
+      "1nS5U2FqTAVM10xSkzaq:9",
+      "1nS5U2FqTAVM10xSkzaq:134",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:7"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      242,
+      559,
+      605,
+      734,
+      777
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      2,
+      7,
+      9,
+      123,
+      134
+    ],
+    "gold_ctcae_chunk_indexes": [
+      559
+    ],
+    "gold_protocol_chunk_indexes": [
+      119
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0559"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:119"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "Based on the patient’s report of complete loss of voice (unable to speak) with otherwise stable vitals, this event is classified as **HIGH risk** due to its CTCAE severity.\n\n### CTCAE Grade\nThe symptom matches the CTCAE term **Aphonia** (CTCAE [Page 104]).  \n- **Grade 3** is defined as “Voicelessness; unable to speak.”  \n- There is no Grade 1, 2, or 4 for this term; the definition explicitly places complete inability to speak at Grade 3.  \n\nThus, the event is **Grade 3 (Severe)** per CTCAE v5.0.\n\n### Is This an SAE per Protocol?\nYes, this event should be treated as a **Serious Adverse Event (SAE)**.  \nThe protocol defines an SAE as any event that is, among other criteria, **medically significant** or **significantly disabling/incapacitating** (Protocol [Page 6]).  \nComplete aphonia (Grade 3) renders the patient unable to communicate verbally, which constitutes a medically significant and potentially disabling condition. Therefore, it meets the protocol’s SAE definition.  \n\n### Required Actions\n- **Immediate reporting:** The Investigator must complete the SAE reporting form and email/fax it to the Pharmacovigilance department within **24 hours** of learning of the event (Protocol [Page 6]).  \n- **Clinical escalation:** Because this is a HIGH-risk Grade 3 event, the patient should be instructed to use the **direct study emergency contact number** or local emergency services immediately for further evaluation. Do not rely solely on chat for escalation.  \n- **Documentation:** Record the event in the patient’s trial diary and CRF, including onset, description, and any actions taken (Protocol [Page 61]).  \n\n**Note:** While the patient’s vitals are stable, aphonia can stem from serious causes (e.g., recurrent laryngeal nerve palsy, CTCAE [Page 111]) and warrants urgent medical assessment.\n\n[RISK: HIGH]",
+    "returned_citations": [
+      "[Page 104]",
+      "[Page 6]",
+      "[Page 61]",
+      "[Page 111]",
+      "CTCAE [Page 104]",
+      "Protocol [Page 6]",
+      "Protocol [Page 61]",
+      "CTCAE [Page 111]"
+    ],
+    "router_latency_ms": 927.66,
+    "answer_latency_ms": 32703.93,
+    "total_latency_ms": 33631.59,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2852,
+        "candidatesTokenCount": 1222,
+        "totalTokenCount": 4074
+      },
+      "totalTokenCount": 4074
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE grading for aphonia (Grade 3) and protocol SAE criteria for important medical events to determine if aphonia qualifies."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-026",
+    "scenario_id": "rag-v2-scenario-026",
+    "turn_index": 1,
+    "question_type": "direct_citation_request",
+    "risk_level": "high",
+    "user_query": "What is the CTCAE grade and page number for suicidal ideation where the patient has a specific plan but no serious intent to die? Also, on which page of the protocol are the symptoms of hypoglycemia listed?",
+    "clinical_focus": "Suicidal ideation grading and hypoglycemia symptom citation",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0643",
+      "ctcae-v5.0:0644",
+      "ctcae-v5.0:0632",
+      "ctcae-v5.0:0645",
+      "ctcae-v5.0:0242",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:111",
+      "1nS5U2FqTAVM10xSkzaq:114",
+      "1nS5U2FqTAVM10xSkzaq:109",
+      "1nS5U2FqTAVM10xSkzaq:139"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      242,
+      632,
+      643,
+      644,
+      645
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      109,
+      111,
+      114,
+      123,
+      139
+    ],
+    "gold_ctcae_chunk_indexes": [
+      643
+    ],
+    "gold_protocol_chunk_indexes": [
+      111
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0643"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:111"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "The CTCAE grade for suicidal ideation with a specific plan but no serious intent to die is **Grade 3**. This is defined on **CTCAE Page 117** as: “Specific plan to commit suicide without serious intent to die which may not require hospitalization.”\n\nThe symptoms of hypoglycemia are listed on **Protocol Page 50**. They include palpitations, sweating, hunger, nervousness, shakiness, perspiration, dizziness or light-headedness, sleepiness, confusion, difficulty speaking, and feeling anxious or weak.",
+    "returned_citations": [],
+    "router_latency_ms": 1118.96,
+    "answer_latency_ms": 25376.19,
+    "total_latency_ms": 26495.15,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2832,
+        "candidatesTokenCount": 366,
+        "totalTokenCount": 3198
+      },
+      "totalTokenCount": 3198
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE suicidal ideation Grade 3 and page 117, and protocol page 50 for hypoglycemia symptoms."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-027",
+    "scenario_id": "rag-v2-scenario-027",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_lookup",
+    "risk_level": "low",
+    "user_query": "Can you tell me the CTCAE grade for hypoxia if the patient's oxygen saturation is 85% at rest?",
+    "clinical_focus": "Hypoxia CTCAE grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0735",
+      "ctcae-v5.0:0731",
+      "ctcae-v5.0:0779",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0770"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      475,
+      731,
+      735,
+      770,
+      779
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      735
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0735"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the provided CTCAE v5.0 criteria, a resting oxygen saturation of 85% corresponds to **Grade 3 Hypoxia**.\n\n**Explanation:**\n- CTCAE defines Grade 3 Hypoxia as “Decreased oxygen saturation at rest (e.g., pulse oximeter <88% or PaO2 <=55 mm Hg)” [CTCAE Page 134].  \n- The patient’s reading of 85% while resting, without supplemental oxygen, meets this definition exactly.  \n- Grade 3 is classified as a severe or medically significant event, which falls under the **HIGH** risk category.\n\n**Immediate Action Required:**\nThis is a potentially life-threatening situation. Please instruct the patient to seek emergency medical attention immediately—use the direct study emergency number or local emergency services (e.g., 911) without delay. Do not rely solely on this chat for escalation.\n\n[RISK: HIGH]",
+    "returned_citations": [
+      "[CTCAE Page 134]"
+    ],
+    "router_latency_ms": 541.81,
+    "answer_latency_ms": 12346.13,
+    "total_latency_ms": 12887.93,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1607,
+        "candidatesTokenCount": 391,
+        "totalTokenCount": 1998
+      },
+      "totalTokenCount": 1998
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct CTCAE lookup for hypoxia grading based on oxygen saturation at rest."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-028",
+    "scenario_id": "rag-v2-scenario-028",
+    "turn_index": 1,
+    "question_type": "direct_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "According to the Type 1 Diabetes Mellitus protocol, what does 'Unlikely' mean for adverse event causality?",
+    "clinical_focus": "Causality assessment definition",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0220",
+      "ctcae-v5.0:0240",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0069",
+      "1nS5U2FqTAVM10xSkzaq:127",
+      "1nS5U2FqTAVM10xSkzaq:117",
+      "1nS5U2FqTAVM10xSkzaq:115",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:130"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      69,
+      220,
+      240,
+      242,
+      475
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      115,
+      117,
+      123,
+      127,
+      130
+    ],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [
+      129
+    ],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:129"
+    ],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": false,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0,
+    "gold_chunk_vector_match": false,
+    "final_answer": "According to the Type 1 Diabetes Mellitus protocol, the causality category **“Unlikely”** is defined as follows:\n\n> A causal relationship cannot be ruled out, but the time to drug intake makes a relationship improbable (though not impossible), or the disease or other drugs provide plausible explanations.\n\nIn other words, the event is probably not caused by the study drug, but there remains a remote possibility. The protocol also notes that when an event is assessed as unlikely (or unrelated), an alternative suspected etiology (e.g., concomitant medications, intercurrent condition) should preferably be documented wherever applicable [Protocol Page 59].\n\nThis definition confirms that if the investigator suspects the elevated liver enzyme is not related to the study drug and there is a plausible alternative explanation (or an improbable temporal relationship), “Unlikely” is the appropriate causality assignment.",
+    "returned_citations": [
+      "[Protocol Page 59]"
+    ],
+    "router_latency_ms": 1402.42,
+    "answer_latency_ms": 50238.26,
+    "total_latency_ms": 51640.69,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2875,
+        "candidatesTokenCount": 848,
+        "totalTokenCount": 3723
+      },
+      "totalTokenCount": 3723
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests direct protocol lookup for the definition of 'Unlikely' causality from the provided excerpt."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-029",
+    "scenario_id": "rag-v2-scenario-029",
+    "turn_index": 1,
+    "question_type": "direct_ctcae_protocol_lookup",
+    "risk_level": "medium",
+    "user_query": "I need the CTCAE grade for gait disturbance for this patient. Also, does the protocol exclude patients with insulin resistance? His insulin dose is 1.6 U/kg/day.",
+    "clinical_focus": "Gait disturbance and insulin resistance exclusion",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0481",
+      "ctcae-v5.0:0501",
+      "ctcae-v5.0:0229",
+      "ctcae-v5.0:0483",
+      "ctcae-v5.0:0069",
+      "1nS5U2FqTAVM10xSkzaq:41",
+      "1nS5U2FqTAVM10xSkzaq:81",
+      "1nS5U2FqTAVM10xSkzaq:46",
+      "1nS5U2FqTAVM10xSkzaq:141",
+      "1nS5U2FqTAVM10xSkzaq:123"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      69,
+      229,
+      481,
+      483,
+      501
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      41,
+      46,
+      81,
+      123,
+      141
+    ],
+    "gold_ctcae_chunk_indexes": [
+      229
+    ],
+    "gold_protocol_chunk_indexes": [
+      41
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0229"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:41"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "### CTCAE Grade for Gait Disturbance\n\nBased on the patient’s reported limping and difficulty walking, the symptom aligns with **Grade 1 (Mild)** on the CTCAE scale for gait disturbance.  \n- **Grade 1 definition:** “Mild change in gait (e.g., wide-based, limping or hobbling)” [CTCAE Page 45].  \n- There is no indication that an assistive device is needed or that instrumental activities of daily living (ADL) are limited, which would be required for Grade 2.  \n\nIf the limping begins to interfere with daily tasks (e.g., shopping, housework) or an assistive device becomes necessary, the grade would escalate to **Grade 2** [CTCAE Page 45].  \n\n**Risk Classification:** [RISK: LOW]\n\n---\n\n### Protocol Exclusion for Insulin Resistance\n\nYes, the protocol **excludes patients with moderate insulin resistance**.  \n- The exclusion criterion defines moderate insulin resistance as **requiring insulin (Basal + Prandial) of ≥ 1.5 U/kg/day** [Protocol Page 15].  \n- The patient’s current total daily insulin dose is **1.6 U/kg/day**, which exceeds this threshold.  \n\nThis criterion was applied at screening; however, the patient is now at Week 12 and the dose has risen to a level that would have been exclusionary. This finding may represent a clinically significant change (e.g., worsening insulin resistance or hyperglycemia) and should be evaluated as a potential adverse event or protocol deviation. The investigator should review the patient’s glucose control and consider dose adjustments per protocol guidance [Protocol Page 34].",
+    "returned_citations": [
+      "[CTCAE Page 45]",
+      "[Protocol Page 15]",
+      "[Protocol Page 34]"
+    ],
+    "router_latency_ms": 753.85,
+    "answer_latency_ms": 29346.81,
+    "total_latency_ms": 30100.66,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2995,
+        "candidatesTokenCount": 1109,
+        "totalTokenCount": 4104
+      },
+      "totalTokenCount": 4104
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE gait disturbance grading and protocol exclusion criterion for insulin resistance."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-030",
+    "scenario_id": "rag-v2-scenario-030",
+    "turn_index": 1,
+    "question_type": "direct_citation_request",
+    "risk_level": "high",
+    "user_query": "What is the CTCAE grade for gallbladder perforation? And can you cite the protocol page that describes the treatment switch schedule? We need to decide if we should switch her insulin.",
+    "clinical_focus": "Gallbladder perforation and treatment switch",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0251",
+      "ctcae-v5.0:0298",
+      "ctcae-v5.0:0249",
+      "ctcae-v5.0:0247",
+      "ctcae-v5.0:0148",
+      "1nS5U2FqTAVM10xSkzaq:125",
+      "1nS5U2FqTAVM10xSkzaq:119",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:141",
+      "1nS5U2FqTAVM10xSkzaq:167"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      148,
+      247,
+      249,
+      251,
+      298
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      119,
+      123,
+      125,
+      141,
+      167
+    ],
+    "gold_ctcae_chunk_indexes": [
+      251
+    ],
+    "gold_protocol_chunk_indexes": [
+      58
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0251"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:58"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "**CTCAE Grade for Gallbladder Perforation**  \nAccording to the CTCAE v5.0, gallbladder perforation is classified as **Grade 4** – *Life-threatening consequences; urgent intervention indicated* [CTCAE Page 49]. No lower grades (1–3) are defined for this term. This aligns with the patient’s imaging findings and severe abdominal pain, making this a serious adverse event that requires immediate action.\n\n**Protocol Page Describing the Treatment Switch Schedule**  \nThe protocol’s treatment sequence schedule is outlined in the sample size and randomization section. Patients are randomized to one of two sequence groups:  \n- **Mylan sequence group:** Mylan’s insulin glargine → switch to Lantus® → switch back to Mylan’s insulin glargine  \n- **Lantus sequence group:** Lantus® → Lantus® → Lantus®  \n\nThis is described on **Protocol Page 64**. The schedule dictates when a switch between insulin products occurs, but it does not directly address switching due to an adverse event.\n\n**Guidance on Switching Insulin Due to This AE**  \nThe decision to switch or discontinue insulin should be based on the protocol’s adverse event management rules. **Protocol Page 57** (Table 7) lists possible actions for an AE, including *treatment interrupted*, *treatment withdrawn*, or *dose reduced*. Given the life‑threatening nature of a gallbladder perforation (Grade 4), urgent intervention is indicated, and the investigator should consider interrupting or permanently discontinuing the study drug as part of the patient’s emergency care. The treatment switch schedule on Page 64 is a planned crossover, not an AE‑driven switch; therefore, the immediate priority is safety and protocol‑defined AE actions, not the randomization sequence.\n\n**Risk Classification**  \n[RISK: HIGH] – Grade 4 event with life‑threatening consequences. The patient must be managed emergently; use the direct study emergency number or local emergency services immediately.",
+    "returned_citations": [
+      "[CTCAE Page 49]"
+    ],
+    "router_latency_ms": 6538.9,
+    "answer_latency_ms": 35784.19,
+    "total_latency_ms": 42323.09,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2800,
+        "candidatesTokenCount": 1007,
+        "totalTokenCount": 3807
+      },
+      "totalTokenCount": 3807
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE gallbladder perforation grading and protocol citation for insulin glargine switch schedule."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-031",
+    "scenario_id": "rag-v2-scenario-031",
+    "turn_index": 1,
+    "question_type": "current_patient_status",
+    "risk_level": "low",
+    "user_query": "Can you give me a quick update on Maria Gonzalez's current status?",
+    "clinical_focus": "Patient status update",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "workspace_summary",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Here's a quick status update for Maria Gonzalez (PT-2024-0331):\n\n- **Treatment:** Completed Cycle 2 of Carboplatin + Pemetrexed on 2025-03-25. Next visit (Cycle 3 Day 1) is scheduled for 2025-04-10.\n- **Vitals (latest):** BP 128/82, HR 72, Temp 98.6°F, SpO2 98% – all within normal limits.\n- **Labs:** CBC within normal limits as of 2025-03-28.\n- **Performance Status:** ECOG 1.\n- **Upcoming Imaging:** CT scan in 4 weeks.\n- **Alerts:** Patient missed a scheduled phone call follow-up on 2025-04-01. No active adverse events are currently recorded.\n- **Allergies:** None known.\n\nOverall, Maria is stable with no immediate safety concerns based on the available vitals and labs. The missed follow-up call may warrant a re-contact attempt.",
+    "returned_citations": [],
+    "router_latency_ms": 11878.37,
+    "answer_latency_ms": 24456.29,
+    "total_latency_ms": 36334.66,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 373,
+        "candidatesTokenCount": 250,
+        "totalTokenCount": 623
+      },
+      "answer": {
+        "promptTokenCount": 1019,
+        "candidatesTokenCount": 487,
+        "totalTokenCount": 1506
+      },
+      "totalTokenCount": 2129
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests ability to answer from visible context without retrieval; CRC asks for a status update that can be summarized from the provided workspace and patient details."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-032",
+    "scenario_id": "rag-v2-scenario-032",
+    "turn_index": 1,
+    "question_type": "current_patient_ctcae_assessment",
+    "risk_level": "high",
+    "user_query": "I need to record the adverse event for James Carter's death. What CTCAE grade should I use for disease progression?",
+    "clinical_focus": "CTCAE grading of death due to disease progression",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0221",
+      "ctcae-v5.0:0220",
+      "ctcae-v5.0:0240",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0242"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      220,
+      221,
+      240,
+      242,
+      475
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      221
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0221"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 excerpts and the reported cause of death, here is the guidance for recording James Carter’s adverse event.\n\n### CTCAE Term and Grade Selection\n- **CTCAE Term:** Disease progression  \n- **Grade:** 5 (Death)  \n\n**Rationale:**  \nThe CTCAE term “Disease progression” is defined exclusively as Grade 5 – Death, when the death is due to disease progression and cannot be attributed to another CTCAE term associated with Grade 5 [CTCAE Page 44]. The hospice report indicates death resulted from progression of liver metastases leading to hepatic failure, which directly aligns with this definition. The navigational note on the same page clarifies that if death were due to a specific adverse event (e.g., cardiac arrest), you would grade under that AE; however, here the underlying cause is the malignancy itself, making “Disease progression” the correct term.\n\n### Risk Classification\nThis event is a Grade 5 (Death) event, which falls under the highest risk category.\n\n[RISK: HIGH]\n\n**Note:** Since the patient is already deceased, no immediate safety actions are required. Please complete the adverse event form with the term “Disease progression” and Grade 5.",
+    "returned_citations": [
+      "[CTCAE Page 44]"
+    ],
+    "router_latency_ms": 3724.15,
+    "answer_latency_ms": 30325.25,
+    "total_latency_ms": 34049.4,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1603,
+        "candidatesTokenCount": 822,
+        "totalTokenCount": 2425
+      },
+      "totalTokenCount": 2425
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE v5.0 Disease progression term; requires Grade 5 assignment with citation from the provided excerpt. The query explicitly asks for CTCAE grading based on a patient death."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-033",
+    "scenario_id": "rag-v2-scenario-033",
+    "turn_index": 1,
+    "question_type": "current_patient_emergency_protocol",
+    "risk_level": "high",
+    "user_query": "Patient 204 in the Type 1 Diabetes Mellitus trial just reported severe anal pain and a blood glucose of 58 mg/dL. I need the CTCAE grade for anal stenosis and I need to know if I can give her a glucocorticoid injection for the inflammation.",
+    "clinical_focus": "Anal stenosis grading and protocol compliance",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0104",
+      "ctcae-v5.0:0105",
+      "ctcae-v5.0:0102",
+      "ctcae-v5.0:0103",
+      "ctcae-v5.0:0242",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:141",
+      "1nS5U2FqTAVM10xSkzaq:81",
+      "1nS5U2FqTAVM10xSkzaq:19",
+      "1nS5U2FqTAVM10xSkzaq:154"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      102,
+      103,
+      104,
+      105,
+      242
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      19,
+      81,
+      123,
+      141,
+      154
+    ],
+    "gold_ctcae_chunk_indexes": [
+      104
+    ],
+    "gold_protocol_chunk_indexes": [
+      81
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0104"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:81"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Hello, CRC. Here is the guidance for Patient 204 based on the ePRO alert and your query.\n\n---\n\n### 1. CTCAE Grading for Anal Stenosis (as requested)\nThe CTCAE v5.0 defines **Anal stenosis** as a narrowing of the anal canal lumen. The grades are [CTCAE Page 25]:\n\n- **Grade 1** – Asymptomatic; clinical or diagnostic observations only; intervention not indicated.\n- **Grade 2** – Symptomatic; altered GI function.\n- **Grade 3** – Symptomatic and severely altered GI function; non‑emergent operative intervention indicated; TPN or hospitalization indicated.\n- **Grade 4** – Life‑threatening consequences; urgent operative intervention indicated.\n- **Grade 5** – Death.\n\n**Important:** Patient 204 does not have a prior diagnosis of anal stenosis. The current complaint is severe anal pain (8/10, difficulty sitting). The more directly applicable CTCAE term is **Anal pain** [CTCAE Page 25]:\n\n- **Grade 1** – Mild pain.\n- **Grade 2** – Moderate pain; limiting instrumental ADL.\n- **Grade 3** – Severe pain; limiting self‑care ADL.\n\nGiven the pain score of 8/10 and the inability to sit comfortably (limiting self‑care ADL), this meets **Grade 3 (Severe)** for anal pain. If further work‑up reveals a structural narrowing, the anal stenosis grading would then apply.\n\n---\n\n### 2. Glucocorticoid Injection – Protocol Prohibition\nThe protocol explicitly states that **glucocorticoid therapy (oral, intravenous, inhaled, or other routes that produce systemic effects) is prohibited** during the study [Protocol Page 34]. A steroid injection for anal inflammation, even if administered locally, can produce systemic effects and therefore falls under this restriction. **You cannot administer a glucocorticoid injection per protocol.** Any alternative local treatment would need to be discussed with the medical monitor and must not have systemic glucocorticoid activity.\n\n---\n\n### 3. Immediate Safety Actions – Hypoglycemia\nThe SMBG reading of **58 mg/dL** is below the protocol‑defined threshold of 70 mg/dL (3.9 mmol/L) [Protocol Page 34]. The patient also reports lightheadedness, which is a symptom of hypoglycemia. The protocol instructs that the Investigator or designee should be contacted, and the insulin dose may need adjustment. **Treat the hypoglycemia now** according to your site’s standard hypoglycemia protocol (e.g., 15 g fast‑acting carbohydrate, recheck in 15 minutes). Notify the Investigator immediately.\n\n---\n\n### 4. Overall Risk Classification\n- **Anal pain:** Grade 3 (severe, limiting self‑care ADL) [CTCAE Page 25].\n- **Hypoglycemia:** 58 mg/dL with symptoms – a potentially dangerous metabolic event requiring urgent intervention.\n- **Combined picture:** Severe pain plus symptomatic hypoglycemia places the patient at high risk for deterioration.\n\n**[RISK: HIGH]**\n\n**Please ensure the patient receives immediate medical attention for the hypoglycemia and severe pain. Use the study emergency contact or local emergency services if the patient’s condition worsens.**",
+    "returned_citations": [
+      "[CTCAE Page 25]",
+      "[Protocol Page 34]"
+    ],
+    "router_latency_ms": 598.78,
+    "answer_latency_ms": 45590.33,
+    "total_latency_ms": 46189.11,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2862,
+        "candidatesTokenCount": 1568,
+        "totalTokenCount": 4430
+      },
+      "totalTokenCount": 4430
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of both CTCAE anal stenosis grading and protocol prohibition of glucocorticoids. Requires citation from both sources."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-034",
+    "scenario_id": "rag-v2-scenario-034",
+    "turn_index": 1,
+    "question_type": "current_patient_status",
+    "risk_level": "low",
+    "user_query": "What was the last HbA1c result for this patient? I need to confirm before the next visit.",
+    "clinical_focus": "Patient status check",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "workspace_summary",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "The last HbA1c result for Patient 205 was **7.2%**, collected during the visit on **2025-03-28**. This is the most recent lab value available in the workspace. The next visit is scheduled for 2025-04-15, so you can confirm this result ahead of that appointment.",
+    "returned_citations": [],
+    "router_latency_ms": 11200.38,
+    "answer_latency_ms": 7565.11,
+    "total_latency_ms": 18765.48,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 381,
+        "candidatesTokenCount": 319,
+        "totalTokenCount": 700
+      },
+      "answer": {
+        "promptTokenCount": 1001,
+        "candidatesTokenCount": 205,
+        "totalTokenCount": 1206
+      },
+      "totalTokenCount": 1906
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests skip route – answer is directly visible in workspace context (HbA1c 7.2%). No document retrieval needed."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-035",
+    "scenario_id": "rag-v2-scenario-035",
+    "turn_index": 1,
+    "question_type": "current_patient_ctcae_assessment",
+    "risk_level": "medium",
+    "user_query": "Can you grade the maculo-papular rash for patient Thompson? It's covering about 25% of his body, he's itching a lot and it's interfering with his daily activities like dressing himself.",
+    "clinical_focus": "Rash maculo-papular grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "medical_assessment",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0806",
+      "ctcae-v5.0:0805",
+      "ctcae-v5.0:0320",
+      "ctcae-v5.0:0818",
+      "ctcae-v5.0:0785"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      320,
+      785,
+      805,
+      806,
+      818
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      806
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0806"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the provided CTCAE v5.0 criteria for **Rash maculo-papular** [CTCAE Page 146], the findings for John Thompson align with **Grade 2**.\n\n**Grading rationale:**\n- **Body surface area (BSA):** The rash covers approximately 25% BSA, which falls within the 10–30% range specified for Grade 2.\n- **Symptoms:** The patient reports significant itching (pruritus), which is explicitly included as a possible symptom in the Grade 2 definition.\n- **Functional impact:** The patient describes difficulty with instrumental activities of daily living (iADL), specifically buttoning a shirt. Grade 2 is defined as “limiting instrumental ADL” when BSA is 10–30%.\n\nBecause the BSA is not >30% and there is no limitation in self-care ADL (e.g., bathing, toileting), the criteria for Grade 3 are not met. No life-threatening features are present.\n\n**Risk classification:** Grade 2 corresponds to a moderate severity, so the appropriate tag is **[RISK: MEDIUM]**.\n\nNo protocol-specific management excerpts were retrieved for this query. As a CRC, please ensure this adverse event is documented and reported according to the T1DM-202 protocol requirements.",
+    "returned_citations": [
+      "[CTCAE Page 146]"
+    ],
+    "router_latency_ms": 552.67,
+    "answer_latency_ms": 31188.14,
+    "total_latency_ms": 31740.81,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2057,
+        "candidatesTokenCount": 955,
+        "totalTokenCount": 3012
+      },
+      "totalTokenCount": 3012
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests CTCAE grading of maculo-papular rash with BSA and symptom details."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-036",
+    "scenario_id": "rag-v2-scenario-036",
+    "turn_index": 1,
+    "question_type": "current_patient_emergency_protocol",
+    "risk_level": "high",
+    "user_query": "Patient Miller just developed a jejunal fistula. It's symptomatic and they're planning an invasive intervention. What's the CTCAE grade? Also, she's on the Type 1 Diabetes protocol—how should we handle her mealtime insulin since she'll be NPO for the procedure?",
+    "clinical_focus": "Jejunal fistula grading and insulin management",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0167",
+      "ctcae-v5.0:0153",
+      "ctcae-v5.0:0123",
+      "ctcae-v5.0:0145",
+      "ctcae-v5.0:0184",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:41",
+      "1nS5U2FqTAVM10xSkzaq:141",
+      "1nS5U2FqTAVM10xSkzaq:181",
+      "1nS5U2FqTAVM10xSkzaq:81"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      123,
+      145,
+      153,
+      167,
+      184
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      41,
+      81,
+      123,
+      141,
+      181
+    ],
+    "gold_ctcae_chunk_indexes": [
+      167
+    ],
+    "gold_protocol_chunk_indexes": [
+      182
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0167"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:182"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "### CTCAE Grade for Jejunal Fistula\n\nBased on the provided CTCAE v5.0 criteria, Sarah Miller’s jejunal fistula is **Grade 3** (Severe).  \n\n- The definition of jejunal fistula is an abnormal communication between the jejunum and another organ or anatomic site [CTCAE Page 35].  \n- Grade 3 is specifically defined as “Invasive intervention indicated” [CTCAE Page 35].  \n- The patient is symptomatic (abdominal pain, fever) and a surgery consult recommends invasive repair, which directly matches the Grade 3 descriptor.  \n\nBecause Grade 3 is a severe, non-life-threatening event that requires medical intervention, this SAE must be documented accordingly.\n\n**Risk Classification:** [RISK: HIGH]  \n*Note: Although not immediately life-threatening, Grade 3 events are considered high risk in the CRC workspace due to the need for urgent clinical action. The patient’s fever (101.2°F) and tachycardia (HR 110) further support close monitoring. Ensure the study emergency number is readily available and that the surgical team is aware of the patient’s trial participation.*\n\n---\n\n### Insulin Management While NPO for Surgery\n\nThe protocol does not contain a dedicated NPO (nothing by mouth) insulin management algorithm. However, the existing titration guidance and safety principles allow a reasoned approach:\n\n1. **Mealtime Insulin (Lispro):**  \n   - The protocol states that mealtime insulin dose should be guided by the expected carbohydrate content of the next meal and post-prandial glucose levels [Protocol Page 84].  \n   - Since the patient will not be eating, **mealtime insulin should be withheld** to prevent hypoglycemia. This aligns with the protocol’s logic that mealtime insulin is tied to food intake.  \n\n2. **Basal Insulin (Glargine):**  \n   - Basal insulin is titrated based on fasting (pre-breakfast) capillary blood glucose values [Protocol Page 84].  \n   - Even while NPO, the patient’s fasting glucose can be monitored, and the basal dose can be adjusted according to the titration table, but with heightened caution because the patient is not eating.  \n   - The protocol advises that any increase in total daily insulin dose of >6 units during a titration step should be performed with caution [Protocol Page 34].  \n   - Typically, in NPO surgical patients, basal insulin is often continued at a reduced dose (e.g., 50–75% of usual) to cover basal metabolic needs, but the exact adjustment should be made by the investigator or an endocrinologist based on frequent glucose monitoring.  \n\n3. **Documentation and Protocol Compliance:**  \n   - Any change in trial dosing outside of protocol-stipulated dose adjustments (such as holding mealtime insulin or altering basal insulin due to NPO status) may be considered an adverse event if it leads to clinical consequences [Protocol Page 64].  \n   - The CRC should document the rationale for insulin adjustments clearly in the source notes and ensure the investigator reviews and approves the plan.  \n\n**Practical Steps for the CRC:**  \n- Confirm with the surgical team the expected duration of NPO.  \n- Order hourly point-of-care glucose checks.  \n- Hold lispro.  \n- Consult the investigator regarding the glargine dose; a common approach is to give 50% of the usual basal dose and titrate based on glucose trends.  \n- Document the deviation from the standard titration schedule as a protocol deviation, noting it was medically necessary for patient safety.  \n\nIf you need further protocol-specific clarification, the investigator should contact the medical monitor.",
+    "returned_citations": [
+      "[CTCAE Page 35]",
+      "[Protocol Page 84]",
+      "[Protocol Page 34]",
+      "[Protocol Page 64]"
+    ],
+    "router_latency_ms": 1374.21,
+    "answer_latency_ms": 29332.92,
+    "total_latency_ms": 30707.13,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2866,
+        "candidatesTokenCount": 1451,
+        "totalTokenCount": 4317
+      },
+      "totalTokenCount": 4317
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests CTCAE grading of jejunal fistula and protocol guidance for insulin dosing when oral intake is disrupted."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-037",
+    "scenario_id": "rag-v2-scenario-037",
+    "turn_index": 1,
+    "question_type": "current_patient_status",
+    "risk_level": "low",
+    "user_query": "Can you give me a quick summary of John's current vitals?",
+    "clinical_focus": "Patient vitals summary",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "retrieve",
+    "route_reason": "medical_assessment",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0375",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0820",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0779"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      242,
+      375,
+      475,
+      779,
+      820
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": false,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Here’s a quick summary of John Smith’s latest vitals:\n\n- **Blood Pressure:** 120/80 mmHg  \n- **Heart Rate:** 72 bpm  \n- **Temperature:** 98.6°F  \n- **Oxygen Saturation (SpO₂):** 98%  \n\nAll vitals are within normal limits, and there are no active alerts or incidents for this patient.",
+    "returned_citations": [],
+    "router_latency_ms": 719.78,
+    "answer_latency_ms": 17767.75,
+    "total_latency_ms": 18487.53,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1562,
+        "candidatesTokenCount": 425,
+        "totalTokenCount": 1987
+      },
+      "totalTokenCount": 1987
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests ability to answer from visible context without retrieval."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-038",
+    "scenario_id": "rag-v2-scenario-038",
+    "turn_index": 1,
+    "question_type": "current_patient_ctcae_assessment",
+    "risk_level": "medium",
+    "user_query": "What is the CTCAE grade for a symptomatic ureteric anastomotic leak that requires medical intervention?",
+    "clinical_focus": "Ureteric anastomotic leak grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0417",
+      "ctcae-v5.0:0418",
+      "ctcae-v5.0:0359",
+      "ctcae-v5.0:0398",
+      "ctcae-v5.0:0369"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      359,
+      369,
+      398,
+      417,
+      418
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      417
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0417"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 definition for **Ureteric anastomotic leak** [Page 81], the grading is as follows:\n\n- **Grade 1:** Asymptomatic diagnostic finding; intervention not indicated.\n- **Grade 2:** Symptomatic; medical intervention indicated.\n- **Grade 3:** Severe symptoms; invasive intervention indicated.\n- **Grade 4:** Life-threatening consequences; urgent operative intervention indicated.\n- **Grade 5:** Death.\n\nYour patient, Maria Garcia, is presenting with **mild flank pain and decreased urine output**—these are symptoms—and the suspected leak **requires medical intervention**. This aligns precisely with **Grade 2** [Page 81].\n\n**Risk Classification:**  \n[RISK: MEDIUM] — Grade 2 events are moderate in severity and require medical management, but are not immediately life-threatening.\n\n**Next Steps:**  \n- Ensure the patient is evaluated promptly per your site’s standard procedures for a suspected anastomotic leak.  \n- Medical intervention (e.g., imaging, laboratory workup, possible drainage or stenting) should be initiated as indicated.  \n- Monitor for any worsening of symptoms (e.g., increasing pain, fever, hemodynamic instability) that could escalate the grade to 3 or 4.  \n- Document the event and grade in the study records, and notify the PI/sponsor as required by the protocol.  \n\nSince no protocol-specific excerpts were retrieved, I cannot provide protocol-directed management steps. Please refer to protocol XYZ-456 for any study-specific reporting or intervention requirements.",
+    "returned_citations": [
+      "[Page 81]"
+    ],
+    "router_latency_ms": 743.34,
+    "answer_latency_ms": 30906.31,
+    "total_latency_ms": 31649.65,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1532,
+        "candidatesTokenCount": 633,
+        "totalTokenCount": 2165
+      },
+      "totalTokenCount": 2165
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests CTCAE retrieval and citation for grading a specific adverse event."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-039",
+    "scenario_id": "rag-v2-scenario-039",
+    "turn_index": 1,
+    "question_type": "current_patient_emergency_protocol",
+    "risk_level": "high",
+    "user_query": "Patient Jane Doe just had a positive pregnancy test and her DLCO dropped by 7 units from baseline. She is asymptomatic. What is the CTCAE grade for the DLCO decrease, and what does the protocol say about pregnancy? I need to know if we should discontinue her and how to grade the adverse event.",
+    "clinical_focus": "Pregnancy and DLCO decrease in diabetes trial",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0624",
+      "ctcae-v5.0:0445",
+      "ctcae-v5.0:0622",
+      "ctcae-v5.0:0717",
+      "ctcae-v5.0:0242",
+      "1nS5U2FqTAVM10xSkzaq:137",
+      "1nS5U2FqTAVM10xSkzaq:138",
+      "1nS5U2FqTAVM10xSkzaq:119",
+      "1nS5U2FqTAVM10xSkzaq:85",
+      "1nS5U2FqTAVM10xSkzaq:136"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      242,
+      445,
+      622,
+      624,
+      717
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      85,
+      119,
+      136,
+      137,
+      138
+    ],
+    "gold_ctcae_chunk_indexes": [
+      445
+    ],
+    "gold_protocol_chunk_indexes": [
+      137
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0445"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:137"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "## DLCO Decrease Grading\n\nJane’s carbon monoxide diffusing capacity (DLCO) dropped by **7 units** from her baseline of 25 to 18 ml/min/mm Hg. She remains asymptomatic with no pulmonary symptoms.\n\nAccording to CTCAE v5.0, the term **Carbon monoxide diffusing capacity decreased** is graded for follow‑up as follows [CTCAE Page 85]:\n\n- **Grade 2** applies to an asymptomatic decrease of **>5 – 8 units** below the baseline value, when no intervention is indicated.  \n  Jane’s 7‑unit drop falls squarely into this range.  \n  Therefore, the DLCO decrease is **Grade 2** (moderate).\n\nThere is no indication of Grade 3 because she lacks pulmonary symptoms (e.g., hypoxia or dyspnea) and the drop is not >8 units.\n\n---\n\n## Protocol Requirements for Pregnancy\n\nThe protocol (Insulin Glargine MYL‑1501D‑3003) is explicit about pregnancy:\n\n- **Immediate discontinuation of trial treatment** is required for any woman who becomes pregnant during the trial [Protocol Page 62].  \n- Pregnancy is listed as a **withdrawal criterion**; the patient should be discontinued from treatment, and an early discontinuation visit should be performed as soon as possible [Protocol Page 37, Page 62].  \n- The pregnancy must be **reported within 24 hours** via the pregnancy report form to Mylan Global Product Safety and Risk Management [Protocol Page 62].  \n- The Investigator must follow the pregnancy **every 3 months** until delivery or termination and inform the sponsor of the outcome [Protocol Page 63].  \n- **Pregnancy itself is not considered an adverse event (AE) or serious adverse event (SAE)**. However, any pregnancy complication or elective termination for medical reasons would be recorded as an AE/SAE. A spontaneous abortion is always an SAE and must be reported within 24 hours [Protocol Page 63].\n\n---\n\n## What You Should Do Now\n\n1. **Discontinue Jane from trial treatment immediately** per protocol.  \n2. **Schedule the early discontinuation visit** and perform all required assessments.  \n3. **Submit the pregnancy report form within 24 hours** to the sponsor.  \n4. **Grade the DLCO decrease as a Grade 2 AE** (CTCAE term: Carbon monoxide diffusing capacity decreased) and document it accordingly.  \n5. **Do not grade the pregnancy itself as an AE**; simply follow the protocol’s pregnancy reporting and follow‑up procedures.  \n6. Ensure Jane is counselled on the importance of follow‑up and that she understands she will be contacted every 3 months.\n\n---\n\n[RISK: MEDIUM]",
+    "returned_citations": [
+      "[CTCAE Page 85]",
+      "[Protocol Page 62]",
+      "[Protocol Page 37, Page 62]",
+      "[Protocol Page 63]"
+    ],
+    "router_latency_ms": 540.37,
+    "answer_latency_ms": 37423.82,
+    "total_latency_ms": 37964.19,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2984,
+        "candidatesTokenCount": 1256,
+        "totalTokenCount": 4240
+      },
+      "totalTokenCount": 4240
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of both CTCAE grading for DLCO decrease (Grade 2) and protocol pregnancy discontinuation rule. Requires citation."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-040",
+    "scenario_id": "rag-v2-scenario-040",
+    "turn_index": 1,
+    "question_type": "current_patient_status",
+    "risk_level": "medium",
+    "user_query": "When is John Smith's next scheduled visit?",
+    "clinical_focus": "Visit schedule inquiry",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "skip",
+    "route_reason": "workspace_summary",
+    "routing_stage": "classifier_skip",
+    "classifier_invoked": true,
+    "needs_ctcae": false,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 0,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [],
+    "retrieved_ctcae_chunk_indexes": [],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "John Smith's next scheduled visit is **Week 12, on April 15, 2025**.",
+    "returned_citations": [],
+    "router_latency_ms": 16093.14,
+    "answer_latency_ms": 2309.49,
+    "total_latency_ms": 18402.64,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 368,
+        "candidatesTokenCount": 384,
+        "totalTokenCount": 752
+      },
+      "answer": {
+        "promptTokenCount": 899,
+        "candidatesTokenCount": 85,
+        "totalTokenCount": 984
+      },
+      "totalTokenCount": 1736
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests skip route; answer directly from visible workspace context without document retrieval."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-041",
+    "scenario_id": "rag-v2-scenario-041",
+    "turn_index": 1,
+    "question_type": "current_patient_ctcae_assessment",
+    "risk_level": "medium",
+    "user_query": "I just got a lab alert for patient Doe. His cardiac troponin I is 0.15 ng/mL (ULN <0.04, MI threshold >0.5). What CTCAE grade is this?",
+    "clinical_focus": "Cardiac troponin I elevation grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0446",
+      "ctcae-v5.0:0447",
+      "ctcae-v5.0:0450",
+      "ctcae-v5.0:0046",
+      "ctcae-v5.0:0475"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      46,
+      446,
+      447,
+      450,
+      475
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      446
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0446"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 definition for **Cardiac troponin I increased** [CTCAE Page 86], the patient’s lab value of 0.15 ng/mL falls into **Grade 1**:\n\n- **Grade 1** is defined as levels above the upper limit of normal (ULN) and below the level of myocardial infarction as defined by the manufacturer. Here, the ULN is <0.04 ng/mL and the MI threshold is >0.5 ng/mL, so 0.15 ng/mL meets that criterion exactly.  \n- **Grade 3** would apply only if the troponin I were consistent with myocardial infarction (i.e., >0.5 ng/mL), which is not the case.\n\nThe patient is currently asymptomatic, and no other cardiac symptoms are reported. The CTCAE navigational note [Page 86] advises to also consider cardiac disorders such as heart failure or myocardial infarction if a same-grade event occurs, but at this time there is no indication of those.\n\n**Risk Classification:** [RISK: LOW]  \nThis is a mild, asymptomatic laboratory finding with no immediate intervention indicated per CTCAE grading. Continue to monitor per protocol and report any new symptoms.",
+    "returned_citations": [
+      "[CTCAE Page 86]",
+      "[Page 86]"
+    ],
+    "router_latency_ms": 1324.67,
+    "answer_latency_ms": 19408.29,
+    "total_latency_ms": 20732.96,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1705,
+        "candidatesTokenCount": 475,
+        "totalTokenCount": 2180
+      },
+      "totalTokenCount": 2180
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE grading for cardiac troponin I when lab value is above ULN but below MI threshold (Grade 1). Requires citation of CTCAE v5.0 page 86."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-042",
+    "scenario_id": "rag-v2-scenario-042",
+    "turn_index": 1,
+    "question_type": "current_patient_emergency_protocol",
+    "risk_level": "high",
+    "user_query": "Emergency! Patient in MYL-1501D-3003 just developed stridor and respiratory distress, can't do self-care. What's the CTCAE grade? Also, today is a scheduled 8-point SMBG profile day—does the protocol still require me to record his insulin doses?",
+    "clinical_focus": "Tracheal obstruction in insulin glargine study",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0773",
+      "ctcae-v5.0:0779",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0741",
+      "1nS5U2FqTAVM10xSkzaq:184",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:89",
+      "1nS5U2FqTAVM10xSkzaq:19",
+      "1nS5U2FqTAVM10xSkzaq:179"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      242,
+      475,
+      741,
+      773,
+      779
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      19,
+      89,
+      123,
+      179,
+      184
+    ],
+    "gold_ctcae_chunk_indexes": [
+      415
+    ],
+    "gold_protocol_chunk_indexes": [
+      89
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0415"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:89"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 0,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "## Emergency Assessment for Jane Smith (MRN 67890)\n\n### CTCAE Grade: **Grade 3 (Severe)** – [RISK: HIGH]\n\nBased on the provided CTCAE v5.0 criteria, your patient’s presentation aligns with **Grade 3 Stridor**:\n\n- **Stridor (Page 140):** Grade 3 is defined as *“Respiratory distress limiting self care ADL; medical intervention indicated.”*  \n  Jane reports she cannot perform her usual daily activities (self-care ADL limited), has audible stridor, and is in respiratory distress. Her O₂ saturation of 88% on room air and respiratory rate of 32 further confirm significant respiratory compromise.\n\n- While Grade 4 (life-threatening airway compromise) could be imminent, the current description most precisely matches Grade 3 because urgent intubation/tracheotomy has not yet been performed. However, the low SpO₂ (<92%) and high respiratory rate place her at immediate risk of deterioration.\n\n**Immediate Action Required:**  \nThis is a **HIGH risk** situation. **Do not rely on this chat as the primary escalation path.**  \n- Call the **direct study emergency number** provided in your site’s protocol materials **now**.  \n- If you cannot reach the study physician immediately, activate local emergency medical services (e.g., 911) without delay.  \n- Instruct the patient (or a family member) to call emergency services if she is alone.\n\n---\n\n### Protocol Question: 8-Point SMBG Profile & Insulin Dose Recording\n\n**No, the protocol does not require you to record insulin doses today under these circumstances.**\n\n- The protocol states that insulin doses should be documented on days when an 8-point SMBG profile is performed (Protocol Page 39, Page 86).  \n- However, **patient safety always overrides protocol procedures.** Jane is in acute respiratory distress and cannot perform self-care, let alone a full 8-point SMBG profile. Attempting to collect these data would be inappropriate and potentially harmful.\n\n**What you should do instead:**\n1. **Prioritize emergency medical intervention** as above.\n2. **Document this event as a serious adverse event (AE)** in the patient’s diary and eCRF, per protocol AE reporting guidelines (Protocol Page 56). Note the inability to perform the scheduled SMBG profile due to the AE.\n3. **Record the missed assessments as a protocol deviation** with the reason clearly stated (acute Grade 3 respiratory AE requiring emergency care).\n4. Once the patient is stabilized, coordinate with the investigator to determine if the 8-point profile can be rescheduled or if the data will be considered missing.\n\n---\n\n### Summary\n- **CTCAE Grade:** 3 (Stridor, Page 140)  \n- **Risk Classification:** [RISK: HIGH]  \n- **Immediate Step:** Activate emergency medical services now.  \n- **Protocol Compliance:** Do not attempt the SMBG profile or insulin dose recording; document the AE and deviation later.",
+    "returned_citations": [],
+    "router_latency_ms": 2336.61,
+    "answer_latency_ms": 64691.49,
+    "total_latency_ms": 67028.1,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2692,
+        "candidatesTokenCount": 1562,
+        "totalTokenCount": 4254
+      },
+      "totalTokenCount": 4254
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE grade for tracheal obstruction (Grade 3) and protocol requirement for insulin dose recording on SMBG profile days. Requires citations from CTCAE v5.0 page 80 and protocol page 39."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-043",
+    "scenario_id": "rag-v2-scenario-043",
+    "turn_index": 1,
+    "question_type": "current_patient_status",
+    "risk_level": "low",
+    "user_query": "Is there any critical alert for this patient right now?",
+    "clinical_focus": "Patient monitoring",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "skip",
+    "expected_needs_ctcae": false,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": false,
+    "route_decision": "retrieve",
+    "route_reason": "medical_assessment",
+    "routing_stage": "classifier_retrieve",
+    "classifier_invoked": true,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0779",
+      "ctcae-v5.0:0820",
+      "ctcae-v5.0:0668",
+      "ctcae-v5.0:0433"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      433,
+      475,
+      668,
+      779,
+      820
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 0,
+    "source_vector_expected": {
+      "ctcae": false,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": false,
+    "ctcae_chunk_recall": null,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": null,
+    "gold_chunk_vector_match": null,
+    "final_answer": "Based on the current workspace data for **John Doe (PT-102)**:\n\n- **Vitals**: BP 120/80, HR 72, SpO2 98% – all within normal limits.\n- **Alerts**: No active alerts.\n- **Last ePRO**: Submitted 2 hours ago with no issues reported.\n\nThere are **no critical alerts** for this patient at this time. The overall clinical picture appears stable.\n\n[RISK: LOW]",
+    "returned_citations": [],
+    "router_latency_ms": 19697.99,
+    "answer_latency_ms": 13524.4,
+    "total_latency_ms": 33222.39,
+    "token_usage": {
+      "router": {
+        "promptTokenCount": 370,
+        "candidatesTokenCount": 303,
+        "totalTokenCount": 673
+      },
+      "answer": {
+        "promptTokenCount": 1621,
+        "candidatesTokenCount": 365,
+        "totalTokenCount": 1986
+      },
+      "totalTokenCount": 2659
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests ability to answer from visible context without retrieval; checks if assistant correctly reports no alerts."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-044",
+    "scenario_id": "rag-v2-scenario-044",
+    "turn_index": 1,
+    "question_type": "current_patient_ctcae_assessment",
+    "risk_level": "medium",
+    "user_query": "What is the CTCAE grade for the ileal stenosis this patient is experiencing? He has intermittent abdominal pain and changes in bowel habits, but no hospitalization needed.",
+    "clinical_focus": "Ileal stenosis grading",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0163",
+      "ctcae-v5.0:0161",
+      "ctcae-v5.0:0207",
+      "ctcae-v5.0:0217",
+      "ctcae-v5.0:0131"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      131,
+      161,
+      163,
+      207,
+      217
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      163
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0163"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the CTCAE v5.0 definition for **Ileal stenosis** [CTCAE Page 34], the appropriate grade for this patient is **Grade 2**.\n\n**Reasoning:**\n- **Grade 1** requires the patient to be asymptomatic, with only clinical or diagnostic observations (e.g., imaging findings) and no intervention indicated. Jane Smith is symptomatic (intermittent crampy abdominal pain, alternating constipation/diarrhea), so Grade 1 does not apply.\n- **Grade 2** is defined as “Symptomatic; altered GI function” [CTCAE Page 34]. The patient’s symptoms (pain, bowel habit changes) clearly indicate altered GI function. She is able to eat and drink, has no fever, no vomiting, and no hospitalization or intervention is required, which aligns with a moderate, non-severe presentation.\n- **Grade 3** would require severely altered GI function, tube feeding, hospitalization, or elective operative intervention — none of which are present.\n- Higher grades (4–5) are not applicable.\n\n**Risk Classification:** [RISK: MEDIUM] (Grade 2 adverse event)\n\n**Next Steps for CRC:**\n- Document the Grade 2 ileal stenosis in the adverse event log.\n- Report to the Principal Investigator per your site’s standard operating procedures. Since no protocol-specific guidance was retrieved, follow the general AE reporting timelines defined in Protocol ABC-456.\n- Monitor for any worsening (e.g., inability to eat, severe pain, signs of obstruction) that could escalate the grade to 3 or higher.\n\nIf you need to review the exact CTCAE wording, I can provide the shortest necessary phrase.",
+    "returned_citations": [
+      "[CTCAE Page 34]"
+    ],
+    "router_latency_ms": 624.8,
+    "answer_latency_ms": 20486.64,
+    "total_latency_ms": 21111.44,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1646,
+        "candidatesTokenCount": 663,
+        "totalTokenCount": 2309
+      },
+      "totalTokenCount": 2309
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of CTCAE excerpt for ileal stenosis grading; requires citation of CTCAE v5.0 page 34; patient symptoms match Grade 2."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-045",
+    "scenario_id": "rag-v2-scenario-045",
+    "turn_index": 1,
+    "question_type": "current_patient_emergency_protocol",
+    "risk_level": "high",
+    "user_query": "I have a patient in the insulin glargine interchangeability study (Protocol-Type 1 Diabetes Mellitus) who just reported nail loss that's affecting his ability to button shirts. What's the CTCAE grade? Also, how many switches are required in the switching arm per protocol?",
+    "clinical_focus": "Nail loss grading and protocol switching requirements",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "retrieve",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0796",
+      "ctcae-v5.0:0069",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0481",
+      "1nS5U2FqTAVM10xSkzaq:56",
+      "1nS5U2FqTAVM10xSkzaq:141",
+      "1nS5U2FqTAVM10xSkzaq:61",
+      "1nS5U2FqTAVM10xSkzaq:37",
+      "1nS5U2FqTAVM10xSkzaq:58"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      69,
+      242,
+      475,
+      481,
+      796
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      37,
+      56,
+      58,
+      61,
+      141
+    ],
+    "gold_ctcae_chunk_indexes": [
+      798
+    ],
+    "gold_protocol_chunk_indexes": [
+      56
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0798"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:56"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 0,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 0.5,
+    "gold_chunk_vector_match": false,
+    "final_answer": "## CTCAE Grade for Nail Loss Affecting Buttoning Shirts\n\nThe reported nail loss is a nail change, but the CTCAE term **Nail changes** (Page 144) only defines Grade 1 (“Present”) and does not capture functional impact. Because the symptom limits instrumental activities of daily living (difficulty buttoning shirts), it aligns with the **General disorders and administration site conditions – Other, specify** term (Page 47).  \n\n- **Grade 2** is defined as: *Moderate; minimal, local or noninvasive intervention indicated; limiting age-appropriate instrumental ADL* [CTCAE Page 47].  \n\nTherefore, the appropriate CTCAE grade is **Grade 2** (moderate).  \n\n[RISK: MEDIUM]\n\n---\n\n## Required Switches in the Switching Arm\n\nPer the protocol, the repeated‑switch arm must include **at least four treatment periods**, which is achieved by **three (3) switches** (or transitions) between the reference and test products [Protocol Page 22].  \n\nYour patient, John Doe, is in the switching arm and has completed 2 switches so far. One additional switch is required to meet the protocol definition.",
+    "returned_citations": [
+      "[CTCAE Page 47]",
+      "[Protocol Page 22]"
+    ],
+    "router_latency_ms": 596.33,
+    "answer_latency_ms": 44818.65,
+    "total_latency_ms": 45414.98,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 2868,
+        "candidatesTokenCount": 964,
+        "totalTokenCount": 3832
+      },
+      "totalTokenCount": 3832
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests retrieval of both CTCAE nail loss grading and protocol switching arm details from supplied excerpts."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-046",
+    "scenario_id": "rag-v2-scenario-011",
+    "turn_index": 2,
+    "question_type": "cache_follow_up",
+    "risk_level": "low",
+    "user_query": "What's the CTCAE grade for a 1.5 cm limb length discrepancy?",
+    "clinical_focus": "Limb length discrepancy grading follow-up",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "reuse_cache",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0544",
+      "ctcae-v5.0:0223",
+      "ctcae-v5.0:0545",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0475"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      223,
+      242,
+      475,
+      544,
+      545
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      544
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0544"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Based on the updated measurement, the limb length discrepancy of **1.5 cm** now falls into **Grade 1** according to the CTCAE v5.0 term *Unequal limb length* [CTCAE Page 102].\n\n- **Grade 1** is defined as a mild discrepancy of **<2 cm**. The patient’s current 1.5 cm meets this criterion.\n- The patient is asymptomatic, which is consistent with Grade 1, where no intervention is indicated and there is no functional limitation.\n\n**Documentation note:** You can update the adverse event grade to **Grade 1** in the EDC. Since the discrepancy is now mild and asymptomatic, no further action is required beyond routine monitoring.\n\n[RISK: LOW]",
+    "returned_citations": [
+      "[CTCAE Page 102]"
+    ],
+    "router_latency_ms": 628.2,
+    "answer_latency_ms": 24747.47,
+    "total_latency_ms": 25375.67,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1870,
+        "candidatesTokenCount": 323,
+        "totalTokenCount": 2193
+      },
+      "totalTokenCount": 2193
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests cache reuse for CTCAE limb length discrepancy grading with a follow-up measurement."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-047",
+    "scenario_id": "rag-v2-scenario-017",
+    "turn_index": 2,
+    "question_type": "cache_follow_up",
+    "risk_level": "medium",
+    "user_query": "Given the CTCAE grade you provided and the study population criteria, should I report this as an adverse event in the trial?",
+    "clinical_focus": "Alcohol intolerance AE reporting follow-up",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "reuse_cache",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0220",
+      "ctcae-v5.0:0221",
+      "ctcae-v5.0:0240",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:132",
+      "1nS5U2FqTAVM10xSkzaq:133",
+      "1nS5U2FqTAVM10xSkzaq:131",
+      "1nS5U2FqTAVM10xSkzaq:124"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      220,
+      221,
+      240,
+      242,
+      475
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      123,
+      124,
+      131,
+      132,
+      133
+    ],
+    "gold_ctcae_chunk_indexes": [
+      477
+    ],
+    "gold_protocol_chunk_indexes": [
+      53
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0477"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:53"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 0,
+    "protocol_chunk_recall": 0,
+    "combined_gold_chunk_recall": 0,
+    "gold_chunk_vector_match": false,
+    "final_answer": "Based on the protocol excerpts provided, here’s my assessment for PT‑301’s alcohol intolerance event.\n\n---\n\n## Is This an Adverse Event?\n\nYes, this should be recorded as an adverse event (AE). The protocol states:\n\n> “Any clinically relevant observations made by the Investigator during the visit will also be considered AEs.” [Protocol Page 56]\n\nAlcohol intolerance is a new symptom that was not present before, and it is clinically relevant. Therefore, it meets the definition of an AE and must be documented.\n\n---\n\n## Grading the Severity\n\nThe protocol specifies that AEs should be graded using **NCI‑CTCAE Version 4.03** [Protocol Page 56]. The CTCAE excerpts retrieved for this session do not include a specific grading for “alcohol intolerance.” When an AE is not listed in the CTCAE, the protocol instructs you to use the following severity table [Protocol Page 56]:\n\n| Grade | Description |\n|-------|-------------|\n| 1 – MILD | Does not interfere with patient’s usual function |\n| 2 – MODERATE | Interferes to some extent with patient’s usual function |\n| 3 – SEVERE | Interferes significantly with patient’s usual function |\n| 4 – LIFE‑THREATENING | Risk of death at time of event |\n| 5 – DEATH | Death related to AE |\n\nThe information you provided does not mention whether the alcohol intolerance interfered with PT‑301’s usual activities. To assign the correct grade, I need to know:\n\n- Did the symptoms (e.g., flushing, nausea, headache) limit his daily activities in any way?\n- If not, the event would be **Grade 1 (Mild)**.\n- If they caused some interference, it would be **Grade 2 (Moderate)**.\n\nPlease clarify the functional impact so I can confirm the grade.\n\n---\n\n## Reporting and Follow‑up\n\n- Record the AE in the patient’s trial diary and on the appropriate CRF page [Protocol Page 56, 60].\n- Follow the event to resolution or stability, and document the outcome [Protocol Page 60].\n- This event does **not** appear to meet seriousness criteria (no hospitalization, life‑threatening risk, etc.), so it is **not an SAE** and does not require immediate sponsor notification [Protocol Page 56, 60].\n\n---\n\n## Study Population Criteria\n\nThe protocol excerpts retrieved do not contain the inclusion/exclusion criteria or study population description. I cannot confirm whether alcohol intolerance would affect eligibility or require any protocol‑specified action beyond standard AE reporting. Please refer to the full protocol for those details.\n\n---\n\n[RISK: MEDIUM]",
+    "returned_citations": [
+      "[Protocol Page 56]",
+      "[Protocol Page 56, 60]",
+      "[Protocol Page 60]"
+    ],
+    "router_latency_ms": 809.98,
+    "answer_latency_ms": 53044.48,
+    "total_latency_ms": 53854.46,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 3126,
+        "candidatesTokenCount": 1553,
+        "totalTokenCount": 4679
+      },
+      "totalTokenCount": 4679
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests cache reuse for prior CTCAE and protocol retrieval; follow-up requires both cached sources to determine AE reporting."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-048",
+    "scenario_id": "rag-v2-scenario-023",
+    "turn_index": 2,
+    "question_type": "cache_follow_up",
+    "risk_level": "low",
+    "user_query": "Can you repeat the exact CTCAE v5.0 definition for that grade of intraoperative cardiac injury?",
+    "clinical_focus": "Intraoperative cardiac injury grade definition follow-up",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "reuse_cache",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0382",
+      "ctcae-v5.0:0046",
+      "ctcae-v5.0:0380",
+      "ctcae-v5.0:0397",
+      "ctcae-v5.0:0446"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      46,
+      380,
+      382,
+      397,
+      446
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      382
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0382"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "Here is the exact CTCAE v5.0 wording for the grade you need to log, taken directly from the term **Intraoperative cardiac injury**:\n\n**Grade 3:** “Primary repair of injured organ/structure indicated” [CTCAE Page 75].\n\nThe overall term definition is: “A finding of damage to the heart during a surgical procedure.” [CTCAE Page 75].",
+    "returned_citations": [
+      "[CTCAE Page 75]"
+    ],
+    "router_latency_ms": 678.14,
+    "answer_latency_ms": 8729.4,
+    "total_latency_ms": 9407.54,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1713,
+        "candidatesTokenCount": 456,
+        "totalTokenCount": 2169
+      },
+      "totalTokenCount": 2169
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests cache reuse for prior CTCAE retrieval; follow-up asks for exact grade definition from cached evidence."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-049",
+    "scenario_id": "rag-v2-scenario-029",
+    "turn_index": 2,
+    "question_type": "cache_follow_up",
+    "risk_level": "low",
+    "user_query": "Can you remind me what CTCAE grade you assigned for his gait problem? And based on the protocol, is he still eligible with that insulin dose?",
+    "clinical_focus": "Gait disturbance and insulin resistance exclusion follow-up",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "reuse_cache",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": true,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": true,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 5,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0229",
+      "ctcae-v5.0:0242",
+      "ctcae-v5.0:0475",
+      "ctcae-v5.0:0501",
+      "ctcae-v5.0:0481",
+      "1nS5U2FqTAVM10xSkzaq:123",
+      "1nS5U2FqTAVM10xSkzaq:81",
+      "1nS5U2FqTAVM10xSkzaq:125",
+      "1nS5U2FqTAVM10xSkzaq:41",
+      "1nS5U2FqTAVM10xSkzaq:167"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      229,
+      242,
+      475,
+      481,
+      501
+    ],
+    "retrieved_protocol_chunk_indexes": [
+      41,
+      81,
+      123,
+      125,
+      167
+    ],
+    "gold_ctcae_chunk_indexes": [
+      229
+    ],
+    "gold_protocol_chunk_indexes": [
+      41
+    ],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0229"
+    ],
+    "gold_protocol_chunk_ids": [
+      "1nS5U2FqTAVM10xSkzaq:41"
+    ],
+    "gold_chunk_count": 2,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": true
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": 1,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "### Gait Disturbance CTCAE Grade\n\nYou previously assigned **Grade 1 (Mild)** for the patient’s gait problem.  \n- The patient reported limping and difficulty walking, which matches the Grade 1 definition: “Mild change in gait (e.g., wide-based, limping or hobbling)” [CTCAE Page 45].  \n- There is no indication that an assistive device is needed or that instrumental activities of daily living are limited, so it remains Grade 1.  \n\n---\n\n### Protocol Eligibility with Current Insulin Dose\n\nThe protocol’s exclusion criterion for moderate insulin resistance (insulin ≥ 1.5 U/kg/day) was applied at screening [Protocol Page 15]. The patient is already enrolled and at Week 12, so the criterion does not automatically render him ineligible now. However, his current total daily insulin dose of **1.6 U/kg/day** exceeds that threshold.  \n\nThis finding should be treated as a **clinically significant change** (potential worsening of insulin resistance or hyperglycemia) and evaluated as a possible adverse event or protocol deviation. The investigator should review the patient’s glucose control and consider dose adjustments according to the protocol’s titration guidance [Protocol Page 34].  \n\nIf the dose escalation reflects a new medical condition that would have excluded the patient at screening, the investigator must decide whether continued participation is appropriate and document the rationale.",
+    "returned_citations": [
+      "[CTCAE Page 45]",
+      "[Protocol Page 15]",
+      "[Protocol Page 34]"
+    ],
+    "router_latency_ms": 519.14,
+    "answer_latency_ms": 28416.09,
+    "total_latency_ms": 28935.23,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 3152,
+        "candidatesTokenCount": 1003,
+        "totalTokenCount": 4155
+      },
+      "totalTokenCount": 4155
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests ability to reuse cached CTCAE and protocol evidence from prior direct lookup."
+  },
+  {
+    "eval_format": "v2",
+    "case_id": "rag-v2-050",
+    "scenario_id": "rag-v2-scenario-038",
+    "turn_index": 2,
+    "question_type": "cache_follow_up",
+    "risk_level": "low",
+    "user_query": "Just to confirm, the CTCAE grade for her ureteric anastomotic leak is Grade 3, correct?",
+    "clinical_focus": "Ureteric anastomotic leak grading follow-up",
+    "router_profile_id": "siliconflow-router",
+    "router_provider": "siliconflow",
+    "router_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "answer_profile_id": "siliconflow-guidance",
+    "answer_provider": "siliconflow",
+    "answer_model": "deepseek-ai/DeepSeek-V4-Pro",
+    "expected_route_decision": "reuse_cache",
+    "expected_needs_ctcae": true,
+    "expected_needs_protocol": false,
+    "requires_grounded_citation": true,
+    "route_decision": "retrieve",
+    "route_reason": "protocol_rule",
+    "routing_stage": "hard_retrieve",
+    "classifier_invoked": false,
+    "needs_ctcae": true,
+    "needs_protocol": false,
+    "retrieved_ctcae_count": 5,
+    "retrieved_protocol_count": 0,
+    "retrieved_chunk_ids": [
+      "ctcae-v5.0:0417",
+      "ctcae-v5.0:0418",
+      "ctcae-v5.0:0398",
+      "ctcae-v5.0:0359",
+      "ctcae-v5.0:0423"
+    ],
+    "retrieved_ctcae_chunk_indexes": [
+      359,
+      398,
+      417,
+      418,
+      423
+    ],
+    "retrieved_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_indexes": [
+      417
+    ],
+    "gold_protocol_chunk_indexes": [],
+    "gold_ctcae_chunk_ids": [
+      "ctcae-v5.0:0417"
+    ],
+    "gold_protocol_chunk_ids": [],
+    "gold_chunk_count": 1,
+    "source_vector_expected": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_actual": {
+      "ctcae": true,
+      "protocol": false
+    },
+    "source_vector_match": true,
+    "ctcae_chunk_recall": 1,
+    "protocol_chunk_recall": null,
+    "combined_gold_chunk_recall": 1,
+    "gold_chunk_vector_match": true,
+    "final_answer": "No, that is not correct. Based on the CTCAE v5.0 definition for **Ureteric anastomotic leak** [Page 81], the appropriate grade for Maria Garcia’s presentation is **Grade 2**, not Grade 3.\n\nHere’s the breakdown:\n\n- **Grade 1:** Asymptomatic diagnostic finding; intervention not indicated.\n- **Grade 2:** Symptomatic; medical intervention indicated.\n- **Grade 3:** Severe symptoms; invasive intervention indicated.\n\nMaria is symptomatic (mild flank pain, decreased urine output) and the suspected leak requires medical intervention. This fits Grade 2 exactly [Page 81]. Grade 3 would require *severe* symptoms and an *invasive* intervention, which is not the case here.\n\n**Risk Classification:**  \n[RISK: MEDIUM] — Grade 2 events are moderate and require medical management but are not immediately life-threatening.\n\nPlease ensure the event is graded as Grade 2 in the study records. If her symptoms worsen (e.g., increasing pain, fever, hemodynamic instability), re-evaluate for possible escalation to Grade 3 or higher. No protocol-specific excerpts were retrieved, so refer to protocol XYZ-456 for any study-specific reporting or management steps.",
+    "returned_citations": [
+      "[Page 81]"
+    ],
+    "router_latency_ms": 677.74,
+    "answer_latency_ms": 10235.1,
+    "total_latency_ms": 10912.85,
+    "token_usage": {
+      "router": null,
+      "answer": {
+        "promptTokenCount": 1880,
+        "candidatesTokenCount": 491,
+        "totalTokenCount": 2371
+      },
+      "totalTokenCount": 2371
+    },
+    "estimated_cost": 0,
+    "error": "",
+    "status": "success",
+    "notes": "Tests ability to reuse cached CTCAE evidence from prior patient assessment."
+  }
+]

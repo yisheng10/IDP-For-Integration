@@ -8,6 +8,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 import { runGeminiWithKeyPool } from './geminiKeyRegistry.js';
 import { createLiveKitCallToken } from './livekitRuntime.js';
+import { runTask } from './lib/modelRuntime.js';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -2181,7 +2182,7 @@ async function runSideEffectGuidanceTraceBuffered(payload = {}, requesterProfile
   };
 }
 
-async function runSideEffectGuidanceChat(payload = {}) {
+export async function runSideEffectGuidanceChat(payload = {}) {
   const systemPrompt = String(payload.systemPrompt || '');
   const userMessage = String(payload.userMessage || '').trim();
   const messages = Array.isArray(payload.messages) ? payload.messages : [];
@@ -2202,6 +2203,24 @@ async function runSideEffectGuidanceChat(payload = {}) {
 
   if (!userMessage) {
     throw new HttpsError('invalid-argument', 'userMessage is required.');
+  }
+
+  if (payload.profileId) {
+    try {
+      return await runTask({
+        task: 'guidance_answer',
+        profileId: payload.profileId || null,
+        payload: {
+          systemPrompt,
+          messages,
+          userMessage,
+          model: payload.model || '',
+        },
+      });
+    } catch (error) {
+      console.error('profile sideEffectGuidanceChat failed:', error);
+      throw toCallableModelError(error, 'Guidance generation');
+    }
   }
 
   try {
@@ -2258,15 +2277,23 @@ async function runSideEffectGuidanceChat(payload = {}) {
   }
 }
 
-async function runRetrieveGuidanceContext(payload = {}) {
+export async function runRetrieveGuidanceContext(payload = {}) {
   const queryText = String(payload.queryText || '').trim();
   const {
     protocolId,
     protocolName,
     fallbackProtocolName,
   } = normalizeProtocolLookup(payload.protocolId || null, payload.protocolName || null);
-  const ctcaeMatchCount = Math.max(0, Number(payload.ctcaeMatchCount) || DEFAULT_MATCH_COUNT);
-  const protocolMatchCount = Math.max(0, Number(payload.protocolMatchCount) || DEFAULT_MATCH_COUNT);
+  const requestedCtcaeMatchCount = Number(payload.ctcaeMatchCount);
+  const requestedProtocolMatchCount = Number(payload.protocolMatchCount);
+  const ctcaeMatchCount = Math.max(
+    0,
+    Number.isFinite(requestedCtcaeMatchCount) ? requestedCtcaeMatchCount : DEFAULT_MATCH_COUNT
+  );
+  const protocolMatchCount = Math.max(
+    0,
+    Number.isFinite(requestedProtocolMatchCount) ? requestedProtocolMatchCount : DEFAULT_MATCH_COUNT
+  );
 
   if (!queryText) {
     return {
@@ -2312,7 +2339,7 @@ async function runRetrieveGuidanceContext(payload = {}) {
   };
 }
 
-async function runClassifyGuidanceRoute(payload = {}) {
+export async function runClassifyGuidanceRoute(payload = {}) {
   const userText = String(payload.userText || '').trim();
   const previousUserMessage = String(payload.previousUserMessage || '').trim();
   const previousModelMessage = String(payload.previousModelMessage || '').trim();
@@ -2320,6 +2347,8 @@ async function runClassifyGuidanceRoute(payload = {}) {
   const hasProtocolScope = Boolean(payload.hasProtocolScope);
   const previousTurnUsedRetrieval = Boolean(payload.previousTurnUsedRetrieval);
   const cachedSourcesAvailable = Boolean(payload.cachedSourcesAvailable);
+  const assistantMode =
+    String(payload.assistantMode || '').trim().toLowerCase() === 'patient' ? 'patient' : 'crc';
 
   if (!userText) {
     return {
@@ -2329,6 +2358,42 @@ async function runClassifyGuidanceRoute(payload = {}) {
       reason_code: 'greeting',
       confidence: 1,
     };
+  }
+
+  if (payload.profileId) {
+    try {
+      const runtimeResult = await runTask({
+        task: 'guidance_route',
+        profileId: payload.profileId || null,
+        payload: {
+          userMessage: buildGuidanceRoutePrompt({
+            userText,
+            previousUserMessage,
+            previousModelMessage,
+            hasPatientContext,
+            hasProtocolScope,
+            previousTurnUsedRetrieval,
+            cachedSourcesAvailable,
+            assistantMode,
+          }),
+          model: payload.model || '',
+        },
+      });
+
+      return {
+        ...normalizeRouterDecision(parseJsonResponse(runtimeResult.text), {
+          hasProtocolScope,
+        }),
+        provider: runtimeResult.provider,
+        model: runtimeResult.model,
+        profileId: runtimeResult.profileId,
+        usage: runtimeResult.usage || null,
+        estimatedCost: Number(runtimeResult.estimatedCost) || 0,
+      };
+    } catch (error) {
+      console.error('profile classifyGuidanceRoute failed:', error);
+      return buildRouterFallbackDecision(hasProtocolScope);
+    }
   }
 
   try {
